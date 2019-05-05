@@ -1,0 +1,55 @@
+{{ define "main" }}
+
+{{ partial "primary_top.html" . }}
+
+<div class="search-results">
+    <script>
+        (function() {
+            {{ if .Site.Data.args.preliminary }}
+                const cx = '{{ .Site.Data.args.preliminary_search_engine_id }}';
+            {{ else if .Site.Data.args.archive }}
+                const cx = '{{ .Site.Data.args.archive_search_engine_id }}';
+            {{ else }}
+                const cx = '{{ .Site.Data.args.main_search_engine_id }}';
+            {{ end }}
+                const gcse = document.createElement('script');
+                gcse.type = 'text/javascript';
+                gcse.async = true;
+                gcse.src = 'https://cse.google.com/cse.js?cx=' + cx;
+                const s = document.getElementsByTagName('script')[0];
+                s.parentNode.insertBefore(gcse, s);
+            })();
+    </script>
+
+    {{ if .Site.Data.args.archive }}
+        <gcse:searchresults-only defaultToRefinement="{{ .Site.Data.args.archive_search_refinement }}"></gcse:searchresults-only>
+    {{ else }}
+        <gcse:searchresults-only></gcse:searchresults-only>
+    {{ end }}
+</div>
+
+<script>
+    function getParameterByName(name, url) {
+        if (!url) {
+            url = window.location.href;
+        }
+        name = name.replace(/[\[\]]/g, "\\$&");
+        const regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
+                results = regex.exec(url);
+        if (!results) {
+            return null;
+        }
+        if (!results[2]) {
+            return '';
+        }
+        return decodeURIComponent(results[2].replace(/\+/g, " "));
+    }
+    const q = getParameterByName('q', window.location.href);
+    document.getElementsByName('q')[0].value = q;
+</script>
+
+{{ .Content }}
+
+{{ partial "primary_bottom.html" . }}
+
+{{ end }}

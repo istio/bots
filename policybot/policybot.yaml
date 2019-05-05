@@ -1,0 +1,7 @@
+spanner_db: projects/istio-testing/instances/istibot-stash/databases/gh
+
+orgs:
+  - name: istio
+    repos:
+      - name: istio.io
+      - name: bottestrepo
