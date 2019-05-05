@@ -1,0 +1,29 @@
+:root {
+    --mainBrandColor: #466bb0;
+    --secondBrandColor: #286ac7;
+    --textBrandColor: #ffffff;
+    --textBrandColorLight: #cccccc;
+    --textBrandHighlightColor: #de7d40;
+
+    .preliminary-site {
+        --secondBrandColor: #68aaf7;
+    }
+
+    .archive-site {
+        --secondBrandColor: #041a77;
+    }
+}
+
+$mainBrandColor: var(--mainBrandColor);
+$secondBrandColor: var(--secondBrandColor);
+$textBrandColor: var(--textBrandColor);
+$textBrandColorLight: var(--textBrandColorLight);
+$textBrandHighlightColor: var(--textBrandHighlightColor);
+
+$black: #000;
+$near-black: #2e2e2e;
+$white: #ffffff;
+$gray: #737373;
+$light-gray: lighten($gray, 52%);
+$medium-gray: lighten($gray, 35%);
+$dark-gray: darken($gray, 20%);

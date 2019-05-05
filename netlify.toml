@@ -1,0 +1,5 @@
+[build]
+    publish = "dashboard/public"
+
+[build.environment]
+    HUGO_VERSION = "0.55.5"
