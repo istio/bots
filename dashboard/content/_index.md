@@ -49,10 +49,10 @@ description: Connect, secure, control, and observe services.
             document.getElementById("login").style.display = "none";
             fetchUserData();
             fetchRepoData();
-        } else {        
+        } else {
             document.getElementById("login").addEventListener("click", login);
         }
-        
+
         function login(e) {
             e.preventDefault();
             var authenticator = new netlify.default ({});
@@ -62,15 +62,15 @@ description: Connect, secure, control, and observe services.
                     name.innerText = err;
                     return;
                 }
-                
+
                 github_token = data.token;
                 createCookie("github_token", github_token);
                 fetchUserData();
                 fetchRepoData();
             })
         }
-        
-        function fetchRepoData() {                    
+
+        function fetchRepoData() {
             fetch('https://policybot.istio.io/repos', {
             })
             .then(response => response.text())
@@ -80,7 +80,7 @@ description: Connect, secure, control, and observe services.
             });
         }
 
-        function fetchUserData() {                    
+        function fetchUserData() {
             fetch('https://api.github.com/user', {
                 headers: {
                     "Authorization": "token " + github_token,
@@ -89,7 +89,7 @@ description: Connect, secure, control, and observe services.
             .then(response => response.text())
             .then(data => {
                 const json = JSON.parse(data);
-                
+
                 const name = document.getElementById("name");
                 const image = document.getElementById("image");
 

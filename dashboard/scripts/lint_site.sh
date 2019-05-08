@@ -100,7 +100,6 @@ check_content() {
 }
 
 check_content content --en-us
-check_content content_zh --en-us
 
 for f in `find ./content -type f \( -name '*.html' -o -name '*.md' \)`
 do

@@ -1,6 +1,6 @@
 version: 2
 jobs:
-  build:
+  build_dashboard:
     docker:
       - image: gcr.io/istio-testing/website-builder:2019-05-03
 
@@ -10,13 +10,23 @@ jobs:
       - checkout
 
       - run:
-          name: Building Site
+          name: Building Dashboard
           command: scripts/build_site.sh
 
       - run:
-          name: Generating Site
+          name: Generating Dashboard
           command: scripts/gen_site.sh "" -no_minify
 
       - run:
           name: Running Linters
           command: scripts/lint_site.sh
+
+  lint:
+    working_directory: ~/site
+
+    steps:
+      - checkout
+
+      - run:
+          name: Linting
+          command: scripts/linters.sh
