@@ -1,5 +1,5 @@
 ---
-title: Istio
+title: Istio Bots
 description: Connect, secure, control, and observe services.
 ---
 <main class="landing">
