@@ -1,32 +1,54 @@
 version: 2
 jobs:
-  build_dashboard:
+  policybot:
     docker:
-      - image: gcr.io/istio-testing/website-builder:2019-05-03
-
-    working_directory: ~/site/dashboard
-
+      - image: gcr.io/istio-testing/circleci:2019-04-22
+    environment:
+      - GOPATH: /go
+    working_directory: /go/src/istio.io/bots
     steps:
       - checkout
-
+      - run: cd policybot
       - run:
-          name: Building Dashboard
-          command: scripts/build_site.sh
-
+          name: where
+          command: pwd
       - run:
-          name: Generating Dashboard
-          command: scripts/gen_site.sh "" -no_minify
-
+          name: What
+          command: ls
       - run:
-          name: Running Linters
-          command: scripts/lint_site.sh
+          name: Building policybot
+          command:
+            cd policybot && go build
 
   lint:
-    working_directory: ~/site
-
+    docker:
+      - image: gcr.io/istio-testing/circleci:2019-04-22
+    environment:
+      - GOPATH: /go
+    working_directory: /go/src/istio.io/bots
     steps:
       - checkout
-
       - run:
           name: Linting
-          command: scripts/linters.sh
+          command: make lint
+
+  build:
+    docker:
+      - image: gcr.io/istio-testing/website-builder:2019-05-03
+    working_directory: /go/src/istio.io/bots
+    steps:
+      - checkout
+      - run:
+          name: Generating Dashboard
+          command: cd dashboard && scripts/gen_site.sh "" -no_minify
+      - run:
+          name: Running Linters
+          command: cd dashboard && scripts/lint_site.sh
+
+workflows:
+  version: 2
+  all:
+    jobs:
+      - lint
+      - build
+      - policybot
