@@ -94,7 +94,7 @@ description: Connect, secure, control, and observe services.
                 const image = document.getElementById("image");
 
                 name.innerText = json.login;
-                image.innerHTML = "<img style='width:30px' src='" + json.avatar_url + "'>";
+                image.innerHTML = "<img style='width:40px' src='" + json.avatar_url + "'>";
             });
         }
   </script>
