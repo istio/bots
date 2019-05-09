@@ -1,6 +1,6 @@
 version: 2
 jobs:
-  policybot:
+  build_policybot:
     docker:
       - image: gcr.io/istio-testing/circleci:2019-04-22
     environment:
@@ -8,13 +8,6 @@ jobs:
     working_directory: /go/src/istio.io/bots
     steps:
       - checkout
-      - run: cd policybot
-      - run:
-          name: where
-          command: pwd
-      - run:
-          name: What
-          command: ls
       - run:
           name: Building policybot
           command:
@@ -32,7 +25,7 @@ jobs:
           name: Linting
           command: make lint
 
-  build:
+  build_dashboard:
     docker:
       - image: gcr.io/istio-testing/website-builder:2019-05-03
     working_directory: /go/src/istio.io/bots
@@ -50,5 +43,5 @@ workflows:
   all:
     jobs:
       - lint
-      - build
-      - policybot
+      - build_dashboard
+      - build_policybot
