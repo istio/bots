@@ -18,8 +18,8 @@ import (
 	"bytes"
 	"fmt"
 
-	"istio.io/istio/pkg/ctrlz"
-	"istio.io/istio/pkg/log"
+	"istio.io/common/pkg/ctrlz"
+	"istio.io/common/pkg/log"
 )
 
 type Repo struct {

@@ -23,8 +23,8 @@ import (
 
 	"google.golang.org/grpc/grpclog"
 
-	"istio.io/istio/pkg/ctrlz"
-	"istio.io/istio/pkg/log"
+	"istio.io/common/pkg/ctrlz"
+	"istio.io/common/pkg/log"
 
 	"istio.io/bots/policybot/pkg/storage"
 )

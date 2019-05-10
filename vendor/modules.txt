@@ -206,12 +206,12 @@ google.golang.org/grpc/binarylog/grpc_binarylog_v1
 google.golang.org/grpc/internal/syscall
 # gopkg.in/yaml.v2 v2.2.2
 gopkg.in/yaml.v2
-# istio.io/istio v0.0.0-20190508153008-fe4e23cd49a7
-istio.io/istio/pkg/log
-istio.io/istio/pkg/version
-istio.io/istio/pkg/ctrlz
-istio.io/istio/pkg/ctrlz/assets
-istio.io/istio/pkg/ctrlz/fw
-istio.io/istio/pkg/ctrlz/topics
-istio.io/istio/pkg/appsignals
-istio.io/istio/pkg/ctrlz/topics/assets
+# istio.io/common v0.0.0-20190510135701-a949bf15f7e2
+istio.io/common/pkg/log
+istio.io/common/pkg/version
+istio.io/common/pkg/ctrlz
+istio.io/common/pkg/ctrlz/assets
+istio.io/common/pkg/ctrlz/fw
+istio.io/common/pkg/ctrlz/topics
+istio.io/common/pkg/appsignals
+istio.io/common/pkg/ctrlz/topics/assets

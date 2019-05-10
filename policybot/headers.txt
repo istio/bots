@@ -1,8 +1,0 @@
-HTTP/2 200 
-access-control-allow-origin: *
-content-type: text/plain; charset=utf-8
-x-cloud-trace-context: 2304adaf373496ed9bc0f549bd69df60;o=1
-date: Wed, 08 May 2019 14:42:47 GMT
-server: Google Frontend
-content-length: 29
-
