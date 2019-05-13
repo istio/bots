@@ -22,7 +22,7 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/time/rate"
 
-	"istio.io/common/pkg/log"
+	"istio.io/pkg/log"
 
 	"istio.io/bots/policybot/pkg/storage"
 )

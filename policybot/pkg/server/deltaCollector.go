@@ -20,7 +20,7 @@ import (
 
 	"github.com/go-playground/webhooks/github"
 
-	"istio.io/common/pkg/log"
+	"istio.io/pkg/log"
 
 	"istio.io/bots/policybot/pkg/storage"
 )
