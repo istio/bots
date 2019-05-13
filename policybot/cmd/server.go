@@ -19,7 +19,7 @@ import (
 	"github.com/spf13/viper"
 
 	"istio.io/bots/policybot/pkg/server"
-	"istio.io/common/pkg/log"
+	"istio.io/pkg/log"
 )
 
 func serverCmd() *cobra.Command {
