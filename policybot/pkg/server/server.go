@@ -60,7 +60,13 @@ func Run(a *Args) error {
 
 	serverMux := http.NewServeMux()
 
-	deltaCollector, err := newDeltaCollector(a.GitHubSecret, store)
+	nagger, err := newTestNagger(context.Background(), a.GitHubAccessToken, a.Orgs, a.Nags)
+	if err != nil {
+		log.Errorf("Unable to create nagger: %v", err)
+		return err
+	}
+
+	deltaCollector, err := newDeltaCollector(a.GitHubSecret, store, nagger)
 	if err != nil {
 		log.Errorf("Unable to create GitHub delta collector: %v", err)
 	} else {

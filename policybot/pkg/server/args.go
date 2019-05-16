@@ -22,6 +22,38 @@ import (
 	"istio.io/pkg/log"
 )
 
+// Nag expresses some matching conditions against a PR, along with a message to inject into a PR
+// when it matches.
+//
+// The model is for a given PR:
+//
+//	if (PR title matches any of NatchTitle) || (PR body matches any of MatchBody) {
+// 		if (PR files match any of MatchFiles) {
+//			if (PR does not match any of AbsentFiles) {
+//				produce a nag message in the PR
+//			}
+//		}
+//	}
+type Nag struct {
+	// Name of the nag
+	Name string
+
+	// MatchTitle represents content that must be in the PR's title
+	MatchTitle []string // regexes
+
+	// MatchBody represents content that must be in the PR's body
+	MatchBody []string // regexes
+
+	// MatchFiles represents files that must be in the PR
+	MatchFiles []string // regexes
+
+	// AbsentFiles represents files that must not be in the PR
+	AbsentFiles []string // regexes
+
+	// The message to inject when any of the body expressions match and none of the file name ones do.
+	Message string
+}
+
 type Repo struct {
 	Name string
 }
@@ -29,6 +61,7 @@ type Repo struct {
 type Org struct {
 	Name  string
 	Repos []Repo
+	Nags  []Nag
 }
 
 type Args struct {
@@ -38,6 +71,7 @@ type Args struct {
 	GCPCredentials       string
 	SpannerDatabase      string
 	Orgs                 []Org
+	Nags                 []Nag
 	LoggingOptions       *log.Options
 	IntrospectionOptions *ctrlz.Options
 }
@@ -62,6 +96,7 @@ func (a *Args) String() string {
 	_, _ = fmt.Fprintf(buf, "Port: %d\n", a.Port)
 	_, _ = fmt.Fprintf(buf, "SpannerDatabase: %s\n", a.SpannerDatabase)
 	_, _ = fmt.Fprintf(buf, "Orgs: %+v\n", a.Orgs)
+	_, _ = fmt.Fprintf(buf, "Nags: %+v\n", a.Nags)
 	_, _ = fmt.Fprintf(buf, "LoggingOptions: %#v\n", a.LoggingOptions)
 	_, _ = fmt.Fprintf(buf, "IntrospectionOptions: %#v\n", a.IntrospectionOptions)
 

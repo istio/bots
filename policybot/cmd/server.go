@@ -42,6 +42,10 @@ func serverCmd() *cobra.Command {
 				return err
 			}
 
+			if err := viper.UnmarshalKey("nags", &ca.Nags); err != nil {
+				return err
+			}
+
 			log.Infof("IstioPolicyBot started with:\n%s", ca)
 			return server.Run(ca)
 		},

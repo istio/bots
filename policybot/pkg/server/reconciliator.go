@@ -51,7 +51,7 @@ func newReconciliator(ctx context.Context, githubAccessToken string, orgs []Org,
 	httpClient := oauth2.NewClient(ctx, src)
 	client := github.NewClient(httpClient)
 
-	r := &reconciliator{
+	return &reconciliator{
 		ctx:        ctx,
 		store:      store,
 		client:     client,
@@ -60,8 +60,6 @@ func newReconciliator(ctx context.Context, githubAccessToken string, orgs []Org,
 		newUsers:   make(map[string]*github.User),
 		limiter:    rate.NewLimiter(maxGitHubRequestsPerSecond, 100),
 	}
-
-	return r
 }
 
 func (r *reconciliator) handle(_ http.ResponseWriter, _ *http.Request) {

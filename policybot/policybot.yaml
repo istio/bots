@@ -1,7 +1,26 @@
 spanner_db: projects/istio-testing/instances/istibot-stash/databases/gh
 
+nags:
+  - name: Go
+    matchtitle:
+      - ".*Fix.*"
+    matchbody:
+      - ".*Fix.*"
+    matchfiles:
+      - ".*.go"
+    absentfiles:
+      - ".*_test.go"
+    message: "You appear to be fixing a bug in Go code, yet your PR doesn't include updates to any test files. Did you forget to add a test?"
+
 orgs:
   - name: istio
     repos:
       - name: istio.io
+      - name: istio
+      - nane: api
+      - name: cni
+      - name: operator
+      - name: installer
+      - name: pkg
+      - name: bots
       - name: bottestrepo

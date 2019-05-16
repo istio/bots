@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/go-playground/webhooks/github"
+	webhook "github.com/go-playground/webhooks/github"
 
 	"istio.io/pkg/log"
 
@@ -26,47 +26,47 @@ import (
 )
 
 type deltaCollector struct {
-	store storage.Store
-	hook  *github.Webhook
+	store  storage.Store
+	hook   *webhook.Webhook
+	nagger *testNagger
 }
 
-func newDeltaCollector(githubSecret string, store storage.Store) (*deltaCollector, error) {
-	hook, err := github.New(github.Options.Secret(githubSecret))
+func newDeltaCollector(githubSecret string, store storage.Store, nagger *testNagger) (*deltaCollector, error) {
+	hook, err := webhook.New(webhook.Options.Secret(githubSecret))
 	if err != nil {
-		return nil, fmt.Errorf("unable to create to create webhook: %v", err)
+		return nil, fmt.Errorf("unable to create webhook: %v", err)
 	}
 
 	return &deltaCollector{
-		store: store,
-		hook:  hook,
+		store:  store,
+		hook:   hook,
+		nagger: nagger,
 	}, nil
 }
 
 func (dc *deltaCollector) handle(w http.ResponseWriter, r *http.Request) {
 	payload, err := dc.hook.Parse(r,
-		github.IssueCommentEvent,
-		github.IssuesEvent,
-		github.PullRequestEvent,
-		github.PullRequestReviewEvent,
-		github.PullRequestReviewCommentEvent,
-		github.PushEvent)
+		webhook.IssueCommentEvent,
+		webhook.IssuesEvent,
+		webhook.PullRequestEvent,
+		webhook.PullRequestReviewEvent,
+		webhook.PullRequestReviewCommentEvent,
+		webhook.PushEvent)
 	if err != nil {
-		if err != github.ErrEventNotFound {
+		if err != webhook.ErrEventNotFound {
 			log.Errorf("Unable to parse GitHub webhook trigger: %v", err)
 		}
 		return
 	}
 
-	switch payload.(type) {
-	case github.IssueCommentPayload:
-		log.Info("IssueCommentPayload")
-	case github.IssuesPayload:
-		log.Info("IssuePayload")
-	case github.PullRequestReviewCommentPayload:
-		log.Info("PullRequestReviewCommentPayload")
-	case github.PullRequestPayload:
-		log.Info("PullRequestPayload")
-	case github.PullRequestReviewPayload:
-		log.Info("PullRequestReviewPayload")
+	switch p := payload.(type) {
+	case webhook.IssueCommentPayload:
+	case webhook.IssuesPayload:
+	case webhook.PullRequestReviewCommentPayload:
+	case webhook.PullRequestPayload:
+		dc.nagger.handleNewPR(&p)
+	case webhook.PullRequestReviewPayload:
+	default:
+		log.Errorf("Unrecognized payload type: %T, %+v", payload, payload)
 	}
 }
