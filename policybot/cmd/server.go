@@ -16,72 +16,76 @@ package cmd
 
 import (
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
+	"google.golang.org/grpc/grpclog"
 
+	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/server"
+	"istio.io/pkg/ctrlz"
+	"istio.io/pkg/env"
 	"istio.io/pkg/log"
 )
 
+const (
+	githubSecret   = "Secret for the GitHub webhook"
+	githubToken    = "Token to access the GitHub API"
+	gcpCreds       = "Base64-encoded credentials to access GCP"
+	configRepo     = "GitHub org/repo/branch where to fetch policybot config"
+	configFile     = "Path to a configuration file"
+	sendgridAPIKey = "API Key for sendgrid.com"
+	port           = "TCP port to listen to for incoming traffic"
+)
+
 func serverCmd() *cobra.Command {
-	ca := server.DefaultArgs()
+	ca := config.DefaultArgs()
+
+	ca.StartupOptions.GitHubSecret = env.RegisterStringVar("GITHUB_SECRET", ca.StartupOptions.GitHubSecret, githubSecret).Get()
+	ca.StartupOptions.GitHubToken = env.RegisterStringVar("GITHUB_TOKEN", ca.StartupOptions.GitHubToken, githubToken).Get()
+	ca.StartupOptions.GCPCredentials = env.RegisterStringVar("GCP_CREDS", ca.StartupOptions.GCPCredentials, gcpCreds).Get()
+	ca.StartupOptions.ConfigRepo = env.RegisterStringVar("CONFIG_REPO", ca.StartupOptions.ConfigRepo, configRepo).Get()
+	ca.StartupOptions.ConfigFile = env.RegisterStringVar("CONFIG_FILE", ca.StartupOptions.ConfigFile, configFile).Get()
+	ca.StartupOptions.SendGridAPIKey = env.RegisterStringVar("SENDGRID_APIKEY", ca.StartupOptions.SendGridAPIKey, sendgridAPIKey).Get()
+	ca.StartupOptions.Port = env.RegisterIntVar("PORT", ca.StartupOptions.Port, port).Get()
+
+	loggingOptions := log.DefaultOptions()
+	introspectionOptions := ctrlz.DefaultOptions()
 
 	serverCmd := &cobra.Command{
 		Use:   "server",
-		Short: "Starts IstioPolicyBot as a server",
+		Short: "Starts the policybot server",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			viper.AutomaticEnv()
-
-			ca.Port = viper.GetInt("port")
-			ca.GitHubSecret = viper.GetString("github_secret")
-			ca.GitHubAccessToken = viper.GetString("github_token")
-			ca.GCPCredentials = viper.GetString("gcp_creds")
-			ca.SpannerDatabase = viper.GetString("spanner_db")
-
-			if err := viper.UnmarshalKey("orgs", &ca.Orgs); err != nil {
-				return err
+			if err := log.Configure(loggingOptions); err != nil {
+				log.Errorf("Unable to configure logging: %v", err)
 			}
 
-			if err := viper.UnmarshalKey("nags", &ca.Nags); err != nil {
-				return err
+			// neutralize gRPC logging since it spews out useless junk
+			var dummy = dummyIoWriter{}
+			grpclog.SetLoggerV2(grpclog.NewLoggerV2(dummy, dummy, dummy))
+
+			if cs, err := ctrlz.Run(introspectionOptions, nil); err == nil {
+				defer cs.Close()
+			} else {
+				log.Errorf("Unable to initialize ControlZ: %v", err)
 			}
 
-			log.Infof("IstioPolicyBot started with:\n%s", ca)
 			return server.Run(ca)
 		},
 	}
 
-	var cfgFile string
-	serverCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "Path to a configuration file.")
+	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.ConfigRepo, "configRepo", "", "", configRepo)
+	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.ConfigFile, "configFile", "", "", configFile)
+	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.GitHubSecret, "github_secret", "", ca.StartupOptions.GitHubSecret, githubSecret)
+	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.GitHubToken, "github_token", "", ca.StartupOptions.GitHubToken, githubToken)
+	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.GCPCredentials, "gcp_creds", "", ca.StartupOptions.GCPCredentials, gcpCreds)
+	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.SendGridAPIKey, "sendgrid_apikey", "", ca.StartupOptions.SendGridAPIKey, sendgridAPIKey)
+	serverCmd.PersistentFlags().IntVarP(&ca.StartupOptions.Port, "port", "", ca.StartupOptions.Port, port)
 
-	cobra.OnInitialize(func() {
-		if len(cfgFile) > 0 {
-			viper.SetConfigFile(cfgFile)
-			if err := viper.ReadInConfig(); err != nil {
-				log.Fatalf("Unable to read configuration file %s: %v", cfgFile, err)
-			}
-		}
-	})
-
-	serverCmd.PersistentFlags().IntP("port", "", ca.Port,
-		"The IP port to listen to")
-
-	serverCmd.PersistentFlags().StringP("github_secret", "", ca.GitHubSecret,
-		"The GitHub secret used with the webhook")
-
-	serverCmd.PersistentFlags().StringP("github_token", "", ca.GitHubAccessToken,
-		"The GitHub access token used to call the GitHub API")
-
-	serverCmd.PersistentFlags().StringP("gcp_creds", "", ca.GCPCredentials,
-		"The GCP credentials JSON, enabling the bot to use GCP services")
-
-	serverCmd.PersistentFlags().StringP("spanner_db", "", ca.SpannerDatabase,
-		"Name of the Spanner database having been previously configured for this bot.")
-
-	ca.LoggingOptions.AttachCobraFlags(serverCmd)
-	ca.IntrospectionOptions.AttachCobraFlags(serverCmd)
-
-	_ = viper.BindPFlags(serverCmd.PersistentFlags())
+	loggingOptions.AttachCobraFlags(serverCmd)
+	introspectionOptions.AttachCobraFlags(serverCmd)
 
 	return serverCmd
 }
+
+type dummyIoWriter struct{}
+
+func (dummyIoWriter) Write([]byte) (int, error) { return 0, nil }

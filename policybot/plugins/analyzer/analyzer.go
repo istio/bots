@@ -12,23 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package server
+package analyzer
 
 import (
+	"bytes"
 	"net/http"
 
 	"istio.io/bots/policybot/pkg/storage"
 )
 
-type analyzer struct {
+type Analyzer struct {
+	store storage.Store
 }
 
-func newAnalyzer(store storage.Store) *analyzer {
-	return nil
+func NewAnalyzer(store storage.Store) *Analyzer {
+	return &Analyzer{
+		store: store,
+	}
 }
 
-func (a *analyzer) getRepos(w http.ResponseWriter, r *http.Request) {
+func (a *Analyzer) Handle(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.WriteHeader(200)
-	_, _ = w.Write([]byte("Hello from Istio policy bot!\n"))
+
+	b := &bytes.Buffer{}
+	org, _ := a.store.ReadOrgByLogin("istio")
+	if org != nil {
+		repo, _ := a.store.ReadRepoByName(org.OrgID, "istio")
+		if repo != nil {
+			b.WriteString("Hello World")
+		}
+	}
+
+	_, _ = w.Write(b.Bytes())
 }

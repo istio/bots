@@ -8,4 +8,4 @@ RUN apk update \
 
 COPY policybot /policybot
 COPY policybot.yaml /policybot.yaml
-CMD ["/policybot", "server", "--config", "./policybot.yaml"]
+CMD ["/policybot", "server", "--configFile", "./policybot.yaml"]
