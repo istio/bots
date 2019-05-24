@@ -8,6 +8,7 @@ issues, pull requests, test flakes, and more.
 - [Startup options](#startup-options)
 - [Configuration file](#configuration-file)
 - [Deployment](#deployment)
+- [Credentials and secrets](#credentials-and-secrets)
 
 ## Overview
 
@@ -25,13 +26,13 @@ also calls the GitHub API.
 ## Plugins
 
 The bot consists of a simple framework and distinct plugins that have specific isolated responsibilities. There are two
-flavors of plugins. API plugins expose a REST API, whereas Webhook Plugins listen to GitHub notifications. At the moments,
+flavors of plugins. API plugins expose a REST API, whereas Webhook Plugins listen to GitHub notifications. At the moment,
 the plugins are:
 
 API plugins:
 
 - syncer. Synchronizes GitHub issues and pull requests to Google Cloud Spanner, where the data can then be used
-for analysis. The syncer needs to be invoked on a period basis to refresh the data. This is handled by using
+for analysis. The syncer needs to be invoked on a periodic basis to refresh the data. This is handled by using
 Google Cloud Schedule to invoke the syncer's REST API (/sync).
 
 - analyzer. Grovels through the issue and pull request data in Google Cloud Spanner and returns
@@ -43,8 +44,8 @@ Webhook plugins:
 partial shutdown and restart of the bot, which will reread the config and start back up fully.
 
 - nagger. Injects nagging comments in pull requests if specific conditions are detected. This is primarily used to
-remind developers to included tests whenever they fix bugs, but the engine is general-purpose and could be used
-creatively  for other nagging comments.
+remind developers to include tests whenever they fix bugs, but the engine is general-purpose and could be used
+creatively for other nagging comments.
 
 ## Startup options
 
@@ -75,6 +76,17 @@ treated as a local file path within the bot's container.
 
 - PORT / --port. The TCP port to listen to for incoming traffic.
 
+## REST API
+
+The bot exposes a REST API at https://policybot.istio.io. It's pretty simple so far:
+
+- /sync - triggers the bot to synchronize GitHub issues into Google Cloud Spanner.
+
+- /githubwebhook - invoked by GitHub to repo any state change.
+
+- /analyze - a place holder that will eventually serve analysis data to the [dashboard UI](../dashboard/README.md) at
+https://bots.istio.io.
+
 ## Configuration file
 
 The bot's behavior is controlled entirely through its configuration file. The
@@ -98,5 +110,11 @@ is described by `spanner.ddl`
 - The various credentials used by the bot are set via environment variables specified within the Google Cloud Run
 UI.
 
-- TBD. The bot'ss configuration is maintained in the file `policybot/policybot.yaml` in the <https://github.com/istio/test-infra> repo.
+- TBD: The bot'ss configuration is maintained in the file `policybot/policybot.yaml` in the <https://github.com/istio/test-infra> repo.
 Changes pushed to this file are automatically picked up by the bot.
+
+## Credentials and secrets
+
+The bot needs a bunch of credentials to operate. As explained above, these credentials are supplied
+to the bot via environment variables or command-line flags. If you're a Googler, you can get access
+to the credentials at `go/valentine`.
