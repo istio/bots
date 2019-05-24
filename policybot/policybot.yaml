@@ -1,4 +1,6 @@
-spanner_db: projects/istio-testing/instances/istibot-stash/databases/gh
+spanner_db: projects/istio-testing/instances/istio-policy-bot/databases/gh
+email_from: Istio Policy Bot
+email_origin_address: noreply@istio.io
 
 nags:
   - name: Go
@@ -17,7 +19,7 @@ orgs:
     repos:
       - name: istio.io
       - name: istio
-      - nane: api
+      - name: api
       - name: cni
       - name: operator
       - name: installer

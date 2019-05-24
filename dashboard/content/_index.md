@@ -42,8 +42,6 @@ description: Connect, secure, control, and observe services.
     <p id="policybot"></p>
 
     <script>
-        fetchRepoData();
-
         let github_token = readCookie("github_token");
         if (github_token !== null) {
             document.getElementById("login").style.display = "none";

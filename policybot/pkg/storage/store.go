@@ -16,14 +16,29 @@ package storage
 
 import (
 	"io"
-
-	"github.com/google/go-github/v25/github"
 )
 
 type Store interface {
 	io.Closer
-	WriteOrgAndRepos(org *github.Organization, repos []*github.Repository) error
-	WriteIssueAndComments(org *github.Organization, repo *github.Repository, issue *github.Issue, comments []*github.IssueComment) error
-	WriteUsers(user []*github.User) error
-	ReadIssue(org *github.Organization, repo *github.Repository, id string) (*github.Issue, error)
+	WriteOrgs(orgs []*Org) error
+	WriteRepos(repos []*Repo) error
+	WriteIssues(issues []*Issue) error
+	WriteIssueComments(issueComments []*IssueComment) error
+	WriteUsers(users []*User) error
+	WriteLabels(labels []*Label) error
+
+	ReadOrgByID(org string) (*Org, error)
+	ReadOrgByLogin(login string) (*Org, error)
+	ReadRepoByID(org string, repo string) (*Repo, error)
+	ReadRepoByName(org string, name string) (*Repo, error)
+	ReadIssueByID(org string, repo string, issue string) (*Issue, error)
+	ReadIssueByNumber(org string, repo string, number int) (*Issue, error)
+	ReadIssueCommentByID(org string, repo string, issue string, issueComment string) (*IssueComment, error)
+	ReadLabelByID(org string, repo string, label string) (*Label, error)
+	ReadUserByID(user string) (*User, error)
+
+	//	FindUnengagedIssues(repo *gh.Repo, cb func(issue *gh.Issue)) error
+
+	RecordTestNagAdded(repo string) error
+	RecordTestNagRemoved(repo string) error
 }

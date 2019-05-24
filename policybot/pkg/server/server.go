@@ -17,73 +17,175 @@ package server
 import (
 	"context"
 	"encoding/base64"
+	"errors"
+	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 	"time"
 
-	"google.golang.org/grpc/grpclog"
+	"github.com/ghodss/yaml"
 
-	"istio.io/pkg/ctrlz"
+	"istio.io/bots/policybot/pkg/config"
+	"istio.io/bots/policybot/pkg/gh"
+	"istio.io/bots/policybot/pkg/storage/spanner"
+	"istio.io/bots/policybot/pkg/util"
+	"istio.io/bots/policybot/plugins/analyzer"
+	"istio.io/bots/policybot/plugins/cfgmonitor"
+	"istio.io/bots/policybot/plugins/nagger"
+	"istio.io/bots/policybot/plugins/syncer"
 	"istio.io/pkg/log"
-
-	"istio.io/bots/policybot/pkg/storage"
 )
 
-// Runs the server
-func Run(a *Args) error {
-	if err := log.Configure(a.LoggingOptions); err != nil {
-		log.Errorf("Unable to configure logging: %v", err)
+// Runs the server.
+//
+// If config comes from a container-based file, this will try to run the server, but if
+// problems occur (probably due to bad config), then the function returns with an error.
+//
+// If config comes from a repo-based file, this will also try to run the server, but if an error
+// occurs, it will refetch the config every minute and try again. And so in that case, this
+// function never returns.
+func Run(a *config.Args) error {
+	for {
+		// copy the baseline config
+		cfg := *a
+
+		// load the config file
+		if err := fetchConfig(&cfg); err != nil {
+			if cfg.StartupOptions.ConfigRepo != "" {
+				log.Errorf("Unable to load configuration file, waiting for 1 minute and then will try again: %v", err)
+				time.Sleep(time.Minute)
+				continue
+			} else {
+				return fmt.Errorf("unable to load configuration file: %v", err)
+			}
+		}
+
+		if err := serve(&cfg); err != nil {
+			if cfg.StartupOptions.ConfigRepo != "" {
+				log.Errorf("Unable to initialize server likely due to bad config, waiting for 1 minute and then will try again: %v", err)
+				time.Sleep(time.Minute)
+			} else {
+				return fmt.Errorf("unable to initialize server: %v", err)
+			}
+		} else {
+			log.Infof("Configuration change detected, attempting to reload configuration")
+		}
+	}
+}
+
+func fetchConfig(a *config.Args) error {
+	if a.StartupOptions.ConfigFile == "" {
+		return errors.New("no configuration file supplied")
 	}
 
-	// neutralize gRPC logging since it spews out useless junk
-	var dummy = dummyIoWriter{}
-	grpclog.SetLoggerV2(grpclog.NewLoggerV2(dummy, dummy, dummy))
+	var b []byte
+	var err error
 
-	if cs, err := ctrlz.Run(a.IntrospectionOptions, nil); err == nil {
-		defer cs.Close()
+	if a.StartupOptions.ConfigRepo == "" {
+		if b, err = ioutil.ReadFile(a.StartupOptions.ConfigFile); err != nil {
+			return fmt.Errorf("unable to read configuration file %s: %v", a.StartupOptions.ConfigFile, err)
+		}
+
+		if err = yaml.Unmarshal(b, &a); err != nil {
+			return fmt.Errorf("unable to parse configuration file %s: %v", a.StartupOptions.ConfigFile, err)
+		}
 	} else {
-		log.Errorf("Unable to initialize ControlZ: %v", err)
+		url := "https://raw.githubusercontent.com/" + a.StartupOptions.ConfigRepo + "/" + a.StartupOptions.ConfigFile
+		r, err := http.Get(url)
+		if err != nil {
+			return fmt.Errorf("unable to fetch configuration file from %s: %v", url, err)
+		}
+		if r.StatusCode >= 400 {
+			return fmt.Errorf("unable to fetch configuration file from %s: status code %d", url, r.StatusCode)
+		}
+		if b, err = ioutil.ReadAll(r.Body); err != nil {
+			return fmt.Errorf("unable to read configuration file from %s: %v", url, err)
+		}
+
+		if err = yaml.Unmarshal(b, &a); err != nil {
+			return fmt.Errorf("unable to parse configuration file from %s: %v", url, err)
+		}
 	}
 
-	creds, err := base64.StdEncoding.DecodeString(a.GCPCredentials)
+	return nil
+}
+
+func serve(a *config.Args) error {
+	log.Infof("Starting with:\n%s", a)
+
+	creds, err := base64.StdEncoding.DecodeString(a.StartupOptions.GCPCredentials)
 	if err != nil {
-		log.Errorf("Unable to decode GCP credentials: %v", err)
-		return err
+		return fmt.Errorf("unable to decode GCP credentials: %v", err)
 	}
 
-	store, err := storage.NewSpannerStore(context.Background(), a.SpannerDatabase, creds)
+	serverMux := http.NewServeMux()
+	ght := util.NewGitHubThrottle(context.Background(), a.StartupOptions.GitHubToken)
+	_ = util.NewMailer(a.StartupOptions.SendGridAPIKey, a.EmailFrom, a.EmailOriginAddress)
+
+	store, err := spanner.NewStore(context.Background(), a.SpannerDatabase, creds)
 	if err != nil {
-		log.Errorf("Unable to create storage layer: %v", err)
-		return err
+		return fmt.Errorf("unable to create storage layer: %v", err)
 	}
 	defer store.Close()
 
-	serverMux := http.NewServeMux()
+	ghs := gh.NewGitHubState(store, a.CacheTTL)
 
-	nagger, err := newTestNagger(context.Background(), a.GitHubAccessToken, a.Orgs, a.Nags)
+	prepStore(context.Background(), ght, ghs, a.Orgs)
+
+	nag, err := nagger.NewNagger(context.Background(), ght, store, ghs, a.Orgs, a.Nags)
 	if err != nil {
-		log.Errorf("Unable to create nagger: %v", err)
-		return err
+		return fmt.Errorf("unable to create nagger: %v", err)
 	}
 
-	deltaCollector, err := newDeltaCollector(a.GitHubSecret, store, nagger)
-	if err != nil {
-		log.Errorf("Unable to create GitHub delta collector: %v", err)
-	} else {
-		register(serverMux, "/githubwebhook", deltaCollector.handle)
+	srv := &http.Server{
+		Addr:    ":" + strconv.Itoa(a.StartupOptions.Port),
+		Handler: serverMux,
 	}
 
-	reconciliator := newReconciliator(context.Background(), a.GitHubAccessToken, a.Orgs, store)
-	register(serverMux, "/reconcile", reconciliator.handle)
+	monitor, err := cfgmonitor.NewMonitor(context.Background(), ght, a.StartupOptions.ConfigRepo, a.StartupOptions.ConfigFile, func() {
+		// stop the web server when we detect config changes, this causes a reload of everything
+		_ = srv.Shutdown(context.Background())
+	})
 
-	analyzer := newAnalyzer(store)
-	register(serverMux, "/repos", analyzer.getRepos)
+	if err != nil {
+		return fmt.Errorf("unable to create config monitor: %v", err)
+	}
 
-	log.Infof("Listening on port %d", a.Port)
-	err = http.ListenAndServe(":"+strconv.Itoa(a.Port), serverMux)
-	log.Errorf("Port listening failed: %v", err)
+	hook, err := newHook(a.StartupOptions.GitHubSecret, nag, monitor)
+	if err != nil {
+		return fmt.Errorf("unable to create GitHub webhook: %v", err)
+	}
 
-	return err
+	register(serverMux, "/githubwebhook", hook.handle)
+	register(serverMux, "/sync", syncer.NewSyncer(context.Background(), ght, ghs, store, a.Orgs).Handle)
+	register(serverMux, "/repos", analyzer.NewAnalyzer(store).Handle)
+
+	log.Infof("Listening on port %d", a.StartupOptions.Port)
+	err = srv.ListenAndServe()
+	if err != http.ErrServerClosed {
+		return fmt.Errorf("listening on port %d failed: %v", a.StartupOptions.Port, err)
+	}
+
+	return nil
+}
+
+func prepStore(ctx context.Context, ght *util.GitHubThrottle, ghs *gh.GitHubState, orgs []config.Org) {
+	a := ghs.NewAccumulator()
+
+	for _, orgConfig := range orgs {
+		for _, repoConfig := range orgConfig.Repos {
+			if repo, _, err := ght.Get().Repositories.Get(ctx, orgConfig.Name, repoConfig.Name); err != nil {
+				log.Errorf("Unable to query information about repository %s/%s from GitHub: %v", orgConfig.Name, repoConfig.Name, err)
+			} else {
+				_ = a.RepoFromAPI(repo)
+			}
+		}
+	}
+
+	if err := a.Commit(); err != nil {
+		log.Errorf("Unable to commit data to storage: %v", err)
+	}
 }
 
 func register(mux *http.ServeMux, pattern string, handler func(w http.ResponseWriter, h *http.Request)) {
@@ -100,7 +202,3 @@ func register(mux *http.ServeMux, pattern string, handler func(w http.ResponseWr
 		)
 	})
 }
-
-type dummyIoWriter struct{}
-
-func (dummyIoWriter) Write([]byte) (int, error) { return 0, nil }
