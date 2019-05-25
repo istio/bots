@@ -91,14 +91,14 @@ https://bots.istio.io.
 
 The bot's behavior is controlled entirely through its configuration file. The
 format of the configuration file is described by the `Args` struct in
-`pkg/config/args.go` 
+`pkg/config/args.go`.
 
 ## Deployment
 
 Here's how the bot is currently deployed:
 
 - The bot executes using Google Cloud Run. You can do a full build and deploy
-a new revision of the bot to Google Cloud Run using `make deploy`. In order for this
+a new revision of the bot to Google Cloud Run using `export GO111MODULE=on && make deploy`. In order for this
 to work, you'll need to have setup `gcloud` previously to authenticate
 with GCP. Once a new revision is deployed to Cloud Run, it immediately starts receiving traffic.
 

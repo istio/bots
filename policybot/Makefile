@@ -1,5 +1,6 @@
 VERSION := $(shell date +%Y%m%d%H%M%S)
-IMG := gcr.io/istio-testing/policybot:$(VERSION)
+HUB ?= gcr.io/istio-testing
+IMG := $(HUB)/policybot:$(VERSION)
 
 deploy: container
 	@gcloud beta run deploy policybot --image $(IMG) --project istio-testing
