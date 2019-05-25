@@ -7,7 +7,7 @@ TODO(incfly): just an illustrative note, will move to the README.md once impleme
 High level, following tasks will be executed as periodic task from another Cloud Scheduler job via a separate webhook endpoint, `/flakeschaser`.
 
 - Issues matching following conditions (might needs adjustment based on fitering results)
-  - Regex matching in descrption or title, "test.*flakes" || with certain testing labels
+  - Regex matching in issue descrption or title, `.*test.*flakes` or with certain testing labels, `label/flake-tests`.
   - Not closed yet
   - `time.Now - last_updates_timestamp` > threath_hold, 3 days.
 - Update the issue with comments "@user-id testing flakes needs your attetion."
@@ -20,7 +20,7 @@ High level, following tasks will be executed as periodic task from another Cloud
 - Process working item by sending comments as Github client, Github throttler
 might be needed.
 - Might better to update the Spanner tables right away to reduce the chance
-another server instance duplicates `flakes chaser` comments.
+another server instance duplicates `flakes chaser` comments. Alternatively, just invoke `/sync` by itself to simplfy the code logic?
 
 ## Questions
 
