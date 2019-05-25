@@ -1,4 +1,4 @@
-spanner_db: projects/jianfeih-test/instances/istio-policy-bot/databases/gh
+spanner_db: projects/istio-testing/instances/istio-policy-bot/databases/gh
 email_from: Istio Policy Bot
 email_origin_address: noreply@istio.io
 
