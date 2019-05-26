@@ -33,6 +33,7 @@ import (
 	"istio.io/bots/policybot/plugins/analyzer"
 	"istio.io/bots/policybot/plugins/cfgmonitor"
 	"istio.io/bots/policybot/plugins/nagger"
+	"istio.io/bots/policybot/plugins/refresher"
 	"istio.io/bots/policybot/plugins/syncer"
 	"istio.io/pkg/log"
 )
@@ -138,6 +139,8 @@ func serve(a *config.Args) error {
 		return fmt.Errorf("unable to create nagger: %v", err)
 	}
 
+	refresher := refresher.NewRefresher(ghs, a.Orgs)
+
 	srv := &http.Server{
 		Addr:    ":" + strconv.Itoa(a.StartupOptions.Port),
 		Handler: serverMux,
@@ -152,7 +155,7 @@ func serve(a *config.Args) error {
 		return fmt.Errorf("unable to create config monitor: %v", err)
 	}
 
-	hook, err := newHook(a.StartupOptions.GitHubSecret, nag, monitor)
+	hook, err := newHook(a.StartupOptions.GitHubSecret, nag, monitor, refresher)
 	if err != nil {
 		return fmt.Errorf("unable to create GitHub webhook: %v", err)
 	}

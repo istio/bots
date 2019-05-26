@@ -72,8 +72,8 @@ func serverCmd() *cobra.Command {
 		},
 	}
 
-	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.ConfigRepo, "configRepo", "", "", configRepo)
-	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.ConfigFile, "configFile", "", "", configFile)
+	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.ConfigRepo, "configRepo", "", ca.StartupOptions.ConfigRepo, configRepo)
+	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.ConfigFile, "configFile", "", ca.StartupOptions.ConfigFile, configFile)
 	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.GitHubSecret, "github_secret", "", ca.StartupOptions.GitHubSecret, githubSecret)
 	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.GitHubToken, "github_token", "", ca.StartupOptions.GitHubToken, githubToken)
 	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.GCPCredentials, "gcp_creds", "", ca.StartupOptions.GCPCredentials, gcpCreds)

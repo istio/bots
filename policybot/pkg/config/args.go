@@ -81,7 +81,7 @@ type Org struct {
 	Nags []Nag `json:"nags"`
 }
 
-// Args represents the set of options that controller the behavior of the bot.
+// Args represents the set of options that control the behavior of the bot.
 type Args struct {
 	// StartupOptions are set when the process starts and cannot be updated afterwards
 	StartupOptions StartupOptions

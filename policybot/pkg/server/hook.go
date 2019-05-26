@@ -23,7 +23,7 @@ import (
 	"istio.io/pkg/log"
 )
 
-// decodes and dispatches GitHub webhook calls
+// Decodes and dispatches GitHub webhook calls
 type hook struct {
 	wh      *webhook.Webhook
 	plugins []webhookPlugin
@@ -64,6 +64,7 @@ func (h *hook) handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// dispatch to all the registered plugins
 	for _, plugin := range h.plugins {
 		plugin.Handle(w, payload)
 	}

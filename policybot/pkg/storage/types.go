@@ -18,21 +18,22 @@ import (
 	"time"
 )
 
+// This file defines the shapes we csn read/write to/from the DB.
+
 type Issue struct {
-	OrgID         string
-	RepoID        string
-	IssueID       string
-	Number        int
-	Title         string
-	Body          string
-	LabelIDs      []string
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
-	ClosedAt      time.Time
-	State         string
-	AuthorID      string
-	AssigneeIDs   []string
-	IsPullRequest bool
+	OrgID       string
+	RepoID      string
+	IssueID     string
+	Number      int64
+	Title       string
+	Body        string
+	LabelIDs    []string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	ClosedAt    time.Time
+	State       string
+	AuthorID    string
+	AssigneeIDs []string
 }
 
 type IssueComment struct {
@@ -74,17 +75,20 @@ type Repo struct {
 }
 
 type PullRequest struct {
-	OrgID         string
-	RepoID        string
-	PullRequestID string
-	Number        int
-	LabelIDs      []string
-	Body          string
-	Title         string
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
-	ClosedAt      time.Time
-	State         string
-	AuthorID      string
-	AssigneeIDs   []string
+	OrgID                string
+	RepoID               string
+	IssueID              string
+	UpdatedAt            time.Time
+	RequestedReviewerIDs []string
+}
+
+type PullRequestReview struct {
+	OrgID               string
+	RepoID              string
+	IssueID             string
+	PullRequestReviewID string
+	AuthorID            string
+	Body                string
+	SubmittedAt         time.Time
+	State               string
 }
