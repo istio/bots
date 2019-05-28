@@ -32,25 +32,25 @@ import (
 // introduce any missing entries into the DB.
 
 func (a *Accumulator) IssueFromHook(ip *hook.IssuesPayload) *storage.Issue {
-	if result := a.objects[ip.Issue.NodeID]; result != nil {
-		return result.(*storage.Issue)
+	if result := a.issues[ip.Issue.NodeID]; result != nil {
+		return result
 	}
 
 	return a.addIssue(IssueFromHook(ip))
 }
 
 func (a *Accumulator) IssueCommentFromHook(icp *hook.IssueCommentPayload) *storage.IssueComment {
-	if result := a.objects[icp.Comment.NodeID]; result != nil {
-		return result.(*storage.IssueComment)
+	if result := a.issueComments[icp.Comment.NodeID]; result != nil {
+		return result
 	}
 
 	return a.addIssueComment(IssueCommentFromHook(icp))
 }
 
 func (a *Accumulator) PullRequestFromHook(prp *hook.PullRequestPayload) (*storage.PullRequest, *storage.Issue) {
-	if result1 := a.objects[prp.PullRequest.NodeID+pullRequestIDSuffix]; result1 != nil {
-		if result2 := a.objects[prp.PullRequest.NodeID]; result2 != nil {
-			return result1.(*storage.PullRequest), result2.(*storage.Issue)
+	if result1 := a.pullRequests[prp.PullRequest.NodeID]; result1 != nil {
+		if result2 := a.issues[prp.PullRequest.NodeID]; result2 != nil {
+			return result1, result2
 		}
 	}
 
@@ -59,8 +59,8 @@ func (a *Accumulator) PullRequestFromHook(prp *hook.PullRequestPayload) (*storag
 }
 
 func (a *Accumulator) PullRequestReviewFromHook(prrp *hook.PullRequestReviewPayload) *storage.PullRequestReview {
-	if result := a.objects[prrp.Review.NodeID]; result != nil {
-		return result.(*storage.PullRequestReview)
+	if result := a.pullRequestReviews[prrp.Review.NodeID]; result != nil {
+		return result
 	}
 
 	return a.addPullRequestReview(PullRequestReviewFromHook(prrp))

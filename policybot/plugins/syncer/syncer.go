@@ -240,7 +240,7 @@ func (s *Syncer) handlePullRequests(a *gh.Accumulator, org *storage.Org, repo *s
 
 		for _, pr := range prs {
 
-			// if this prs is already known to us and is up to date, skip further processing
+			// if this pr is already known to us and is up to date, skip further processing
 			if existing, _ := s.ghs.ReadPullRequest(org.OrgID, repo.RepoID, pr.GetNodeID()); existing != nil {
 				if existing.UpdatedAt == pr.GetUpdatedAt() {
 					wg.Done()

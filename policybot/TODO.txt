@@ -1,0 +1,19 @@
+- Need a way to wipeout org and repo data. Right now, if an org or repo are removed from
+config, their data stay in the DB forever.
+
+- Giving that syncing takes a long time, often longer than the 15 minutes of execution time
+we're allowed, then we need some way to improve things:
+
+    - Run the bot as a container in k8s, this would eliminate the execution time limit.
+
+    - Allow the user to constrain the number of issues & PRs to sync per repo. For example,
+    the syncer could be limited to the issues & prs opened in the N days only.
+
+    - Allow the user to explicitly specify the org and repo to sync within the REST API. If each individual
+    repo takes less than 15 minutes, that would work.
+
+    - Allow the user to explicitly specify what data to sync. For example, issues can be handled separately
+    from pull requests.
+
+    - Figure out a better way to query GitHub to get the data we need, rather than getting a bunch of data we
+    bring in and discard.

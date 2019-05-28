@@ -155,7 +155,8 @@ func serve(a *config.Args) error {
 		return fmt.Errorf("unable to create config monitor: %v", err)
 	}
 
-	hook, err := newHook(a.StartupOptions.GitHubSecret, nag, monitor, refresher)
+	// NB: keep refresher first in the list such that other plugins see an up-to-date view in storage.
+	hook, err := newHook(a.StartupOptions.GitHubSecret, refresher, nag, monitor)
 	if err != nil {
 		return fmt.Errorf("unable to create GitHub webhook: %v", err)
 	}
