@@ -32,6 +32,7 @@ import (
 	"istio.io/bots/policybot/pkg/util"
 	"istio.io/bots/policybot/plugins/analyzer"
 	"istio.io/bots/policybot/plugins/cfgmonitor"
+	"istio.io/bots/policybot/plugins/flakechaser"
 	"istio.io/bots/policybot/plugins/nagger"
 	"istio.io/bots/policybot/plugins/syncer"
 	"istio.io/pkg/log"
@@ -147,9 +148,13 @@ func serve(a *config.Args) error {
 		// stop the web server when we detect config changes, this causes a reload of everything
 		_ = srv.Shutdown(context.Background())
 	})
-
 	if err != nil {
 		return fmt.Errorf("unable to create config monitor: %v", err)
+	}
+
+	flakechaser, err := flakechaser.New(ght, "istio/istio")
+	if err != nil {
+		return fmt.Errorf("unable to create flake chaser plugin: %v", err)
 	}
 
 	hook, err := newHook(a.StartupOptions.GitHubSecret, nag, monitor)
@@ -160,6 +165,7 @@ func serve(a *config.Args) error {
 	register(serverMux, "/githubwebhook", hook.handle)
 	register(serverMux, "/sync", syncer.NewSyncer(context.Background(), ght, ghs, store, a.Orgs).Handle)
 	register(serverMux, "/repos", analyzer.NewAnalyzer(store).Handle)
+	register(serverMux, "/flakechaser", flakechaser.Handle)
 
 	log.Infof("Listening on port %d", a.StartupOptions.Port)
 	err = srv.ListenAndServe()

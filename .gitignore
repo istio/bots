@@ -18,3 +18,4 @@ dashboard/public
 dashboard/resources
 dashboard/node_modules
 dashboard/tmp
+run.sh
