@@ -20,80 +20,94 @@ import (
 	"istio.io/bots/policybot/pkg/storage"
 )
 
-// Add an object to the accumulator. The object is only added if it doesn't
+// These functions add an object to the accumulator. The object is only added if it doesn't
 // match the existing content of the cache. If the object is not added, then
 // the object already in the cache is returned, otherwise the input is returned.
-func (a *Accumulator) addObj(id string, object interface{}) interface{} {
-	if existing, ok := a.ghs.cache.Get(id); ok {
-		if reflect.DeepEqual(existing, object) {
-			return existing
+
+func (a *Accumulator) addLabel(label *storage.Label) *storage.Label {
+	if existing, ok := a.ghs.labelCache.Get(label.LabelID); ok {
+		if reflect.DeepEqual(existing, label) {
+			return existing.(*storage.Label)
 		}
 	}
 
-	a.objects[id] = object
-	return object
-}
-
-func (a *Accumulator) addLabel(label *storage.Label) *storage.Label {
-	o := a.addObj(label.LabelID, label).(*storage.Label)
-	if o != label {
-		a.labels = append(a.labels, label)
-	}
-	return o
+	a.labels[label.LabelID] = label
+	return label
 }
 
 func (a *Accumulator) addUser(user *storage.User) *storage.User {
-	o := a.addObj(user.UserID, user).(*storage.User)
-	if o == user {
-		a.users = append(a.users, user)
+	if existing, ok := a.ghs.userCache.Get(user.UserID); ok {
+		if reflect.DeepEqual(existing, user) {
+			return existing.(*storage.User)
+		}
 	}
-	return o
+
+	a.users[user.UserID] = user
+	return user
 }
 
 func (a *Accumulator) addOrg(org *storage.Org) *storage.Org {
-	o := a.addObj(org.OrgID, org).(*storage.Org)
-	if o == org {
-		a.orgs = append(a.orgs, org)
+	if existing, ok := a.ghs.orgCache.Get(org.OrgID); ok {
+		if reflect.DeepEqual(existing, org) {
+			return existing.(*storage.Org)
+		}
 	}
-	return o
+
+	a.orgs[org.OrgID] = org
+	return org
 }
 
 func (a *Accumulator) addRepo(repo *storage.Repo) *storage.Repo {
-	o := a.addObj(repo.RepoID, repo).(*storage.Repo)
-	if o == repo {
-		a.repos = append(a.repos, repo)
+	if existing, ok := a.ghs.repoCache.Get(repo.RepoID); ok {
+		if reflect.DeepEqual(existing, repo) {
+			return existing.(*storage.Repo)
+		}
 	}
-	return o
+
+	a.repos[repo.RepoID] = repo
+	return repo
 }
 
 func (a *Accumulator) addIssue(issue *storage.Issue) *storage.Issue {
-	o := a.addObj(issue.IssueID, issue).(*storage.Issue)
-	if o == issue {
-		a.issues = append(a.issues, issue)
+	if existing, ok := a.ghs.issueCache.Get(issue.IssueID); ok {
+		if reflect.DeepEqual(existing, issue) {
+			return existing.(*storage.Issue)
+		}
 	}
-	return o
+
+	a.issues[issue.IssueID] = issue
+	return issue
 }
 
 func (a *Accumulator) addIssueComment(issueComment *storage.IssueComment) *storage.IssueComment {
-	o := a.addObj(issueComment.IssueCommentID, issueComment).(*storage.IssueComment)
-	if o == issueComment {
-		a.issueComments = append(a.issueComments, issueComment)
+	if existing, ok := a.ghs.issueCommentCache.Get(issueComment.IssueCommentID); ok {
+		if reflect.DeepEqual(existing, issueComment) {
+			return existing.(*storage.IssueComment)
+		}
 	}
-	return o
+
+	a.issueComments[issueComment.IssueCommentID] = issueComment
+	return issueComment
 }
 
 func (a *Accumulator) addPullRequest(pr *storage.PullRequest) *storage.PullRequest {
-	o := a.addObj(pr.IssueID+pullRequestIDSuffix, pr).(*storage.PullRequest)
-	if o == pr {
-		a.pullRequests = append(a.pullRequests, pr)
+	if existing, ok := a.ghs.pullRequestCache.Get(pr.IssueID); ok {
+		if reflect.DeepEqual(existing, pr) {
+			return existing.(*storage.PullRequest)
+		}
 	}
-	return o
+
+	a.pullRequests[pr.IssueID] = pr
+	return pr
 }
 
 func (a *Accumulator) addPullRequestReview(prc *storage.PullRequestReview) *storage.PullRequestReview {
-	o := a.addObj(prc.PullRequestReviewID, prc).(*storage.PullRequestReview)
-	if o == prc {
-		a.pullRequestReviews = append(a.pullRequestReviews, prc)
+	if existing, ok := a.ghs.pullRequestReviewCache.Get(prc.PullRequestReviewID); ok {
+		if reflect.DeepEqual(existing, prc) {
+			return existing.(*storage.PullRequestReview)
+		}
 	}
-	return o
+
+	a.pullRequestReviews[prc.PullRequestReviewID] = prc
+	return prc
 }

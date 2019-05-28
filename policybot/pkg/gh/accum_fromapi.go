@@ -24,9 +24,9 @@ import (
 // into the accumulator so that they can eventually be committed to storage.
 
 func (a *Accumulator) IssueFromAPI(org string, repo string, issue *api.Issue) *storage.Issue {
-	if result := a.objects[issue.GetNodeID()]; result != nil {
+	if result := a.issues[issue.GetNodeID()]; result != nil {
 		// already in the accumulator
-		return result.(*storage.Issue)
+		return result
 	}
 
 	labels := make([]string, len(issue.Labels))
@@ -61,9 +61,9 @@ func (a *Accumulator) IssueFromAPI(org string, repo string, issue *api.Issue) *s
 }
 
 func (a *Accumulator) IssueCommentFromAPI(org string, repo string, issue string, issueComment *api.IssueComment) *storage.IssueComment {
-	if result := a.objects[issueComment.GetNodeID()]; result != nil {
+	if result := a.issueComments[issueComment.GetNodeID()]; result != nil {
 		// already in the accumulator
-		return result.(*storage.IssueComment)
+		return result
 	}
 
 	_ = a.UserFromAPI(issueComment.User)
@@ -81,9 +81,9 @@ func (a *Accumulator) IssueCommentFromAPI(org string, repo string, issue string,
 }
 
 func (a *Accumulator) UserFromAPI(u *api.User) *storage.User {
-	if result := a.objects[u.GetNodeID()]; result != nil {
+	if result := a.users[u.GetNodeID()]; result != nil {
 		// already in the accumulator
-		return result.(*storage.User)
+		return result
 	}
 
 	return a.addUser(&storage.User{
@@ -95,9 +95,9 @@ func (a *Accumulator) UserFromAPI(u *api.User) *storage.User {
 }
 
 func (a *Accumulator) OrgFromAPI(o *api.Organization) *storage.Org {
-	if result := a.objects[o.GetNodeID()]; result != nil {
+	if result := a.orgs[o.GetNodeID()]; result != nil {
 		// already in the accumulator
-		return result.(*storage.Org)
+		return result
 	}
 
 	return a.addOrg(&storage.Org{
@@ -107,9 +107,9 @@ func (a *Accumulator) OrgFromAPI(o *api.Organization) *storage.Org {
 }
 
 func (a *Accumulator) RepoFromAPI(r *api.Repository) *storage.Repo {
-	if result := a.objects[r.GetNodeID()]; result != nil {
+	if result := a.repos[r.GetNodeID()]; result != nil {
 		// already in the accumulator
-		return result.(*storage.Repo)
+		return result
 	}
 
 	_ = a.OrgFromAPI(r.Organization)
@@ -123,9 +123,9 @@ func (a *Accumulator) RepoFromAPI(r *api.Repository) *storage.Repo {
 }
 
 func (a *Accumulator) LabelFromAPI(org string, repo string, l *api.Label) *storage.Label {
-	if result := a.objects[l.GetNodeID()]; result != nil {
+	if result := a.labels[l.GetNodeID()]; result != nil {
 		// already in the accumulator
-		return result.(*storage.Label)
+		return result
 	}
 
 	return a.addLabel(&storage.Label{
@@ -137,9 +137,9 @@ func (a *Accumulator) LabelFromAPI(org string, repo string, l *api.Label) *stora
 }
 
 func (a *Accumulator) PullRequestFromAPI(org string, repo string, pr *api.PullRequest) *storage.PullRequest {
-	if result := a.objects[pr.GetNodeID()+pullRequestIDSuffix]; result != nil {
+	if result := a.pullRequests[pr.GetNodeID()]; result != nil {
 		// already in the accumulator
-		return result.(*storage.PullRequest)
+		return result
 	}
 
 	labels := make([]api.Label, len(pr.Labels))
@@ -178,9 +178,9 @@ func (a *Accumulator) PullRequestFromAPI(org string, repo string, pr *api.PullRe
 }
 
 func (a *Accumulator) PullRequestReviewFromAPI(org string, repo string, issue string, prr *api.PullRequestReview) *storage.PullRequestReview {
-	if result := a.objects[prr.GetNodeID()]; result != nil {
+	if result := a.pullRequestReviews[prr.GetNodeID()]; result != nil {
 		// already in the accumulator
-		return result.(*storage.PullRequestReview)
+		return result
 	}
 
 	_ = a.UserFromAPI(prr.User)

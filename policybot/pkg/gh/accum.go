@@ -21,44 +21,61 @@ import (
 // Accumulates objects in anticipation of bulk non-transactional commits to the cache and to the DB.
 type Accumulator struct {
 	ghs                *GitHubState
-	objects            map[string]interface{}
-	labels             []*storage.Label
-	users              []*storage.User
-	orgs               []*storage.Org
-	repos              []*storage.Repo
-	issues             []*storage.Issue
-	issueComments      []*storage.IssueComment
-	pullRequests       []*storage.PullRequest
-	pullRequestReviews []*storage.PullRequestReview
+	labels             map[string]*storage.Label
+	users              map[string]*storage.User
+	orgs               map[string]*storage.Org
+	repos              map[string]*storage.Repo
+	issues             map[string]*storage.Issue
+	issueComments      map[string]*storage.IssueComment
+	pullRequests       map[string]*storage.PullRequest
+	pullRequestReviews map[string]*storage.PullRequestReview
 }
 
 func (ghs *GitHubState) NewAccumulator() *Accumulator {
 	return &Accumulator{
 		ghs:                ghs,
-		objects:            make(map[string]interface{}),
-		labels:             make([]*storage.Label, 0),
-		users:              make([]*storage.User, 0),
-		orgs:               make([]*storage.Org, 0),
-		repos:              make([]*storage.Repo, 0),
-		issues:             make([]*storage.Issue, 0),
-		issueComments:      make([]*storage.IssueComment, 0),
-		pullRequests:       make([]*storage.PullRequest, 0),
-		pullRequestReviews: make([]*storage.PullRequestReview, 0),
+		labels:             make(map[string]*storage.Label),
+		users:              make(map[string]*storage.User),
+		orgs:               make(map[string]*storage.Org),
+		repos:              make(map[string]*storage.Repo),
+		issues:             make(map[string]*storage.Issue),
+		issueComments:      make(map[string]*storage.IssueComment),
+		pullRequests:       make(map[string]*storage.PullRequest),
+		pullRequestReviews: make(map[string]*storage.PullRequestReview),
 	}
 }
 
 // Reset clears all state accumulated so the accumulator can be used anew
 func (a *Accumulator) Reset() {
-	a.labels = a.labels[:0]
-	a.users = a.users[:0]
-	a.orgs = a.orgs[:0]
-	a.repos = a.repos[:0]
-	a.issues = a.issues[:0]
-	a.issueComments = a.issueComments[:0]
-	a.pullRequests = a.pullRequests[:0]
-	a.pullRequestReviews = a.pullRequestReviews[:0]
+	for k := range a.labels {
+		delete(a.labels, k)
+	}
 
-	for k := range a.objects {
-		delete(a.objects, k)
+	for k := range a.users {
+		delete(a.users, k)
+	}
+
+	for k := range a.orgs {
+		delete(a.orgs, k)
+	}
+
+	for k := range a.repos {
+		delete(a.repos, k)
+	}
+
+	for k := range a.issues {
+		delete(a.issues, k)
+	}
+
+	for k := range a.issueComments {
+		delete(a.issueComments, k)
+	}
+
+	for k := range a.pullRequests {
+		delete(a.pullRequests, k)
+	}
+
+	for k := range a.pullRequestReviews {
+		delete(a.pullRequestReviews, k)
 	}
 }

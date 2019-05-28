@@ -14,6 +14,8 @@
 
 package gh
 
+import "istio.io/bots/policybot/pkg/storage"
+
 // Commit all the accumulated objects to the cache and to durable storage.
 // Note that if any errors occur in the middle of this, partial updates to the
 // cache and DB will happen. Sorry 'bout that. Either way, the accumulator is also
@@ -45,12 +47,17 @@ func (a *Accumulator) commitLabels() error {
 		return nil
 	}
 
-	if err := a.ghs.store.WriteLabels(a.labels); err != nil {
+	labels := make([]*storage.Label, 0, len(a.labels))
+	for _, l := range a.labels {
+		labels = append(labels, l)
+	}
+
+	if err := a.ghs.store.WriteLabels(labels); err != nil {
 		return err
 	}
 
 	for _, l := range a.labels {
-		a.ghs.cache.Set(l.LabelID, l)
+		a.ghs.labelCache.Set(l.LabelID, l)
 	}
 
 	return nil
@@ -61,12 +68,17 @@ func (a *Accumulator) commitUsers() error {
 		return nil
 	}
 
-	if err := a.ghs.store.WriteUsers(a.users); err != nil {
+	users := make([]*storage.User, 0, len(a.users))
+	for _, u := range a.users {
+		users = append(users, u)
+	}
+
+	if err := a.ghs.store.WriteUsers(users); err != nil {
 		return err
 	}
 
 	for _, l := range a.users {
-		a.ghs.cache.Set(l.UserID, l)
+		a.ghs.userCache.Set(l.UserID, l)
 	}
 
 	return nil
@@ -77,12 +89,17 @@ func (a *Accumulator) commitOrgs() error {
 		return nil
 	}
 
-	if err := a.ghs.store.WriteOrgs(a.orgs); err != nil {
+	orgs := make([]*storage.Org, 0, len(a.orgs))
+	for _, o := range a.orgs {
+		orgs = append(orgs, o)
+	}
+
+	if err := a.ghs.store.WriteOrgs(orgs); err != nil {
 		return err
 	}
 
 	for _, l := range a.orgs {
-		a.ghs.cache.Set(l.OrgID, l)
+		a.ghs.orgCache.Set(l.OrgID, l)
 	}
 
 	return nil
@@ -93,12 +110,17 @@ func (a *Accumulator) commitRepos() error {
 		return nil
 	}
 
-	if err := a.ghs.store.WriteRepos(a.repos); err != nil {
+	repos := make([]*storage.Repo, 0, len(a.repos))
+	for _, r := range a.repos {
+		repos = append(repos, r)
+	}
+
+	if err := a.ghs.store.WriteRepos(repos); err != nil {
 		return err
 	}
 
 	for _, l := range a.repos {
-		a.ghs.cache.Set(l.RepoID, l)
+		a.ghs.repoCache.Set(l.RepoID, l)
 	}
 
 	return nil
@@ -109,12 +131,17 @@ func (a *Accumulator) commitIssues() error {
 		return nil
 	}
 
-	if err := a.ghs.store.WriteIssues(a.issues); err != nil {
+	issues := make([]*storage.Issue, 0, len(a.issues))
+	for _, is := range a.issues {
+		issues = append(issues, is)
+	}
+
+	if err := a.ghs.store.WriteIssues(issues); err != nil {
 		return err
 	}
 
 	for _, l := range a.issues {
-		a.ghs.cache.Set(l.IssueID, l)
+		a.ghs.issueCache.Set(l.IssueID, l)
 	}
 
 	return nil
@@ -125,12 +152,17 @@ func (a *Accumulator) commitIssueComments() error {
 		return nil
 	}
 
-	if err := a.ghs.store.WriteIssueComments(a.issueComments); err != nil {
+	ics := make([]*storage.IssueComment, 0, len(a.issueComments))
+	for _, ic := range a.issueComments {
+		ics = append(ics, ic)
+	}
+
+	if err := a.ghs.store.WriteIssueComments(ics); err != nil {
 		return err
 	}
 
 	for _, l := range a.issueComments {
-		a.ghs.cache.Set(l.IssueCommentID, l)
+		a.ghs.issueCommentCache.Set(l.IssueCommentID, l)
 	}
 
 	return nil
@@ -141,12 +173,17 @@ func (a *Accumulator) commitPullRequests() error {
 		return nil
 	}
 
-	if err := a.ghs.store.WritePullRequests(a.pullRequests); err != nil {
+	prs := make([]*storage.PullRequest, 0, len(a.pullRequests))
+	for _, pr := range a.pullRequests {
+		prs = append(prs, pr)
+	}
+
+	if err := a.ghs.store.WritePullRequests(prs); err != nil {
 		return err
 	}
 
 	for _, l := range a.pullRequests {
-		a.ghs.cache.Set(l.IssueID+pullRequestIDSuffix, l)
+		a.ghs.pullRequestCache.Set(l.IssueID, l)
 	}
 
 	return nil
@@ -157,12 +194,17 @@ func (a *Accumulator) commitPullRequestReviews() error {
 		return nil
 	}
 
-	if err := a.ghs.store.WritePullRequestReviews(a.pullRequestReviews); err != nil {
+	prrs := make([]*storage.PullRequestReview, 0, len(a.pullRequestReviews))
+	for _, prr := range a.pullRequestReviews {
+		prrs = append(prrs, prr)
+	}
+
+	if err := a.ghs.store.WritePullRequestReviews(prrs); err != nil {
 		return err
 	}
 
 	for _, l := range a.pullRequestReviews {
-		a.ghs.cache.Set(l.PullRequestReviewID, l)
+		a.ghs.pullRequestReviewCache.Set(l.PullRequestReviewID, l)
 	}
 
 	return nil

@@ -24,16 +24,16 @@ import (
 
 // Cached access over our GitHub object store.
 type GitHubState struct {
-	cache cache.ExpiringCache
-	store storage.Store
+	store                  storage.Store
+	orgCache               cache.ExpiringCache
+	repoCache              cache.ExpiringCache
+	issueCache             cache.ExpiringCache
+	issueCommentCache      cache.ExpiringCache
+	labelCache             cache.ExpiringCache
+	userCache              cache.ExpiringCache
+	pullRequestCache       cache.ExpiringCache
+	pullRequestReviewCache cache.ExpiringCache
 }
-
-// Issues and pull requests have the same node id (as per GitHub's API). Since we want to
-// store both objects in the same cache & map using the node id as key, we apply this suffix
-// to the PR keys to distinguish them from issues. The use of | in here is so that it is
-// guaranteed unique from other node ids, since incoming node ids are base64 encoded and so
-// don't contain pipe symbols.
-const pullRequestIDSuffix = "|PR"
 
 func NewGitHubState(store storage.Store, entryTTL time.Duration) *GitHubState {
 	// purge the cache every 10 seconds
@@ -44,14 +44,21 @@ func NewGitHubState(store storage.Store, entryTTL time.Duration) *GitHubState {
 	}
 
 	return &GitHubState{
-		cache: cache.NewTTL(entryTTL, evictionInterval),
-		store: store,
+		store:                  store,
+		orgCache:               cache.NewTTL(entryTTL, evictionInterval),
+		repoCache:              cache.NewTTL(entryTTL, evictionInterval),
+		issueCache:             cache.NewTTL(entryTTL, evictionInterval),
+		issueCommentCache:      cache.NewTTL(entryTTL, evictionInterval),
+		labelCache:             cache.NewTTL(entryTTL, evictionInterval),
+		userCache:              cache.NewTTL(entryTTL, evictionInterval),
+		pullRequestCache:       cache.NewTTL(entryTTL, evictionInterval),
+		pullRequestReviewCache: cache.NewTTL(entryTTL, evictionInterval),
 	}
 }
 
 // Reads from cache and if not found reads from DB
 func (ghs *GitHubState) ReadOrg(org string) (*storage.Org, error) {
-	if value, ok := ghs.cache.Get(org); ok {
+	if value, ok := ghs.orgCache.Get(org); ok {
 		return value.(*storage.Org), nil
 	}
 
@@ -60,7 +67,7 @@ func (ghs *GitHubState) ReadOrg(org string) (*storage.Org, error) {
 
 // Reads from cache and if not found reads from DB
 func (ghs *GitHubState) ReadRepo(org string, repo string) (*storage.Repo, error) {
-	if value, ok := ghs.cache.Get(repo); ok {
+	if value, ok := ghs.repoCache.Get(repo); ok {
 		return value.(*storage.Repo), nil
 	}
 
@@ -69,7 +76,7 @@ func (ghs *GitHubState) ReadRepo(org string, repo string) (*storage.Repo, error)
 
 // Reads from cache and if not found reads from DB
 func (ghs *GitHubState) ReadUser(user string) (*storage.User, error) {
-	if value, ok := ghs.cache.Get(user); ok {
+	if value, ok := ghs.userCache.Get(user); ok {
 		return value.(*storage.User), nil
 	}
 
@@ -78,7 +85,7 @@ func (ghs *GitHubState) ReadUser(user string) (*storage.User, error) {
 
 // Reads from cache and if not found reads from DB
 func (ghs *GitHubState) ReadLabel(org string, repo string, label string) (*storage.Label, error) {
-	if value, ok := ghs.cache.Get(label); ok {
+	if value, ok := ghs.labelCache.Get(label); ok {
 		return value.(*storage.Label), nil
 	}
 
@@ -87,7 +94,7 @@ func (ghs *GitHubState) ReadLabel(org string, repo string, label string) (*stora
 
 // Reads from cache and if not found reads from DB
 func (ghs *GitHubState) ReadIssue(org string, repo string, issue string) (*storage.Issue, error) {
-	if value, ok := ghs.cache.Get(issue); ok {
+	if value, ok := ghs.issueCache.Get(issue); ok {
 		return value.(*storage.Issue), nil
 	}
 
@@ -97,7 +104,7 @@ func (ghs *GitHubState) ReadIssue(org string, repo string, issue string) (*stora
 // Reads from cache and if not found reads from DB
 func (ghs *GitHubState) ReadIssueComment(org string, repo string, issue string,
 	issueComment string) (*storage.IssueComment, error) {
-	if value, ok := ghs.cache.Get(issueComment); ok {
+	if value, ok := ghs.issueCommentCache.Get(issueComment); ok {
 		return value.(*storage.IssueComment), nil
 	}
 
@@ -106,7 +113,7 @@ func (ghs *GitHubState) ReadIssueComment(org string, repo string, issue string,
 
 // Reads from cache and if not found reads from DB
 func (ghs *GitHubState) ReadPullRequest(org string, repo string, issue string) (*storage.PullRequest, error) {
-	if value, ok := ghs.cache.Get(issue + pullRequestIDSuffix); ok {
+	if value, ok := ghs.pullRequestCache.Get(issue); ok {
 		return value.(*storage.PullRequest), nil
 	}
 
@@ -116,7 +123,7 @@ func (ghs *GitHubState) ReadPullRequest(org string, repo string, issue string) (
 // Reads from cache and if not found reads from DB
 func (ghs *GitHubState) ReadPullRequestReview(org string, repo string, issue string,
 	prReview string) (*storage.PullRequestReview, error) {
-	if value, ok := ghs.cache.Get(prReview); ok {
+	if value, ok := ghs.pullRequestReviewCache.Get(prReview); ok {
 		return value.(*storage.PullRequestReview), nil
 	}
 
