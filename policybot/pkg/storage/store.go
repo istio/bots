@@ -18,12 +18,15 @@ import (
 	"io"
 )
 
+// Store defines how the bot interacts with the database
 type Store interface {
 	io.Closer
 	WriteOrgs(orgs []*Org) error
 	WriteRepos(repos []*Repo) error
 	WriteIssues(issues []*Issue) error
 	WriteIssueComments(issueComments []*IssueComment) error
+	WritePullRequests(prs []*PullRequest) error
+	WritePullRequestReviews(prReviews []*PullRequestReview) error
 	WriteUsers(users []*User) error
 	WriteLabels(labels []*Label) error
 
@@ -36,6 +39,8 @@ type Store interface {
 	ReadIssueCommentByID(org string, repo string, issue string, issueComment string) (*IssueComment, error)
 	ReadLabelByID(org string, repo string, label string) (*Label, error)
 	ReadUserByID(user string) (*User, error)
+	ReadPullRequestByID(org string, repo string, issue string) (*PullRequest, error)
+	ReadPullRequestReviewByID(org string, repo string, issue string, prReview string) (*PullRequestReview, error)
 
 	//	FindUnengagedIssues(repo *gh.Repo, cb func(issue *gh.Issue)) error
 

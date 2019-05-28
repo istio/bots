@@ -21,6 +21,7 @@ import (
 	"github.com/sendgrid/sendgrid-go/helpers/mail"
 )
 
+// Mailer lets you send emails as the bot
 type Mailer struct {
 	client *sendgrid.Client
 	from   *mail.Email

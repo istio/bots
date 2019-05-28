@@ -22,20 +22,29 @@ import (
 	"istio.io/bots/policybot/pkg/storage"
 )
 
-const (
-	orgTable          = "Orgs"
-	repoTable         = "Repos"
-	repoStatsTable    = "RepoStats"
-	userTable         = "Users"
-	labelTable        = "Labels"
-	issueTable        = "Issues"
-	issueCommentTable = "IssueComments"
+// Details of the DB schema internal to the Spanner-based implementation
 
+// All the DB tables we use
+const (
+	orgTable               = "Orgs"
+	repoTable              = "Repos"
+	repoStatsTable         = "RepoStats"
+	userTable              = "Users"
+	labelTable             = "Labels"
+	issueTable             = "Issues"
+	issueCommentTable      = "IssueComments"
+	pullRequestTable       = "PullRequests"
+	pullRequestReviewTable = "PullRequestReviews"
+)
+
+// All the DB indices we use
+const (
 	orgLoginIndex    = "OrgsLogin"
 	repoNameIndex    = "ReposName"
 	issueNumberIndex = "IssuesNumber"
 )
 
+// Shape of the rows in the indices
 type (
 	orgLoginRow struct {
 		OrgID string
@@ -62,18 +71,23 @@ type (
 	}
 )
 
+// Holds the column names for each table or index in the database (filled in at startup)
 var (
-	orgColumns          []string
-	orgLoginColumns     []string
-	repoColumns         []string
-	repoNameColumns     []string
-	repoStatsColumns    []string
-	userColumns         []string
-	labelColumns        []string
-	issueColumns        []string
-	issueNumberColumns  []string
-	issueCommentColumns []string
+	orgColumns               []string
+	orgLoginColumns          []string
+	repoColumns              []string
+	repoNameColumns          []string
+	repoStatsColumns         []string
+	userColumns              []string
+	labelColumns             []string
+	issueColumns             []string
+	issueNumberColumns       []string
+	issueCommentColumns      []string
+	pullRequestColumns       []string
+	pullRequestReviewColumns []string
 )
+
+// Bunch of functions to from keys for the tables and indices in the DB
 
 func orgKey(orgID string) spanner.Key {
 	return spanner.Key{orgID}
@@ -115,6 +129,14 @@ func issueCommentKey(orgID string, repoID string, issueID string, commentID stri
 	return spanner.Key{orgID, repoID, issueID, commentID}
 }
 
+func pullRequestKey(orgID string, repoID string, issueID string) spanner.Key {
+	return spanner.Key{orgID, repoID, issueID}
+}
+
+func pullRequestReviewKey(orgID string, repoID string, issueID string, reviewID string) spanner.Key {
+	return spanner.Key{orgID, repoID, issueID, reviewID}
+}
+
 func init() {
 	orgColumns = getFields(storage.Org{})
 	orgLoginColumns = getFields(orgLoginRow{})
@@ -126,8 +148,11 @@ func init() {
 	issueColumns = getFields(storage.Issue{})
 	issueNumberColumns = getFields(issueNumberRow{})
 	issueCommentColumns = getFields(storage.IssueComment{})
+	pullRequestColumns = getFields(storage.PullRequest{})
+	pullRequestReviewColumns = getFields(storage.PullRequestReview{})
 }
 
+// Produces a string array representing all the fields in the input object
 func getFields(o interface{}) []string {
 	t := reflect.TypeOf(o)
 	result := make([]string, t.NumField())

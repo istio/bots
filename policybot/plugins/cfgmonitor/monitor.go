@@ -26,9 +26,7 @@ import (
 	"istio.io/pkg/log"
 )
 
-var scope = log.RegisterScope("monitor", "Listens for changes in policybot config", 0)
-
-// Monitors for changes in the policybot config file.
+// Monitors for changes in the bot's config file.
 type Monitor struct {
 	ctx    context.Context
 	ght    *util.GitHubThrottle
@@ -38,6 +36,8 @@ type Monitor struct {
 	file   string
 	notify func()
 }
+
+var scope = log.RegisterScope("monitor", "Listens for changes in policybot config", 0)
 
 func NewMonitor(ctx context.Context, ght *util.GitHubThrottle, repo string, file string, notify func()) (*Monitor, error) {
 	if repo == "" {
