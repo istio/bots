@@ -27,8 +27,9 @@ const (
 	// created timestamp comparision instead...
 	// https://cloud.google.com/spanner/docs/functions-and-operators#timestamp_diff
 	query = `SELECT OrgID, IssueID, Title, UpdatedAt from Issues
-WHERE TIMESTAMP("2019-04-25 15:30:00", "America/Los_Angeles") < UpdatedAt
-	AND REGEXP_CONTAINS(title, 'flake');`
+WHERE TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), UpdatedAt, DAY) < 90
+	AND ( REGEXP_CONTAINS(title, 'flake') OR 
+						REGEXP_CONTAINS(body, 'flake') );`
 )
 
 var scope = log.RegisterScope("flakechaser", "Listens for changes in policybot config", 0)
