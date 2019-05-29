@@ -21,6 +21,7 @@ import (
 	"google.golang.org/grpc/codes"
 
 	"cloud.google.com/go/spanner"
+	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 
 	"istio.io/bots/policybot/pkg/storage"
@@ -315,6 +316,32 @@ func (s *store) RecordTestNagRemoved(repo string) error {
 	return s.updateStats(repo, func(rsr *repoStatsRow) {
 		rsr.NagsRemoved++
 	})
+}
+
+// ReadIssueBySQL
+func (s *store) ReadIssueBySQL(sql string, issueProcessor storage.IssueIterator) error {
+	sql = `SELECT OrgID, RepoID, IssueID, Title from Issues limit 5;`
+	fmt.Println("jianfeih debugging invoke spanner.")
+	iter := s.client.Single().Query(s.ctx, spanner.Statement{SQL: sql})
+	defer iter.Stop()
+	for {
+		row, err := iter.Next()
+		fmt.Println("jianfieh debug row %v", row)
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			fmt.Println("jianfeih debug not exists")
+		}
+	}
+	return nil
+	// return iter.Do(func(row *spanner.Row) error {
+	// 	fmt.Println("jianfeih debugging invoked once for wo.")
+	// 	if err := issueProcessor(row); err != nil {
+	// 		return err
+	// 	}
+	// 	return nil
+	// })
 }
 
 /*

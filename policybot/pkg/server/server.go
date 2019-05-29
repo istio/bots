@@ -152,7 +152,7 @@ func serve(a *config.Args) error {
 		return fmt.Errorf("unable to create config monitor: %v", err)
 	}
 
-	flakechaser, err := flakechaser.New(ght, "istio/istio")
+	flakechaser, err := flakechaser.New(ght, ghs, "istio/istio")
 	if err != nil {
 		return fmt.Errorf("unable to create flake chaser plugin: %v", err)
 	}

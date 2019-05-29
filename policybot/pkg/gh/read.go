@@ -15,7 +15,11 @@
 package gh
 
 import (
+	"fmt"
+
 	"istio.io/bots/policybot/pkg/storage"
+
+	google_spanner "cloud.google.com/go/spanner"
 )
 
 func (ghs *GitHubState) ReadOrg(org string) (*storage.Org, error) {
@@ -65,4 +69,18 @@ func (ghs *GitHubState) ReadIssueComment(org string, repo string, issue string,
 	}
 
 	return ghs.store.ReadIssueCommentByID(org, repo, issue, issueComment)
+}
+
+func (ghs *GitHubState) ReadIssueBySQL(sql string, issueProcessor storage.IssueIterator) error {
+	return ghs.store.ReadIssueBySQL(sql, getIssue)
+}
+
+func getIssue(row *google_spanner.Row) error {
+	issue := &storage.Issue{}
+	err := row.Columns(&issue.OrgID, &issue.RepoID, &issue.IssueID, &issue.Title)
+	if err != nil {
+		return err
+	}
+	fmt.Println("jianfeih debug issue %v", issue)
+	return nil
 }

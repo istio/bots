@@ -16,7 +16,12 @@ package storage
 
 import (
 	"io"
+
+	google_spanner "cloud.google.com/go/spanner"
 )
+
+// IssueIterator itertates the spanner query returned working set.
+type IssueIterator func(row *google_spanner.Row) error
 
 type Store interface {
 	io.Closer
@@ -36,6 +41,7 @@ type Store interface {
 	ReadIssueCommentByID(org string, repo string, issue string, issueComment string) (*IssueComment, error)
 	ReadLabelByID(org string, repo string, label string) (*Label, error)
 	ReadUserByID(user string) (*User, error)
+	ReadIssueBySQL(sql string, iterator IssueIterator) error
 
 	//	FindUnengagedIssues(repo *gh.Repo, cb func(issue *gh.Issue)) error
 
