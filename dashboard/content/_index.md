@@ -4,13 +4,9 @@ description: Connect, secure, control, and observe services.
 ---
 <main class="landing">
 
-    <!-- Make sure to include Nelify's authentiation library -->
-    <!-- Also available via npm as netlify-auth-providers -->
-    <script src="https://unpkg.com/netlify-auth-providers"></script>
-
     <style>
 
-    #login {
+    .auth-button {
         display: inline-block;
         text-align: center;
         background-color: #28a745;
@@ -35,65 +31,10 @@ description: Connect, secure, control, and observe services.
     }
     </style>
 
-    <button id="login">Sign in with GitHub</button>
+    <button class="auth-button" id="login-button">Sign in with GitHub</button>
+    <button class="auth-button" id="logout-button">Sign out from GitHub</button>
 
     <p id="name"></p>
     <p id="image"></p>
     <p id="policybot"></p>
-
-    <script>
-        let github_token = readCookie("github_token");
-        if (github_token !== null) {
-            document.getElementById("login").style.display = "none";
-            fetchUserData();
-            fetchRepoData();
-        } else {
-            document.getElementById("login").addEventListener("click", login);
-        }
-
-        function login(e) {
-            e.preventDefault();
-            var authenticator = new netlify.default ({});
-            authenticator.authenticate({provider:"github", scope: "user"}, (err, data) => {
-                if (err !== null) {
-                    const name = document.getElementById("name");
-                    name.innerText = err;
-                    return;
-                }
-
-                github_token = data.token;
-                createCookie("github_token", github_token);
-                fetchUserData();
-                fetchRepoData();
-            })
-        }
-
-        function fetchRepoData() {
-            fetch('https://policybot.istio.io/repos', {
-            })
-            .then(response => response.text())
-            .then(data => {
-                const policybot = document.getElementById("policybot");
-                policybot.innerText = data;
-            });
-        }
-
-        function fetchUserData() {
-            fetch('https://api.github.com/user', {
-                headers: {
-                    "Authorization": "token " + github_token,
-                }
-            })
-            .then(response => response.text())
-            .then(data => {
-                const json = JSON.parse(data);
-
-                const name = document.getElementById("name");
-                const image = document.getElementById("image");
-
-                name.innerText = json.login;
-                image.innerHTML = "<img style='width:40px' src='" + json.avatar_url + "'>";
-            });
-        }
-  </script>
 </main>

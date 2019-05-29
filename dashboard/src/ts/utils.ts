@@ -103,6 +103,10 @@ function createCookie(name: string, value: string): void {
     document.cookie = name + "=" + value + "; path=/";
 }
 
+function deleteCookie(name: string): void {
+    document.cookie = name + "=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+}
+
 function getById(id: string): HTMLElement | null {
     return document.getElementById(id);
 }

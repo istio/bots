@@ -8,10 +8,10 @@ pluralizeListTitles = false
 canonifyURLs = true
 disableKinds = ["taxonomy", "taxonomyTerm"]
 anchor = "smart"
-enableGitInfo = true
+enableGitInfo = false
 enableEmoji = false
 buildFuture = true
-ignoreFiles = [ "OWNERS" ]
+ignoreFiles = []
 staticDir = ["static", "generated"]
 
 # we use Netlify server-side redirects instead of generated aliases
