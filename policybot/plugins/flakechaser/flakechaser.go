@@ -53,7 +53,7 @@ func New(ght *util.GitHubThrottle, ghs *gh.GitHubState, repo string) (*Chaser, e
 func (c *Chaser) Handle(_ http.ResponseWriter, _ *http.Request) {
 	scope.Infof("Handle request for flake chaser")
 	// TODO, add handler function to post updates.
-	err := c.ghs.ReadIssueBySQL(query, nil)
+	issues, err := c.ghs.ReadIssueBySQL(query, nil)
 	if err != nil {
 		scope.Errorf("Failed to read issue from Spanner: %v", err)
 		return
