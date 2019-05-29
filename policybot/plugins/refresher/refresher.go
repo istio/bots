@@ -60,33 +60,33 @@ func (r *Refresher) Events() []webhook.Event {
 func (r *Refresher) Handle(_ http.ResponseWriter, githubObject interface{}) {
 	switch p := githubObject.(type) {
 	case webhook.IssuesPayload:
-		scope.Infof("Received IssuePayload: %+v", p)
+		scope.Debugf("Received IssuePayload: %+v", p)
 		r.refresh(p.Repository.FullName, func(a *gh.Accumulator) interface{} {
 			return a.IssueFromHook(&p)
 		})
 
 	case webhook.IssueCommentPayload:
-		scope.Infof("Received IssueCommentPayload: %+v", p)
+		scope.Debugf("Received IssueCommentPayload: %+v", p)
 		r.refresh(p.Repository.FullName, func(a *gh.Accumulator) interface{} {
 			return a.IssueCommentFromHook(&p)
 		})
 
 	case webhook.PullRequestPayload:
-		scope.Infof("Received PullRequestPayload: %+v", p)
+		scope.Debugf("Received PullRequestPayload: %+v", p)
 		r.refresh(p.Repository.FullName, func(a *gh.Accumulator) interface{} {
 			pr, _ := a.PullRequestFromHook(&p)
 			return pr
 		})
 
 	case webhook.PullRequestReviewPayload:
-		scope.Infof("Received PullRequestReviewPayload: %+v", p)
+		scope.Debugf("Received PullRequestReviewPayload: %+v", p)
 		r.refresh(p.Repository.FullName, func(a *gh.Accumulator) interface{} {
 			return a.PullRequestReviewFromHook(&p)
 		})
 
 	default:
 		// not what we're looking for
-		scope.Infof("Unknown payload received: %T %+v", p, p)
+		scope.Debugf("Unknown payload received: %T %+v", p, p)
 		return
 	}
 }
