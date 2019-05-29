@@ -77,8 +77,9 @@ func (ghs *GitHubState) ReadIssueBySQL(sql string, issueProcessor storage.IssueI
 
 func getIssue(row *google_spanner.Row) error {
 	issue := &storage.Issue{}
-	err := row.Columns(&issue.OrgID, &issue.RepoID, &issue.IssueID, &issue.Title)
+	err := row.Columns(&issue.OrgID, &issue.IssueID, &issue.Title, &issue.UpdatedAt)
 	if err != nil {
+		fmt.Println("jianfeih debug error in fetching the issue", err)
 		return err
 	}
 	fmt.Println("jianfeih debug issue %v", issue)

@@ -22,6 +22,15 @@ import (
 	"istio.io/pkg/log"
 )
 
+const (
+	// TODO, rewrite query to be within 60 days of now to reduce the query size.
+	// created timestamp comparision instead...
+	// https://cloud.google.com/spanner/docs/functions-and-operators#timestamp_diff
+	query = `SELECT OrgID, IssueID, Title, UpdatedAt from Issues
+WHERE TIMESTAMP("2019-04-25 15:30:00", "America/Los_Angeles") < UpdatedAt
+	AND REGEXP_CONTAINS(title, 'flake');`
+)
+
 var scope = log.RegisterScope("flakechaser", "Listens for changes in policybot config", 0)
 
 // Chaser scans the test flakiness issues and neg issuer assignee when no updates occur for a while.
@@ -43,7 +52,9 @@ func New(ght *util.GitHubThrottle, ghs *gh.GitHubState, repo string) (*Chaser, e
 // Handle implements http interface, will be invoked periodically to fullfil the test flakes comments.
 func (c *Chaser) Handle(_ http.ResponseWriter, _ *http.Request) {
 	scope.Infof("Handle request for flake chaser")
-	if err := c.ghs.ReadIssueBySQL("select count(*) from Repos", nil); err != nil {
+	// TODO, add handler function to post updates.
+	err := c.ghs.ReadIssueBySQL(query, nil)
+	if err != nil {
 		scope.Errorf("Failed to read issue from Spanner: %v", err)
 		return
 	}
