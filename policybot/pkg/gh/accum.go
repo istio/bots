@@ -296,7 +296,7 @@ func (a *Accumulator) IssueFromAPI(org string, repo string, issue *api.Issue) *s
 		OrgID:         org,
 		RepoID:        repo,
 		IssueID:       issue.GetNodeID(),
-		Number:        issue.GetNumber(),
+		Number:        int64(issue.GetNumber()),
 		Title:         issue.GetTitle(),
 		Body:          issue.GetBody(),
 		LabelIDs:      labels,

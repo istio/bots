@@ -15,21 +15,23 @@
 package flakechaser
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 
+	"github.com/google/go-github/v25/github"
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/util"
 	"istio.io/pkg/log"
 )
 
 const (
-	// TODO, rewrite query to be within 60 days of now to reduce the query size.
-	// created timestamp comparision instead...
-	// https://cloud.google.com/spanner/docs/functions-and-operators#timestamp_diff
-	query = `SELECT OrgID, IssueID, Title, UpdatedAt from Issues
-WHERE TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), UpdatedAt, DAY) < 90
-	AND ( REGEXP_CONTAINS(title, 'flake') OR 
-						REGEXP_CONTAINS(body, 'flake') );`
+	// flakeIssueQuery selects all the issues that haven't been updated for more than 3 days
+	flakeIssueQuery = `SELECT * from Issues
+	WHERE TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), UpdatedAt, DAY) > 3 AND 
+				TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), CreatedAt, DAY) < 180 AND
+				( REGEXP_CONTAINS(title, 'flake') OR 
+					REGEXP_CONTAINS(body, 'flake') );`
 )
 
 var scope = log.RegisterScope("flakechaser", "Listens for changes in policybot config", 0)
@@ -52,11 +54,24 @@ func New(ght *util.GitHubThrottle, ghs *gh.GitHubState, repo string) (*Chaser, e
 
 // Handle implements http interface, will be invoked periodically to fullfil the test flakes comments.
 func (c *Chaser) Handle(_ http.ResponseWriter, _ *http.Request) {
+	flakeComments := `Hey, there's no updates for this test flakes for 3 days.`
 	scope.Infof("Handle request for flake chaser")
-	// TODO, add handler function to post updates.
-	issues, err := c.ghs.ReadIssueBySQL(query, nil)
+	issues, err := c.ghs.ReadIssueBySQL(flakeIssueQuery)
 	if err != nil {
 		scope.Errorf("Failed to read issue from Spanner: %v", err)
+		return
+	}
+	for _, issue := range issues {
+		comment := &github.IssueComment{
+			Body: &flakeComments,
+		}
+		fmt.Printf("jianfeih debug handling issue %v", issue)
+		// TODO: resolve the RepoName and OrgName from the ID.
+		_, _, err := c.ght.Get().Issues.CreateComment(
+			context.Background(), issue.OrgID, issue.RepoID, int(issue.Number), comment)
+		if err != nil {
+			scope.Errorf("Failed to create flakes nagging comments: %v", err)
+		}
 		return
 	}
 }

@@ -318,21 +318,23 @@ func (s *store) RecordTestNagRemoved(repo string) error {
 	})
 }
 
-// ReadIssueBySQL
 func (s *store) ReadIssueBySQL(sql string, issueProcessor storage.IssueIterator) error {
 	fmt.Println("jianfeih debugging invoke spanner.")
 	iter := s.client.Single().Query(s.ctx, spanner.Statement{SQL: sql})
 	defer iter.Stop()
 	for {
 		row, err := iter.Next()
-		fmt.Println("jianfieh debug row ", row)
+		// fmt.Println("jianfieh debug row ", row)
 		if err == iterator.Done {
 			break
 		}
 		if err != nil {
 			fmt.Println("jianfeih debug not exists")
 		}
-		issueProcessor(row)
+		if err := issueProcessor(row); err != nil {
+			fmt.Printf("stop reading rows %v\n", err)
+			return err
+		}
 	}
 	return nil
 }

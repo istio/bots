@@ -22,7 +22,7 @@ type Issue struct {
 	OrgID         string
 	RepoID        string
 	IssueID       string
-	Number        int
+	Number        int64
 	Title         string
 	Body          string
 	LabelIDs      []string

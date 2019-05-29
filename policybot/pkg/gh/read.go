@@ -71,16 +71,16 @@ func (ghs *GitHubState) ReadIssueComment(org string, repo string, issue string,
 	return ghs.store.ReadIssueCommentByID(org, repo, issue, issueComment)
 }
 
+// ReadIssueBySQL returns issue based on the SQL query.
 func (ghs *GitHubState) ReadIssueBySQL(sql string) ([]*storage.Issue, error) {
 	issues := []*storage.Issue{}
 	getIssue := func(row *google_spanner.Row) error {
-		issue := &storage.Issue{}
-		err := row.Columns(&issue.OrgID, &issue.IssueID, &issue.Title, &issue.UpdatedAt)
-		if err != nil {
+		issue := storage.Issue{}
+		// err := row.Columns(&issue.OrgID, &issue.IssueID, &issue.Title, &issue.UpdatedAt)
+		if err := row.ToStruct(&issue); err != nil {
 			fmt.Println("jianfeih debug error in fetching the issue", err)
 			return err
 		}
-		fmt.Println("jianfeih debug issue %v", issue)
 		issues = append(issues, &issue)
 		return nil
 	}
