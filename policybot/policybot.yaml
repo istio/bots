@@ -12,14 +12,14 @@ nags:
       - ".*.go"
     absentfiles:
       - ".*_test.go"
-    message: "You appear to be fixing a bug in Go code, yet your PR doesn't include updates to any test files. Did you forget to add a test?"
+    message: ":thinking: :bug: You appear to be fixing a bug in Go code, yet your PR doesn't include updates to any test files. Did you forget to add a test?"
 
 orgs:
   - name: istio
     repos:
-      - name: istio.io
-      - name: istio
       - name: api
+      - name: istio
+      - name: istio.io
       - name: cni
       - name: operator
       - name: installer

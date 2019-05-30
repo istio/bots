@@ -18,6 +18,8 @@ import (
 	"context"
 	"fmt"
 
+	"istio.io/pkg/log"
+
 	"google.golang.org/grpc/codes"
 
 	"cloud.google.com/go/spanner"
@@ -31,6 +33,8 @@ type store struct {
 	client *spanner.Client
 	ctx    context.Context
 }
+
+var scope = log.RegisterScope("spanner", "Spanner abstraction layer", 0)
 
 func NewStore(ctx context.Context, database string, gcpCreds []byte) (storage.Store, error) {
 	client, err := spanner.NewClient(ctx, database, option.WithCredentialsJSON(gcpCreds))
@@ -50,6 +54,8 @@ func (s *store) Close() error {
 }
 
 func (s *store) WriteOrgs(orgs []*storage.Org) error {
+	scope.Debugf("Writing %d orgs", len(orgs))
+
 	mutations := make([]*spanner.Mutation, len(orgs))
 	for i := 0; i < len(orgs); i++ {
 		var err error
@@ -63,6 +69,8 @@ func (s *store) WriteOrgs(orgs []*storage.Org) error {
 }
 
 func (s *store) WriteRepos(repos []*storage.Repo) error {
+	scope.Debugf("Writing %d repos", len(repos))
+
 	mutations := make([]*spanner.Mutation, len(repos))
 	for i := 0; i < len(repos); i++ {
 		var err error
@@ -76,6 +84,8 @@ func (s *store) WriteRepos(repos []*storage.Repo) error {
 }
 
 func (s *store) WriteIssues(issues []*storage.Issue) error {
+	scope.Debugf("Writing %d issues", len(issues))
+
 	mutations := make([]*spanner.Mutation, len(issues))
 	for i := 0; i < len(issues); i++ {
 		var err error
@@ -89,6 +99,8 @@ func (s *store) WriteIssues(issues []*storage.Issue) error {
 }
 
 func (s *store) WriteIssueComments(issueComments []*storage.IssueComment) error {
+	scope.Debugf("Writing %d issue comments", len(issueComments))
+
 	mutations := make([]*spanner.Mutation, len(issueComments))
 	for i := 0; i < len(issueComments); i++ {
 		var err error
@@ -101,7 +113,39 @@ func (s *store) WriteIssueComments(issueComments []*storage.IssueComment) error 
 	return err
 }
 
+func (s *store) WritePullRequests(prs []*storage.PullRequest) error {
+	scope.Debugf("Writing %d pull requests", len(prs))
+
+	mutations := make([]*spanner.Mutation, len(prs))
+	for i := 0; i < len(prs); i++ {
+		var err error
+		if mutations[i], err = spanner.InsertOrUpdateStruct(pullRequestTable, prs[i]); err != nil {
+			return err
+		}
+	}
+
+	_, err := s.client.Apply(s.ctx, mutations)
+	return err
+}
+
+func (s *store) WritePullRequestReviews(prReviews []*storage.PullRequestReview) error {
+	scope.Debugf("Writing %d pull request reviews", len(prReviews))
+
+	mutations := make([]*spanner.Mutation, len(prReviews))
+	for i := 0; i < len(prReviews); i++ {
+		var err error
+		if mutations[i], err = spanner.InsertOrUpdateStruct(pullRequestReviewTable, prReviews[i]); err != nil {
+			return err
+		}
+	}
+
+	_, err := s.client.Apply(s.ctx, mutations)
+	return err
+}
+
 func (s *store) WriteUsers(users []*storage.User) error {
+	scope.Debugf("Writing %d users", len(users))
+
 	mutations := make([]*spanner.Mutation, len(users))
 	for i := 0; i < len(users); i++ {
 		var err error
@@ -115,6 +159,8 @@ func (s *store) WriteUsers(users []*storage.User) error {
 }
 
 func (s *store) WriteLabels(labels []*storage.Label) error {
+	scope.Debugf("Writing %d labels", len(labels))
+
 	mutations := make([]*spanner.Mutation, len(labels))
 	for i := 0; i < len(labels); i++ {
 		var err error
@@ -241,6 +287,38 @@ func (s *store) ReadIssueCommentByID(org string, repo string, issue string, issu
 	}
 
 	var result storage.IssueComment
+	if err := row.ToStruct(&result); err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
+
+func (s *store) ReadPullRequestByID(org string, repo string, issue string) (*storage.PullRequest, error) {
+	row, err := s.client.Single().ReadRow(s.ctx, pullRequestTable, pullRequestKey(org, repo, issue), pullRequestColumns)
+	if spanner.ErrCode(err) == codes.NotFound {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	var result storage.PullRequest
+	if err := row.ToStruct(&result); err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
+
+func (s *store) ReadPullRequestReviewByID(org string, repo string, issue string, pullRequestReview string) (*storage.PullRequestReview, error) {
+	row, err := s.client.Single().ReadRow(s.ctx, pullRequestReviewTable, pullRequestReviewKey(org, repo, issue, pullRequestReview), pullRequestReviewColumns)
+	if spanner.ErrCode(err) == codes.NotFound {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	var result storage.PullRequestReview
 	if err := row.ToStruct(&result); err != nil {
 		return nil, err
 	}

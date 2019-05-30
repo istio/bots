@@ -20,6 +20,12 @@ import (
 	webhook "github.com/go-playground/webhooks/github"
 )
 
+// The interface to a webhook plugin.
+//
+// Note that individual plugins are invoked for any events incoming to the
+// bot. The events specified by this interface therefore don't constrain
+// what Handle is used for and are merely used to control which events will
+// be accepted as a whole by the bot.
 type webhookPlugin interface {
 	Events() []webhook.Event
 	Handle(w http.ResponseWriter, ghPayload interface{})

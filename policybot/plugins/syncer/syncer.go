@@ -37,7 +37,6 @@ type Syncer struct {
 	ghs   *gh.GitHubState
 	ght   *util.GitHubThrottle
 	orgs  []config.Org
-	accum *gh.Accumulator
 	store storage.Store
 }
 
@@ -64,18 +63,18 @@ func NewSyncer(ctx context.Context, ght *util.GitHubThrottle, ghs *gh.GitHubStat
 		ght:   ght,
 		ghs:   ghs,
 		orgs:  orgs,
-		accum: ghs.NewAccumulator(),
 		store: store,
 	}
 }
 
 func (s *Syncer) Handle(_ http.ResponseWriter, _ *http.Request) {
+	a := s.ghs.NewAccumulator()
 	for _, org := range s.orgs {
-		s.handleOrg(org)
+		s.handleOrg(a, org)
 	}
 }
 
-func (s *Syncer) handleOrg(orgConfig config.Org) {
+func (s *Syncer) handleOrg(a *gh.Accumulator, orgConfig config.Org) {
 	scope.Infof("Syncing org %s", orgConfig.Name)
 
 	org, _, err := s.ght.Get().Organizations.Get(s.ctx, orgConfig.Name)
@@ -84,19 +83,26 @@ func (s *Syncer) handleOrg(orgConfig config.Org) {
 		return
 	}
 
-	o := s.accum.OrgFromAPI(org)
+	o := a.OrgFromAPI(org)
 
 	for _, repoConfig := range orgConfig.Repos {
 		if repo, _, err := s.ght.Get().Repositories.Get(s.ctx, orgConfig.Name, repoConfig.Name); err != nil {
 			scope.Errorf("Unable to query information about repository %s/%s from GitHub: %v", orgConfig.Name, repoConfig.Name, err)
 		} else {
-			s.handleRepo(o, s.accum.RepoFromAPI(repo))
+			s.handleRepo(a, o, a.RepoFromAPI(repo))
 		}
 	}
 
-	if err := s.accum.Commit(); err != nil {
+	if err := a.Commit(); err != nil {
 		scope.Errorf("Unable to commit data to storage: %v", err)
 	}
+}
+
+func (s *Syncer) handleRepo(a *gh.Accumulator, org *storage.Org, repo *storage.Repo) {
+	scope.Infof("Syncing repo %s/%s", org.Login, repo.Name)
+
+	s.handleIssues(a, org, repo)
+	s.handlePullRequests(a, org, repo)
 }
 
 type commentBundle struct {
@@ -104,9 +110,7 @@ type commentBundle struct {
 	issue    string
 }
 
-func (s *Syncer) handleRepo(org *storage.Org, repo *storage.Repo) {
-	scope.Infof("Syncing repo %s/%s", org.Login, repo.Name)
-
+func (s *Syncer) handleIssues(a *gh.Accumulator, org *storage.Org, repo *storage.Repo) {
 	opt := &github.IssueListByRepoOptions{
 		State: "all",
 		ListOptions: github.ListOptions{
@@ -116,6 +120,8 @@ func (s *Syncer) handleRepo(org *storage.Org, repo *storage.Repo) {
 
 	total := 0
 	for {
+		scope.Debugf("Getting issues from repo %s/%s", org.Login, repo.Name)
+
 		issues, resp, err := s.ght.Get().Issues.ListByRepo(s.ctx, org.Login, repo.Name, opt)
 		if err != nil {
 			scope.Errorf("Unable to list all issues in repo %s/%s: %v\n", org.Login, repo.Name, err)
@@ -133,11 +139,12 @@ func (s *Syncer) handleRepo(org *storage.Org, repo *storage.Repo) {
 			// if this issue is already known to us and is up to date, skip further processing
 			if existing, _ := s.ghs.ReadIssue(org.OrgID, repo.RepoID, issue.GetNodeID()); existing != nil {
 				if existing.UpdatedAt == issue.GetUpdatedAt() {
+					wg.Done()
 					continue
 				}
 			}
 
-			_ = s.accum.IssueFromAPI(org.OrgID, repo.RepoID, issue)
+			_ = a.IssueFromAPI(org.OrgID, repo.RepoID, issue)
 
 			capture := issue
 			go func() {
@@ -154,11 +161,11 @@ func (s *Syncer) handleRepo(org *storage.Org, repo *storage.Repo) {
 
 		for _, bundle := range bundles {
 			for _, comment := range bundle.comments {
-				s.accum.IssueCommentFromAPI(org.OrgID, repo.RepoID, bundle.issue, comment)
+				_ = a.IssueCommentFromAPI(org.OrgID, repo.RepoID, bundle.issue, comment)
 			}
 		}
 
-		if err := s.accum.Commit(); err != nil {
+		if err := a.Commit(); err != nil {
 			scope.Errorf("Unable to commit data to storage: %v", err)
 		}
 
@@ -182,6 +189,8 @@ func (s *Syncer) fetchComments(org *storage.Org, repo *storage.Repo, issueNumber
 
 	var result []*github.IssueComment
 	for {
+		scope.Debugf("Getting issue comments for issue %d from repo %s/%s", issueNumber, org.Login, repo.Name)
+
 		comments, resp, err := s.ght.Get().Issues.ListComments(s.ctx, org.Login, repo.Name, issueNumber, opt)
 		if err != nil {
 			scope.Errorf("Unable to list all comments for issue %d in repo %s/%s: %v", issueNumber, org.Login, repo.Name, err)
@@ -195,6 +204,108 @@ func (s *Syncer) fetchComments(org *storage.Org, repo *storage.Repo, issueNumber
 		}
 
 		opt.ListOptions.Page = resp.NextPage
+	}
+
+	return result
+}
+
+type reviewBundle struct {
+	reviews []*github.PullRequestReview
+	pr      string
+}
+
+func (s *Syncer) handlePullRequests(a *gh.Accumulator, org *storage.Org, repo *storage.Repo) {
+	opt := &github.PullRequestListOptions{
+		State: "all",
+		ListOptions: github.ListOptions{
+			PerPage: 100,
+		},
+	}
+
+	total := 0
+	for {
+		scope.Debugf("Getting pull requests from repo %s/%s", org.Login, repo.Name)
+
+		prs, resp, err := s.ght.Get().PullRequests.List(s.ctx, org.Login, repo.Name, opt)
+		if err != nil {
+			scope.Errorf("Unable to list all pull requests in repo %s/%s: %v\n", org.Login, repo.Name, err)
+			return
+		}
+
+		wg := sync.WaitGroup{}
+		wg.Add(len(prs))
+
+		lock := sync.Mutex{}
+		var bundles []reviewBundle
+
+		for _, pr := range prs {
+
+			// if this pr is already known to us and is up to date, skip further processing
+			if existing, _ := s.ghs.ReadPullRequest(org.OrgID, repo.RepoID, pr.GetNodeID()); existing != nil {
+				if existing.UpdatedAt == pr.GetUpdatedAt() {
+					wg.Done()
+					continue
+				}
+			}
+
+			_ = a.PullRequestFromAPI(org.OrgID, repo.RepoID, pr)
+
+			capture := pr
+			go func() {
+				reviews := s.fetchReviews(org, repo, capture.GetNumber())
+
+				lock.Lock()
+				bundles = append(bundles, reviewBundle{reviews, capture.GetNodeID()})
+				lock.Unlock()
+
+				wg.Done()
+			}()
+		}
+		wg.Wait()
+
+		for _, bundle := range bundles {
+			for _, review := range bundle.reviews {
+				_ = a.PullRequestReviewFromAPI(org.OrgID, repo.RepoID, bundle.pr, review)
+			}
+		}
+
+		if err := a.Commit(); err != nil {
+			scope.Errorf("Unable to commit data to storage: %v", err)
+		}
+
+		if resp.NextPage == 0 {
+			break
+		}
+
+		opt.ListOptions.Page = resp.NextPage
+
+		total += len(prs)
+		scope.Infof("Synced %d pull requests in repo %s/%s", total, org.Login, repo.Name)
+	}
+}
+
+func (s *Syncer) fetchReviews(org *storage.Org, repo *storage.Repo, prNumber int) []*github.PullRequestReview {
+	opt := &github.ListOptions{
+		PerPage: 100,
+	}
+
+	var result []*github.PullRequestReview
+	for {
+		scope.Debugf("Getting reviews for pr %d from repo %s/%s", prNumber, org.Login, repo.Name)
+
+		reviews, resp, err := s.ght.Get().PullRequests.ListReviews(s.ctx, org.Login, repo.Name, prNumber, opt)
+		if err != nil {
+			scope.Errorf("Unable to list all comments for pr %d in repo %s/%s: %v", prNumber, org.Login, repo.Name, err)
+			return result
+		}
+
+		result = append(result, reviews...)
+
+		if resp.NextPage == 0 {
+			break
+		}
+
+		opt.Page = resp.NextPage
 	}
 
 	return result

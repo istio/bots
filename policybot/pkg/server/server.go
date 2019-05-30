@@ -34,6 +34,7 @@ import (
 	"istio.io/bots/policybot/plugins/cfgmonitor"
 	"istio.io/bots/policybot/plugins/flakechaser"
 	"istio.io/bots/policybot/plugins/nagger"
+	"istio.io/bots/policybot/plugins/refresher"
 	"istio.io/bots/policybot/plugins/syncer"
 	"istio.io/pkg/log"
 )
@@ -139,6 +140,8 @@ func serve(a *config.Args) error {
 		return fmt.Errorf("unable to create nagger: %v", err)
 	}
 
+	refresher := refresher.NewRefresher(ghs, a.Orgs)
+
 	srv := &http.Server{
 		Addr:    ":" + strconv.Itoa(a.StartupOptions.Port),
 		Handler: serverMux,
@@ -158,7 +161,8 @@ func serve(a *config.Args) error {
 		return fmt.Errorf("unable to create flake chaser plugin: %v", err)
 	}
 
-	hook, err := newHook(a.StartupOptions.GitHubSecret, nag, monitor)
+	// NB: keep refresher first in the list such that other plugins see an up-to-date view in storage.
+	hook, err := newHook(a.StartupOptions.GitHubSecret, refresher, nag, monitor)
 	if err != nil {
 		return fmt.Errorf("unable to create GitHub webhook: %v", err)
 	}

@@ -47,6 +47,9 @@ partial shutdown and restart of the bot, which will reread the config and start 
 remind developers to include tests whenever they fix bugs, but the engine is general-purpose and could be used
 creatively for other nagging comments.
 
+- refresher. Updates the local Google Cloud Spanner copy of GitHub issues based on events
+reported by the GitHub webhook.
+
 ## Startup options
 
 The bot supports a number of startup options. These can be specified as environment variables or
@@ -80,11 +83,13 @@ treated as a local file path within the bot's container.
 
 The bot exposes a REST API at https://policybot.istio.io. It's pretty simple so far:
 
-- /sync - triggers the bot to synchronize GitHub issues into Google Cloud Spanner.
+- /sync - triggers the bot to synchronize GitHub issues into Google Cloud Spanner. This is called periodically  by 
+a job scheduled in Google Cloud scheduler.
 
-- /githubwebhook - invoked by GitHub to repo any state change.
+- /githubwebhook - used to report events in GitHub. This is called by GitHub whenever anything interesting happens in
+the Istio repos.
 
-- /analyze - a place holder that will eventually serve analysis data to the [dashboard UI](../dashboard/README.md) at
+- /analyze - a placeholder that will eventually serve analysis data to the [dashboard UI](../dashboard/README.md) at
 https://bots.istio.io.
 
 ## Configuration file
