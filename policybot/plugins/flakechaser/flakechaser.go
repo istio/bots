@@ -16,10 +16,10 @@ package flakechaser
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 
 	"github.com/google/go-github/v25/github"
+
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/util"
 	"istio.io/pkg/log"
@@ -39,18 +39,18 @@ var scope = log.RegisterScope("flakechaser", "Listens for changes in policybot c
 
 // Chaser scans the test flakiness issues and neg issuer assignee when no updates occur for a while.
 type Chaser struct {
-	ght  *util.GitHubThrottle
-	ghs  *gh.GitHubState
-	repo string
+	ght    *util.GitHubThrottle
+	ghs    *gh.GitHubState
+	repo   string
 	dryRun bool
 }
 
 // New creates a flake chaser.
 func New(ght *util.GitHubThrottle, ghs *gh.GitHubState, repo string, dryRun bool) (*Chaser, error) {
 	return &Chaser{
-		repo: repo,
-		ght:  ght,
-		ghs:  ghs,
+		repo:   repo,
+		ght:    ght,
+		ghs:    ghs,
 		dryRun: dryRun,
 	}, nil
 }
@@ -68,7 +68,6 @@ func (c *Chaser) Handle(_ http.ResponseWriter, _ *http.Request) {
 		comment := &github.IssueComment{
 			Body: &flakeComments,
 		}
-		fmt.Printf("jianfeih debug handling issue %v %v", issue, comment)
 		repo, err := c.ghs.ReadRepo(issue.OrgID, issue.RepoID)
 		if err != nil {
 			scope.Errorf("Failed to look up the repo: %v", err)

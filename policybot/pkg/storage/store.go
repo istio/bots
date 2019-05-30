@@ -20,7 +20,6 @@ import (
 	google_spanner "cloud.google.com/go/spanner"
 )
 
-
 // IssueIterator itertates the spanner query returned working set.
 type IssueIterator func(row *google_spanner.Row) error
 

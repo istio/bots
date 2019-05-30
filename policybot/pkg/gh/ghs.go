@@ -16,11 +16,11 @@
 package gh
 
 import (
-	"fmt"
 	"time"
 
-	"istio.io/bots/policybot/pkg/storage"
 	google_spanner "cloud.google.com/go/spanner"
+
+	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/pkg/cache"
 )
 
@@ -132,15 +132,12 @@ func (ghs *GitHubState) ReadPullRequestReview(org string, repo string, issue str
 	return ghs.store.ReadPullRequestReviewByID(org, repo, issue, prReview)
 }
 
-
 // ReadIssueBySQL returns issue based on the SQL query.
 func (ghs *GitHubState) ReadIssueBySQL(sql string) ([]*storage.Issue, error) {
 	issues := []*storage.Issue{}
 	getIssue := func(row *google_spanner.Row) error {
 		issue := storage.Issue{}
-		// err := row.Columns(&issue.OrgID, &issue.IssueID, &issue.Title, &issue.UpdatedAt)
 		if err := row.ToStruct(&issue); err != nil {
-			fmt.Println("jianfeih debug error in fetching the issue", err)
 			return err
 		}
 		issues = append(issues, &issue)

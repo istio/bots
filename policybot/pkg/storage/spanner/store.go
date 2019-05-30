@@ -397,17 +397,16 @@ func (s *store) RecordTestNagRemoved(repo string) error {
 }
 
 func (s *store) ReadIssueBySQL(sql string, issueProcessor storage.IssueIterator) error {
-	fmt.Println("jianfeih debugging invoke spanner.")
 	iter := s.client.Single().Query(s.ctx, spanner.Statement{SQL: sql})
 	defer iter.Stop()
 	for {
 		row, err := iter.Next()
-		// fmt.Println("jianfieh debug row ", row)
 		if err == iterator.Done {
 			break
 		}
 		if err != nil {
-			fmt.Println("jianfeih debug not exists")
+			fmt.Errorf("Encountered a Spanner read error: %v", err)
+			continue
 		}
 		if err := issueProcessor(row); err != nil {
 			fmt.Printf("stop reading rows %v\n", err)
