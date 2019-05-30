@@ -152,7 +152,8 @@ func serve(a *config.Args) error {
 		return fmt.Errorf("unable to create config monitor: %v", err)
 	}
 
-	flakechaser, err := flakechaser.New(ght, ghs, "istio/istio")
+	// TODO: do we want to have this bot for all repos or just istio/istio initially?
+	flakechaser, err := flakechaser.New(ght, ghs, "istio/istio", true)
 	if err != nil {
 		return fmt.Errorf("unable to create flake chaser plugin: %v", err)
 	}

@@ -30,6 +30,7 @@ const (
 	flakeIssueQuery = `SELECT * from Issues
 	WHERE TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), UpdatedAt, DAY) > 3 AND 
 				TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), CreatedAt, DAY) < 180 AND
+				State = 'open' AND
 				( REGEXP_CONTAINS(title, 'flake') OR 
 					REGEXP_CONTAINS(body, 'flake') );`
 )
@@ -41,18 +42,20 @@ type Chaser struct {
 	ght  *util.GitHubThrottle
 	ghs  *gh.GitHubState
 	repo string
+	dryRun bool
 }
 
 // New creates a flake chaser.
-func New(ght *util.GitHubThrottle, ghs *gh.GitHubState, repo string) (*Chaser, error) {
+func New(ght *util.GitHubThrottle, ghs *gh.GitHubState, repo string, dryRun bool) (*Chaser, error) {
 	return &Chaser{
 		repo: repo,
 		ght:  ght,
 		ghs:  ghs,
+		dryRun: dryRun,
 	}, nil
 }
 
-// Handle implements http interface, will be invoked periodically to fullfil the test flakes comments.
+// Handle implements http interface, will be invoked periodically to fulfil the test flakes comments.
 func (c *Chaser) Handle(_ http.ResponseWriter, _ *http.Request) {
 	flakeComments := `Hey, there's no updates for this test flakes for 3 days.`
 	scope.Infof("Handle request for flake chaser")
@@ -65,13 +68,25 @@ func (c *Chaser) Handle(_ http.ResponseWriter, _ *http.Request) {
 		comment := &github.IssueComment{
 			Body: &flakeComments,
 		}
-		fmt.Printf("jianfeih debug handling issue %v", issue)
-		// TODO: resolve the RepoName and OrgName from the ID.
-		_, _, err := c.ght.Get().Issues.CreateComment(
-			context.Background(), issue.OrgID, issue.RepoID, int(issue.Number), comment)
+		fmt.Printf("jianfeih debug handling issue %v %v", issue, comment)
+		repo, err := c.ghs.ReadRepo(issue.OrgID, issue.RepoID)
+		if err != nil {
+			scope.Errorf("Failed to look up the repo: %v", err)
+			continue
+		}
+		org, err := c.ghs.ReadRepo(issue.OrgID, issue.RepoID)
+		if err != nil {
+			scope.Errorf("Failed to read the repo: %v", err)
+			continue
+		}
+		scope.Infof("About to nag test flaky issue with %v %v %v", org.Name, repo.Name, issue.Number)
+		if c.dryRun {
+			continue
+		}
+		_, _, err = c.ght.Get().Issues.CreateComment(
+			context.Background(), org.Name, repo.Name, int(issue.Number), comment)
 		if err != nil {
 			scope.Errorf("Failed to create flakes nagging comments: %v", err)
 		}
-		return
 	}
 }
