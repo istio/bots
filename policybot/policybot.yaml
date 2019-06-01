@@ -14,6 +14,85 @@ nags:
       - ".*_test.go"
     message: ":thinking: :bug: You appear to be fixing a bug in Go code, yet your PR doesn't include updates to any test files. Did you forget to add a test?"
 
+autolabels:
+  - name: Config
+    matchbody:
+      - "\\[ ?x ?\\] ?Configuration"
+    absentlabels:
+      - "area/.?"
+    labels:
+      - area/config
+
+  - name: Docs
+    matchbody:
+      - "\\[ ?x ?\\] ?Docs"
+    absentlabels:
+      - "kind/.?"
+    labels:
+      - kind/docs
+
+  - name: Installation
+    matchbody:
+      - "\\[ ?x ?\\] ?Installation"
+    absentlabels:
+      - "area/.?"
+    labels:
+      - area/environments
+
+  - name: Networking
+    matchbody:
+      - "\\[ ?x ?\\] ?Networking"
+    absentlabels:
+      - "area/.?"
+    labels:
+      - area/networking
+
+  - name: Security
+    matchbody:
+      - "\\[ ?x ?\\] ?Security"
+    absentlabels:
+      - "area/.?"
+    labels:
+      - area/security
+
+  - name: Test and Release
+    matchbody:
+      - "\\[ ?x ?\\] ?Test and Release"
+    absentlabels:
+      - "area/.?"
+    labels:
+      - "area/test and release"
+
+  - name: Perf & Scalability
+    matchbody:
+      - "\\[ ?x ?\\] ?Performance"
+    absentlabels:
+      - "area/.?"
+    labels:
+      - "area/perf and scalability"
+
+  - name: Policies and Telemetry
+    matchbody:
+      - "\\[ ?x ?\\] ?Policies"
+    absentlabels:
+      - "area/.?"
+    labels:
+      - "area/policies and telemetry"
+
+  - name: UX
+    matchbody:
+      - "\\[ ?x ?\\] ?User ?Experience"
+    absentlabels:
+      - "area/.?"
+    labels:
+      - "area/user experience"
+
+  - name: Feature Request
+    matchbody:
+      - "feature request"
+    labels:
+      - kind/enhancement
+
 orgs:
   - name: istio
     repos:

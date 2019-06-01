@@ -24,7 +24,7 @@ npx babel \
     tmp/js/callToAction.js \
     tmp/js/authenticator.js \
     tmp/js/event.js \
-    tmp/js/authnButtons.js \
+    tmp/js/authnButton.js \
     --out-file generated/js/all.min.js --source-maps --minified --no-comments --presets minify
 npx babel tmp/js/themes_init.js --out-file generated/js/themes_init.min.js --source-maps --minified --no-comments --presets minify
 npx svgstore -o generated/img/icons.svg src/icons/**/*.svg

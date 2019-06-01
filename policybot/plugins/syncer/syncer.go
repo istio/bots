@@ -18,11 +18,9 @@ import (
 	"context"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/google/go-github/v25/github"
-	"go.opencensus.io/stats"
-	"go.opencensus.io/stats/view"
-	"go.opencensus.io/tag"
 
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
@@ -36,45 +34,44 @@ type Syncer struct {
 	ctx   context.Context
 	ghs   *gh.GitHubState
 	ght   *util.GitHubThrottle
-	orgs  []config.Org
 	store storage.Store
+	orgs  []config.Org
 }
 
-var (
-	scope = log.RegisterScope("syncer", "The GitHub issue & PR syncer", 0)
-
-	issuesSynced = stats.Int64(
-		"policybot/syncer/issues_synced_total", "The number of issues having been synchronized.", stats.UnitDimensionless)
-)
-
-func init() {
-	_ = view.Register(&view.View{
-		Name:        issuesSynced.Name(),
-		Description: issuesSynced.Description(),
-		Measure:     issuesSynced,
-		TagKeys:     []tag.Key{},
-		Aggregation: view.LastValue(),
-	})
-}
+var scope = log.RegisterScope("syncer", "The GitHub issue & PR syncer", 0)
 
 func NewSyncer(ctx context.Context, ght *util.GitHubThrottle, ghs *gh.GitHubState, store storage.Store, orgs []config.Org) *Syncer {
 	return &Syncer{
 		ctx:   ctx,
 		ght:   ght,
 		ghs:   ghs,
-		orgs:  orgs,
 		store: store,
+		orgs:  orgs,
 	}
 }
 
 func (s *Syncer) Handle(_ http.ResponseWriter, _ *http.Request) {
-	a := s.ghs.NewAccumulator()
-	for _, org := range s.orgs {
-		s.handleOrg(a, org)
-	}
+	s.Sync()
 }
 
-func (s *Syncer) handleOrg(a *gh.Accumulator, orgConfig config.Org) {
+func (s *Syncer) Sync() {
+	a := s.ghs.NewAccumulator()
+
+	start := time.Now().UTC()
+	priorStart := time.Time{}
+	if activity, err := s.store.ReadBotActivity(); err == nil {
+		priorStart = activity.LastSyncStart
+	}
+
+	for _, org := range s.orgs {
+		s.handleOrg(a, org, priorStart)
+	}
+
+	end := time.Now()
+	_ = s.store.WriteBotActivity(&storage.BotActivity{LastSyncStart: start, LastSyncEnd: end})
+}
+
+func (s *Syncer) handleOrg(a *gh.Accumulator, orgConfig config.Org, startTime time.Time) {
 	scope.Infof("Syncing org %s", orgConfig.Name)
 
 	org, _, err := s.ght.Get().Organizations.Get(s.ctx, orgConfig.Name)
@@ -85,11 +82,13 @@ func (s *Syncer) handleOrg(a *gh.Accumulator, orgConfig config.Org) {
 
 	o := a.OrgFromAPI(org)
 
+	s.handleMembers(a, o)
+
 	for _, repoConfig := range orgConfig.Repos {
 		if repo, _, err := s.ght.Get().Repositories.Get(s.ctx, orgConfig.Name, repoConfig.Name); err != nil {
 			scope.Errorf("Unable to query information about repository %s/%s from GitHub: %v", orgConfig.Name, repoConfig.Name, err)
 		} else {
-			s.handleRepo(a, o, a.RepoFromAPI(repo))
+			s.handleRepo(a, o, a.RepoFromAPI(repo), startTime)
 		}
 	}
 
@@ -98,21 +97,53 @@ func (s *Syncer) handleOrg(a *gh.Accumulator, orgConfig config.Org) {
 	}
 }
 
-func (s *Syncer) handleRepo(a *gh.Accumulator, org *storage.Org, repo *storage.Repo) {
+func (s *Syncer) handleMembers(a *gh.Accumulator, org *storage.Org) {
+	members := s.fetchMembers(org)
+	for _, member := range members {
+		_ = a.MemberFromAPI(org, member)
+	}
+}
+
+func (s *Syncer) fetchMembers(org *storage.Org) []*github.User {
+	opt := &github.ListMembersOptions{
+		ListOptions: github.ListOptions{
+			PerPage: 100,
+		},
+	}
+
+	var result []*github.User
+	for {
+		scope.Debugf("Getting members of org %s", org.Login)
+
+		members, resp, err := s.ght.Get().Organizations.ListMembers(s.ctx, org.Login, opt)
+		if err != nil {
+			scope.Errorf("Unable to list all members of org %s: %v", org.Login, err)
+			return result
+		}
+
+		result = append(result, members...)
+
+		if resp.NextPage == 0 {
+			break
+		}
+
+		opt.ListOptions.Page = resp.NextPage
+	}
+
+	return result
+}
+
+func (s *Syncer) handleRepo(a *gh.Accumulator, org *storage.Org, repo *storage.Repo, startTime time.Time) {
 	scope.Infof("Syncing repo %s/%s", org.Login, repo.Name)
 
-	s.handleIssues(a, org, repo)
+	s.handleIssues(a, org, repo, startTime)
 	s.handlePullRequests(a, org, repo)
 }
 
-type commentBundle struct {
-	comments []*github.IssueComment
-	issue    string
-}
-
-func (s *Syncer) handleIssues(a *gh.Accumulator, org *storage.Org, repo *storage.Repo) {
+func (s *Syncer) handleIssues(a *gh.Accumulator, org *storage.Org, repo *storage.Repo, startTime time.Time) {
 	opt := &github.IssueListByRepoOptions{
 		State: "all",
+		Since: startTime,
 		ListOptions: github.ListOptions{
 			PerPage: 100,
 		},
@@ -129,39 +160,34 @@ func (s *Syncer) handleIssues(a *gh.Accumulator, org *storage.Org, repo *storage
 		}
 
 		wg := sync.WaitGroup{}
-		wg.Add(len(issues))
-
-		lock := sync.Mutex{}
-		var bundles []commentBundle
+		commentsMap := sync.Map{}
 
 		for _, issue := range issues {
 
 			// if this issue is already known to us and is up to date, skip further processing
 			if existing, _ := s.ghs.ReadIssue(org.OrgID, repo.RepoID, issue.GetNodeID()); existing != nil {
 				if existing.UpdatedAt == issue.GetUpdatedAt() {
-					wg.Done()
 					continue
 				}
 			}
 
-			_ = a.IssueFromAPI(org.OrgID, repo.RepoID, issue)
-
+			wg.Add(1)
 			capture := issue
 			go func() {
-				comm := s.fetchComments(org, repo, capture.GetNumber())
-
-				lock.Lock()
-				bundles = append(bundles, commentBundle{comm, capture.GetNodeID()})
-				lock.Unlock()
-
+				comm := s.fetchComments(org, repo, capture.GetNumber(), startTime)
+				commentsMap.Store(capture.GetNodeID(), comm)
 				wg.Done()
 			}()
 		}
 		wg.Wait()
 
-		for _, bundle := range bundles {
-			for _, comment := range bundle.comments {
-				_ = a.IssueCommentFromAPI(org.OrgID, repo.RepoID, bundle.issue, comment)
+		for _, issue := range issues {
+			_ = a.IssueFromAPI(org.OrgID, repo.RepoID, issue)
+
+			if comments, ok := commentsMap.Load(issue.GetNodeID()); ok {
+				for _, comment := range comments.([]*github.IssueComment) {
+					_ = a.IssueCommentFromAPI(org.OrgID, repo.RepoID, issue.GetNodeID(), comment)
+				}
 			}
 		}
 
@@ -180,8 +206,9 @@ func (s *Syncer) handleIssues(a *gh.Accumulator, org *storage.Org, repo *storage
 	}
 }
 
-func (s *Syncer) fetchComments(org *storage.Org, repo *storage.Repo, issueNumber int) []*github.IssueComment {
+func (s *Syncer) fetchComments(org *storage.Org, repo *storage.Repo, issueNumber int, startTime time.Time) []*github.IssueComment {
 	opt := &github.IssueListCommentsOptions{
+		Since: startTime,
 		ListOptions: github.ListOptions{
 			PerPage: 100,
 		},
@@ -209,11 +236,6 @@ func (s *Syncer) fetchComments(org *storage.Org, repo *storage.Repo, issueNumber
 	return result
 }
 
-type reviewBundle struct {
-	reviews []*github.PullRequestReview
-	pr      string
-}
-
 func (s *Syncer) handlePullRequests(a *gh.Accumulator, org *storage.Org, repo *storage.Repo) {
 	opt := &github.PullRequestListOptions{
 		State: "all",
@@ -233,40 +255,50 @@ func (s *Syncer) handlePullRequests(a *gh.Accumulator, org *storage.Org, repo *s
 		}
 
 		wg := sync.WaitGroup{}
-		wg.Add(len(prs))
-
-		lock := sync.Mutex{}
-		var bundles []reviewBundle
+		reviewsMap := sync.Map{}
+		filesMap := sync.Map{}
 
 		for _, pr := range prs {
-
 			// if this pr is already known to us and is up to date, skip further processing
 			if existing, _ := s.ghs.ReadPullRequest(org.OrgID, repo.RepoID, pr.GetNodeID()); existing != nil {
 				if existing.UpdatedAt == pr.GetUpdatedAt() {
-					wg.Done()
 					continue
 				}
 			}
 
-			_ = a.PullRequestFromAPI(org.OrgID, repo.RepoID, pr)
+			wg.Add(2)
 
 			capture := pr
 			go func() {
 				reviews := s.fetchReviews(org, repo, capture.GetNumber())
+				reviewsMap.Store(capture.GetNodeID(), reviews)
+				wg.Done()
+			}()
 
-				lock.Lock()
-				bundles = append(bundles, reviewBundle{reviews, capture.GetNodeID()})
-				lock.Unlock()
-
+			go func() {
+				files := s.fetchFiles(org, repo, capture.GetNumber())
+				filesMap.Store(capture.GetNodeID(), files)
 				wg.Done()
 			}()
 		}
 		wg.Wait()
 
-		for _, bundle := range bundles {
-			for _, review := range bundle.reviews {
-				_ = a.PullRequestReviewFromAPI(org.OrgID, repo.RepoID, bundle.pr, review)
+		for _, pr := range prs {
+			if reviews, ok := reviewsMap.Load(pr.GetNodeID()); ok {
+				for _, review := range reviews.([]*github.PullRequestReview) {
+					_ = a.PullRequestReviewFromAPI(org.OrgID, repo.RepoID, pr.GetNodeID(), review)
+				}
 			}
+
+			var files []string
+			if filesRaw, ok := filesMap.Load(pr.GetNodeID()); ok {
+				files = filesRaw.([]string)
+				for i := range files {
+					files[i] = org.Login + "/" + repo.Name + "/" + files[i]
+				}
+			}
+
+			_ = a.PullRequestFromAPI(org.OrgID, repo.RepoID, pr, files)
 		}
 
 		if err := a.Commit(); err != nil {
@@ -284,15 +316,44 @@ func (s *Syncer) handlePullRequests(a *gh.Accumulator, org *storage.Org, repo *s
 	}
 }
 
+func (s *Syncer) fetchFiles(org *storage.Org, repo *storage.Repo, prNumber int) []string {
+	scope.Debugf("Getting file list for pr %d from repo %s/%s", prNumber, org.Login, repo.Name)
+
+	opt := &github.ListOptions{
+		PerPage: 100,
+	}
+
+	var allFiles []string
+	for {
+		files, resp, err := s.ght.Get().PullRequests.ListFiles(s.ctx, org.Login, repo.Name, prNumber, opt)
+		if err != nil {
+			scope.Errorf("Unable to list all files for pull request %d in repo %s/%s: %v\n", prNumber, org.Login, repo.Name, err)
+			return allFiles
+		}
+
+		for _, f := range files {
+			allFiles = append(allFiles, f.GetFilename())
+		}
+
+		if resp.NextPage == 0 {
+			break
+		}
+
+		opt.Page = resp.NextPage
+	}
+
+	return allFiles
+}
+
 func (s *Syncer) fetchReviews(org *storage.Org, repo *storage.Repo, prNumber int) []*github.PullRequestReview {
+	scope.Debugf("Getting reviews for pr %d from repo %s/%s", prNumber, org.Login, repo.Name)
+
 	opt := &github.ListOptions{
 		PerPage: 100,
 	}
 
 	var result []*github.PullRequestReview
 	for {
-		scope.Debugf("Getting reviews for pr %d from repo %s/%s", prNumber, org.Login, repo.Name)
-
 		reviews, resp, err := s.ght.Get().PullRequests.ListReviews(s.ctx, org.Login, repo.Name, prNumber, opt)
 		if err != nil {
 			scope.Errorf("Unable to list all comments for pr %d in repo %s/%s: %v", prNumber, org.Login, repo.Name, err)

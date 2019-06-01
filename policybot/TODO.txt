@@ -2,12 +2,12 @@
 config, their data stay in the DB forever.
 
 - Giving that syncing takes a long time, often longer than the 15 minutes of execution time
-we're allowed, then we need some way to improve things:
+we're allowed, we need some way to improve things:
 
     - Run the bot as a container in k8s, this would eliminate the execution time limit.
 
     - Allow the user to constrain the number of issues & PRs to sync per repo. For example,
-    the syncer could be limited to the issues & prs opened in the N days only.
+    the syncer could be limited to the issues & prs opened in the last N days only.
 
     - Allow the user to explicitly specify the org and repo to sync within the REST API. If each individual
     repo takes less than 15 minutes, that would work.
@@ -16,4 +16,5 @@ we're allowed, then we need some way to improve things:
     from pull requests.
 
     - Figure out a better way to query GitHub to get the data we need, rather than getting a bunch of data we
-    bring in and discard.
+    bring in and discard. We do this for issues and issue comments using the "Since" option, but that doesn't
+    seem to be available for PRs and PR comments.

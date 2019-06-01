@@ -43,6 +43,10 @@ Webhook plugins:
 - cfgmonitor. Monitors GitHub for changes to the bot's configuration file. When it sees such a change, it triggers a
 partial shutdown and restart of the bot, which will reread the config and start back up fully.
 
+- labeler. Attached labels to issues and pull requests if specific conditions are detected. This is primarily used
+to perform initial triage on incoming issues by assigning an area-specific label to issues based on patterns
+found in newly-opened issues.
+
 - nagger. Injects nagging comments in pull requests if specific conditions are detected. This is primarily used to
 remind developers to include tests whenever they fix bugs, but the engine is general-purpose and could be used
 creatively for other nagging comments.

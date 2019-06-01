@@ -47,24 +47,6 @@ class Authenticator {
         });
     }
 
-    private fetchUserData(gitHubToken: string): void {
-        // TODO: Needs to trigger onLoginError event on failure
-        fetch('https://api.github.com/user', {
-            headers: {
-                "Authorization": "token " + gitHubToken,
-            }
-        })
-            .then(response => response.text())
-            .then(data => {
-                const json = JSON.parse(data);
-                this.gitHubToken = gitHubToken;
-                this.userLogin = json.login;
-                this.userName = json.name;
-                this.userAvatarUrl = json.avatar_url;
-                this.onLogin.trigger(this.userName as string);
-            });
-    }
-
     public Logout() {
         this.gitHubToken = null;
         this.userName = null;
@@ -103,5 +85,23 @@ class Authenticator {
 
     public get UserAvatarUrl() {
         return this.userAvatarUrl;
+    }
+
+    private fetchUserData(gitHubToken: string): void {
+        // TODO: Needs to trigger onLoginError event on failure
+        fetch("https://api.github.com/user", {
+            headers: {
+                Authorization: "token " + gitHubToken,
+            },
+        })
+            .then(response => response.text())
+            .then(data => {
+                const json = JSON.parse(data);
+                this.gitHubToken = gitHubToken;
+                this.userLogin = json.login;
+                this.userName = json.name;
+                this.userAvatarUrl = json.avatar_url;
+                this.onLogin.trigger(this.userName as string);
+            });
     }
 }

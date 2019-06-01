@@ -12,20 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-interface ILiteEvent<T> {
-    on(handler: { (data?: T): void }): void;
+type HandlerFn<T> = (data?: T) => void;
 
-    off(handler: { (data?: T): void }): void;
+interface ILiteEvent<T> {
+    on(handler: HandlerFn<T>): void;
+    off(handler: HandlerFn<T>): void;
 }
 
 class LiteEvent<T> implements ILiteEvent<T> {
-    private handlers: { (data?: T): void; }[] = [];
+    private handlers: Array<HandlerFn<T>> = new Array<HandlerFn<T>>();
 
-    public on(handler: { (data?: T): void }): void {
+    public on(handler: HandlerFn<T>): void {
         this.handlers.push(handler);
     }
 
-    public off(handler: { (data?: T): void }): void {
+    public off(handler: HandlerFn<T>): void {
         this.handlers = this.handlers.filter(h => h !== handler);
     }
 

@@ -28,13 +28,15 @@ import (
 const (
 	orgTable               = "Orgs"
 	repoTable              = "Repos"
-	repoStatsTable         = "RepoStats"
 	userTable              = "Users"
 	labelTable             = "Labels"
 	issueTable             = "Issues"
 	issueCommentTable      = "IssueComments"
 	pullRequestTable       = "PullRequests"
 	pullRequestReviewTable = "PullRequestReviews"
+	memberTable            = "Members"
+	botActivityTable       = "BotActivity"
+	maintainerTable        = "Maintainers"
 )
 
 // All the DB indices we use
@@ -57,12 +59,6 @@ type (
 		Name   string
 	}
 
-	repoStatsRow struct {
-		RepoID      string
-		NagsAdded   int64
-		NagsRemoved int64
-	}
-
 	issueNumberRow struct {
 		OrgID   string
 		RepoID  string
@@ -77,7 +73,6 @@ var (
 	orgLoginColumns          []string
 	repoColumns              []string
 	repoNameColumns          []string
-	repoStatsColumns         []string
 	userColumns              []string
 	labelColumns             []string
 	issueColumns             []string
@@ -103,10 +98,6 @@ func repoKey(orgID string, repoID string) spanner.Key {
 
 func repoNameKey(orgID string, name string) spanner.Key {
 	return spanner.Key{orgID, name}
-}
-
-func repoStatsKey(repoID string) spanner.Key {
-	return spanner.Key{repoID}
 }
 
 func userKey(userID string) spanner.Key {
@@ -142,7 +133,6 @@ func init() {
 	orgLoginColumns = getFields(orgLoginRow{})
 	repoColumns = getFields(storage.Repo{})
 	repoNameColumns = getFields(repoNameRow{})
-	repoStatsColumns = getFields(repoStatsRow{})
 	userColumns = getFields(storage.User{})
 	labelColumns = getFields(storage.Label{})
 	issueColumns = getFields(storage.Issue{})

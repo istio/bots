@@ -80,6 +80,7 @@ type PullRequest struct {
 	IssueID              string
 	UpdatedAt            time.Time
 	RequestedReviewerIDs []string
+	Files                []string
 }
 
 type PullRequestReview struct {
@@ -91,4 +92,20 @@ type PullRequestReview struct {
 	Body                string
 	SubmittedAt         time.Time
 	State               string
+}
+
+type Member struct {
+	OrgID  string
+	UserID string
+}
+
+type BotActivity struct {
+	LastSyncStart time.Time
+	LastSyncEnd   time.Time
+}
+
+type Maintainer struct {
+	OrgID  string
+	UserID string
+	Paths  []string
 }

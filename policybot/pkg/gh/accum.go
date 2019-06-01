@@ -29,6 +29,7 @@ type Accumulator struct {
 	issueComments      map[string]*storage.IssueComment
 	pullRequests       map[string]*storage.PullRequest
 	pullRequestReviews map[string]*storage.PullRequestReview
+	members            map[string]*storage.Member
 }
 
 func (ghs *GitHubState) NewAccumulator() *Accumulator {
@@ -42,6 +43,7 @@ func (ghs *GitHubState) NewAccumulator() *Accumulator {
 		issueComments:      make(map[string]*storage.IssueComment),
 		pullRequests:       make(map[string]*storage.PullRequest),
 		pullRequestReviews: make(map[string]*storage.PullRequestReview),
+		members:            make(map[string]*storage.Member),
 	}
 }
 
@@ -77,5 +79,9 @@ func (a *Accumulator) Reset() {
 
 	for k := range a.pullRequestReviews {
 		delete(a.pullRequestReviews, k)
+	}
+
+	for k := range a.members {
+		delete(a.members, k)
 	}
 }

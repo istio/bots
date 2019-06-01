@@ -38,7 +38,6 @@ type Nagger struct {
 	ghs               *gh.GitHubState
 	ght               *util.GitHubThrottle
 	orgs              []config.Org
-	store             storage.Store
 	nags              []config.Nag
 	multiLineRegexes  map[string]*regexp.Regexp
 	singleLineRegexes map[string]*regexp.Regexp
@@ -49,13 +48,12 @@ const nagSignature = "\n\n_Courtesy of your friendly test nag_."
 
 var scope = log.RegisterScope("nagger", "The GitHub test nagger", 0)
 
-func NewNagger(ctx context.Context, ght *util.GitHubThrottle, store storage.Store, ghs *gh.GitHubState, orgs []config.Org, nags []config.Nag) (*Nagger, error) {
-	tn := &Nagger{
+func NewNagger(ctx context.Context, ght *util.GitHubThrottle, ghs *gh.GitHubState, orgs []config.Org, nags []config.Nag) (*Nagger, error) {
+	n := &Nagger{
 		ctx:               ctx,
 		ghs:               ghs,
 		ght:               ght,
 		orgs:              orgs,
-		store:             store,
 		nags:              nags,
 		multiLineRegexes:  make(map[string]*regexp.Regexp),
 		singleLineRegexes: make(map[string]*regexp.Regexp),
@@ -63,14 +61,14 @@ func NewNagger(ctx context.Context, ght *util.GitHubThrottle, store storage.Stor
 	}
 
 	for _, nag := range nags {
-		if err := tn.processNagRegexes(nag); err != nil {
+		if err := n.processNagRegexes(nag); err != nil {
 			return nil, err
 		}
 	}
 
 	for _, org := range orgs {
 		for _, nag := range org.Nags {
-			if err := tn.processNagRegexes(nag); err != nil {
+			if err := n.processNagRegexes(nag); err != nil {
 				return nil, err
 			}
 		}
@@ -78,21 +76,21 @@ func NewNagger(ctx context.Context, ght *util.GitHubThrottle, store storage.Stor
 
 	for _, org := range orgs {
 		for _, repo := range org.Repos {
-			tn.repos[org.Name+"/"+repo.Name] = org.Nags
+			n.repos[org.Name+"/"+repo.Name] = org.Nags
 		}
 	}
 
-	return tn, nil
+	return n, nil
 }
 
 // Precompile all the regexes
-func (tn *Nagger) processNagRegexes(nag config.Nag) error {
+func (n *Nagger) processNagRegexes(nag config.Nag) error {
 	for _, expr := range nag.MatchTitle {
 		r, err := regexp.Compile("(?i)" + expr)
 		if err != nil {
 			return fmt.Errorf("invalid regular expression %s: %v", expr, err)
 		}
-		tn.singleLineRegexes[expr] = r
+		n.singleLineRegexes[expr] = r
 	}
 
 	for _, expr := range nag.MatchBody {
@@ -100,7 +98,7 @@ func (tn *Nagger) processNagRegexes(nag config.Nag) error {
 		if err != nil {
 			return fmt.Errorf("invalid regular expression %s: %v", expr, err)
 		}
-		tn.multiLineRegexes[expr] = r
+		n.multiLineRegexes[expr] = r
 	}
 
 	for _, expr := range nag.MatchFiles {
@@ -108,7 +106,7 @@ func (tn *Nagger) processNagRegexes(nag config.Nag) error {
 		if err != nil {
 			return fmt.Errorf("invalid regular expression %s: %v", expr, err)
 		}
-		tn.singleLineRegexes[expr] = r
+		n.singleLineRegexes[expr] = r
 	}
 
 	for _, expr := range nag.AbsentFiles {
@@ -116,20 +114,20 @@ func (tn *Nagger) processNagRegexes(nag config.Nag) error {
 		if err != nil {
 			return fmt.Errorf("invalid regular expression %s: %v", expr, err)
 		}
-		tn.singleLineRegexes[expr] = r
+		n.singleLineRegexes[expr] = r
 	}
 
 	return nil
 }
 
-func (tn *Nagger) Events() []webhook.Event {
+func (n *Nagger) Events() []webhook.Event {
 	return []webhook.Event{
 		webhook.PullRequestEvent,
 	}
 }
 
 // process an event arriving from GitHub
-func (tn *Nagger) Handle(_ http.ResponseWriter, githubObject interface{}) {
+func (n *Nagger) Handle(_ http.ResponseWriter, githubObject interface{}) {
 	prp, ok := githubObject.(webhook.PullRequestPayload)
 	if !ok {
 		// not what we're looking for
@@ -137,7 +135,7 @@ func (tn *Nagger) Handle(_ http.ResponseWriter, githubObject interface{}) {
 	}
 
 	// see if the PR is in a repo we're monitoring
-	nags, ok := tn.repos[prp.Repository.FullName]
+	nags, ok := n.repos[prp.Repository.FullName]
 	if !ok {
 		scope.Infof("Ignoring PR %d from repo %s since it's not in a monitored repo", prp.Number, prp.Repository.FullName)
 		return
@@ -149,7 +147,7 @@ func (tn *Nagger) Handle(_ http.ResponseWriter, githubObject interface{}) {
 
 	split := strings.Split(prp.Repository.FullName, "/")
 	prb := pullRequestBundle{pr, issue, prp.Repository.FullName, split[0], split[1]}
-	tn.processPR(prb, nags)
+	n.processPR(prb, nags)
 }
 
 type pullRequestBundle struct {
@@ -161,26 +159,26 @@ type pullRequestBundle struct {
 }
 
 // process a PR
-func (tn *Nagger) processPR(prb pullRequestBundle, orgNags []config.Nag) {
+func (n *Nagger) processPR(prb pullRequestBundle, orgNags []config.Nag) {
 	body := prb.issue.Body
 	title := prb.issue.Title
 
 	contentMatches := make([]config.Nag, 0)
-	for _, nag := range tn.nags {
-		if tn.titleMatch(nag, title) || tn.bodyMatch(nag, body) {
+	for _, nag := range n.nags {
+		if n.titleMatch(nag, title) || n.bodyMatch(nag, body) {
 			contentMatches = append(contentMatches, nag)
 		}
 	}
 
 	for _, nag := range orgNags {
-		if tn.titleMatch(nag, title) || tn.bodyMatch(nag, body) {
+		if n.titleMatch(nag, title) || n.bodyMatch(nag, body) {
 			contentMatches = append(contentMatches, nag)
 		}
 	}
 
 	if len(contentMatches) == 0 {
 		scope.Infof("Nothing to nag about for PR %d from repo %s since its title and body don't match any nags", prb.issue.Number, prb.fullRepoName)
-		tn.removeNagComment(prb)
+		n.removeNagComment(prb)
 		return
 	}
 
@@ -190,7 +188,7 @@ func (tn *Nagger) processPR(prb pullRequestBundle, orgNags []config.Nag) {
 
 	var allFiles []string
 	for {
-		files, resp, err := tn.ght.Get().PullRequests.ListFiles(tn.ctx, prb.orgName, prb.repoName, int(prb.issue.Number), opt)
+		files, resp, err := n.ght.Get().PullRequests.ListFiles(n.ctx, prb.orgName, prb.repoName, int(prb.issue.Number), opt)
 		if err != nil {
 			scope.Errorf("Unable to list all files for pull request %d in repo %s: %v\n", prb.issue.Number, prb.fullRepoName, err)
 			return
@@ -209,14 +207,14 @@ func (tn *Nagger) processPR(prb pullRequestBundle, orgNags []config.Nag) {
 
 	fileMatches := make([]config.Nag, 0)
 	for _, nag := range contentMatches {
-		if tn.fileMatch(nag.MatchFiles, allFiles) {
+		if n.fileMatch(nag.MatchFiles, allFiles) {
 			fileMatches = append(fileMatches, nag)
 		}
 	}
 
 	if len(fileMatches) == 0 {
 		scope.Infof("Nothing to nag about for PR %d from repo %s since its affected files don't match any nags", prb.issue.Number, prb.fullRepoName)
-		tn.removeNagComment(prb)
+		n.removeNagComment(prb)
 		return
 	}
 
@@ -224,9 +222,9 @@ func (tn *Nagger) processPR(prb pullRequestBundle, orgNags []config.Nag) {
 
 	// now see if the required files are present in order to avoid the nag comment
 	for _, nag := range fileMatches {
-		if !tn.fileMatch(nag.AbsentFiles, allFiles) {
+		if !n.fileMatch(nag.AbsentFiles, allFiles) {
 			scope.Infof("Nagging PR %d from repo %s (nag: %s)", prb.issue.Number, prb.fullRepoName, nag.Name)
-			tn.postNagComment(prb, nag)
+			n.postNagComment(prb, nag)
 
 			// only post a single nag comment per PR even if it's got multiple hits
 			return
@@ -234,21 +232,19 @@ func (tn *Nagger) processPR(prb pullRequestBundle, orgNags []config.Nag) {
 	}
 
 	scope.Infof("Nothing to nag about for PR %d from repo %s since it contains required files", prb.issue.Number, prb.fullRepoName)
-	tn.removeNagComment(prb)
+	n.removeNagComment(prb)
 }
 
-func (tn *Nagger) removeNagComment(prb pullRequestBundle) {
-	existing, id := tn.getNagComment(prb)
+func (n *Nagger) removeNagComment(prb pullRequestBundle) {
+	existing, id := n.getNagComment(prb)
 	if existing != "" {
-		if _, err := tn.ght.Get().Issues.DeleteComment(tn.ctx, prb.orgName, prb.repoName, id); err != nil {
+		if _, err := n.ght.Get().Issues.DeleteComment(n.ctx, prb.orgName, prb.repoName, id); err != nil {
 			scope.Errorf("Unable to delete nag comment in PR %d from repo %s: %v", prb.issue.Number, prb.fullRepoName, err)
-		} else {
-			_ = tn.store.RecordTestNagRemoved(prb.RepoID)
 		}
 	}
 }
 
-func (tn *Nagger) getNagComment(prb pullRequestBundle) (string, int64) {
+func (n *Nagger) getNagComment(prb pullRequestBundle) (string, int64) {
 	opt := &github.IssueListCommentsOptions{
 		ListOptions: github.ListOptions{
 			PerPage: 100,
@@ -256,7 +252,7 @@ func (tn *Nagger) getNagComment(prb pullRequestBundle) (string, int64) {
 	}
 
 	for {
-		comments, resp, err := tn.ght.Get().Issues.ListComments(tn.ctx, prb.orgName, prb.repoName, int(prb.issue.Number), opt)
+		comments, resp, err := n.ght.Get().Issues.ListComments(n.ctx, prb.orgName, prb.repoName, int(prb.issue.Number), opt)
 		if err != nil {
 			scope.Errorf("Unable to list comments for pull request %d in repo %s: %v\n", prb.issue.Number, prb.fullRepoName, err)
 			return "", -1
@@ -279,39 +275,32 @@ func (tn *Nagger) getNagComment(prb pullRequestBundle) (string, int64) {
 	return "", -1
 }
 
-func (tn *Nagger) postNagComment(prb pullRequestBundle, nag config.Nag) {
+func (n *Nagger) postNagComment(prb pullRequestBundle, nag config.Nag) {
 	msg := nag.Message + nagSignature
 	pc := &github.IssueComment{
 		Body: &msg,
 	}
 
-	existing, id := tn.getNagComment(prb)
+	existing, id := n.getNagComment(prb)
 	if existing == msg {
 		// nag comment is already present
 		return
 	} else if existing != "" {
 		// try to delete the previous nag
-		if _, err := tn.ght.Get().Issues.DeleteComment(tn.ctx, prb.orgName, prb.repoName, id); err != nil {
+		if _, err := n.ght.Get().Issues.DeleteComment(n.ctx, prb.orgName, prb.repoName, id); err != nil {
 			scope.Errorf("Unable to delete nag comment in PR %d from repo %s: %v", prb.issue.Number, prb.fullRepoName, err)
-		} else {
-			_ = tn.store.RecordTestNagRemoved(prb.RepoID)
 		}
 	}
 
-	_, _, err := tn.ght.Get().Issues.CreateComment(tn.ctx, prb.orgName, prb.repoName, int(prb.issue.Number), pc)
+	_, _, err := n.ght.Get().Issues.CreateComment(n.ctx, prb.orgName, prb.repoName, int(prb.issue.Number), pc)
 	if err != nil {
 		scope.Errorf("Unable to attach nagging comment to PR %d from repo %s: %v", prb.issue.Number, prb.fullRepoName, err)
-	} else {
-		err = tn.store.RecordTestNagAdded(prb.RepoID)
-		if err != nil {
-			scope.Errorf("Unable to record test nag addition: %v", err)
-		}
 	}
 }
 
-func (tn *Nagger) titleMatch(nag config.Nag, title string) bool {
+func (n *Nagger) titleMatch(nag config.Nag, title string) bool {
 	for _, expr := range nag.MatchTitle {
-		r := tn.singleLineRegexes[expr]
+		r := n.singleLineRegexes[expr]
 		if r.MatchString(title) {
 			return true
 		}
@@ -320,9 +309,9 @@ func (tn *Nagger) titleMatch(nag config.Nag, title string) bool {
 	return false
 }
 
-func (tn *Nagger) bodyMatch(nag config.Nag, body string) bool {
+func (n *Nagger) bodyMatch(nag config.Nag, body string) bool {
 	for _, expr := range nag.MatchBody {
-		r := tn.multiLineRegexes[expr]
+		r := n.multiLineRegexes[expr]
 		if r.MatchString(body) {
 			return true
 		}
@@ -331,9 +320,9 @@ func (tn *Nagger) bodyMatch(nag config.Nag, body string) bool {
 	return false
 }
 
-func (tn *Nagger) fileMatch(expressions []string, files []string) bool {
+func (n *Nagger) fileMatch(expressions []string, files []string) bool {
 	for _, expr := range expressions {
-		r := tn.singleLineRegexes[expr]
+		r := n.singleLineRegexes[expr]
 		for _, f := range files {
 			if r.MatchString(f) {
 				return true

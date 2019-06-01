@@ -62,7 +62,12 @@ func (ghs *GitHubState) ReadOrg(org string) (*storage.Org, error) {
 		return value.(*storage.Org), nil
 	}
 
-	return ghs.store.ReadOrgByID(org)
+	result, err := ghs.store.ReadOrgByID(org)
+	if err == nil {
+		ghs.orgCache.Set(org, result)
+	}
+
+	return result, err
 }
 
 // Reads from cache and if not found reads from DB
@@ -71,7 +76,12 @@ func (ghs *GitHubState) ReadRepo(org string, repo string) (*storage.Repo, error)
 		return value.(*storage.Repo), nil
 	}
 
-	return ghs.store.ReadRepoByID(org, repo)
+	result, err := ghs.store.ReadRepoByID(org, repo)
+	if err == nil {
+		ghs.repoCache.Set(repo, result)
+	}
+
+	return result, err
 }
 
 // Reads from cache and if not found reads from DB
@@ -80,7 +90,12 @@ func (ghs *GitHubState) ReadUser(user string) (*storage.User, error) {
 		return value.(*storage.User), nil
 	}
 
-	return ghs.store.ReadUserByID(user)
+	result, err := ghs.store.ReadUserByID(user)
+	if err == nil {
+		ghs.userCache.Set(user, result)
+	}
+
+	return result, err
 }
 
 // Reads from cache and if not found reads from DB
@@ -89,7 +104,12 @@ func (ghs *GitHubState) ReadLabel(org string, repo string, label string) (*stora
 		return value.(*storage.Label), nil
 	}
 
-	return ghs.store.ReadLabelByID(org, repo, label)
+	result, err := ghs.store.ReadLabelByID(org, repo, label)
+	if err == nil {
+		ghs.labelCache.Set(label, result)
+	}
+
+	return result, err
 }
 
 // Reads from cache and if not found reads from DB
@@ -98,7 +118,12 @@ func (ghs *GitHubState) ReadIssue(org string, repo string, issue string) (*stora
 		return value.(*storage.Issue), nil
 	}
 
-	return ghs.store.ReadIssueByID(org, repo, issue)
+	result, err := ghs.store.ReadIssueByID(org, repo, issue)
+	if err == nil {
+		ghs.issueCache.Set(issue, result)
+	}
+
+	return result, err
 }
 
 // Reads from cache and if not found reads from DB
@@ -108,7 +133,12 @@ func (ghs *GitHubState) ReadIssueComment(org string, repo string, issue string,
 		return value.(*storage.IssueComment), nil
 	}
 
-	return ghs.store.ReadIssueCommentByID(org, repo, issue, issueComment)
+	result, err := ghs.store.ReadIssueCommentByID(org, repo, issue, issueComment)
+	if err == nil {
+		ghs.issueCommentCache.Set(issueComment, result)
+	}
+
+	return result, err
 }
 
 // Reads from cache and if not found reads from DB
@@ -117,7 +147,12 @@ func (ghs *GitHubState) ReadPullRequest(org string, repo string, issue string) (
 		return value.(*storage.PullRequest), nil
 	}
 
-	return ghs.store.ReadPullRequestByID(org, repo, issue)
+	result, err := ghs.store.ReadPullRequestByID(org, repo, issue)
+	if err == nil {
+		ghs.pullRequestReviewCache.Set(issue, result)
+	}
+
+	return result, err
 }
 
 // Reads from cache and if not found reads from DB
@@ -127,5 +162,10 @@ func (ghs *GitHubState) ReadPullRequestReview(org string, repo string, issue str
 		return value.(*storage.PullRequestReview), nil
 	}
 
-	return ghs.store.ReadPullRequestReviewByID(org, repo, issue, prReview)
+	result, err := ghs.store.ReadPullRequestReviewByID(org, repo, issue, prReview)
+	if err == nil {
+		ghs.pullRequestReviewCache.Set(prReview, result)
+	}
+
+	return result, err
 }

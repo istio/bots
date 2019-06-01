@@ -36,6 +36,7 @@ func GetRootCmd(args []string) *cobra.Command {
 	rootCmd.PersistentFlags().AddGoFlagSet(flag.CommandLine)
 
 	rootCmd.AddCommand(serverCmd())
+	rootCmd.AddCommand(syncerCmd())
 	rootCmd.AddCommand(version.CobraCommand())
 
 	return rootCmd
