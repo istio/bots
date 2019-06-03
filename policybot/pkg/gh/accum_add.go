@@ -111,3 +111,8 @@ func (a *Accumulator) addPullRequestReview(prc *storage.PullRequestReview) *stor
 	a.pullRequestReviews[prc.PullRequestReviewID] = prc
 	return prc
 }
+
+func (a *Accumulator) addMember(member *storage.Member) *storage.Member {
+	a.members[member.UserID] = member
+	return member
+}

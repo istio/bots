@@ -28,6 +28,7 @@ type StartupOptions struct {
 	GitHubToken    string
 	GCPCredentials string
 	SendGridAPIKey string
+	ZenHubToken    string
 	Port           int
 }
 
@@ -59,8 +60,25 @@ type Nag struct {
 	// AbsentFiles represents files that must not be in the PR
 	AbsentFiles []string // regexes
 
-	// The message to inject when any of the body expressions match and none of the file name ones do.
+	// The message to inject when any of the Match* expressions match and none of the Absent* expressions do.
 	Message string
+}
+
+type AutoLabel struct {
+	// Name of the auto label
+	Name string
+
+	// MatchTitle represents content that must be in the PR or issue's title
+	MatchTitle []string // regexes
+
+	// MatchBody represents content that must be in the PR or issue's body
+	MatchBody []string // regexes
+
+	// AbsentLabels represents labels that must not be on the PR or issue
+	AbsentLabels []string // regexes
+
+	// The labels to apply when any of the Match* expressions match and none of the Absent* expressions do.
+	Labels []string
 }
 
 // Configuration for an individual repo.
@@ -78,7 +96,8 @@ type Org struct {
 	Repos []Repo `json:"repos"`
 
 	// Nags to apply within this organization
-	Nags []Nag `json:"nags"`
+	Nags       []Nag       `json:"nags"`
+	AutoLabels []AutoLabel `json:"autolabels"`
 }
 
 // Args represents the set of options that control the behavior of the bot.
@@ -94,6 +113,9 @@ type Args struct {
 
 	// Global nagging state
 	Nags []Nag `json:"nags"`
+
+	// Global auto-labeling
+	AutoLabels []AutoLabel `json:"autolabels"`
 
 	// Name to use as sender when sending emails
 	EmailFrom string `json:"email_from"`
@@ -123,6 +145,7 @@ func (a *Args) String() string {
 	// _, _ = fmt.Fprintf(buf, "GitHubAccessToken: %s\n", a.StartupOptions.GitHubAccessToken)
 	// _, _ = fmt.Fprintf(buf, "GCPCredentials: %s\n", a.StartupOptions.GCPCredentials)
 	// _, _ = fmt.Fprintf(buf, "SendGridAPIKey: %s\n", a.StartupOptions.SendGridAPIKey)
+	// _, _ = fmt.Fprintf(buf, "ZenHubToken: %s\n", a.StartupOptions.ZenHubToken)
 
 	_, _ = fmt.Fprintf(buf, "StartupOptions.ConfigFile: %s\n", a.StartupOptions.ConfigFile)
 	_, _ = fmt.Fprintf(buf, "StartupOptions.ConfigRepo: %s\n", a.StartupOptions.ConfigRepo)
@@ -130,6 +153,7 @@ func (a *Args) String() string {
 	_, _ = fmt.Fprintf(buf, "SpannerDatabase: %s\n", a.SpannerDatabase)
 	_, _ = fmt.Fprintf(buf, "Orgs: %+v\n", a.Orgs)
 	_, _ = fmt.Fprintf(buf, "Nags: %+v\n", a.Nags)
+	_, _ = fmt.Fprintf(buf, "AutoLabels: %+v\n", a.AutoLabels)
 	_, _ = fmt.Fprintf(buf, "EmailFrom: %s\n", a.EmailFrom)
 	_, _ = fmt.Fprintf(buf, "EmailOriginAddress: %s\n", a.EmailOriginAddress)
 	_, _ = fmt.Fprintf(buf, "CacheTTL: %s\n", a.CacheTTL)

@@ -32,6 +32,7 @@ import (
 	"istio.io/bots/policybot/pkg/util"
 	"istio.io/bots/policybot/plugins/analyzer"
 	"istio.io/bots/policybot/plugins/cfgmonitor"
+	"istio.io/bots/policybot/plugins/labeler"
 	"istio.io/bots/policybot/plugins/nagger"
 	"istio.io/bots/policybot/plugins/refresher"
 	"istio.io/bots/policybot/plugins/syncer"
@@ -46,7 +47,7 @@ import (
 // If config comes from a repo-based file, this will also try to run the server, but if an error
 // occurs, it will refetch the config every minute and try again. And so in that case, this
 // function never returns.
-func Run(a *config.Args) error {
+func RunServer(a *config.Args) error {
 	for {
 		// copy the baseline config
 		cfg := *a
@@ -73,6 +74,40 @@ func Run(a *config.Args) error {
 			log.Infof("Configuration change detected, attempting to reload configuration")
 		}
 	}
+}
+
+// Runs the syncer.
+//
+// If config comes from a container-based file, this will try to run the server, but if
+// problems occur (probably due to bad config), then the function returns with an error.
+//
+// If config comes from a repo-based file, this will also try to run the server, but if an error
+// occurs, it will refetch the config every minute and try again. And so in that case, this
+// function never returns.
+func RunSyncer(a *config.Args) error {
+	// load the config file
+	if err := fetchConfig(a); err != nil {
+		return fmt.Errorf("unable to load configuration file: %v", err)
+	}
+
+	creds, err := base64.StdEncoding.DecodeString(a.StartupOptions.GCPCredentials)
+	if err != nil {
+		return fmt.Errorf("unable to decode GCP credentials: %v", err)
+	}
+
+	ght := util.NewGitHubThrottle(context.Background(), a.StartupOptions.GitHubToken)
+
+	store, err := spanner.NewStore(context.Background(), a.SpannerDatabase, creds)
+	if err != nil {
+		return fmt.Errorf("unable to create storage layer: %v", err)
+	}
+	defer store.Close()
+
+	ghs := gh.NewGitHubState(store, a.CacheTTL)
+
+	prepStore(context.Background(), ght, ghs, a.Orgs)
+	syncer.NewSyncer(context.Background(), ght, ghs, store, a.Orgs).Sync()
+	return nil
 }
 
 func fetchConfig(a *config.Args) error {
@@ -134,12 +169,17 @@ func serve(a *config.Args) error {
 
 	prepStore(context.Background(), ght, ghs, a.Orgs)
 
-	nag, err := nagger.NewNagger(context.Background(), ght, store, ghs, a.Orgs, a.Nags)
+	nag, err := nagger.NewNagger(context.Background(), ght, ghs, a.Orgs, a.Nags)
 	if err != nil {
 		return fmt.Errorf("unable to create nagger: %v", err)
 	}
 
-	refresher := refresher.NewRefresher(ghs, a.Orgs)
+	labeler, err := labeler.NewLabeler(context.Background(), ght, ghs, a.Orgs, a.AutoLabels)
+	if err != nil {
+		return fmt.Errorf("unable to create labeler: %v", err)
+	}
+
+	refresh := refresher.NewRefresher(ghs, a.Orgs)
 
 	srv := &http.Server{
 		Addr:    ":" + strconv.Itoa(a.StartupOptions.Port),
@@ -156,7 +196,11 @@ func serve(a *config.Args) error {
 	}
 
 	// NB: keep refresher first in the list such that other plugins see an up-to-date view in storage.
-	hook, err := newHook(a.StartupOptions.GitHubSecret, refresher, nag, monitor)
+	hook, err := newHook(a.StartupOptions.GitHubSecret,
+		refresh,
+		nag,
+		labeler,
+		monitor)
 	if err != nil {
 		return fmt.Errorf("unable to create GitHub webhook: %v", err)
 	}
