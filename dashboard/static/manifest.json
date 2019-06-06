@@ -1,6 +1,6 @@
 {
-    "name": "Istio Service Mesh",
-    "short_name": "Istio",
+    "name": "Istio Eng Dashboard",
+    "short_name": "Istio Eng",
     "icons": [
         {
             "src": "favicons/pwa-192x192.png",

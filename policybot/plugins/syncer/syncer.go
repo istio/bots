@@ -16,10 +16,13 @@ package syncer
 
 import (
 	"context"
+	"fmt"
+	"io/ioutil"
 	"net/http"
-	"sync"
+	"strings"
 	"time"
 
+	"github.com/ghodss/yaml"
 	"github.com/google/go-github/v25/github"
 
 	"istio.io/bots/policybot/pkg/config"
@@ -36,6 +39,13 @@ type Syncer struct {
 	ght   *util.GitHubThrottle
 	store storage.Store
 	orgs  []config.Org
+}
+
+// The state in Syncer is immutable once created. syncState on the other hand represents
+// the mutable state used during a single sync operation.
+type syncState struct {
+	syncer *Syncer
+	users  map[string]*storage.User
 }
 
 var scope = log.RegisterScope("syncer", "The GitHub issue & PR syncer", 0)
@@ -55,7 +65,10 @@ func (s *Syncer) Handle(_ http.ResponseWriter, _ *http.Request) {
 }
 
 func (s *Syncer) Sync() {
-	a := s.ghs.NewAccumulator()
+	ss := &syncState{
+		syncer: s,
+		users:  make(map[string]*storage.User),
+	}
 
 	start := time.Now().UTC()
 	priorStart := time.Time{}
@@ -63,311 +76,407 @@ func (s *Syncer) Sync() {
 		priorStart = activity.LastSyncStart
 	}
 
-	for _, org := range s.orgs {
-		s.handleOrg(a, org, priorStart)
+	var orgs []*storage.Org
+	var repos []*storage.Repo
+
+	// get all the org & repo info
+	if err := s.fetchOrgs(func(org *github.Organization) error {
+		orgs = append(orgs, gh.OrgFromAPI(org))
+		return s.fetchRepos(func(repo *github.Repository) error {
+			repos = append(repos, gh.RepoFromAPI(repo))
+			return nil
+		})
+	}); err != nil {
+		return
+	}
+
+	if err := s.store.WriteOrgs(orgs); err != nil {
+		scope.Errorf(err.Error())
+		return
+	}
+
+	if err := s.store.WriteRepos(repos); err != nil {
+		scope.Errorf(err.Error())
+		return
+	}
+
+	for _, org := range orgs {
+		var orgRepos []*storage.Repo
+		for _, repo := range repos {
+			if repo.OrgID == org.OrgID {
+				orgRepos = append(orgRepos, repo)
+			}
+		}
+
+		if err := ss.handleOrg(org, orgRepos, priorStart); err != nil {
+			scope.Errorf(err.Error())
+			return
+		}
+	}
+
+	users := make([]*storage.User, 0, len(ss.users))
+	for _, user := range ss.users {
+		users = append(users, user)
+	}
+
+	if err := s.store.WriteUsers(users); err != nil {
+		scope.Errorf(err.Error())
+		return
+	}
+
+	// now that the users are written out, process the maintainers (the code needs to read the saved users...)
+	for _, org := range orgs {
+		var orgRepos []*storage.Repo
+		for _, repo := range repos {
+			if repo.OrgID == org.OrgID {
+				orgRepos = append(orgRepos, repo)
+			}
+		}
+
+		if err := ss.handleMaintainers(org, orgRepos); err != nil {
+			scope.Errorf(err.Error())
+			return
+		}
 	}
 
 	end := time.Now()
 	_ = s.store.WriteBotActivity(&storage.BotActivity{LastSyncStart: start, LastSyncEnd: end})
 }
 
-func (s *Syncer) handleOrg(a *gh.Accumulator, orgConfig config.Org, startTime time.Time) {
-	scope.Infof("Syncing org %s", orgConfig.Name)
+func (ss *syncState) handleOrg(org *storage.Org, repos []*storage.Repo, startTime time.Time) error {
+	scope.Infof("Syncing org %s", org.Login)
 
-	org, _, err := s.ght.Get().Organizations.Get(s.ctx, orgConfig.Name)
-	if err != nil {
-		scope.Errorf("Unable to query information about organization %s from GitHub: %v", orgConfig.Name, err)
-		return
+	if err := ss.handleMembers(org); err != nil {
+		return err
 	}
 
-	o := a.OrgFromAPI(org)
-
-	s.handleMembers(a, o)
-
-	for _, repoConfig := range orgConfig.Repos {
-		if repo, _, err := s.ght.Get().Repositories.Get(s.ctx, orgConfig.Name, repoConfig.Name); err != nil {
-			scope.Errorf("Unable to query information about repository %s/%s from GitHub: %v", orgConfig.Name, repoConfig.Name, err)
-		} else {
-			s.handleRepo(a, o, a.RepoFromAPI(repo), startTime)
+	for _, repo := range repos {
+		if err := ss.handleRepo(org, repo, startTime); err != nil {
+			return err
 		}
 	}
 
-	if err := a.Commit(); err != nil {
-		scope.Errorf("Unable to commit data to storage: %v", err)
-	}
+	return nil
 }
 
-func (s *Syncer) handleMembers(a *gh.Accumulator, org *storage.Org) {
-	members := s.fetchMembers(org)
-	for _, member := range members {
-		_ = a.MemberFromAPI(org, member)
-	}
-}
-
-func (s *Syncer) fetchMembers(org *storage.Org) []*github.User {
-	opt := &github.ListMembersOptions{
-		ListOptions: github.ListOptions{
-			PerPage: 100,
-		},
-	}
-
-	var result []*github.User
-	for {
-		scope.Debugf("Getting members of org %s", org.Login)
-
-		members, resp, err := s.ght.Get().Organizations.ListMembers(s.ctx, org.Login, opt)
-		if err != nil {
-			scope.Errorf("Unable to list all members of org %s: %v", org.Login, err)
-			return result
-		}
-
-		result = append(result, members...)
-
-		if resp.NextPage == 0 {
-			break
-		}
-
-		opt.ListOptions.Page = resp.NextPage
-	}
-
-	return result
-}
-
-func (s *Syncer) handleRepo(a *gh.Accumulator, org *storage.Org, repo *storage.Repo, startTime time.Time) {
+func (ss *syncState) handleRepo(org *storage.Org, repo *storage.Repo, startTime time.Time) error {
 	scope.Infof("Syncing repo %s/%s", org.Login, repo.Name)
 
-	s.handleIssues(a, org, repo, startTime)
-	s.handlePullRequests(a, org, repo)
-}
-
-func (s *Syncer) handleIssues(a *gh.Accumulator, org *storage.Org, repo *storage.Repo, startTime time.Time) {
-	opt := &github.IssueListByRepoOptions{
-		State: "all",
-		Since: startTime,
-		ListOptions: github.ListOptions{
-			PerPage: 100,
-		},
+	if err := ss.handleLabels(org, repo); err != nil {
+		return err
 	}
 
-	total := 0
-	for {
-		scope.Debugf("Getting issues from repo %s/%s", org.Login, repo.Name)
+	if err := ss.handleIssues(org, repo, startTime); err != nil {
+		return err
+	}
 
-		issues, resp, err := s.ght.Get().Issues.ListByRepo(s.ctx, org.Login, repo.Name, opt)
-		if err != nil {
-			scope.Errorf("Unable to list all issues in repo %s/%s: %v\n", org.Login, repo.Name, err)
-			return
+	return ss.handlePullRequests(org, repo)
+}
+
+func (ss *syncState) handleMembers(org *storage.Org) error {
+	scope.Debugf("Getting members from org %s", org.Login)
+
+	var storageMembers []*storage.Member
+	if err := ss.syncer.fetchMembers(org, func(members []*github.User) error {
+		for _, member := range members {
+			ss.addUser(member)
+			storageMembers = append(storageMembers, &storage.Member{OrgID: org.OrgID, UserID: member.GetNodeID()})
 		}
 
-		wg := sync.WaitGroup{}
-		commentsMap := sync.Map{}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	return ss.syncer.store.WriteAllMembers(storageMembers)
+}
+
+func (ss *syncState) handleLabels(org *storage.Org, repo *storage.Repo) error {
+	scope.Debugf("Getting labels from repo %s/%s", org.Login, repo.Name)
+
+	return ss.syncer.fetchLabels(org, repo, func(labels []*github.Label) error {
+		storageLabels := make([]*storage.Label, 0, len(labels))
+		for _, label := range labels {
+			storageLabels = append(storageLabels, gh.LabelFromAPI(org.OrgID, repo.RepoID, label))
+		}
+
+		return ss.syncer.store.WriteLabels(storageLabels)
+	})
+}
+
+func (ss *syncState) handleIssues(org *storage.Org, repo *storage.Repo, startTime time.Time) error {
+	scope.Debugf("Getting issues from repo %s/%s", org.Login, repo.Name)
+
+	return ss.syncer.fetchIssues(org, repo, startTime, func(issues []*github.Issue) error {
+		var storageIssues []*storage.Issue
+		var storageIssueComments []*storage.IssueComment
 
 		for _, issue := range issues {
-
 			// if this issue is already known to us and is up to date, skip further processing
-			if existing, _ := s.ghs.ReadIssue(org.OrgID, repo.RepoID, issue.GetNodeID()); existing != nil {
+			if existing, _ := ss.syncer.ghs.ReadIssue(org.OrgID, repo.RepoID, issue.GetNodeID()); existing != nil {
 				if existing.UpdatedAt == issue.GetUpdatedAt() {
 					continue
 				}
 			}
 
-			wg.Add(1)
-			capture := issue
-			go func() {
-				comm := s.fetchComments(org, repo, capture.GetNumber(), startTime)
-				commentsMap.Store(capture.GetNodeID(), comm)
-				wg.Done()
-			}()
-		}
-		wg.Wait()
-
-		for _, issue := range issues {
-			_ = a.IssueFromAPI(org.OrgID, repo.RepoID, issue)
-
-			if comments, ok := commentsMap.Load(issue.GetNodeID()); ok {
-				for _, comment := range comments.([]*github.IssueComment) {
-					_ = a.IssueCommentFromAPI(org.OrgID, repo.RepoID, issue.GetNodeID(), comment)
+			if err := ss.syncer.fetchComments(org, repo, issue.GetNumber(), startTime, func(comments []*github.IssueComment) error {
+				for _, comment := range comments {
+					ss.addUser(comment.User)
+					storageIssueComments = append(storageIssueComments, gh.IssueCommentFromAPI(org.OrgID, repo.RepoID, issue.GetNodeID(), comment))
 				}
+
+				return nil
+			}); err != nil {
+				return err
 			}
+
+			ss.addUser(issue.User)
+			for _, assignee := range issue.Assignees {
+				ss.addUser(assignee)
+			}
+
+			storageIssues = append(storageIssues, gh.IssueFromAPI(org.OrgID, repo.RepoID, issue))
 		}
 
-		if err := a.Commit(); err != nil {
-			scope.Errorf("Unable to commit data to storage: %v", err)
+		err := ss.syncer.store.WriteIssues(storageIssues)
+		if err == nil {
+			err = ss.syncer.store.WriteIssueComments(storageIssueComments)
 		}
 
-		if resp.NextPage == 0 {
-			break
-		}
-
-		opt.ListOptions.Page = resp.NextPage
-
-		total += len(issues)
-		scope.Infof("Synced %d issues in repo %s/%s", total, org.Login, repo.Name)
-	}
+		return err
+	})
 }
 
-func (s *Syncer) fetchComments(org *storage.Org, repo *storage.Repo, issueNumber int, startTime time.Time) []*github.IssueComment {
-	opt := &github.IssueListCommentsOptions{
-		Since: startTime,
-		ListOptions: github.ListOptions{
-			PerPage: 100,
-		},
-	}
+func (ss *syncState) handlePullRequests(org *storage.Org, repo *storage.Repo) error {
+	scope.Debugf("Getting pull requests from repo %s/%s", org.Login, repo.Name)
 
-	var result []*github.IssueComment
-	for {
-		scope.Debugf("Getting issue comments for issue %d from repo %s/%s", issueNumber, org.Login, repo.Name)
-
-		comments, resp, err := s.ght.Get().Issues.ListComments(s.ctx, org.Login, repo.Name, issueNumber, opt)
-		if err != nil {
-			scope.Errorf("Unable to list all comments for issue %d in repo %s/%s: %v", issueNumber, org.Login, repo.Name, err)
-			return result
-		}
-
-		result = append(result, comments...)
-
-		if resp.NextPage == 0 {
-			break
-		}
-
-		opt.ListOptions.Page = resp.NextPage
-	}
-
-	return result
-}
-
-func (s *Syncer) handlePullRequests(a *gh.Accumulator, org *storage.Org, repo *storage.Repo) {
-	opt := &github.PullRequestListOptions{
-		State: "all",
-		ListOptions: github.ListOptions{
-			PerPage: 100,
-		},
-	}
-
-	total := 0
-	for {
-		scope.Debugf("Getting pull requests from repo %s/%s", org.Login, repo.Name)
-
-		prs, resp, err := s.ght.Get().PullRequests.List(s.ctx, org.Login, repo.Name, opt)
-		if err != nil {
-			scope.Errorf("Unable to list all pull requests in repo %s/%s: %v\n", org.Login, repo.Name, err)
-			return
-		}
-
-		wg := sync.WaitGroup{}
-		reviewsMap := sync.Map{}
-		filesMap := sync.Map{}
+	return ss.syncer.fetchPullRequests(org, repo, func(prs []*github.PullRequest) error {
+		var storagePRs []*storage.PullRequest
+		var storagePRReviews []*storage.PullRequestReview
 
 		for _, pr := range prs {
 			// if this pr is already known to us and is up to date, skip further processing
-			if existing, _ := s.ghs.ReadPullRequest(org.OrgID, repo.RepoID, pr.GetNodeID()); existing != nil {
+			if existing, _ := ss.syncer.ghs.ReadPullRequest(org.OrgID, repo.RepoID, pr.GetNodeID()); existing != nil {
 				if existing.UpdatedAt == pr.GetUpdatedAt() {
 					continue
 				}
 			}
 
-			wg.Add(2)
-
-			capture := pr
-			go func() {
-				reviews := s.fetchReviews(org, repo, capture.GetNumber())
-				reviewsMap.Store(capture.GetNodeID(), reviews)
-				wg.Done()
-			}()
-
-			go func() {
-				files := s.fetchFiles(org, repo, capture.GetNumber())
-				filesMap.Store(capture.GetNodeID(), files)
-				wg.Done()
-			}()
-		}
-		wg.Wait()
-
-		for _, pr := range prs {
-			if reviews, ok := reviewsMap.Load(pr.GetNodeID()); ok {
-				for _, review := range reviews.([]*github.PullRequestReview) {
-					_ = a.PullRequestReviewFromAPI(org.OrgID, repo.RepoID, pr.GetNodeID(), review)
+			if err := ss.syncer.fetchReviews(org, repo, pr.GetNumber(), func(reviews []*github.PullRequestReview) error {
+				for _, review := range reviews {
+					ss.addUser(pr.GetUser())
+					storagePRReviews = append(storagePRReviews, gh.PullRequestReviewFromAPI(org.OrgID, repo.RepoID, pr.GetNodeID(), review))
 				}
+
+				return nil
+			}); err != nil {
+				return err
 			}
 
-			var files []string
-			if filesRaw, ok := filesMap.Load(pr.GetNodeID()); ok {
-				files = filesRaw.([]string)
-				for i := range files {
-					files[i] = org.Login + "/" + repo.Name + "/" + files[i]
+			var prFiles []string
+			if err := ss.syncer.fetchFiles(org, repo, pr.GetNumber(), func(files []string) error {
+				for _, file := range files {
+					prFiles = append(prFiles, org.Login+"/"+repo.Name+"/"+file)
 				}
+
+				return nil
+			}); err != nil {
+				return err
 			}
 
-			_ = a.PullRequestFromAPI(org.OrgID, repo.RepoID, pr, files)
+			for _, reviewer := range pr.RequestedReviewers {
+				ss.addUser(reviewer)
+			}
+			storagePRs = append(storagePRs, gh.PullRequestFromAPI(org.OrgID, repo.RepoID, pr, prFiles))
 		}
 
-		if err := a.Commit(); err != nil {
-			scope.Errorf("Unable to commit data to storage: %v", err)
+		err := ss.syncer.store.WritePullRequests(storagePRs)
+		if err == nil {
+			err = ss.syncer.store.WritePullRequestReviews(storagePRReviews)
 		}
 
-		if resp.NextPage == 0 {
-			break
-		}
-
-		opt.ListOptions.Page = resp.NextPage
-
-		total += len(prs)
-		scope.Infof("Synced %d pull requests in repo %s/%s", total, org.Login, repo.Name)
-	}
+		return err
+	})
 }
 
-func (s *Syncer) fetchFiles(org *storage.Org, repo *storage.Repo, prNumber int) []string {
-	scope.Debugf("Getting file list for pr %d from repo %s/%s", prNumber, org.Login, repo.Name)
+func (ss *syncState) handleMaintainers(org *storage.Org, repos []*storage.Repo) error {
+	scope.Debugf("Getting maintainers for org %s", org.Login)
 
-	opt := &github.ListOptions{
-		PerPage: 100,
-	}
+	maintainers := make(map[string]*storage.Maintainer)
 
-	var allFiles []string
-	for {
-		files, resp, err := s.ght.Get().PullRequests.ListFiles(s.ctx, org.Login, repo.Name, prNumber, opt)
+	for _, repo := range repos {
+		fc, _, _, err := ss.syncer.ght.Get().Repositories.GetContents(ss.syncer.ctx, org.Login, repo.Name, "CODEOWNERS", nil)
+		if err == nil {
+			err = ss.handleCODEOWNERS(org, repo, maintainers, fc)
+		} else {
+			err = ss.handleOWNERS(org, repo, maintainers)
+		}
+
 		if err != nil {
-			scope.Errorf("Unable to list all files for pull request %d in repo %s/%s: %v\n", prNumber, org.Login, repo.Name, err)
-			return allFiles
+			scope.Warnf("Unable to establish maintainers for repo %s/%s: %v", org.Login, repo.Name, err)
 		}
-
-		for _, f := range files {
-			allFiles = append(allFiles, f.GetFilename())
-		}
-
-		if resp.NextPage == 0 {
-			break
-		}
-
-		opt.Page = resp.NextPage
 	}
 
-	return allFiles
+	storageMaintainers := make([]*storage.Maintainer, 0, len(maintainers))
+	for _, maintainer := range maintainers {
+		storageMaintainers = append(storageMaintainers, maintainer)
+	}
+
+	return ss.syncer.store.WriteAllMaintainers(storageMaintainers)
 }
 
-func (s *Syncer) fetchReviews(org *storage.Org, repo *storage.Repo, prNumber int) []*github.PullRequestReview {
-	scope.Debugf("Getting reviews for pr %d from repo %s/%s", prNumber, org.Login, repo.Name)
-
-	opt := &github.ListOptions{
-		PerPage: 100,
+func (ss *syncState) handleCODEOWNERS(org *storage.Org, repo *storage.Repo, maintainers map[string]*storage.Maintainer, fc *github.RepositoryContent) error {
+	content, err := fc.GetContent()
+	if err != nil {
+		return fmt.Errorf("unable to read CODEOWNERS body from repo %s/%s: %v", org.Login, repo.Name, err)
 	}
 
-	var result []*github.PullRequestReview
-	for {
-		reviews, resp, err := s.ght.Get().PullRequests.ListReviews(s.ctx, org.Login, repo.Name, prNumber, opt)
+	lines := strings.Split(content, "\n")
+
+	scope.Debugf("%d lines in CODEOWNERS file for repo %s/%s", len(lines), org.Login, repo.Name)
+
+	// go through each line of the CODEOWNERS file
+	for _, line := range lines {
+		l := strings.Trim(line, " \t")
+		if strings.HasPrefix(l, "#") || l == "" {
+			// skip comment lines or empty lines
+			continue
+		}
+
+		fields := strings.Fields(l)
+		logins := fields[1:]
+
+		for _, login := range logins {
+			login = strings.TrimPrefix(login, "@")
+
+			scope.Debugf("User '%s' can review path '%s'", login, fields[0])
+
+			maintainer, err := ss.getMaintainer(org, maintainers, login)
+			if maintainer == nil || err != nil {
+				scope.Warnf("Couldn't get info on potential maintainer %s: %v", login, err)
+				continue
+			}
+
+			// add the path to this maintainer's list
+			path := repo.Name
+			if !strings.HasPrefix(path, "/") {
+				path += "/"
+			}
+			path += fields[0]
+
+			maintainer.Paths = append(maintainer.Paths, path)
+		}
+	}
+
+	return nil
+}
+
+type ownersFile struct {
+	Approvers []string `json:"approvers"`
+	Reviewers []string `json:"reviewers"`
+}
+
+func (ss *syncState) handleOWNERS(org *storage.Org, repo *storage.Repo, maintainers map[string]*storage.Maintainer) error {
+	opt := &github.CommitsListOptions{
+		ListOptions: github.ListOptions{
+			PerPage: 1,
+		},
+	}
+
+	// TODO: we need to get the SHA for the latest commit on the master branch, not just any branch
+	rc, _, err := ss.syncer.ght.Get().Repositories.ListCommits(ss.syncer.ctx, org.Login, repo.Name, opt)
+	if err != nil {
+		return fmt.Errorf("unable to get latest commit in repo %s/%s: %v", org.Login, repo.Name, err)
+	}
+
+	tree, _, err := ss.syncer.ght.Get().Git.GetTree(ss.syncer.ctx, org.Login, repo.Name, rc[0].GetSHA(), true)
+	if err != nil {
+		return fmt.Errorf("unable to get tree in repo %s/%s: %v", org.Login, repo.Name, err)
+	}
+
+	files := make(map[string]ownersFile)
+	for _, entry := range tree.Entries {
+		components := strings.Split(entry.GetPath(), "/")
+		if components[len(components)-1] == "OWNERS" && components[0] != "vendor" { // HACK: skip Go's vendor directory
+
+			url := "https://raw.githubusercontent.com/" + org.Login + "/" + repo.Name + "/master/" + entry.GetPath()
+
+			resp, err := http.Get(url)
+			if err != nil {
+				return fmt.Errorf("unable to get %s: %v", url, err)
+			}
+
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				return fmt.Errorf("unable to read body for %s: %v", url, err)
+			}
+
+			var f ownersFile
+			if err := yaml.Unmarshal(body, &f); err != nil {
+				return fmt.Errorf("unable to parse body for %s: %v", url, err)
+			}
+
+			files[entry.GetPath()] = f
+		}
+	}
+
+	scope.Debugf("%d OWNERS files found in repo %s/%s", len(files), org.Login, repo.Name)
+
+	for path, file := range files {
+		for _, user := range file.Approvers {
+			maintainer, err := ss.getMaintainer(org, maintainers, user)
+			if maintainer == nil || err != nil {
+				scope.Warnf("Couldn't get info on potential maintainer %s: %v", user, err)
+				continue
+			}
+
+			p := strings.TrimSuffix(path, "OWNERS")
+			if p == "" {
+				p = "*"
+			}
+
+			scope.Debugf("User %s can approve path %s", user, p)
+
+			maintainer.Paths = append(maintainer.Paths, p)
+		}
+	}
+
+	return nil
+}
+
+func (ss *syncState) addUser(user *github.User) {
+	ss.users[user.GetNodeID()] = gh.UserFromAPI(user)
+}
+
+func (ss *syncState) getMaintainer(org *storage.Org, maintainers map[string]*storage.Maintainer, login string) (*storage.Maintainer, error) {
+	user, err := ss.syncer.ghs.ReadUserByLogin(login)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read information from storage for user %s: %v", login, err)
+	}
+
+	if user == nil {
+		// couldn't find user info in the DB, ask GitHub directly
+		u, _, err := ss.syncer.ght.Get().Users.Get(ss.syncer.ctx, login)
 		if err != nil {
-			scope.Errorf("Unable to list all comments for pr %d in repo %s/%s: %v", prNumber, org.Login, repo.Name, err)
-			return result
+			return nil, fmt.Errorf("unable to read information from GitHub on user %s: %v", login, err)
 		}
 
-		result = append(result, reviews...)
+		user = gh.UserFromAPI(u)
 
-		if resp.NextPage == 0 {
-			break
-		}
-
-		opt.Page = resp.NextPage
+		// opportunistically update the DB
+		users := []*storage.User{user}
+		_ = ss.syncer.store.WriteUsers(users)
 	}
 
-	return result
+	maintainer, ok := maintainers[user.UserID]
+	if !ok {
+		// unknown maintainer, so create a record
+		maintainer = &storage.Maintainer{
+			OrgID:  org.OrgID,
+			UserID: user.UserID,
+		}
+		maintainers[user.UserID] = maintainer
+	}
+
+	return maintainer, nil
 }

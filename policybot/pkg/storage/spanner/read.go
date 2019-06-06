@@ -110,7 +110,7 @@ func (s *store) ReadIssueByID(org string, repo string, issue string) (*storage.I
 }
 
 func (s *store) ReadIssueByNumber(org string, repo string, number int) (*storage.Issue, error) {
-	iter := s.client.Single().ReadUsingIndex(s.ctx, issueTable, issueNumberIndex, issueNumberKey(org, repo, number), issueNumberColumns)
+	iter := s.client.Single().ReadUsingIndex(s.ctx, issueTable, issueNumberIndex, issueNumberKey(repo, number), issueNumberColumns)
 
 	var inr issueNumberRow
 
@@ -205,6 +205,24 @@ func (s *store) ReadUserByID(user string) (*storage.User, error) {
 	}
 
 	return &result, nil
+}
+
+func (s *store) ReadUserByLogin(login string) (*storage.User, error) {
+	iter := s.client.Single().ReadUsingIndex(s.ctx, userTable, userLoginIndex, userLoginKey(login), userLoginColumns)
+
+	var ulr userLoginRow
+
+	err := iter.Do(func(row *spanner.Row) error {
+		return row.ToStruct(&ulr)
+	})
+
+	if spanner.ErrCode(err) == codes.NotFound {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	return s.ReadUserByID(ulr.UserID)
 }
 
 func (s *store) ReadBotActivity() (*storage.BotActivity, error) {
