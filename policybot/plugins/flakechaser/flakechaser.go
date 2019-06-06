@@ -35,7 +35,7 @@ const (
 					REGEXP_CONTAINS(body, 'flake') );`
 )
 
-var scope = log.RegisterScope("flakechaser", "Listens for changes in policybot config", 0)
+var scope = log.RegisterScope("flakechaser", "The GitHub flaky test chaser.", 0)
 
 // Chaser scans the test flakiness issues and neg issuer assignee when no updates occur for a while.
 type Chaser struct {
@@ -46,13 +46,13 @@ type Chaser struct {
 }
 
 // New creates a flake chaser.
-func New(ght *util.GitHubThrottle, ghs *gh.GitHubState, repo string, dryRun bool) (*Chaser, error) {
+func New(ght *util.GitHubThrottle, ghs *gh.GitHubState, repo string, dryRun bool) *Chaser{
 	return &Chaser{
 		repo:   repo,
 		ght:    ght,
 		ghs:    ghs,
 		dryRun: dryRun,
-	}, nil
+	}
 }
 
 // Handle implements http interface, will be invoked periodically to fulfil the test flakes comments.
@@ -61,7 +61,7 @@ func (c *Chaser) Handle(_ http.ResponseWriter, _ *http.Request) {
 	scope.Infof("Handle request for flake chaser")
 	issues, err := c.ghs.ReadIssueBySQL(flakeIssueQuery)
 	if err != nil {
-		scope.Errorf("Failed to read issue from Spanner: %v", err)
+		scope.Errorf("Failed to read issue from storage: %v", err)
 		return
 	}
 	for _, issue := range issues {

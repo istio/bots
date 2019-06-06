@@ -405,11 +405,11 @@ func (s *store) ReadIssueBySQL(sql string, issueProcessor storage.IssueIterator)
 			break
 		}
 		if err != nil {
-			fmt.Errorf("Encountered a Spanner read error: %v", err)
+			scope.Errorf("Encountered a Spanner read error: %v", err)
 			continue
 		}
 		if err := issueProcessor(row); err != nil {
-			fmt.Printf("stop reading rows %v\n", err)
+			scope.Errorf("stop reading rows %v\n", err)
 			return err
 		}
 	}
