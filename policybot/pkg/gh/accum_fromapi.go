@@ -136,7 +136,7 @@ func (a *Accumulator) LabelFromAPI(org string, repo string, l *api.Label) *stora
 	})
 }
 
-func (a *Accumulator) PullRequestFromAPI(org string, repo string, pr *api.PullRequest) *storage.PullRequest {
+func (a *Accumulator) PullRequestFromAPI(org string, repo string, pr *api.PullRequest, files []string) *storage.PullRequest {
 	if result := a.pullRequests[pr.GetNodeID()]; result != nil {
 		// already in the accumulator
 		return result
@@ -174,6 +174,7 @@ func (a *Accumulator) PullRequestFromAPI(org string, repo string, pr *api.PullRe
 		IssueID:              pr.GetNodeID(),
 		RequestedReviewerIDs: reviewers,
 		UpdatedAt:            pr.GetUpdatedAt(),
+		Files:                files,
 	})
 }
 
@@ -195,4 +196,16 @@ func (a *Accumulator) PullRequestReviewFromAPI(org string, repo string, issue st
 		AuthorID:            prr.GetUser().GetNodeID(),
 		State:               prr.GetState(),
 	})
+}
+
+func (a *Accumulator) MemberFromAPI(o *storage.Org, u *api.User) *storage.Member {
+	user := a.UserFromAPI(u)
+
+	member := &storage.Member{
+		OrgID:  o.OrgID,
+		UserID: user.UserID,
+	}
+
+	a.addMember(member)
+	return member
 }

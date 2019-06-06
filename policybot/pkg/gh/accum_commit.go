@@ -29,7 +29,9 @@ func (a *Accumulator) Commit() error {
 					if err = a.commitIssues(); err == nil {
 						if err = a.commitIssueComments(); err == nil {
 							if err = a.commitPullRequests(); err == nil {
-								err = a.commitPullRequestReviews()
+								if err = a.commitPullRequestReviews(); err == nil {
+									err = a.commitMembers()
+								}
 							}
 						}
 					}
@@ -205,6 +207,23 @@ func (a *Accumulator) commitPullRequestReviews() error {
 
 	for _, l := range a.pullRequestReviews {
 		a.ghs.pullRequestReviewCache.Set(l.PullRequestReviewID, l)
+	}
+
+	return nil
+}
+
+func (a *Accumulator) commitMembers() error {
+	if len(a.members) == 0 {
+		return nil
+	}
+
+	members := make([]*storage.Member, 0, len(a.members))
+	for _, member := range a.members {
+		members = append(members, member)
+	}
+
+	if err := a.ghs.store.WriteAllMembers(members); err != nil {
+		return err
 	}
 
 	return nil

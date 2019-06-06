@@ -15,12 +15,11 @@ require (
 	github.com/sendgrid/sendgrid-go v3.4.1+incompatible
 	github.com/spf13/cobra v0.0.3
 	github.com/stretchr/testify v1.3.0 // indirect
-	go.opencensus.io v0.21.0
 	golang.org/x/oauth2 v0.0.0-20190402181905-9f3314589c9a
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
 	golang.org/x/tools v0.0.0-20190528151238-d238219cc233 // indirect
 	google.golang.org/api v0.4.0
 	google.golang.org/grpc v1.20.1
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
-	istio.io/pkg v0.0.0-20190516214103-40b7bf4c7321
+	istio.io/pkg v0.0.0-20190528232437-649ce24e3652
 )

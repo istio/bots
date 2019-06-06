@@ -108,7 +108,7 @@ header {
             margin-right: .58rem;
         }
 
-        svg.icon {
+        svg.icon, svg.large-icon {
             fill: $textBrandColor;
             stroke: $textBrandColor;
         }
@@ -122,7 +122,7 @@ header {
             color: $textBrandHighlightColor;
             outline: 0;
 
-            svg.icon {
+            svg.icon, svg.large-icon {
                 fill: $textBrandHighlightColor;
                 stroke: $textBrandHighlightColor;
             }

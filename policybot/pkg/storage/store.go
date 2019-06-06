@@ -26,6 +26,7 @@ type IssueIterator func(row *google_spanner.Row) error
 // Store defines how the bot interacts with the database
 type Store interface {
 	io.Closer
+
 	WriteOrgs(orgs []*Org) error
 	WriteRepos(repos []*Repo) error
 	WriteIssues(issues []*Issue) error
@@ -34,22 +35,24 @@ type Store interface {
 	WritePullRequestReviews(prReviews []*PullRequestReview) error
 	WriteUsers(users []*User) error
 	WriteLabels(labels []*Label) error
+	WriteAllMembers(members []*Member) error
+	WriteAllMaintainers(maintainers []*Maintainer) error
+	WriteBotActivity(activity *BotActivity) error
 
-	ReadOrgByID(org string) (*Org, error)
+	ReadOrgByID(orgID string) (*Org, error)
 	ReadOrgByLogin(login string) (*Org, error)
-	ReadRepoByID(org string, repo string) (*Repo, error)
-	ReadRepoByName(org string, name string) (*Repo, error)
-	ReadIssueByID(org string, repo string, issue string) (*Issue, error)
-	ReadIssueByNumber(org string, repo string, number int) (*Issue, error)
-	ReadIssueCommentByID(org string, repo string, issue string, issueComment string) (*IssueComment, error)
-	ReadLabelByID(org string, repo string, label string) (*Label, error)
-	ReadUserByID(user string) (*User, error)
+	ReadRepoByID(orgID string, repoID string) (*Repo, error)
+	ReadRepoByName(orgID string, name string) (*Repo, error)
+	ReadIssueByID(orgID string, repoID string, issueID string) (*Issue, error)
 	ReadIssueBySQL(sql string, iterator IssueIterator) error
-	ReadPullRequestByID(org string, repo string, issue string) (*PullRequest, error)
-	ReadPullRequestReviewByID(org string, repo string, issue string, prReview string) (*PullRequestReview, error)
+	ReadIssueByNumber(orgID string, repoID string, number int) (*Issue, error)
+	ReadIssueCommentByID(orgID string, repoID string, issueID string, issueCommentID string) (*IssueComment, error)
+	ReadLabelByID(orgID string, repoID string, labelID string) (*Label, error)
+	ReadUserByID(userID string) (*User, error)
+	ReadPullRequestByID(orgID string, repoID string, issueID string) (*PullRequest, error)
+	ReadPullRequestReviewByID(orgID string, repoID string, issueID string, prReviewID string) (*PullRequestReview, error)
+	ReadBotActivity() (*BotActivity, error)
 
-	//	FindUnengagedIssues(repo *gh.Repo, cb func(issue *gh.Issue)) error
-
-	RecordTestNagAdded(repo string) error
-	RecordTestNagRemoved(repo string) error
+	QueryMembersByOrg(orgID string, cb func(*Member) bool) error
+	QueryMaintainersByOrg(orgID string, cb func(*Maintainer) bool) error
 }

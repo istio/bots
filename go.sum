@@ -235,5 +235,5 @@ honnef.co/go/tools v0.0.0-20180728063816-88497007e858/go.mod h1:rf3lG4BRIbNafJWh
 honnef.co/go/tools v0.0.0-20190102054323-c2f93a96b099/go.mod h1:rf3lG4BRIbNafJWhAfAdb/ePZxsR/4RtNHQocxwk9r4=
 honnef.co/go/tools v0.0.0-20190106161140-3f1c8253044a/go.mod h1:rf3lG4BRIbNafJWhAfAdb/ePZxsR/4RtNHQocxwk9r4=
 istio.io/api v0.0.0-20190515205759-982e5c3888c6/go.mod h1:hhLFQmpHia8zgaM37vb2ml9iS5NfNfqZGRt1pS9aVEo=
-istio.io/pkg v0.0.0-20190516214103-40b7bf4c7321 h1:zXJi3xLeMGtvewwN7LzzqGhpiAOw/pFrM+CPGd5Fowc=
-istio.io/pkg v0.0.0-20190516214103-40b7bf4c7321/go.mod h1:QuX5yn89LMkQdwuz0OyikOs3DBN45poAUNBAlOmFIvQ=
+istio.io/pkg v0.0.0-20190528232437-649ce24e3652 h1:Y0bMkQbBVVhomnV/kda1ioQG5nuFJytuzWB6OisG0Wc=
+istio.io/pkg v0.0.0-20190528232437-649ce24e3652/go.mod h1:QuX5yn89LMkQdwuz0OyikOs3DBN45poAUNBAlOmFIvQ=
