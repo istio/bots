@@ -227,14 +227,26 @@ func (s *store) ReadBotActivity() (*storage.BotActivity, error) {
 	return activity, nil
 }
 
-func (s *store) ReadTestFlakyIssues(issueProcessor storage.IssueIterator) error {
+func (s *store) ReadTestFlakyIssues(inactiveDays, createdDays int) ([]*storage.Issue, error) {
 	sql := `SELECT * from Issues
-	WHERE TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), UpdatedAt, DAY) > 3 AND 
-				TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), CreatedAt, DAY) < 180 AND
+	WHERE TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), UpdatedAt, DAY) > @inactiveDays AND 
+				TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), CreatedAt, DAY) < @createdDays AND
 				State = 'open' AND
 				( REGEXP_CONTAINS(title, 'flake') OR 
 					REGEXP_CONTAINS(body, 'flake') );`
-	iter := s.client.Single().Query(s.ctx, spanner.Statement{SQL: sql})
+	stmt := spanner.NewStatement(sql)
+	stmt.Params["inactiveDays"] = inactiveDays
+	stmt.Params["createdDays"] = createdDays
+	var issues []*storage.Issue
+	getIssue := func(row *spanner.Row) error {
+		issue := storage.Issue{}
+		if err := row.ToStruct(&issue); err != nil {
+			return err
+		}
+		issues = append(issues, &issue)
+		return nil
+	}
+	iter := s.client.Single().Query(s.ctx, stmt)
 	defer iter.Stop()
 	for {
 		row, err := iter.Next()
@@ -245,10 +257,10 @@ func (s *store) ReadTestFlakyIssues(issueProcessor storage.IssueIterator) error 
 			scope.Errorf("Encountered a Spanner read error: %v", err)
 			continue
 		}
-		if err := issueProcessor(row); err != nil {
+		if err := getIssue(row); err != nil {
 			scope.Errorf("stop reading rows %v\n", err)
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	return issues, nil
 }

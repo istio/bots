@@ -49,7 +49,7 @@ func New(ght *util.GitHubThrottle, ghs *gh.GitHubState, repo string, dryRun bool
 func (c *Chaser) Handle(_ http.ResponseWriter, _ *http.Request) {
 	flakeComments := `Hey, there's no updates for this test flakes for 3 days.`
 	scope.Infof("Handle request for flake chaser")
-	issues, err := c.ghs.ReadTestFlakyIssues()
+	issues, err := c.ghs.ReadTestFlakyIssues(3, 180)
 	if err != nil {
 		scope.Errorf("Failed to read issue from storage: %v", err)
 		return
