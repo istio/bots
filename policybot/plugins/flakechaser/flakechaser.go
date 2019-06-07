@@ -25,16 +25,6 @@ import (
 	"istio.io/pkg/log"
 )
 
-const (
-	// flakeIssueQuery selects all the issues that haven't been updated for more than 3 days
-	flakeIssueQuery = `SELECT * from Issues
-	WHERE TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), UpdatedAt, DAY) > 3 AND 
-				TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), CreatedAt, DAY) < 180 AND
-				State = 'open' AND
-				( REGEXP_CONTAINS(title, 'flake') OR 
-					REGEXP_CONTAINS(body, 'flake') );`
-)
-
 var scope = log.RegisterScope("flakechaser", "The GitHub flaky test chaser.", 0)
 
 // Chaser scans the test flakiness issues and neg issuer assignee when no updates occur for a while.
@@ -46,7 +36,7 @@ type Chaser struct {
 }
 
 // New creates a flake chaser.
-func New(ght *util.GitHubThrottle, ghs *gh.GitHubState, repo string, dryRun bool) *Chaser{
+func New(ght *util.GitHubThrottle, ghs *gh.GitHubState, repo string, dryRun bool) *Chaser {
 	return &Chaser{
 		repo:   repo,
 		ght:    ght,
@@ -59,7 +49,7 @@ func New(ght *util.GitHubThrottle, ghs *gh.GitHubState, repo string, dryRun bool
 func (c *Chaser) Handle(_ http.ResponseWriter, _ *http.Request) {
 	flakeComments := `Hey, there's no updates for this test flakes for 3 days.`
 	scope.Infof("Handle request for flake chaser")
-	issues, err := c.ghs.ReadIssueBySQL(flakeIssueQuery)
+	issues, err := c.ghs.ReadTestFlakyIssues()
 	if err != nil {
 		scope.Errorf("Failed to read issue from storage: %v", err)
 		return

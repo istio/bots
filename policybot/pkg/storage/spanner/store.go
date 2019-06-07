@@ -49,4 +49,3 @@ func (s *store) Close() error {
 	s.client.Close()
 	return nil
 }
-

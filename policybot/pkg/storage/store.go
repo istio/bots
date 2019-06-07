@@ -44,7 +44,7 @@ type Store interface {
 	ReadRepoByID(orgID string, repoID string) (*Repo, error)
 	ReadRepoByName(orgID string, name string) (*Repo, error)
 	ReadIssueByID(orgID string, repoID string, issueID string) (*Issue, error)
-	ReadIssueBySQL(sql string, iterator IssueIterator) error
+	ReadTestFlakyIssues(iterator IssueIterator) error
 	ReadIssueByNumber(orgID string, repoID string, number int) (*Issue, error)
 	ReadIssueCommentByID(orgID string, repoID string, issueID string, issueCommentID string) (*IssueComment, error)
 	ReadLabelByID(orgID string, repoID string, labelID string) (*Label, error)

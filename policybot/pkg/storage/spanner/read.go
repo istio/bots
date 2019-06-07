@@ -227,7 +227,13 @@ func (s *store) ReadBotActivity() (*storage.BotActivity, error) {
 	return activity, nil
 }
 
-func (s *store) ReadIssueBySQL(sql string, issueProcessor storage.IssueIterator) error {
+func (s *store) ReadTestFlakyIssues(issueProcessor storage.IssueIterator) error {
+	sql := `SELECT * from Issues
+	WHERE TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), UpdatedAt, DAY) > 3 AND 
+				TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), CreatedAt, DAY) < 180 AND
+				State = 'open' AND
+				( REGEXP_CONTAINS(title, 'flake') OR 
+					REGEXP_CONTAINS(body, 'flake') );`
 	iter := s.client.Single().Query(s.ctx, spanner.Statement{SQL: sql})
 	defer iter.Stop()
 	for {

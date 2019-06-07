@@ -172,8 +172,8 @@ func (ghs *GitHubState) ReadPullRequestReview(org string, repo string, issue str
 	return result, err
 }
 
-// ReadIssueBySQL returns issue based on the SQL query.
-func (ghs *GitHubState) ReadIssueBySQL(sql string) ([]*storage.Issue, error) {
+// ReadTestFlakyIssues returns issue based on the SQL query.
+func (ghs *GitHubState) ReadTestFlakyIssues() ([]*storage.Issue, error) {
 	issues := []*storage.Issue{}
 	getIssue := func(row *google_spanner.Row) error {
 		issue := storage.Issue{}
@@ -183,7 +183,7 @@ func (ghs *GitHubState) ReadIssueBySQL(sql string) ([]*storage.Issue, error) {
 		issues = append(issues, &issue)
 		return nil
 	}
-	if err := ghs.store.ReadIssueBySQL(sql, getIssue); err != nil {
+	if err := ghs.store.ReadTestFlakyIssues(getIssue); err != nil {
 		return nil, err
 	}
 	return issues, nil
