@@ -142,7 +142,7 @@ func (a *Args) String() string {
 
 	// don't output secrets in the logs...
 	// _, _ = fmt.Fprintf(buf, "GitHubSecret: %s\n", a.StartupOptions.GitHubSecret)
-	// _, _ = fmt.Fprintf(buf, "GitHubAccessToken: %s\n", a.StartupOptions.GitHubAccessToken)
+	// _, _ = fmt.Fprintf(buf, "GitHubToken: %s\n", a.StartupOptions.GitHubToken)
 	// _, _ = fmt.Fprintf(buf, "GCPCredentials: %s\n", a.StartupOptions.GCPCredentials)
 	// _, _ = fmt.Fprintf(buf, "SendGridAPIKey: %s\n", a.StartupOptions.SendGridAPIKey)
 	// _, _ = fmt.Fprintf(buf, "ZenHubToken: %s\n", a.StartupOptions.ZenHubToken)

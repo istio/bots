@@ -17,6 +17,8 @@ package refresher
 import (
 	"net/http"
 
+	"istio.io/bots/policybot/pkg/storage"
+
 	webhook "github.com/go-playground/webhooks/github"
 
 	"istio.io/bots/policybot/pkg/config"
@@ -26,15 +28,15 @@ import (
 
 // Updates the DB based on incoming GitHub webhook events.
 type Refresher struct {
-	ghs   *gh.GitHubState
+	store storage.Store
 	repos map[string]bool
 }
 
 var scope = log.RegisterScope("refresher", "Dynamic database refresher", 0)
 
-func NewRefresher(ghs *gh.GitHubState, orgs []config.Org) *Refresher {
+func NewRefresher(store storage.Store, orgs []config.Org) *Refresher {
 	r := &Refresher{
-		ghs:   ghs,
+		store: store,
 		repos: make(map[string]bool),
 	}
 
@@ -61,49 +63,40 @@ func (r *Refresher) Handle(_ http.ResponseWriter, githubObject interface{}) {
 	switch p := githubObject.(type) {
 	case webhook.IssuesPayload:
 		scope.Debugf("Received IssuePayload: %+v", p)
-		r.refresh(p.Repository.FullName, func(a *gh.Accumulator) interface{} {
-			return a.IssueFromHook(&p)
-		})
+
+		issues := []*storage.Issue{gh.IssueFromHook(&p)}
+		if err := r.store.WriteIssues(issues); err != nil {
+			scope.Errorf(err.Error())
+		}
 
 	case webhook.IssueCommentPayload:
 		scope.Debugf("Received IssueCommentPayload: %+v", p)
-		r.refresh(p.Repository.FullName, func(a *gh.Accumulator) interface{} {
-			return a.IssueCommentFromHook(&p)
-		})
+
+		issueComments := []*storage.IssueComment{gh.IssueCommentFromHook(&p)}
+		if err := r.store.WriteIssueComments(issueComments); err != nil {
+			scope.Errorf(err.Error())
+		}
 
 	case webhook.PullRequestPayload:
 		scope.Debugf("Received PullRequestPayload: %+v", p)
-		r.refresh(p.Repository.FullName, func(a *gh.Accumulator) interface{} {
-			pr, _ := a.PullRequestFromHook(&p)
-			return pr
-		})
+
+		pr, _ := gh.PullRequestFromHook(&p)
+		prs := []*storage.PullRequest{pr}
+		if err := r.store.WritePullRequests(prs); err != nil {
+			scope.Errorf(err.Error())
+		}
 
 	case webhook.PullRequestReviewPayload:
 		scope.Debugf("Received PullRequestReviewPayload: %+v", p)
-		r.refresh(p.Repository.FullName, func(a *gh.Accumulator) interface{} {
-			return a.PullRequestReviewFromHook(&p)
-		})
+
+		reviews := []*storage.PullRequestReview{gh.PullRequestReviewFromHook(&p)}
+		if err := r.store.WritePullRequestReviews(reviews); err != nil {
+			scope.Errorf(err.Error())
+		}
 
 	default:
 		// not what we're looking for
 		scope.Debugf("Unknown payload received: %T %+v", p, p)
 		return
 	}
-}
-
-func (r *Refresher) refresh(repo string, conv func(a *gh.Accumulator) interface{}) {
-	if _, ok := r.repos[repo]; !ok {
-		// not a repo we're tracking
-		return
-	}
-
-	a := r.ghs.NewAccumulator()
-	conv(a)
-
-	if err := a.Commit(); err != nil {
-		scope.Errorf("Unable to update storage: %v", err)
-		return
-	}
-
-	scope.Infof("Updated storage for repo %s", repo)
 }

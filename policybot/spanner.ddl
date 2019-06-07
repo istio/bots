@@ -100,6 +100,7 @@ CREATE TABLE Users (
   Login STRING(MAX),
   Name STRING(MAX),
   Company STRING(MAX),
+  AvatarUrl STRING(MAX),
 ) PRIMARY KEY(UserID);
 
 CREATE UNIQUE INDEX UsersLogin ON Users(Login)

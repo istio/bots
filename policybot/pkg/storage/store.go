@@ -43,10 +43,13 @@ type Store interface {
 	ReadIssueCommentByID(orgID string, repoID string, issueID string, issueCommentID string) (*IssueComment, error)
 	ReadLabelByID(orgID string, repoID string, labelID string) (*Label, error)
 	ReadUserByID(userID string) (*User, error)
+	ReadUserByLogin(login string) (*User, error)
 	ReadPullRequestByID(orgID string, repoID string, issueID string) (*PullRequest, error)
 	ReadPullRequestReviewByID(orgID string, repoID string, issueID string, prReviewID string) (*PullRequestReview, error)
 	ReadBotActivity() (*BotActivity, error)
 
 	QueryMembersByOrg(orgID string, cb func(*Member) bool) error
 	QueryMaintainersByOrg(orgID string, cb func(*Maintainer) bool) error
+
+	EnumUsers(cb func(*User) bool) error
 }

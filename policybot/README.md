@@ -21,6 +21,8 @@ At runtime, The bot has the following external dependencies:
 - GitHub. The bot acts as a GitHub webhook to receive notifications of GitHub activity. It
 also calls the GitHub API.
 
+- ZenHub. The bot calls into the ZenHub API to get information about GitHub issues.
+
 - SendGrid. The bot sends email using SendGrid.
 
 ## Plugins
@@ -66,6 +68,9 @@ the GitHub webhook.
 - GITHUB_TOKEN / --github_token. The access token necessary to let the bot invoke the GitHub
 API.
 
+- ZENHUB_TOKEN / --zenhub_token. The access token necessary to let the bot invoke the ZenHub
+API.
+
 - GCP_CREDS / --gcp_creds. Base64-encoded JSON credentials for GCP, enabling the bot to invoke
 Google Cloud Spanner.
 
@@ -94,7 +99,7 @@ a job scheduled in Google Cloud scheduler.
 the Istio repos.
 
 - /analyze - a placeholder that will eventually serve analysis data to the [dashboard UI](../dashboard/README.md) at
-https://bots.istio.io.
+https://eng.istio.io.
 
 ## Configuration file
 
