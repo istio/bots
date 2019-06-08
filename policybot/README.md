@@ -27,20 +27,20 @@ also calls the GitHub API.
 
 ## Plugins
 
-The bot consists of a simple framework and distinct plugins that have specific isolated responsibilities. There are two
-flavors of plugins. API plugins expose a REST API, whereas Webhook Plugins listen to GitHub notifications. At the moment,
+The bot consists of a simple framework and distinct plugins that have specific isolated responsibilities. There are three
+flavors of plugins:
+. API plugins expose a REST API, whereas Webhook Plugins listen to GitHub notifications. At the moment,
 the plugins are:
 
-API plugins:
+Handler plugins expose a REST API to trigger some actions:
 
-- syncer. Synchronizes GitHub issues and pull requests to Google Cloud Spanner, where the data can then be used
+- syncer. Synchronizes GitHub data to Google Cloud Spanner, where the data can then be used
 for analysis. The syncer needs to be invoked on a periodic basis to refresh the data. This is handled by using
-Google Cloud Schedule to invoke the syncer's REST API (/sync).
+Google Cloud Schedule to invoke the syncer's REST API.
 
-- analyzer. Grovels through the issue and pull request data in Google Cloud Spanner and returns
-the result to the caller, for use in a UI. This analyzer's API is available as `/analyze`.
+- github. Handles GitHub web hook events by dispatching to the various Webhook plugins deacribed below
 
-Webhook plugins:
+Webhook plugins respond to incoming GitHub events:
 
 - cfgmonitor. Monitors GitHub for changes to the bot's configuration file. When it sees such a change, it triggers a
 partial shutdown and restart of the bot, which will reread the config and start back up fully.
@@ -53,8 +53,13 @@ found in newly-opened issues.
 remind developers to include tests whenever they fix bugs, but the engine is general-purpose and could be used
 creatively for other nagging comments.
 
-- refresher. Updates the local Google Cloud Spanner copy of GitHub issues based on events
+- refresher. Updates the local Google Cloud Spanner copy of GitHub data based on events
 reported by the GitHub webhook.
+
+Finally topic plugins are responsible for the dashboard UI exposed by the bot:
+
+- maintainers. Lets users view the set of project maintainers and perform operations on
+them.
 
 ## Startup options
 
@@ -62,11 +67,17 @@ The bot supports a number of startup options. These can be specified as environm
 via command-line options. Command-line options take precedence over environment variables. The
 available startup options are:
 
-- GITHUB_SECRET / --github_secret. Indicates the GitHub secret necessary to authenticate with
+- GITHUB_WEBHOOK_SECRET / --github_webhook_secret. Indicates the GitHub secret necessary to authenticate with
 the GitHub webhook.
 
 - GITHUB_TOKEN / --github_token. The access token necessary to let the bot invoke the GitHub
 API.
+
+- GITHUB_OAUTH_CLIENT_SECRET / --github_oauth_client_secret. The client secret to use in the GitHub OAuth flow,
+as obtained in the GitHub admin UI for the target organization.
+
+- GITHUB_OAUTH_CLIENT_ID / --github_oauth_client_id. The client ID to use in the GitHub OAuth flow,
+as obtained in the GitHub admin UI for the target organization.
 
 - ZENHUB_TOKEN / --zenhub_token. The access token necessary to let the bot invoke the ZenHub
 API.
@@ -90,16 +101,16 @@ treated as a local file path within the bot's container.
 
 ## REST API
 
-The bot exposes a REST API at https://policybot.istio.io. It's pretty simple so far:
+The bot exposes a REST API at https://eng.istio.io:
 
 - /sync - triggers the bot to synchronize GitHub issues into Google Cloud Spanner. This is called periodically  by 
-a job scheduled in Google Cloud scheduler.
+a job scheduled in Google Cloud scheduler. You can filter what gets synced using a filter query string with a 
+command-separated list of things to sync [members, maintainers, issues, prs, labels, zenhub]
 
 - /githubwebhook - used to report events in GitHub. This is called by GitHub whenever anything interesting happens in
 the Istio repos.
 
-- /analyze - a placeholder that will eventually serve analysis data to the [dashboard UI](../dashboard/README.md) at
-https://eng.istio.io.
+- /maintainersapi - used to query information about project maintainers
 
 ## Configuration file
 
@@ -118,8 +129,6 @@ with GCP. Once a new revision is deployed to Cloud Run, it immediately starts re
 
 - The bot depends on having a configured Google Cloud Spanner database. The schema of the database
 is described by `spanner.ddl`
-
-- The bot's REST API is available at `https://policybot.istio.io`.
 
 - The various credentials used by the bot are set via environment variables specified within the Google Cloud Run
 UI.

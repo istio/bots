@@ -25,7 +25,7 @@ import (
 const (
 	// TODO: need to enforce this
 	// maxGitHubRequestsPerHour   = 5000.0     // per-hour max, to stay under rate limit
-	maxGitHubRequestsPerSecond = 1.2 // per-second max, to stay under abuse detection limit
+	maxGitHubRequestsPerSecond = 1.1 // per-second max, to stay under abuse detection limit
 	maxGitHubBurst             = 10  // max burst size, to stay under abuse detection limit
 )
 

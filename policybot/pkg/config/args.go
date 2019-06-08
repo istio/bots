@@ -22,14 +22,16 @@ import (
 
 // StartupOptions are set when the process starts and cannot be updated afterwards.
 type StartupOptions struct {
-	ConfigFile     string
-	ConfigRepo     string
-	GitHubSecret   string
-	GitHubToken    string
-	GCPCredentials string
-	SendGridAPIKey string
-	ZenHubToken    string
-	Port           int
+	ConfigFile              string
+	ConfigRepo              string
+	GitHubWebhookSecret     string
+	GitHubToken             string
+	GCPCredentials          string
+	SendGridAPIKey          string
+	ZenHubToken             string
+	Port                    int
+	GitHubOAuthClientSecret string
+	GitHubOAuthClientID     string
 }
 
 // Nag expresses some matching conditions against a PR, along with a message to inject into a PR
@@ -141,11 +143,13 @@ func (a *Args) String() string {
 	buf := &bytes.Buffer{}
 
 	// don't output secrets in the logs...
-	// _, _ = fmt.Fprintf(buf, "GitHubSecret: %s\n", a.StartupOptions.GitHubSecret)
+	// _, _ = fmt.Fprintf(buf, "GitHubWebhookSecret: %s\n", a.StartupOptions.GitHubWebhookSecret)
 	// _, _ = fmt.Fprintf(buf, "GitHubToken: %s\n", a.StartupOptions.GitHubToken)
 	// _, _ = fmt.Fprintf(buf, "GCPCredentials: %s\n", a.StartupOptions.GCPCredentials)
 	// _, _ = fmt.Fprintf(buf, "SendGridAPIKey: %s\n", a.StartupOptions.SendGridAPIKey)
 	// _, _ = fmt.Fprintf(buf, "ZenHubToken: %s\n", a.StartupOptions.ZenHubToken)
+	// _, _ = fmt.Fprintf(buf, "GitHubOAuthClientSecret: %s\n", a.StartupOptions.GitHubOAuthClientSecret)
+	// _, _ = fmt.Fprintf(buf, "GitHubOAuthClientID: %s\n", a.StartupOptions.GitHubOAuthClientID)
 
 	_, _ = fmt.Fprintf(buf, "StartupOptions.ConfigFile: %s\n", a.StartupOptions.ConfigFile)
 	_, _ = fmt.Fprintf(buf, "StartupOptions.ConfigRepo: %s\n", a.StartupOptions.ConfigRepo)

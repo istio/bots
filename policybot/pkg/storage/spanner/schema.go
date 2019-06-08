@@ -87,6 +87,7 @@ var (
 	issueCommentColumns      []string
 	pullRequestColumns       []string
 	pullRequestReviewColumns []string
+	botActivityColumns       []string
 )
 
 // Bunch of functions to from keys for the tables and indices in the DB
@@ -139,6 +140,10 @@ func pullRequestReviewKey(orgID string, repoID string, issueID string, reviewID 
 	return spanner.Key{orgID, repoID, issueID, reviewID}
 }
 
+func botActivityKey(orgID string, repoID string) spanner.Key {
+	return spanner.Key{orgID, repoID}
+}
+
 func init() {
 	orgColumns = getFields(storage.Org{})
 	orgLoginColumns = getFields(orgLoginRow{})
@@ -152,6 +157,7 @@ func init() {
 	issueCommentColumns = getFields(storage.IssueComment{})
 	pullRequestColumns = getFields(storage.PullRequest{})
 	pullRequestReviewColumns = getFields(storage.PullRequestReview{})
+	botActivityColumns = getFields(storage.BotActivity{})
 }
 
 // Produces a string array representing all the fields in the input object
