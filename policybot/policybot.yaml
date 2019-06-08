@@ -14,6 +14,12 @@ nags:
       - ".*_test.go"
     message: ":thinking: :bug: You appear to be fixing a bug in Go code, yet your PR doesn't include updates to any test files. Did you forget to add a test?"
 
+flakechaser:
+  name: flakey-test
+  inactivedays: 3
+  createddays: 180
+  message: ":thinking: You haven't updated this flaky test for a while."
+
 autolabels:
   - name: Config
     matchbody:

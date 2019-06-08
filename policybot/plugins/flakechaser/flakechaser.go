@@ -20,6 +20,8 @@ import (
 
 	"github.com/google/go-github/v25/github"
 
+	"istio.io/bots/policybot/pkg/config"
+
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/util"
 	"istio.io/pkg/log"
@@ -29,19 +31,26 @@ var scope = log.RegisterScope("flakechaser", "The GitHub flaky test chaser.", 0)
 
 // Chaser scans the test flakiness issues and neg issuer assignee when no updates occur for a while.
 type Chaser struct {
-	ght    *util.GitHubThrottle
-	ghs    *gh.GitHubState
-	repo   string
+	ght  *util.GitHubThrottle
+	ghs  *gh.GitHubState
+	repo string
+	// we select issues hasn't bee updated for last `inactiveDays`
+	inactiveDays int
+	// we only consider issues that are created within last `createdDays`.
+	createdDays int
+	// dryRun if true, will not make comments on the github.
 	dryRun bool
 }
 
 // New creates a flake chaser.
-func New(ght *util.GitHubThrottle, ghs *gh.GitHubState, repo string, dryRun bool) *Chaser {
+func New(ght *util.GitHubThrottle, ghs *gh.GitHubState, config config.FlakeChaser) *Chaser {
 	return &Chaser{
-		repo:   repo,
-		ght:    ght,
-		ghs:    ghs,
-		dryRun: dryRun,
+		ght:          ght,
+		ghs:          ghs,
+		repo:         "istio/istio",
+		inactiveDays: config.InactiveDays,
+		createdDays:  config.CreatedDays,
+		dryRun:       true,
 	}
 }
 
@@ -49,7 +58,7 @@ func New(ght *util.GitHubThrottle, ghs *gh.GitHubState, repo string, dryRun bool
 func (c *Chaser) Handle(_ http.ResponseWriter, _ *http.Request) {
 	flakeComments := `Hey, there's no updates for this test flakes for 3 days.`
 	scope.Infof("Handle request for flake chaser")
-	issues, err := c.ghs.ReadTestFlakyIssues(3, 180)
+	issues, err := c.ghs.ReadTestFlakyIssues(c.inactiveDays, c.createdDays)
 	if err != nil {
 		scope.Errorf("Failed to read issue from storage: %v", err)
 		return

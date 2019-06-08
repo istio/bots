@@ -196,7 +196,7 @@ func serve(a *config.Args) error {
 	}
 
 	// TODO: do we want to have this bot for all repos or just istio/istio initially?
-	flakechaser := flakechaser.New(ght, ghs, "istio/istio", true)
+	flakechaser := flakechaser.New(ght, ghs, a.FlakeChaser)
 
 	// NB: keep refresher first in the list such that other plugins see an up-to-date view in storage.
 	hook, err := newHook(a.StartupOptions.GitHubSecret,
