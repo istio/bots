@@ -48,10 +48,11 @@ type IssueComment struct {
 }
 
 type User struct {
-	UserID  string
-	Login   string
-	Name    string
-	Company string
+	UserID    string
+	Login     string
+	Name      string
+	Company   string
+	AvatarURL string
 }
 
 type Label struct {

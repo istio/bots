@@ -31,6 +31,7 @@ type GitHubState struct {
 	issueCommentCache      cache.ExpiringCache
 	labelCache             cache.ExpiringCache
 	userCache              cache.ExpiringCache
+	userByLoginCache       cache.ExpiringCache
 	pullRequestCache       cache.ExpiringCache
 	pullRequestReviewCache cache.ExpiringCache
 }
@@ -51,6 +52,7 @@ func NewGitHubState(store storage.Store, entryTTL time.Duration) *GitHubState {
 		issueCommentCache:      cache.NewTTL(entryTTL, evictionInterval),
 		labelCache:             cache.NewTTL(entryTTL, evictionInterval),
 		userCache:              cache.NewTTL(entryTTL, evictionInterval),
+		userByLoginCache:       cache.NewTTL(entryTTL, evictionInterval),
 		pullRequestCache:       cache.NewTTL(entryTTL, evictionInterval),
 		pullRequestReviewCache: cache.NewTTL(entryTTL, evictionInterval),
 	}
@@ -93,6 +95,26 @@ func (ghs *GitHubState) ReadUser(user string) (*storage.User, error) {
 	result, err := ghs.store.ReadUserByID(user)
 	if err == nil {
 		ghs.userCache.Set(user, result)
+		if result != nil {
+			ghs.userByLoginCache.Set(result.Login, result)
+		}
+	}
+
+	return result, err
+}
+
+// Reads from cache and if not found reads from DB
+func (ghs *GitHubState) ReadUserByLogin(login string) (*storage.User, error) {
+	if value, ok := ghs.userByLoginCache.Get(login); ok {
+		return value.(*storage.User), nil
+	}
+
+	result, err := ghs.store.ReadUserByLogin(login)
+	if err == nil {
+		if result != nil {
+			ghs.userCache.Set(result.UserID, result)
+			ghs.userByLoginCache.Set(result.Login, result)
+		}
 	}
 
 	return result, err

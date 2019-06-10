@@ -105,7 +105,6 @@ func RunSyncer(a *config.Args) error {
 
 	ghs := gh.NewGitHubState(store, a.CacheTTL)
 
-	prepStore(context.Background(), ght, ghs, a.Orgs)
 	syncer.NewSyncer(context.Background(), ght, ghs, store, a.Orgs).Sync()
 	return nil
 }
@@ -167,8 +166,6 @@ func serve(a *config.Args) error {
 
 	ghs := gh.NewGitHubState(store, a.CacheTTL)
 
-	prepStore(context.Background(), ght, ghs, a.Orgs)
-
 	nag, err := nagger.NewNagger(context.Background(), ght, ghs, a.Orgs, a.Nags)
 	if err != nil {
 		return fmt.Errorf("unable to create nagger: %v", err)
@@ -179,7 +176,7 @@ func serve(a *config.Args) error {
 		return fmt.Errorf("unable to create labeler: %v", err)
 	}
 
-	refresh := refresher.NewRefresher(ghs, a.Orgs)
+	refresh := refresher.NewRefresher(store, a.Orgs)
 
 	srv := &http.Server{
 		Addr:    ":" + strconv.Itoa(a.StartupOptions.Port),
@@ -216,24 +213,6 @@ func serve(a *config.Args) error {
 	}
 
 	return nil
-}
-
-func prepStore(ctx context.Context, ght *util.GitHubThrottle, ghs *gh.GitHubState, orgs []config.Org) {
-	a := ghs.NewAccumulator()
-
-	for _, orgConfig := range orgs {
-		for _, repoConfig := range orgConfig.Repos {
-			if repo, _, err := ght.Get().Repositories.Get(ctx, orgConfig.Name, repoConfig.Name); err != nil {
-				log.Errorf("Unable to query information about repository %s/%s from GitHub: %v", orgConfig.Name, repoConfig.Name, err)
-			} else {
-				_ = a.RepoFromAPI(repo)
-			}
-		}
-	}
-
-	if err := a.Commit(); err != nil {
-		log.Errorf("Unable to commit data to storage: %v", err)
-	}
 }
 
 func register(mux *http.ServeMux, pattern string, handler func(w http.ResponseWriter, h *http.Request)) {
