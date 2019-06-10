@@ -22,16 +22,17 @@ import (
 	"istio.io/bots/policybot/pkg/storage"
 )
 
-func (s *store) QueryMembersByOrg(orgID string, cb func(*storage.Member) bool) error {
-	iter := s.client.Single().Query(s.ctx, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM Members WHERE OrgID = %s", orgID)})
+func (s *store) QueryMembersByOrg(orgID string, cb func(*storage.Member) error) error {
+	iter := s.client.Single().Query(s.ctx, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM Members WHERE OrgID = '%s'", orgID)})
 	err := iter.Do(func(row *spanner.Row) error {
 		member := &storage.Member{}
 		if err := row.ToStruct(member); err != nil {
 			return err
 		}
 
-		if !cb(member) {
+		if err := cb(member); err != nil {
 			iter.Stop()
+			return err
 		}
 
 		return nil
@@ -40,16 +41,17 @@ func (s *store) QueryMembersByOrg(orgID string, cb func(*storage.Member) bool) e
 	return err
 }
 
-func (s *store) QueryMaintainersByOrg(orgID string, cb func(*storage.Maintainer) bool) error {
-	iter := s.client.Single().Query(s.ctx, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM Maintainers WHERE OrgID = %s", orgID)})
+func (s *store) QueryMaintainersByOrg(orgID string, cb func(*storage.Maintainer) error) error {
+	iter := s.client.Single().Query(s.ctx, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM Maintainers WHERE OrgID = '%s'", orgID)})
 	err := iter.Do(func(row *spanner.Row) error {
 		maintainer := &storage.Maintainer{}
 		if err := row.ToStruct(maintainer); err != nil {
 			return err
 		}
 
-		if !cb(maintainer) {
+		if err := cb(maintainer); err != nil {
 			iter.Stop()
+			return err
 		}
 
 		return nil

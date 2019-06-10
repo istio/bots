@@ -26,20 +26,22 @@ import (
 )
 
 const (
-	githubSecret   = "Secret for the GitHub webhook"
-	githubToken    = "Token to access the GitHub API"
-	gcpCreds       = "Base64-encoded credentials to access GCP"
-	configRepo     = "GitHub org/repo/branch where to fetch policybot config"
-	configFile     = "Path to a configuration file"
-	sendgridAPIKey = "API Key for sendgrid.com"
-	zenhubToken    = "Token to access the ZenHub API"
-	port           = "TCP port to listen to for incoming traffic"
+	githubWebhookSecret     = "Secret for the GitHub webhook"
+	githubToken             = "Token to access the GitHub API"
+	gcpCreds                = "Base64-encoded credentials to access GCP"
+	configRepo              = "GitHub org/repo/branch where to fetch policybot config"
+	configFile              = "Path to a configuration file"
+	sendgridAPIKey          = "API Key for sendgrid.com"
+	zenhubToken             = "Token to access the ZenHub API"
+	port                    = "TCP port to listen to for incoming traffic"
+	githubOAuthClientSecret = "Client secret for GitHub OAuth2 flow"
+	githubOAuthClientID     = "Client ID for GitHub OAuth2 flow"
 )
 
 func serverCmd() *cobra.Command {
 	ca := config.DefaultArgs()
 
-	ca.StartupOptions.GitHubSecret = env.RegisterStringVar("GITHUB_SECRET", ca.StartupOptions.GitHubSecret, githubSecret).Get()
+	ca.StartupOptions.GitHubWebhookSecret = env.RegisterStringVar("GITHUB_WEBHOOK_SECRET", ca.StartupOptions.GitHubWebhookSecret, githubWebhookSecret).Get()
 	ca.StartupOptions.GitHubToken = env.RegisterStringVar("GITHUB_TOKEN", ca.StartupOptions.GitHubToken, githubToken).Get()
 	ca.StartupOptions.ZenHubToken = env.RegisterStringVar("ZENHUB_TOKEN", ca.StartupOptions.ZenHubToken, zenhubToken).Get()
 	ca.StartupOptions.GCPCredentials = env.RegisterStringVar("GCP_CREDS", ca.StartupOptions.GCPCredentials, gcpCreds).Get()
@@ -47,6 +49,10 @@ func serverCmd() *cobra.Command {
 	ca.StartupOptions.ConfigFile = env.RegisterStringVar("CONFIG_FILE", ca.StartupOptions.ConfigFile, configFile).Get()
 	ca.StartupOptions.SendGridAPIKey = env.RegisterStringVar("SENDGRID_APIKEY", ca.StartupOptions.SendGridAPIKey, sendgridAPIKey).Get()
 	ca.StartupOptions.Port = env.RegisterIntVar("PORT", ca.StartupOptions.Port, port).Get()
+	ca.StartupOptions.GitHubOAuthClientSecret =
+		env.RegisterStringVar("GITHUB_OAUTH_CLIENT_SECRET", ca.StartupOptions.GitHubOAuthClientSecret, githubOAuthClientSecret).Get()
+	ca.StartupOptions.GitHubOAuthClientID =
+		env.RegisterStringVar("GITHUB_OAUTH_CLIENT_ID", ca.StartupOptions.GitHubOAuthClientID, githubOAuthClientID).Get()
 
 	loggingOptions := log.DefaultOptions()
 	introspectionOptions := ctrlz.DefaultOptions()
@@ -74,14 +80,26 @@ func serverCmd() *cobra.Command {
 		},
 	}
 
-	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.ConfigRepo, "configRepo", "", ca.StartupOptions.ConfigRepo, configRepo)
-	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.ConfigFile, "configFile", "", ca.StartupOptions.ConfigFile, configFile)
-	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.GitHubSecret, "github_secret", "", ca.StartupOptions.GitHubSecret, githubSecret)
-	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.GitHubToken, "github_token", "", ca.StartupOptions.GitHubToken, githubToken)
-	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.GCPCredentials, "gcp_creds", "", ca.StartupOptions.GCPCredentials, gcpCreds)
-	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.SendGridAPIKey, "sendgrid_apikey", "", ca.StartupOptions.SendGridAPIKey, sendgridAPIKey)
-	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.ZenHubToken, "zenhub_token", "", ca.StartupOptions.ZenHubToken, zenhubToken)
-	serverCmd.PersistentFlags().IntVarP(&ca.StartupOptions.Port, "port", "", ca.StartupOptions.Port, port)
+	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.ConfigRepo,
+		"configRepo", "", ca.StartupOptions.ConfigRepo, configRepo)
+	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.ConfigFile,
+		"configFile", "", ca.StartupOptions.ConfigFile, configFile)
+	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.GitHubWebhookSecret,
+		"github_webhook_secret", "", ca.StartupOptions.GitHubWebhookSecret, githubWebhookSecret)
+	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.GitHubToken,
+		"github_token", "", ca.StartupOptions.GitHubToken, githubToken)
+	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.GCPCredentials,
+		"gcp_creds", "", ca.StartupOptions.GCPCredentials, gcpCreds)
+	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.SendGridAPIKey,
+		"sendgrid_apikey", "", ca.StartupOptions.SendGridAPIKey, sendgridAPIKey)
+	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.ZenHubToken,
+		"zenhub_token", "", ca.StartupOptions.ZenHubToken, zenhubToken)
+	serverCmd.PersistentFlags().IntVarP(&ca.StartupOptions.Port,
+		"port", "", ca.StartupOptions.Port, port)
+	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.GitHubOAuthClientSecret,
+		"github_oauth_client_secret", "", ca.StartupOptions.GitHubOAuthClientSecret, githubOAuthClientSecret)
+	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.GitHubOAuthClientID,
+		"github_oauth_client_id", "", ca.StartupOptions.GitHubOAuthClientID, githubOAuthClientID)
 
 	loggingOptions.AttachCobraFlags(serverCmd)
 	introspectionOptions.AttachCobraFlags(serverCmd)

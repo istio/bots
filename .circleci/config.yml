@@ -21,23 +21,9 @@ jobs:
           name: Linting
           command: make lint
 
-  build_dashboard:
-    docker:
-      - image: gcr.io/istio-testing/website-builder:2019-05-03
-    working_directory: /go/src/istio.io/bots
-    steps:
-      - checkout
-      - run:
-          name: Generating Dashboard
-          command: cd dashboard && scripts/gen_site.sh "" -no_minify
-      - run:
-          name: Running Linters
-          command: cd dashboard && scripts/lint_site.sh
-
 workflows:
   version: 2
   all:
     jobs:
       - lint
-      - build_dashboard
       - build_policybot

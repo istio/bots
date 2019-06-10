@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.orgID/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,6 +26,7 @@ import (
 type GitHubState struct {
 	store                  storage.Store
 	orgCache               cache.ExpiringCache
+	orgByLoginCache        cache.ExpiringCache
 	repoCache              cache.ExpiringCache
 	issueCache             cache.ExpiringCache
 	issueCommentCache      cache.ExpiringCache
@@ -47,6 +48,7 @@ func NewGitHubState(store storage.Store, entryTTL time.Duration) *GitHubState {
 	return &GitHubState{
 		store:                  store,
 		orgCache:               cache.NewTTL(entryTTL, evictionInterval),
+		orgByLoginCache:        cache.NewTTL(entryTTL, evictionInterval),
 		repoCache:              cache.NewTTL(entryTTL, evictionInterval),
 		issueCache:             cache.NewTTL(entryTTL, evictionInterval),
 		issueCommentCache:      cache.NewTTL(entryTTL, evictionInterval),
@@ -59,42 +61,62 @@ func NewGitHubState(store storage.Store, entryTTL time.Duration) *GitHubState {
 }
 
 // Reads from cache and if not found reads from DB
-func (ghs *GitHubState) ReadOrg(org string) (*storage.Org, error) {
-	if value, ok := ghs.orgCache.Get(org); ok {
+func (ghs *GitHubState) ReadOrg(orgID string) (*storage.Org, error) {
+	if value, ok := ghs.orgCache.Get(orgID); ok {
 		return value.(*storage.Org), nil
 	}
 
-	result, err := ghs.store.ReadOrgByID(org)
+	result, err := ghs.store.ReadOrgByID(orgID)
 	if err == nil {
-		ghs.orgCache.Set(org, result)
+		ghs.orgCache.Set(orgID, result)
+		if result != nil {
+			ghs.orgByLoginCache.Set(result.Login, result)
+		}
 	}
 
 	return result, err
 }
 
 // Reads from cache and if not found reads from DB
-func (ghs *GitHubState) ReadRepo(org string, repo string) (*storage.Repo, error) {
-	if value, ok := ghs.repoCache.Get(repo); ok {
+func (ghs *GitHubState) ReadOrgByLogin(login string) (*storage.Org, error) {
+	if value, ok := ghs.orgByLoginCache.Get(login); ok {
+		return value.(*storage.Org), nil
+	}
+
+	result, err := ghs.store.ReadOrgByLogin(login)
+	if err == nil {
+		if result != nil {
+			ghs.orgCache.Set(result.OrgID, result)
+			ghs.orgByLoginCache.Set(result.Login, result)
+		}
+	}
+
+	return result, err
+}
+
+// Reads from cache and if not found reads from DB
+func (ghs *GitHubState) ReadRepo(orgID string, repoID string) (*storage.Repo, error) {
+	if value, ok := ghs.repoCache.Get(repoID); ok {
 		return value.(*storage.Repo), nil
 	}
 
-	result, err := ghs.store.ReadRepoByID(org, repo)
+	result, err := ghs.store.ReadRepoByID(orgID, repoID)
 	if err == nil {
-		ghs.repoCache.Set(repo, result)
+		ghs.repoCache.Set(repoID, result)
 	}
 
 	return result, err
 }
 
 // Reads from cache and if not found reads from DB
-func (ghs *GitHubState) ReadUser(user string) (*storage.User, error) {
-	if value, ok := ghs.userCache.Get(user); ok {
+func (ghs *GitHubState) ReadUser(userID string) (*storage.User, error) {
+	if value, ok := ghs.userCache.Get(userID); ok {
 		return value.(*storage.User), nil
 	}
 
-	result, err := ghs.store.ReadUserByID(user)
+	result, err := ghs.store.ReadUserByID(userID)
 	if err == nil {
-		ghs.userCache.Set(user, result)
+		ghs.userCache.Set(userID, result)
 		if result != nil {
 			ghs.userByLoginCache.Set(result.Login, result)
 		}
@@ -121,72 +143,72 @@ func (ghs *GitHubState) ReadUserByLogin(login string) (*storage.User, error) {
 }
 
 // Reads from cache and if not found reads from DB
-func (ghs *GitHubState) ReadLabel(org string, repo string, label string) (*storage.Label, error) {
-	if value, ok := ghs.labelCache.Get(label); ok {
+func (ghs *GitHubState) ReadLabel(orgID string, repoID string, labelID string) (*storage.Label, error) {
+	if value, ok := ghs.labelCache.Get(labelID); ok {
 		return value.(*storage.Label), nil
 	}
 
-	result, err := ghs.store.ReadLabelByID(org, repo, label)
+	result, err := ghs.store.ReadLabelByID(orgID, repoID, labelID)
 	if err == nil {
-		ghs.labelCache.Set(label, result)
+		ghs.labelCache.Set(labelID, result)
 	}
 
 	return result, err
 }
 
 // Reads from cache and if not found reads from DB
-func (ghs *GitHubState) ReadIssue(org string, repo string, issue string) (*storage.Issue, error) {
-	if value, ok := ghs.issueCache.Get(issue); ok {
+func (ghs *GitHubState) ReadIssue(orgID string, repoID string, issueID string) (*storage.Issue, error) {
+	if value, ok := ghs.issueCache.Get(issueID); ok {
 		return value.(*storage.Issue), nil
 	}
 
-	result, err := ghs.store.ReadIssueByID(org, repo, issue)
+	result, err := ghs.store.ReadIssueByID(orgID, repoID, issueID)
 	if err == nil {
-		ghs.issueCache.Set(issue, result)
+		ghs.issueCache.Set(issueID, result)
 	}
 
 	return result, err
 }
 
 // Reads from cache and if not found reads from DB
-func (ghs *GitHubState) ReadIssueComment(org string, repo string, issue string,
-	issueComment string) (*storage.IssueComment, error) {
-	if value, ok := ghs.issueCommentCache.Get(issueComment); ok {
+func (ghs *GitHubState) ReadIssueComment(orgID string, repoID string, issueID string,
+	issueCommentID string) (*storage.IssueComment, error) {
+	if value, ok := ghs.issueCommentCache.Get(issueCommentID); ok {
 		return value.(*storage.IssueComment), nil
 	}
 
-	result, err := ghs.store.ReadIssueCommentByID(org, repo, issue, issueComment)
+	result, err := ghs.store.ReadIssueCommentByID(orgID, repoID, issueID, issueCommentID)
 	if err == nil {
-		ghs.issueCommentCache.Set(issueComment, result)
+		ghs.issueCommentCache.Set(issueCommentID, result)
 	}
 
 	return result, err
 }
 
 // Reads from cache and if not found reads from DB
-func (ghs *GitHubState) ReadPullRequest(org string, repo string, issue string) (*storage.PullRequest, error) {
-	if value, ok := ghs.pullRequestCache.Get(issue); ok {
+func (ghs *GitHubState) ReadPullRequest(orgID string, repoID string, prID string) (*storage.PullRequest, error) {
+	if value, ok := ghs.pullRequestCache.Get(prID); ok {
 		return value.(*storage.PullRequest), nil
 	}
 
-	result, err := ghs.store.ReadPullRequestByID(org, repo, issue)
+	result, err := ghs.store.ReadPullRequestByID(orgID, repoID, prID)
 	if err == nil {
-		ghs.pullRequestReviewCache.Set(issue, result)
+		ghs.pullRequestReviewCache.Set(prID, result)
 	}
 
 	return result, err
 }
 
 // Reads from cache and if not found reads from DB
-func (ghs *GitHubState) ReadPullRequestReview(org string, repo string, issue string,
-	prReview string) (*storage.PullRequestReview, error) {
-	if value, ok := ghs.pullRequestReviewCache.Get(prReview); ok {
+func (ghs *GitHubState) ReadPullRequestReview(orgID string, repoID string, issueID string,
+	prReviewID string) (*storage.PullRequestReview, error) {
+	if value, ok := ghs.pullRequestReviewCache.Get(prReviewID); ok {
 		return value.(*storage.PullRequestReview), nil
 	}
 
-	result, err := ghs.store.ReadPullRequestReviewByID(org, repo, issue, prReview)
+	result, err := ghs.store.ReadPullRequestReviewByID(orgID, repoID, issueID, prReviewID)
 	if err == nil {
-		ghs.pullRequestReviewCache.Set(prReview, result)
+		ghs.pullRequestReviewCache.Set(prReviewID, result)
 	}
 
 	return result, err

@@ -225,21 +225,18 @@ func (s *store) ReadUserByLogin(login string) (*storage.User, error) {
 	return s.ReadUserByID(ulr.UserID)
 }
 
-func (s *store) ReadBotActivity() (*storage.BotActivity, error) {
-	activity := &storage.BotActivity{}
-
-	iter := s.client.Single().Query(s.ctx, spanner.Statement{SQL: "SELECT * FROM BotActivity"})
-	err := iter.Do(func(row *spanner.Row) error {
-		if err := row.ToStruct(activity); err != nil {
-			return err
-		}
-
-		return nil
-	})
-
-	if err != nil {
+func (s *store) ReadBotActivityByID(orgID string, repoID string) (*storage.BotActivity, error) {
+	row, err := s.client.Single().ReadRow(s.ctx, botActivityTable, botActivityKey(orgID, repoID), botActivityColumns)
+	if spanner.ErrCode(err) == codes.NotFound {
+		return nil, nil
+	} else if err != nil {
 		return nil, err
 	}
 
-	return activity, nil
+	var result storage.BotActivity
+	if err := row.ToStruct(&result); err != nil {
+		return nil, err
+	}
+
+	return &result, nil
 }
