@@ -48,11 +48,11 @@ func IssueFromAPI(orgID string, repoID string, issue *api.Issue) *storage.Issue 
 	}
 }
 
-func IssueCommentFromAPI(orgID string, repoID string, issue string, issueComment *api.IssueComment) *storage.IssueComment {
+func IssueCommentFromAPI(orgID string, repoID string, issueID string, issueComment *api.IssueComment) *storage.IssueComment {
 	return &storage.IssueComment{
 		OrgID:          orgID,
 		RepoID:         repoID,
-		IssueID:        issue,
+		IssueID:        issueID,
 		IssueCommentID: issueComment.GetNodeID(),
 		Body:           issueComment.GetBody(),
 		CreatedAt:      issueComment.GetCreatedAt(),
@@ -97,9 +97,14 @@ func LabelFromAPI(orgID string, repoID string, l *api.Label) *storage.Label {
 }
 
 func PullRequestFromAPI(orgID string, repoID string, pr *api.PullRequest, files []string) *storage.PullRequest {
-	labels := make([]api.Label, len(pr.Labels))
+	labels := make([]string, len(pr.Labels))
 	for i, label := range pr.Labels {
-		labels[i] = *label
+		labels[i] = label.GetNodeID()
+	}
+
+	assignees := make([]string, len(pr.Assignees))
+	for i, user := range pr.Assignees {
+		assignees[i] = user.GetNodeID()
 	}
 
 	reviewers := make([]string, len(pr.RequestedReviewers))
@@ -110,18 +115,27 @@ func PullRequestFromAPI(orgID string, repoID string, pr *api.PullRequest, files 
 	return &storage.PullRequest{
 		OrgID:                orgID,
 		RepoID:               repoID,
-		IssueID:              pr.GetNodeID(),
-		RequestedReviewerIDs: reviewers,
+		PullRequestID:        pr.GetNodeID(),
 		UpdatedAt:            pr.GetUpdatedAt(),
+		CreatedAt:            pr.GetCreatedAt(),
+		ClosedAt:             pr.GetClosedAt(),
+		MergedAt:             pr.GetMergedAt(),
 		Files:                files,
+		LabelIDs:             labels,
+		AssigneeIDs:          assignees,
+		RequestedReviewerIDs: reviewers,
+		State:                pr.GetState(),
+		Title:                pr.GetTitle(),
+		Body:                 pr.GetBody(),
+		AuthorID:             pr.GetUser().GetNodeID(),
 	}
 }
 
-func PullRequestReviewFromAPI(orgID string, repoID string, issueID string, prr *api.PullRequestReview) *storage.PullRequestReview {
+func PullRequestReviewFromAPI(orgID string, repoID string, pullRequestID string, prr *api.PullRequestReview) *storage.PullRequestReview {
 	return &storage.PullRequestReview{
 		OrgID:               orgID,
 		RepoID:              repoID,
-		IssueID:             issueID,
+		PullRequestID:       pullRequestID,
 		PullRequestReviewID: prr.GetNodeID(),
 		Body:                prr.GetBody(),
 		SubmittedAt:         prr.GetSubmittedAt(),
