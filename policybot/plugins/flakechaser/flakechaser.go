@@ -16,6 +16,7 @@ package flakechaser
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/google/go-github/v25/github"
@@ -44,14 +45,16 @@ type Chaser struct {
 
 // New creates a flake chaser.
 func New(ght *util.GitHubThrottle, ghs *gh.GitHubState, config config.FlakeChaser) *Chaser {
-	return &Chaser{
+	c := &Chaser{
 		ght:          ght,
 		ghs:          ghs,
-		repo:         "istio/istio",
+		repo:         "istio",
 		inactiveDays: config.InactiveDays,
 		createdDays:  config.CreatedDays,
-		dryRun:       true,
+		dryRun:       config.DryRun,
 	}
+	scope.Infof("Flake chaser configuration %+v, config %+v", c, config)
+	return c
 }
 
 // Handle implements http interface, will be invoked periodically to fulfil the test flakes comments.
@@ -77,7 +80,11 @@ func (c *Chaser) Handle(_ http.ResponseWriter, _ *http.Request) {
 			scope.Errorf("Failed to read the repo: %v", err)
 			continue
 		}
-		scope.Infof("About to nag test flaky issue with %v %v %v", org.Name, repo.Name, issue.Number)
+		if repo.Name != c.repo {
+			continue
+		}
+		url := fmt.Sprintf("https://github.com/%v/%v/issues/%v", org.Name, repo.Name, issue.Number)
+		scope.Infof("About to nag test flaky issue with %v", url)
 		if c.dryRun {
 			continue
 		}

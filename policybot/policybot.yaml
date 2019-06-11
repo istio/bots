@@ -18,6 +18,7 @@ flakechaser:
   name: flakey-test
   inactivedays: 3
   createddays: 180
+  dryrun: true
   message: ":thinking: You haven't updated this flaky test for a while."
 
 autolabels:
