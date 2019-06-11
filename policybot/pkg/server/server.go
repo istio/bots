@@ -27,6 +27,8 @@ import (
 	"sync"
 	"time"
 
+	"istio.io/bots/policybot/plugins/topics/issues"
+
 	"github.com/gorilla/mux"
 
 	"istio.io/bots/policybot/dashboard/templates"
@@ -38,7 +40,14 @@ import (
 	"istio.io/bots/policybot/plugins/handlers/github"
 	"istio.io/bots/policybot/plugins/handlers/syncer"
 	"istio.io/bots/policybot/plugins/handlers/zenhub"
+	"istio.io/bots/policybot/plugins/topics/commithub"
+	"istio.io/bots/policybot/plugins/topics/coverage"
+	"istio.io/bots/policybot/plugins/topics/features"
+	"istio.io/bots/policybot/plugins/topics/flakes"
 	"istio.io/bots/policybot/plugins/topics/maintainers"
+	"istio.io/bots/policybot/plugins/topics/members"
+	"istio.io/bots/policybot/plugins/topics/perf"
+	"istio.io/bots/policybot/plugins/topics/pullrequests"
 	"istio.io/bots/policybot/plugins/webhooks/cfgmonitor"
 	"istio.io/bots/policybot/plugins/webhooks/labeler"
 	"istio.io/bots/policybot/plugins/webhooks/nagger"
@@ -192,13 +201,22 @@ func runWithConfig(a *config.Args) error {
 	registerStaticDir(router, "dashboard/static/img", "/img/")
 	registerStaticDir(router, "dashboard/static/favicons", "/favicons/")
 
-	// statically serve files
+	// statically served files
 	registerStaticFile(router, "dashboard/static/favicon.ico", "/favicon.ico")
 	registerStaticFile(router, "dashboard/static/browserconfig.xml", "/browserconfig.xml")
 	registerStaticFile(router, "dashboard/static/manifest.json", "/manifest.json")
 
 	// UI topics
-	s.registerTopic(router, mainLayout, maintainers.NewMaintainerQueries(store, ghs))
+	s.registerTopic(router, mainLayout, maintainers.NewTopic(store, ghs))
+	s.registerTopic(router, mainLayout, members.NewTopic(store, ghs))
+	s.registerTopic(router, mainLayout, issues.NewTopic(store, ghs))
+	s.registerTopic(router, mainLayout, pullrequests.NewTopic(store, ghs))
+	s.registerTopic(router, mainLayout, perf.NewTopic(store, ghs))
+	s.registerTopic(router, mainLayout, commithub.NewTopic(store, ghs))
+	s.registerTopic(router, mainLayout, flakes.NewTopic(store, ghs))
+	s.registerTopic(router, mainLayout, coverage.NewTopic(store, ghs))
+	s.registerTopic(router, mainLayout, features.NewTopic(store, ghs))
+	s.registerTopic(router, mainLayout, flakes.NewTopic(store, ghs))
 
 	// home page
 	router.
@@ -257,7 +275,8 @@ func (s *Server) registerTopic(router *mux.Router, layout *template.Template, t 
 	htmlRouter := router.NewRoute().PathPrefix("/" + t.Prefix()).Subrouter()
 	jsonRouter := router.NewRoute().PathPrefix("/" + t.Prefix() + "api").Subrouter()
 
-	tmpl := template.Must(template.Must(layout.Clone()).Parse("{{ define \"title\" }}" + t.Title() + "{{ end }}"))
+	tmpl := template.Must(template.Must(layout.Clone()).Parse(
+		"{{ define \"title\" }}" + t.Title() + "{{ end }}{{ define \"description\" }}" + t.Description() + "{{ end }}"))
 	t.Activate(fw.NewContext(htmlRouter, jsonRouter, tmpl))
 
 	s.allTopics = append(s.allTopics, t)

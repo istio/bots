@@ -12,28 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package templates
+package commithub
 
-var SidebarTemplate = `
-{{ define "sidebar" }}
-<nav id="sidebar" aria-label="Section Navigation">
-    <div class="directory">
-        <div class="card">
-            <div id="header0" class="header">
-	            Istio Eng Dashboard
-        	</div>
+var commitHubTemplate = `
+{{ define "content" }}
 
-            <div class="body default" aria-labelledby="header0">
-				<ul role="tree" aria-expanded="true">
-					{{ range getTopics }}
-						<li role="none">
-							<a role="treeitem" title="{{ template "description" . }}" href="{{.URL}}">{{.Name}}</a>
-						</li>
-					{{ end }}
-				</ul>
-			</div>
-        </div>
-    </div>
-</nav>
+<p>
+This will allow developers to interact with pull requests and commits, for things like
+rerunning tests.
+</p>
 {{ end }}
 `
