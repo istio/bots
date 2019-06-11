@@ -9,6 +9,7 @@ require (
 	github.com/gogo/protobuf v1.2.0 // indirect
 	github.com/golang/protobuf v1.3.0 // indirect
 	github.com/google/go-github/v25 v25.0.2
+	github.com/gorilla/mux v1.7.1
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/onsi/ginkgo v1.7.0 // indirect
 	github.com/sendgrid/rest v2.4.1+incompatible // indirect

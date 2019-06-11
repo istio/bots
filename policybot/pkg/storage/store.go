@@ -37,7 +37,7 @@ type Store interface {
 	WriteLabels(labels []*Label) error
 	WriteAllMembers(members []*Member) error
 	WriteAllMaintainers(maintainers []*Maintainer) error
-	WriteBotActivity(activity *BotActivity) error
+	WriteBotActivities(activities []*BotActivity) error
 
 	ReadOrgByID(orgID string) (*Org, error)
 	ReadOrgByLogin(login string) (*Org, error)
@@ -49,10 +49,13 @@ type Store interface {
 	ReadIssueCommentByID(orgID string, repoID string, issueID string, issueCommentID string) (*IssueComment, error)
 	ReadLabelByID(orgID string, repoID string, labelID string) (*Label, error)
 	ReadUserByID(userID string) (*User, error)
+	ReadUserByLogin(login string) (*User, error)
 	ReadPullRequestByID(orgID string, repoID string, issueID string) (*PullRequest, error)
 	ReadPullRequestReviewByID(orgID string, repoID string, issueID string, prReviewID string) (*PullRequestReview, error)
-	ReadBotActivity() (*BotActivity, error)
+	ReadBotActivityByID(orgID string, repoID string) (*BotActivity, error)
 
-	QueryMembersByOrg(orgID string, cb func(*Member) bool) error
-	QueryMaintainersByOrg(orgID string, cb func(*Maintainer) bool) error
+	QueryMembersByOrg(orgID string, cb func(*Member) error) error
+	QueryMaintainersByOrg(orgID string, cb func(*Maintainer) error) error
+
+	EnumUsers(cb func(*User) bool) error
 }

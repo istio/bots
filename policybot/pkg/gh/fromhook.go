@@ -68,7 +68,7 @@ func IssueCommentFromHook(icp *hook.IssueCommentPayload) *storage.IssueComment {
 	}
 }
 
-func PullRequestFromHook(prp *hook.PullRequestPayload) (*storage.PullRequest, *storage.Issue) {
+func PullRequestFromHook(prp *hook.PullRequestPayload) *storage.PullRequest {
 	labels := make([]string, len(prp.PullRequest.Labels))
 	for i, label := range prp.PullRequest.Labels {
 		labels[i] = label.NodeID
@@ -84,36 +84,39 @@ func PullRequestFromHook(prp *hook.PullRequestPayload) (*storage.PullRequest, *s
 		reviewers[i] = user.NodeID
 	}
 
-	var p hook.IssuesPayload
-	p.Repository.NodeID = prp.Repository.NodeID
-	p.Repository.Name = prp.Repository.Name
-	p.Repository.FullName = prp.Repository.FullName
-	p.Repository.Owner.NodeID = prp.Repository.Owner.NodeID
-	p.Issue.NodeID = prp.PullRequest.NodeID
-	p.Issue.Number = prp.PullRequest.Number
-	p.Issue.Title = prp.PullRequest.Title
-	p.Issue.Body = prp.PullRequest.Body
-	p.Issue.CreatedAt = prp.PullRequest.CreatedAt
-	p.Issue.UpdatedAt = prp.PullRequest.UpdatedAt
-	p.Issue.ClosedAt = prp.PullRequest.ClosedAt
-	p.Issue.Assignees = prp.PullRequest.Assignees
-	p.Issue.Labels = prp.PullRequest.Labels
-	p.Issue.State = prp.PullRequest.State
+	var closedAt time.Time
+	if prp.PullRequest.ClosedAt != nil {
+		closedAt = *prp.PullRequest.ClosedAt
+	}
+
+	var mergedAt time.Time
+	if prp.PullRequest.MergedAt != nil {
+		closedAt = *prp.PullRequest.MergedAt
+	}
 
 	return &storage.PullRequest{
 		OrgID:                prp.Repository.Owner.NodeID,
 		RepoID:               prp.Repository.NodeID,
-		IssueID:              prp.PullRequest.NodeID,
-		RequestedReviewerIDs: reviewers,
+		PullRequestID:        prp.PullRequest.NodeID,
+		CreatedAt:            prp.PullRequest.CreatedAt,
 		UpdatedAt:            prp.PullRequest.UpdatedAt,
-	}, IssueFromHook(&p)
+		ClosedAt:             closedAt,
+		MergedAt:             mergedAt,
+		State:                prp.PullRequest.State,
+		Title:                prp.PullRequest.Title,
+		Body:                 prp.PullRequest.Body,
+		Number:               prp.PullRequest.Number,
+		LabelIDs:             labels,
+		AssigneeIDs:          assignees,
+		RequestedReviewerIDs: reviewers,
+	}
 }
 
 func PullRequestReviewFromHook(prrp *hook.PullRequestReviewPayload) *storage.PullRequestReview {
 	return &storage.PullRequestReview{
 		OrgID:               prrp.Repository.Owner.NodeID,
 		RepoID:              prrp.Repository.NodeID,
-		IssueID:             prrp.Review.NodeID,
+		PullRequestID:       prrp.PullRequest.NodeID,
 		PullRequestReviewID: prrp.Review.NodeID,
 		Body:                prrp.Review.Body,
 		SubmittedAt:         prrp.Review.SubmittedAt,

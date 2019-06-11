@@ -111,7 +111,7 @@ func (s *store) ReadIssueByID(org string, repo string, issue string) (*storage.I
 }
 
 func (s *store) ReadIssueByNumber(org string, repo string, number int) (*storage.Issue, error) {
-	iter := s.client.Single().ReadUsingIndex(s.ctx, issueTable, issueNumberIndex, issueNumberKey(org, repo, number), issueNumberColumns)
+	iter := s.client.Single().ReadUsingIndex(s.ctx, issueTable, issueNumberIndex, issueNumberKey(repo, number), issueNumberColumns)
 
 	var inr issueNumberRow
 
@@ -208,23 +208,38 @@ func (s *store) ReadUserByID(user string) (*storage.User, error) {
 	return &result, nil
 }
 
-func (s *store) ReadBotActivity() (*storage.BotActivity, error) {
-	activity := &storage.BotActivity{}
+func (s *store) ReadUserByLogin(login string) (*storage.User, error) {
+	iter := s.client.Single().ReadUsingIndex(s.ctx, userTable, userLoginIndex, userLoginKey(login), userLoginColumns)
 
-	iter := s.client.Single().Query(s.ctx, spanner.Statement{SQL: "SELECT * FROM BotActivity"})
+	var ulr userLoginRow
+
 	err := iter.Do(func(row *spanner.Row) error {
-		if err := row.ToStruct(activity); err != nil {
-			return err
-		}
-
-		return nil
+		return row.ToStruct(&ulr)
 	})
 
-	if err != nil {
+	if spanner.ErrCode(err) == codes.NotFound {
+		return nil, nil
+	} else if err != nil {
 		return nil, err
 	}
 
-	return activity, nil
+	return s.ReadUserByID(ulr.UserID)
+}
+
+func (s *store) ReadBotActivityByID(orgID string, repoID string) (*storage.BotActivity, error) {
+	row, err := s.client.Single().ReadRow(s.ctx, botActivityTable, botActivityKey(orgID, repoID), botActivityColumns)
+	if spanner.ErrCode(err) == codes.NotFound {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	var result storage.BotActivity
+	if err := row.ToStruct(&result); err != nil {
+		return nil, err
+	}
+
+	return &result, nil
 }
 
 func (s *store) ReadTestFlakyIssues(inactiveDays, createdDays int) ([]*storage.Issue, error) {

@@ -55,7 +55,7 @@ func (c *Client) GetIssueData(repo, issue int) (*IssueData, error) {
 	}
 
 	data := &IssueData{}
-	if err = json.Unmarshal(body, &data); err != nil {
+	if err = json.Unmarshal(body, data); err != nil {
 		return nil, err
 	}
 

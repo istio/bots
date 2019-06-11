@@ -192,25 +192,17 @@ func (s *store) WriteAllMaintainers(maintainers []*storage.Maintainer) error {
 	return err
 }
 
-func (s *store) WriteBotActivity(activity *storage.BotActivity) error {
-	scope.Debug("Writing bot activity")
+func (s *store) WriteBotActivities(activities []*storage.BotActivity) error {
+	scope.Debugf("Writing %d activities", len(activities))
 
-	mutations := make([]*spanner.Mutation, 1)
-	var err error
-	if mutations[0], err = spanner.InsertStruct(botActivityTable, activity); err != nil {
-		return err
-	}
-
-	_, err = s.client.ReadWriteTransaction(s.ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
-		// Remove the existing entry
-		iter := txn.Query(ctx, spanner.Statement{SQL: "DELETE FROM BotActivity WHERE true;"})
-		if err := iter.Do(func(_ *spanner.Row) error { return nil }); err != nil {
+	mutations := make([]*spanner.Mutation, len(activities))
+	for i := 0; i < len(activities); i++ {
+		var err error
+		if mutations[i], err = spanner.InsertOrUpdateStruct(botActivityTable, activities[i]); err != nil {
 			return err
 		}
+	}
 
-		// write the lone record
-		return txn.BufferWrite(mutations)
-	})
-
+	_, err := s.client.Apply(s.ctx, mutations)
 	return err
 }

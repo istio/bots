@@ -12,9 +12,6 @@ we're allowed, we need some way to improve things:
     - Allow the user to explicitly specify the org and repo to sync within the REST API. If each individual
     repo takes less than 15 minutes, that would work.
 
-    - Allow the user to explicitly specify what data to sync. For example, issues can be handled separately
-    from pull requests.
-
     - Figure out a better way to query GitHub to get the data we need, rather than getting a bunch of data we
     bring in and discard. We do this for issues and issue comments using the "Since" option, but that doesn't
     seem to be available for PRs and PR comments.

@@ -48,10 +48,11 @@ type IssueComment struct {
 }
 
 type User struct {
-	UserID  string
-	Login   string
-	Name    string
-	Company string
+	UserID    string
+	Login     string
+	Name      string
+	Company   string
+	AvatarURL string
 }
 
 type Label struct {
@@ -60,6 +61,7 @@ type Label struct {
 	LabelID     string
 	Name        string
 	Description string
+	Color       string
 }
 
 type Org struct {
@@ -77,16 +79,26 @@ type Repo struct {
 type PullRequest struct {
 	OrgID                string
 	RepoID               string
-	IssueID              string
+	PullRequestID        string
+	CreatedAt            time.Time
 	UpdatedAt            time.Time
+	ClosedAt             time.Time
+	MergedAt             time.Time
+	Title                string
+	Body                 string
+	LabelIDs             []string
+	AssigneeIDs          []string
 	RequestedReviewerIDs []string
 	Files                []string
+	AuthorID             string
+	State                string
+	Number               int64
 }
 
 type PullRequestReview struct {
 	OrgID               string
 	RepoID              string
-	IssueID             string
+	PullRequestID       string
 	PullRequestReviewID string
 	AuthorID            string
 	Body                string
@@ -100,12 +112,14 @@ type Member struct {
 }
 
 type BotActivity struct {
-	LastSyncStart time.Time
-	LastSyncEnd   time.Time
+	OrgID              string
+	RepoID             string
+	LastIssueSyncStart time.Time
 }
 
 type Maintainer struct {
-	OrgID  string
-	UserID string
-	Paths  []string
+	OrgID    string
+	UserID   string
+	Paths    []string
+	Emeritus bool
 }

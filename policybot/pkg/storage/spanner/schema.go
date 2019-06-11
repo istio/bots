@@ -44,6 +44,7 @@ const (
 	orgLoginIndex    = "OrgsLogin"
 	repoNameIndex    = "ReposName"
 	issueNumberIndex = "IssuesNumber"
+	userLoginIndex   = "UsersLogin"
 )
 
 // Shape of the rows in the indices
@@ -65,6 +66,11 @@ type (
 		IssueID string
 		Number  int64
 	}
+
+	userLoginRow struct {
+		UserID string
+		Login  string
+	}
 )
 
 // Holds the column names for each table or index in the database (filled in at startup)
@@ -74,12 +80,14 @@ var (
 	repoColumns              []string
 	repoNameColumns          []string
 	userColumns              []string
+	userLoginColumns         []string
 	labelColumns             []string
 	issueColumns             []string
 	issueNumberColumns       []string
 	issueCommentColumns      []string
 	pullRequestColumns       []string
 	pullRequestReviewColumns []string
+	botActivityColumns       []string
 )
 
 // Bunch of functions to from keys for the tables and indices in the DB
@@ -104,6 +112,10 @@ func userKey(userID string) spanner.Key {
 	return spanner.Key{userID}
 }
 
+func userLoginKey(login string) spanner.Key {
+	return spanner.Key{login}
+}
+
 func labelKey(orgID string, repoID string, labelID string) spanner.Key {
 	return spanner.Key{orgID, repoID, labelID}
 }
@@ -112,8 +124,8 @@ func issueKey(orgID string, repoID string, issueID string) spanner.Key {
 	return spanner.Key{orgID, repoID, issueID}
 }
 
-func issueNumberKey(orgID string, repoID string, number int) spanner.Key {
-	return spanner.Key{orgID, repoID, int64(number)}
+func issueNumberKey(repoID string, number int) spanner.Key {
+	return spanner.Key{repoID, int64(number)}
 }
 
 func issueCommentKey(orgID string, repoID string, issueID string, commentID string) spanner.Key {
@@ -128,18 +140,24 @@ func pullRequestReviewKey(orgID string, repoID string, issueID string, reviewID 
 	return spanner.Key{orgID, repoID, issueID, reviewID}
 }
 
+func botActivityKey(orgID string, repoID string) spanner.Key {
+	return spanner.Key{orgID, repoID}
+}
+
 func init() {
 	orgColumns = getFields(storage.Org{})
 	orgLoginColumns = getFields(orgLoginRow{})
 	repoColumns = getFields(storage.Repo{})
 	repoNameColumns = getFields(repoNameRow{})
 	userColumns = getFields(storage.User{})
+	userLoginColumns = getFields(userLoginRow{})
 	labelColumns = getFields(storage.Label{})
 	issueColumns = getFields(storage.Issue{})
 	issueNumberColumns = getFields(issueNumberRow{})
 	issueCommentColumns = getFields(storage.IssueComment{})
 	pullRequestColumns = getFields(storage.PullRequest{})
 	pullRequestReviewColumns = getFields(storage.PullRequestReview{})
+	botActivityColumns = getFields(storage.BotActivity{})
 }
 
 // Produces a string array representing all the fields in the input object
