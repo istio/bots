@@ -23,10 +23,10 @@ var BaseTemplate = `<!DOCTYPE html>
 
         {{ define "description" }}DESCRIPTION{{ end }}
 
-        <meta name="title" content="TITLE">
+        <meta name="title" content="{{ template "title" . }}">
         <meta name="description" content="{{ template "description" . }}">
 
-		<title>TITLE</title>
+		<title>Eng / {{ template "title" . }}</title>
 
         <!-- Google Analytics -->
         {{ $analytics_id := "ANALYTICSID" }}

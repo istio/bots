@@ -26,6 +26,9 @@ type Topic interface {
 	// Title returns the title for the area, which will be used in the sidenav and window title.
 	Title() string
 
+	// Description returns a general deacription for the area
+	Description() string
+
 	// Prefix is the name used to reference this functionality in URLs.
 	Prefix() string
 
@@ -38,7 +41,7 @@ type TopicContext interface {
 	// HTMLRouter is used to control HTML traffic delivered to this topic.
 	HTMLRouter() *mux.Router
 
-	// JSONRouter is used to control HTML traffic delivered to this topic.
+	// JSONRouter is used to control JSON traffic delivered to this topic.
 	JSONRouter() *mux.Router
 
 	// Layout is the template used as the primary layout for the topic's HTML content.
