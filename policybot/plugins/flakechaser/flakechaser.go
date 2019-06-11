@@ -57,7 +57,7 @@ func New(ght *util.GitHubThrottle, ghs *gh.GitHubState, config config.FlakeChase
 	return c
 }
 
-// Handle implements http interface, will be invoked periodically to fulfil the test flakes comments.
+// Handle implements http interface, will be invoked periodically to fulfill the test flakes comments.
 func (c *Chaser) ServeHTTP(_ http.ResponseWriter, _ *http.Request) {
 	flakeComments := `Hey, there's no updates for this test flakes for 3 days.`
 	scope.Infof("Handle request for flake chaser")
