@@ -37,7 +37,7 @@ import (
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage/spanner"
 	"istio.io/bots/policybot/pkg/util"
-	"istio.io/bots/policybot/plugins/flakechaser"
+	"istio.io/bots/policybot/plugins/handlers/flakechaser"
 	"istio.io/bots/policybot/plugins/handlers/github"
 	"istio.io/bots/policybot/plugins/handlers/syncer"
 	"istio.io/bots/policybot/plugins/handlers/zenhub"
