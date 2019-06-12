@@ -12,15 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package maintainers
+package members
 
 // TODO: in the JavaScript, remove org=istio and assume the same org the page was initially rendered with
-var maintainerTemplate = `
+var membersTemplate = `
 {{ define "content" }}
 
 <p>
-These kind folks are responsible for specific areas of the Istio product, guiding its development
-and maintaining its code base.
+These kind folks help Istio be what it is. Thanks to all of them!
 </p>
 
 <table>
@@ -30,7 +29,6 @@ and maintaining its code base.
         <th>Login</th>
         <th>Name</th>
         <th>Company</th>
-        <th>Emeritus</th>
     </tr>
     </thead>
     <tbody>
@@ -40,7 +38,6 @@ and maintaining its code base.
                 <td>{{ .Login }}</td>
                 <td>{{ .Name }}</td>
                 <td>{{ .Company }}</td>
-                <td>{{ .Emeritus }}</td>
             </tr>
         {{ end }}
     </tbody>

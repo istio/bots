@@ -15,7 +15,6 @@
 package maintainers
 
 import (
-	"errors"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -25,7 +24,7 @@ import (
 	"istio.io/bots/policybot/pkg/storage"
 )
 
-type MaintainerQueries struct {
+type Topic struct {
 	store storage.Store
 	ghs   *gh.GitHubState
 }
@@ -39,51 +38,61 @@ type Maintainer struct {
 	Paths     []string `json:"paths"`
 }
 
-func NewMaintainerQueries(store storage.Store, ghs *gh.GitHubState) fw.Topic {
-	return &MaintainerQueries{
+func NewTopic(store storage.Store, ghs *gh.GitHubState) fw.Topic {
+	return &Topic{
 		store: store,
 		ghs:   ghs,
 	}
 }
 
-func (mq *MaintainerQueries) Title() string {
-	return "Maintainers"
+func (t *Topic) Title() string {
+	return "Org Maintainers"
 }
 
-func (mq *MaintainerQueries) Prefix() string {
+func (t *Topic) Description() string {
+	return "Learn about folks that maintain Istio."
+}
+
+func (t *Topic) Prefix() string {
 	return "maintainers"
 }
 
-func (mq *MaintainerQueries) Activate(context fw.TopicContext) {
+func (t *Topic) Activate(context fw.TopicContext) {
 	tmpl := template.Must(context.Layout().Parse(maintainerTemplate))
 
 	_ = context.HTMLRouter().StrictSlash(true).NewRoute().Path("/").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		m, _ := mq.getMaintainers(w, req)
-		fw.RenderHTML(w, tmpl, m)
+		if m, err := t.getMaintainers(w, req); err == nil {
+			fw.RenderHTML(w, tmpl, m)
+		}
 	})
 
 	_ = context.JSONRouter().StrictSlash(true).NewRoute().Methods("GET").Path("/").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		m, _ := mq.getMaintainers(w, req)
-		fw.RenderJSON(w, http.StatusOK, m)
+		if m, err := t.getMaintainers(w, req); err == nil {
+			fw.RenderJSON(w, http.StatusOK, m)
+		}
 	})
 }
 
-func (mq *MaintainerQueries) getMaintainers(w http.ResponseWriter, r *http.Request) ([]Maintainer, error) {
+func (t *Topic) getMaintainers(w http.ResponseWriter, r *http.Request) ([]Maintainer, error) {
 	o := r.URL.Query().Get("org")
 	if o == "" {
-		fw.RenderError(w, http.StatusBadRequest, errors.New("no org query parameter specified"))
-		return nil, nil
+		o = "istio"
 	}
 
-	org, err := mq.ghs.ReadOrgByLogin(o)
+	org, err := t.ghs.ReadOrgByLogin(o)
 	if err != nil {
-		fw.RenderError(w, http.StatusNotFound, fmt.Errorf("no information available on organization %s", org))
-		return nil, nil
+		err = fmt.Errorf("no information available on organization %s: %v", o, err)
+		fw.RenderError(w, http.StatusNotFound, err)
+		return nil, err
+	} else if org == nil {
+		err = fmt.Errorf("no information available on organization %s", o)
+		fw.RenderError(w, http.StatusNotFound, err)
+		return nil, err
 	}
 
 	var maintainers []Maintainer
-	if err = mq.store.QueryMaintainersByOrg(org.OrgID, func(m *storage.Maintainer) error {
-		u, err := mq.ghs.ReadUser(m.UserID)
+	if err = t.store.QueryMaintainersByOrg(org.OrgID, func(m *storage.Maintainer) error {
+		u, err := t.ghs.ReadUser(m.UserID)
 		if err != nil {
 			return err
 		}
