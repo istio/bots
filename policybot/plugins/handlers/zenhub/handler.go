@@ -19,8 +19,9 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"istio.io/bots/policybot/pkg/gh"
+	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/zh"
-
 	"istio.io/pkg/log"
 )
 
@@ -28,10 +29,15 @@ var scope = log.RegisterScope("zenhub", "The ZenHub webhook handler", 0)
 
 // Decodes and dispatches ZenHub webhook calls
 type handler struct {
+	store storage.Store
+	ghs   *gh.GitHubState
 }
 
-func NewHandler() http.Handler {
-	return &handler{}
+func NewHandler(store storage.Store, ghs *gh.GitHubState) http.Handler {
+	return &handler{
+		store: store,
+		ghs:   ghs,
+	}
 }
 
 type typer struct {
@@ -63,7 +69,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// TODO: do something with this event
+		h.storePipeline(result.Organization, result.Repo, result.IssueNumber, result.ToPipelineName)
 
 	case "issue_reprioritized_event":
 		scope.Infof("Received IssueReprioritizedEvent from ZenHub")
@@ -74,6 +80,37 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// TODO: do something with this event
+		h.storePipeline(result.Organization, result.Repo, result.IssueNumber, result.ToPipelineName)
+	}
+}
+
+func (h *handler) storePipeline(org string, repo string, issueNumber int, pipeline string) {
+	o, err := h.ghs.ReadOrgByLogin(org)
+	if err != nil {
+		scope.Errorf("Unable to get info on organization %s: %v", org, err)
+		return
+	} else if o == nil {
+		scope.Errorf("Organization %s was not found", org)
+		return
+	}
+
+	r, err := h.ghs.ReadRepoByName(o.OrgID, repo)
+	if err != nil {
+		scope.Errorf("Unable to get info on repo %s/%s: %v", org, repo, err)
+		return
+	} else if r == nil {
+		scope.Errorf("Repo %s/%s was not found", org, repo)
+		return
+	}
+
+	issuePipeline := &storage.IssuePipeline{
+		OrgID:       r.OrgID,
+		RepoID:      r.RepoID,
+		IssueNumber: int64(issueNumber),
+		Pipeline:    pipeline,
+	}
+
+	if err := h.store.WriteIssuePipelines([]*storage.IssuePipeline{issuePipeline}); err != nil {
+		scope.Errorf("Unable to write pipeline to storage: %v", err)
 	}
 }

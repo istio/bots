@@ -59,3 +59,22 @@ func (s *store) QueryMaintainersByOrg(orgID string, cb func(*storage.Maintainer)
 
 	return err
 }
+
+func (s *store) QueryIssuesByRepo(orgID string, repoID string, cb func(*storage.Issue) error) error {
+	iter := s.client.Single().Query(s.ctx, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM Issues WHERE OrgID = '%s' AND RepoID = '%s';", orgID, repoID)})
+	err := iter.Do(func(row *spanner.Row) error {
+		issue := &storage.Issue{}
+		if err := row.ToStruct(issue); err != nil {
+			return err
+		}
+
+		if err := cb(issue); err != nil {
+			iter.Stop()
+			return err
+		}
+
+		return nil
+	})
+
+	return err
+}

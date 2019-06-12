@@ -26,17 +26,19 @@ import (
 
 // All the DB tables we use
 const (
-	orgTable               = "Orgs"
-	repoTable              = "Repos"
-	userTable              = "Users"
-	labelTable             = "Labels"
-	issueTable             = "Issues"
-	issueCommentTable      = "IssueComments"
-	pullRequestTable       = "PullRequests"
-	pullRequestReviewTable = "PullRequestReviews"
-	memberTable            = "Members"
-	botActivityTable       = "BotActivity"
-	maintainerTable        = "Maintainers"
+	orgTable                = "Orgs"
+	repoTable               = "Repos"
+	userTable               = "Users"
+	labelTable              = "Labels"
+	issueTable              = "Issues"
+	issueCommentTable       = "IssueComments"
+	issuePipelineTable      = "IssuePipelines"
+	pullRequestTable        = "PullRequests"
+	pullRequestCommentTable = "PullRequestComments"
+	pullRequestReviewTable  = "PullRequestReviews"
+	memberTable             = "Members"
+	botActivityTable        = "BotActivity"
+	maintainerTable         = "Maintainers"
 )
 
 // All the DB indices we use
@@ -75,19 +77,21 @@ type (
 
 // Holds the column names for each table or index in the database (filled in at startup)
 var (
-	orgColumns               []string
-	orgLoginColumns          []string
-	repoColumns              []string
-	repoNameColumns          []string
-	userColumns              []string
-	userLoginColumns         []string
-	labelColumns             []string
-	issueColumns             []string
-	issueNumberColumns       []string
-	issueCommentColumns      []string
-	pullRequestColumns       []string
-	pullRequestReviewColumns []string
-	botActivityColumns       []string
+	orgColumns                []string
+	orgLoginColumns           []string
+	repoColumns               []string
+	repoNameColumns           []string
+	userColumns               []string
+	userLoginColumns          []string
+	labelColumns              []string
+	issueColumns              []string
+	issueNumberColumns        []string
+	issueCommentColumns       []string
+	issuePipelineColumns      []string
+	pullRequestColumns        []string
+	pullRequestCommentColumns []string
+	pullRequestReviewColumns  []string
+	botActivityColumns        []string
 )
 
 // Bunch of functions to from keys for the tables and indices in the DB
@@ -132,12 +136,20 @@ func issueCommentKey(orgID string, repoID string, issueID string, commentID stri
 	return spanner.Key{orgID, repoID, issueID, commentID}
 }
 
-func pullRequestKey(orgID string, repoID string, issueID string) spanner.Key {
-	return spanner.Key{orgID, repoID, issueID}
+func issuePipelineKey(orgID string, repoID string, number int) spanner.Key {
+	return spanner.Key{orgID, repoID, number}
 }
 
-func pullRequestReviewKey(orgID string, repoID string, issueID string, reviewID string) spanner.Key {
-	return spanner.Key{orgID, repoID, issueID, reviewID}
+func pullRequestKey(orgID string, repoID string, prID string) spanner.Key {
+	return spanner.Key{orgID, repoID, prID}
+}
+
+func pullRequestCommentKey(orgID string, repoID string, prID string, commentID string) spanner.Key {
+	return spanner.Key{orgID, repoID, prID, commentID}
+}
+
+func pullRequestReviewKey(orgID string, repoID string, prID string, reviewID string) spanner.Key {
+	return spanner.Key{orgID, repoID, prID, reviewID}
 }
 
 func botActivityKey(orgID string, repoID string) spanner.Key {
@@ -155,6 +167,7 @@ func init() {
 	issueColumns = getFields(storage.Issue{})
 	issueNumberColumns = getFields(issueNumberRow{})
 	issueCommentColumns = getFields(storage.IssueComment{})
+	issuePipelineColumns = getFields(storage.IssuePipeline{})
 	pullRequestColumns = getFields(storage.PullRequest{})
 	pullRequestReviewColumns = getFields(storage.PullRequestReview{})
 	botActivityColumns = getFields(storage.BotActivity{})

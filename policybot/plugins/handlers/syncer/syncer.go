@@ -22,6 +22,8 @@ import (
 	"strings"
 	"time"
 
+	"istio.io/bots/policybot/pkg/zh"
+
 	"github.com/ghodss/yaml"
 	"github.com/google/go-github/v25/github"
 
@@ -37,6 +39,7 @@ type Syncer struct {
 	ctx   context.Context
 	ghs   *gh.GitHubState
 	ght   *util.GitHubThrottle
+	zht   *util.ZenHubThrottle
 	store storage.Store
 	orgs  []config.Org
 }
@@ -63,11 +66,13 @@ type syncState struct {
 
 var scope = log.RegisterScope("syncer", "The GitHub data syncer", 0)
 
-func NewHandler(ctx context.Context, ght *util.GitHubThrottle, ghs *gh.GitHubState, store storage.Store, orgs []config.Org) http.Handler {
+func NewHandler(ctx context.Context, ght *util.GitHubThrottle, ghs *gh.GitHubState,
+	zht *util.ZenHubThrottle, store storage.Store, orgs []config.Org) http.Handler {
 	return &Syncer{
 		ctx:   ctx,
 		ght:   ght,
 		ghs:   ghs,
+		zht:   zht,
 		store: store,
 		orgs:  orgs,
 	}
@@ -142,7 +147,7 @@ func (s *Syncer) Sync(filter string) error {
 		return err
 	}
 
-	if flags&(members|labels|issues|prs) != 0 {
+	if flags&(members|labels|issues|prs|zenhub) != 0 {
 		for _, org := range orgs {
 			var orgRepos []*storage.Repo
 			for _, repo := range repos {
@@ -245,6 +250,12 @@ func (ss *syncState) handleRepo(org *storage.Org, repo *storage.Repo) error {
 		}
 	}
 
+	if ss.flags&zenhub != 0 {
+		if err := ss.handleZenHub(org, repo); err != nil {
+			return err
+		}
+	}
+
 	if ss.flags&prs != 0 {
 		if err := ss.handlePullRequests(org, repo); err != nil {
 			return err
@@ -328,12 +339,44 @@ func (ss *syncState) handleIssues(org *storage.Org, repo *storage.Repo, startTim
 	})
 }
 
+func (ss *syncState) handleZenHub(org *storage.Org, repo *storage.Repo) error {
+	scope.Debugf("Getting ZenHub issue data for repo %s/%s", org.Login, repo.Name)
+
+	var pipelines []*storage.IssuePipeline
+	if err := ss.syncer.store.QueryIssuesByRepo(org.OrgID, repo.RepoID, func(issue *storage.Issue) error {
+
+		pipeline, err := ss.syncer.zht.Get().GetIssueData(int(repo.RepoNumber), int(issue.Number))
+		if err != nil {
+			if err == zh.ErrNotFound {
+				// not found, so nothing to do...
+				return nil
+			}
+
+			return fmt.Errorf("unable to get issue data from zenhub for issue %d in repo %s/%s: %v", issue.Number, org.Login, repo.Name, err)
+		}
+
+		pipelines = append(pipelines, &storage.IssuePipeline{
+			OrgID:       org.OrgID,
+			RepoID:      repo.RepoID,
+			IssueNumber: issue.Number,
+			Pipeline:    pipeline.Pipeline.Name,
+		})
+
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	return ss.syncer.store.WriteIssuePipelines(pipelines)
+}
+
 func (ss *syncState) handlePullRequests(org *storage.Org, repo *storage.Repo) error {
 	scope.Debugf("Getting pull requests from repo %s/%s", org.Login, repo.Name)
 
 	return ss.syncer.fetchPullRequests(org, repo, func(prs []*github.PullRequest) error {
 		var storagePRs []*storage.PullRequest
 		var storagePRReviews []*storage.PullRequestReview
+		var storagePRComments []*storage.PullRequestComment
 
 		for _, pr := range prs {
 			// if this pr is already known to us and is up to date, skip further processing
@@ -341,6 +384,17 @@ func (ss *syncState) handlePullRequests(org *storage.Org, repo *storage.Repo) er
 				if existing.UpdatedAt == pr.GetUpdatedAt() {
 					continue
 				}
+			}
+
+			if err := ss.syncer.fetchComments(org, repo, pr.GetNumber(), time.Time{}, func(comments []*github.IssueComment) error {
+				for _, comment := range comments {
+					ss.addUser(comment.User)
+					storagePRComments = append(storagePRComments, gh.PullRequestCommentFromAPI(org.OrgID, repo.RepoID, pr.GetNodeID(), comment))
+				}
+
+				return nil
+			}); err != nil {
+				return err
 			}
 
 			if err := ss.syncer.fetchReviews(org, repo, pr.GetNumber(), func(reviews []*github.PullRequestReview) error {
@@ -375,6 +429,9 @@ func (ss *syncState) handlePullRequests(org *storage.Org, repo *storage.Repo) er
 		err := ss.syncer.store.WritePullRequests(storagePRs)
 		if err == nil {
 			err = ss.syncer.store.WritePullRequestReviews(storagePRReviews)
+			if err == nil {
+				err = ss.syncer.store.WritePullRequestComments(storagePRComments)
+			}
 		}
 
 		return err

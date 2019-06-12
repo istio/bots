@@ -24,17 +24,19 @@ import (
 
 // Cached access over our GitHub object store.
 type GitHubState struct {
-	store                  storage.Store
-	orgCache               cache.ExpiringCache
-	orgByLoginCache        cache.ExpiringCache
-	repoCache              cache.ExpiringCache
-	issueCache             cache.ExpiringCache
-	issueCommentCache      cache.ExpiringCache
-	labelCache             cache.ExpiringCache
-	userCache              cache.ExpiringCache
-	userByLoginCache       cache.ExpiringCache
-	pullRequestCache       cache.ExpiringCache
-	pullRequestReviewCache cache.ExpiringCache
+	store                   storage.Store
+	orgCache                cache.ExpiringCache
+	orgByLoginCache         cache.ExpiringCache
+	repoCache               cache.ExpiringCache
+	repoByNameCache         cache.ExpiringCache
+	issueCache              cache.ExpiringCache
+	issueCommentCache       cache.ExpiringCache
+	labelCache              cache.ExpiringCache
+	userCache               cache.ExpiringCache
+	userByLoginCache        cache.ExpiringCache
+	pullRequestCache        cache.ExpiringCache
+	pullRequestCommentCache cache.ExpiringCache
+	pullRequestReviewCache  cache.ExpiringCache
 }
 
 func NewGitHubState(store storage.Store, entryTTL time.Duration) *GitHubState {
@@ -46,17 +48,19 @@ func NewGitHubState(store storage.Store, entryTTL time.Duration) *GitHubState {
 	}
 
 	return &GitHubState{
-		store:                  store,
-		orgCache:               cache.NewTTL(entryTTL, evictionInterval),
-		orgByLoginCache:        cache.NewTTL(entryTTL, evictionInterval),
-		repoCache:              cache.NewTTL(entryTTL, evictionInterval),
-		issueCache:             cache.NewTTL(entryTTL, evictionInterval),
-		issueCommentCache:      cache.NewTTL(entryTTL, evictionInterval),
-		labelCache:             cache.NewTTL(entryTTL, evictionInterval),
-		userCache:              cache.NewTTL(entryTTL, evictionInterval),
-		userByLoginCache:       cache.NewTTL(entryTTL, evictionInterval),
-		pullRequestCache:       cache.NewTTL(entryTTL, evictionInterval),
-		pullRequestReviewCache: cache.NewTTL(entryTTL, evictionInterval),
+		store:                   store,
+		orgCache:                cache.NewTTL(entryTTL, evictionInterval),
+		orgByLoginCache:         cache.NewTTL(entryTTL, evictionInterval),
+		repoCache:               cache.NewTTL(entryTTL, evictionInterval),
+		repoByNameCache:         cache.NewTTL(entryTTL, evictionInterval),
+		issueCache:              cache.NewTTL(entryTTL, evictionInterval),
+		issueCommentCache:       cache.NewTTL(entryTTL, evictionInterval),
+		labelCache:              cache.NewTTL(entryTTL, evictionInterval),
+		userCache:               cache.NewTTL(entryTTL, evictionInterval),
+		userByLoginCache:        cache.NewTTL(entryTTL, evictionInterval),
+		pullRequestCache:        cache.NewTTL(entryTTL, evictionInterval),
+		pullRequestCommentCache: cache.NewTTL(entryTTL, evictionInterval),
+		pullRequestReviewCache:  cache.NewTTL(entryTTL, evictionInterval),
 	}
 }
 
@@ -103,6 +107,27 @@ func (ghs *GitHubState) ReadRepo(orgID string, repoID string) (*storage.Repo, er
 	result, err := ghs.store.ReadRepoByID(orgID, repoID)
 	if err == nil {
 		ghs.repoCache.Set(repoID, result)
+		if result != nil {
+			ghs.repoByNameCache.Set(orgID+result.Name, result)
+		}
+	}
+
+	return result, err
+}
+
+// Reads from cache and if not found reads from DB
+func (ghs *GitHubState) ReadRepoByName(orgID string, repo string) (*storage.Repo, error) {
+	key := orgID + repo
+	if value, ok := ghs.repoByNameCache.Get(key); ok {
+		return value.(*storage.Repo), nil
+	}
+
+	result, err := ghs.store.ReadRepoByName(orgID, repo)
+	if err == nil {
+		ghs.repoByNameCache.Set(key, result)
+		if result != nil {
+			ghs.repoCache.Set(result.RepoID, result)
+		}
 	}
 
 	return result, err
@@ -200,13 +225,28 @@ func (ghs *GitHubState) ReadPullRequest(orgID string, repoID string, prID string
 }
 
 // Reads from cache and if not found reads from DB
-func (ghs *GitHubState) ReadPullRequestReview(orgID string, repoID string, issueID string,
+func (ghs *GitHubState) ReadPullRequestComment(orgID string, repoID string, prID string,
+	prCommentID string) (*storage.PullRequestComment, error) {
+	if value, ok := ghs.pullRequestCommentCache.Get(prCommentID); ok {
+		return value.(*storage.PullRequestComment), nil
+	}
+
+	result, err := ghs.store.ReadPullRequestCommentByID(orgID, repoID, prID, prCommentID)
+	if err == nil {
+		ghs.pullRequestCommentCache.Set(prCommentID, result)
+	}
+
+	return result, err
+}
+
+// Reads from cache and if not found reads from DB
+func (ghs *GitHubState) ReadPullRequestReview(orgID string, repoID string, prID string,
 	prReviewID string) (*storage.PullRequestReview, error) {
 	if value, ok := ghs.pullRequestReviewCache.Get(prReviewID); ok {
 		return value.(*storage.PullRequestReview), nil
 	}
 
-	result, err := ghs.store.ReadPullRequestReviewByID(orgID, repoID, issueID, prReviewID)
+	result, err := ghs.store.ReadPullRequestReviewByID(orgID, repoID, prID, prReviewID)
 	if err == nil {
 		ghs.pullRequestReviewCache.Set(prReviewID, result)
 	}

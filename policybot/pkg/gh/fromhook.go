@@ -22,15 +22,20 @@ import (
 	"istio.io/bots/policybot/pkg/storage"
 )
 
-func IssueFromHook(ip *hook.IssuesPayload) *storage.Issue {
+// Maps from a GitHub webhook event to a storage issue. Also returns the set of
+// users discovered in the event in a map of {UserID:Login}.
+func IssueFromHook(ip *hook.IssuesPayload) (*storage.Issue, map[string]string) {
 	labels := make([]string, len(ip.Issue.Labels))
 	for i, label := range ip.Issue.Labels {
 		labels[i] = label.NodeID
 	}
 
+	discoveredUsers := make(map[string]string, len(ip.Issue.Assignees))
+
 	assignees := make([]string, len(ip.Issue.Assignees))
 	for i, user := range ip.Issue.Assignees {
 		assignees[i] = user.NodeID
+		discoveredUsers[user.NodeID] = user.Login
 	}
 
 	var closedAt time.Time
@@ -52,10 +57,16 @@ func IssueFromHook(ip *hook.IssuesPayload) *storage.Issue {
 		State:       ip.Issue.State,
 		AuthorID:    ip.Issue.User.NodeID,
 		AssigneeIDs: assignees,
-	}
+	}, discoveredUsers
 }
 
-func IssueCommentFromHook(icp *hook.IssueCommentPayload) *storage.IssueComment {
+// Maps from a GitHub webhook event to a storage issue comment. Also returns the set of
+// users discovered in the event in a map of {UserID:Login}.
+func IssueCommentFromHook(icp *hook.IssueCommentPayload) (*storage.IssueComment, map[string]string) {
+	discoveredUsers := map[string]string{
+		icp.Comment.User.NodeID: icp.Comment.User.Login,
+	}
+
 	return &storage.IssueComment{
 		OrgID:          icp.Repository.Owner.NodeID,
 		RepoID:         icp.Repository.NodeID,
@@ -65,23 +76,29 @@ func IssueCommentFromHook(icp *hook.IssueCommentPayload) *storage.IssueComment {
 		CreatedAt:      icp.Comment.CreatedAt,
 		UpdatedAt:      icp.Comment.UpdatedAt,
 		AuthorID:       icp.Comment.User.NodeID,
-	}
+	}, discoveredUsers
 }
 
-func PullRequestFromHook(prp *hook.PullRequestPayload) *storage.PullRequest {
+// Maps from a GitHub webhook event to a storage pr. Also returns the set of
+// users discovered in the event in a map of {UserID:Login}.
+func PullRequestFromHook(prp *hook.PullRequestPayload) (*storage.PullRequest, map[string]string) {
 	labels := make([]string, len(prp.PullRequest.Labels))
 	for i, label := range prp.PullRequest.Labels {
 		labels[i] = label.NodeID
 	}
 
+	discoveredUsers := make(map[string]string, len(prp.PullRequest.Assignees)+len(prp.PullRequest.RequestedReviewers))
+
 	assignees := make([]string, len(prp.PullRequest.Assignees))
 	for i, user := range prp.PullRequest.Assignees {
 		assignees[i] = user.NodeID
+		discoveredUsers[user.NodeID] = user.Login
 	}
 
 	reviewers := make([]string, len(prp.PullRequest.RequestedReviewers))
 	for i, user := range prp.PullRequest.RequestedReviewers {
 		reviewers[i] = user.NodeID
+		discoveredUsers[user.NodeID] = user.Login
 	}
 
 	var closedAt time.Time
@@ -109,10 +126,35 @@ func PullRequestFromHook(prp *hook.PullRequestPayload) *storage.PullRequest {
 		LabelIDs:             labels,
 		AssigneeIDs:          assignees,
 		RequestedReviewerIDs: reviewers,
-	}
+	}, discoveredUsers
 }
 
-func PullRequestReviewFromHook(prrp *hook.PullRequestReviewPayload) *storage.PullRequestReview {
+// Maps from a GitHub webhook event to a storage pr comment. Also returns the set of
+// users discovered in the event in a map of {UserID:Login}.
+func PullRequestCommentFromHook(icp *hook.IssueCommentPayload) (*storage.PullRequestComment, map[string]string) {
+	discoveredUsers := map[string]string{
+		icp.Comment.User.NodeID: icp.Comment.User.Login,
+	}
+
+	return &storage.PullRequestComment{
+		OrgID:                icp.Repository.Owner.NodeID,
+		RepoID:               icp.Repository.NodeID,
+		PullRequestID:        icp.Issue.NodeID,
+		PullRequestCommentID: icp.Comment.NodeID,
+		Body:                 icp.Comment.Body,
+		CreatedAt:            icp.Comment.CreatedAt,
+		UpdatedAt:            icp.Comment.UpdatedAt,
+		AuthorID:             icp.Comment.User.NodeID,
+	}, discoveredUsers
+}
+
+// Maps from a GitHub webhook event to a storage pr review. Also returns the set of
+// users discovered in the event in a map of {UserID:Login}.
+func PullRequestReviewFromHook(prrp *hook.PullRequestReviewPayload) (*storage.PullRequestReview, map[string]string) {
+	discoveredUsers := map[string]string{
+		prrp.Review.User.NodeID: prrp.Review.User.Login,
+	}
+
 	return &storage.PullRequestReview{
 		OrgID:               prrp.Repository.Owner.NodeID,
 		RepoID:              prrp.Repository.NodeID,
@@ -122,5 +164,5 @@ func PullRequestReviewFromHook(prrp *hook.PullRequestReviewPayload) *storage.Pul
 		SubmittedAt:         prrp.Review.SubmittedAt,
 		AuthorID:            prrp.Review.User.NodeID,
 		State:               prrp.Review.State,
-	}
+	}, discoveredUsers
 }

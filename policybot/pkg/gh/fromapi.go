@@ -84,6 +84,7 @@ func RepoFromAPI(r *api.Repository) *storage.Repo {
 		RepoID:      r.GetNodeID(),
 		Name:        r.GetName(),
 		Description: r.GetDescription(),
+		RepoNumber:  r.GetID(),
 	}
 }
 
@@ -128,6 +129,19 @@ func PullRequestFromAPI(orgID string, repoID string, pr *api.PullRequest, files 
 		Title:                pr.GetTitle(),
 		Body:                 pr.GetBody(),
 		AuthorID:             pr.GetUser().GetNodeID(),
+	}
+}
+
+func PullRequestCommentFromAPI(orgID string, repoID string, prID string, issueComment *api.IssueComment) *storage.PullRequestComment {
+	return &storage.PullRequestComment{
+		OrgID:                orgID,
+		RepoID:               repoID,
+		PullRequestID:        prID,
+		PullRequestCommentID: issueComment.GetNodeID(),
+		Body:                 issueComment.GetBody(),
+		CreatedAt:            issueComment.GetCreatedAt(),
+		UpdatedAt:            issueComment.GetUpdatedAt(),
+		AuthorID:             issueComment.GetUser().GetNodeID(),
 	}
 }
 
