@@ -48,8 +48,8 @@ func (s *store) ReadOrgByLogin(login string) (*storage.Org, error) {
 		return row.ToStruct(&olr)
 	})
 
-	if spanner.ErrCode(err) == codes.NotFound {
-		return nil, nil
+	if olr.OrgID == "" {
+		return nil, nil // not found
 	} else if err != nil {
 		return nil, err
 	}
@@ -85,8 +85,8 @@ func (s *store) ReadRepoByName(org string, name string) (*storage.Repo, error) {
 		return row.ToStruct(&rnr)
 	})
 
-	if spanner.ErrCode(err) == codes.NotFound {
-		return nil, nil
+	if rnr.OrgID == "" {
+		return nil, nil // not found
 	} else if err != nil {
 		return nil, err
 	}
@@ -119,8 +119,8 @@ func (s *store) ReadIssueByNumber(org string, repo string, number int) (*storage
 		return row.ToStruct(&inr)
 	})
 
-	if spanner.ErrCode(err) == codes.NotFound {
-		return nil, nil
+	if inr.OrgID == "" {
+		return nil, nil // not found
 	} else if err != nil {
 		return nil, err
 	}
@@ -217,8 +217,8 @@ func (s *store) ReadUserByLogin(login string) (*storage.User, error) {
 		return row.ToStruct(&ulr)
 	})
 
-	if spanner.ErrCode(err) == codes.NotFound {
-		return nil, nil
+	if ulr.UserID == "" {
+		return nil, nil // not found
 	} else if err != nil {
 		return nil, err
 	}
