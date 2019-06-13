@@ -131,7 +131,7 @@ func (l *Labeler) Handle(_ http.ResponseWriter, githubObject interface{}) {
 		action = ip.Action
 		repo = ip.Repository.FullName
 		number = int(ip.Issue.Number)
-		issue = gh.IssueFromHook(&ip)
+		issue, _ = gh.IssueFromHook(&ip)
 	}
 
 	prp, ok := githubObject.(webhook.PullRequestPayload)
@@ -139,7 +139,7 @@ func (l *Labeler) Handle(_ http.ResponseWriter, githubObject interface{}) {
 		action = prp.Action
 		repo = prp.Repository.FullName
 		number = int(prp.PullRequest.Number)
-		pr = gh.PullRequestFromHook(&prp)
+		pr, _ = gh.PullRequestFromHook(&prp)
 	}
 
 	if action != "opened" && action != "review_requested" {

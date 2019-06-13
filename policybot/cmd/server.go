@@ -76,6 +76,7 @@ func serverCmd() *cobra.Command {
 				log.Errorf("Unable to initialize ControlZ: %v", err)
 			}
 
+			cmd.SilenceUsage = true
 			return server.RunServer(ca)
 		},
 	}

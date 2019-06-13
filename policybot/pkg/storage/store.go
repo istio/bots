@@ -26,7 +26,9 @@ type Store interface {
 	WriteRepos(repos []*Repo) error
 	WriteIssues(issues []*Issue) error
 	WriteIssueComments(issueComments []*IssueComment) error
+	WriteIssuePipelines(issueData []*IssuePipeline) error
 	WritePullRequests(prs []*PullRequest) error
+	WritePullRequestComments(prComments []*PullRequestComment) error
 	WritePullRequestReviews(prReviews []*PullRequestReview) error
 	WriteUsers(users []*User) error
 	WriteLabels(labels []*Label) error
@@ -41,15 +43,18 @@ type Store interface {
 	ReadIssueByID(orgID string, repoID string, issueID string) (*Issue, error)
 	ReadIssueByNumber(orgID string, repoID string, number int) (*Issue, error)
 	ReadIssueCommentByID(orgID string, repoID string, issueID string, issueCommentID string) (*IssueComment, error)
+	ReadIssuePipelineByNumber(orgID string, repoID string, number int) (*IssuePipeline, error)
 	ReadLabelByID(orgID string, repoID string, labelID string) (*Label, error)
 	ReadUserByID(userID string) (*User, error)
 	ReadUserByLogin(login string) (*User, error)
-	ReadPullRequestByID(orgID string, repoID string, issueID string) (*PullRequest, error)
-	ReadPullRequestReviewByID(orgID string, repoID string, issueID string, prReviewID string) (*PullRequestReview, error)
+	ReadPullRequestByID(orgID string, repoID string, prID string) (*PullRequest, error)
+	ReadPullRequestCommentByID(orgID string, repoID string, prID string, prCommentID string) (*PullRequestComment, error)
+	ReadPullRequestReviewByID(orgID string, repoID string, prID string, prReviewID string) (*PullRequestReview, error)
 	ReadBotActivityByID(orgID string, repoID string) (*BotActivity, error)
 
 	QueryMembersByOrg(orgID string, cb func(*Member) error) error
 	QueryMaintainersByOrg(orgID string, cb func(*Maintainer) error) error
+	QueryIssuesByRepo(orgID string, repoID string, cb func(*Issue) error) error
 
 	EnumUsers(cb func(*User) bool) error
 }
