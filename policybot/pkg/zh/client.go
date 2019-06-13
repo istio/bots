@@ -15,57 +15,57 @@
 package zh
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
 )
 
 const (
-	defaultBaseURL   = "https://api.zenhub.io/"
-	defaultUserAgent = "zenhub-client"
-	defaultTimeout   = 30 * time.Second
+	baseURL   = "https://api.zenhub.io"
+	userAgent = "istio-policybot"
+	timeout   = 30 * time.Second
 )
 
 type Client struct {
-	baseURL   string
-	userAgent string
-	timeout   time.Duration
 	authToken string
 }
 
 func NewClient(authToken string) *Client {
 	return &Client{
-		baseURL:   defaultBaseURL,
-		userAgent: defaultUserAgent,
-		timeout:   defaultTimeout,
 		authToken: authToken,
 	}
 }
 
-func (c *Client) sendRequest(method, url string) (resp *http.Response, err error) {
-	req, err := http.NewRequest(method, url, nil)
+var ErrNotFound = errors.New("requested resource not found")
+
+func (c *Client) sendRequest(method, urlPath string) (resp *http.Response, err error) {
+	req, err := http.NewRequest(method, baseURL+urlPath, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	req.Header.Set("X-Authentication-Token", c.authToken)
-	req.Header.Set("User-Agent", c.userAgent)
+	req.Header.Set("User-Agent", userAgent)
 	if req.Method == "PUT" || req.Method == "POST" {
 		req.Header.Set("Content-Type", "application/json")
 	}
 
 	client := &http.Client{
-		Timeout: c.timeout,
+		Timeout: timeout,
 	}
 
 	resp, err = client.Do(req)
-
 	if err != nil {
 		return nil, err
 	}
 
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, ErrNotFound
+	}
+
 	if resp.StatusCode/100 != 2 {
-		return nil, fmt.Errorf("request failed with status code is %d", resp.StatusCode)
+		return nil, fmt.Errorf("request failed with status code %d", resp.StatusCode)
 	}
 
 	return resp, nil

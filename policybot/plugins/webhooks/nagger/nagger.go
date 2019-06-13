@@ -143,7 +143,7 @@ func (n *Nagger) Handle(_ http.ResponseWriter, githubObject interface{}) {
 		return
 	}
 
-	pr := gh.PullRequestFromHook(&prp)
+	pr, _ := gh.PullRequestFromHook(&prp)
 
 	scope.Infof("Processing PR %d from repo %s", prp.Number, prp.Repository.FullName)
 

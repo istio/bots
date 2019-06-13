@@ -142,6 +142,22 @@ func (s *store) ReadIssueCommentByID(org string, repo string, issue string, issu
 	return &result, nil
 }
 
+func (s *store) ReadIssuePipelineByNumber(orgID string, repoID string, number int) (*storage.IssuePipeline, error) {
+	row, err := s.client.Single().ReadRow(s.ctx, issuePipelineTable, issuePipelineKey(orgID, repoID, number), issuePipelineColumns)
+	if spanner.ErrCode(err) == codes.NotFound {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	var result storage.IssuePipeline
+	if err := row.ToStruct(&result); err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
+
 func (s *store) ReadPullRequestByID(org string, repo string, issue string) (*storage.PullRequest, error) {
 	row, err := s.client.Single().ReadRow(s.ctx, pullRequestTable, pullRequestKey(org, repo, issue), pullRequestColumns)
 	if spanner.ErrCode(err) == codes.NotFound {
@@ -151,6 +167,22 @@ func (s *store) ReadPullRequestByID(org string, repo string, issue string) (*sto
 	}
 
 	var result storage.PullRequest
+	if err := row.ToStruct(&result); err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
+
+func (s *store) ReadPullRequestCommentByID(orgID string, repoID string, prID string, prCommentID string) (*storage.PullRequestComment, error) {
+	row, err := s.client.Single().ReadRow(s.ctx, pullRequestCommentTable, pullRequestCommentKey(orgID, repoID, prID, prCommentID), pullRequestCommentColumns)
+	if spanner.ErrCode(err) == codes.NotFound {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	var result storage.PullRequestComment
 	if err := row.ToStruct(&result); err != nil {
 		return nil, err
 	}

@@ -49,6 +49,7 @@ func syncCmd() *cobra.Command {
 			var dummy = dummyIoWriter{}
 			grpclog.SetLoggerV2(grpclog.NewLoggerV2(dummy, dummy, dummy))
 
+			cmd.SilenceUsage = true
 			return server.Sync(ca, filters)
 		},
 	}

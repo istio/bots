@@ -41,8 +41,9 @@ type IssueData struct {
 	IsEpic   bool      `json:"is_epic"`
 }
 
+// Query ZenHub
 func (c *Client) GetIssueData(repo, issue int) (*IssueData, error) {
-	resp, err := c.sendRequest("GET", fmt.Sprintf("%s/p1/repositories/%d/issues/%d", c.baseURL, repo, issue))
+	resp, err := c.sendRequest("GET", fmt.Sprintf("/p1/repositories/%d/issues/%d", repo, issue))
 	if err != nil {
 		return nil, err
 	}

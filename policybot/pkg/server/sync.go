@@ -46,6 +46,7 @@ func Sync(a *config.Args, filters string) error {
 	}
 
 	ght := util.NewGitHubThrottle(context.Background(), a.StartupOptions.GitHubToken)
+	zht := util.NewZenHubThrottle(context.Background(), a.StartupOptions.ZenHubToken)
 
 	store, err := spanner.NewStore(context.Background(), a.SpannerDatabase, creds)
 	if err != nil {
@@ -55,6 +56,6 @@ func Sync(a *config.Args, filters string) error {
 
 	ghs := gh.NewGitHubState(store, a.CacheTTL)
 
-	h := syncer.NewHandler(context.Background(), ght, ghs, store, a.Orgs).(*syncer.Syncer)
+	h := syncer.NewHandler(context.Background(), ght, ghs, zht, store, a.Orgs).(*syncer.Syncer)
 	return h.Sync(filters)
 }

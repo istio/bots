@@ -27,8 +27,6 @@ import (
 	"sync"
 	"time"
 
-	"istio.io/bots/policybot/plugins/topics/issues"
-
 	"github.com/gorilla/mux"
 
 	"istio.io/bots/policybot/dashboard/templates"
@@ -44,6 +42,7 @@ import (
 	"istio.io/bots/policybot/plugins/topics/coverage"
 	"istio.io/bots/policybot/plugins/topics/features"
 	"istio.io/bots/policybot/plugins/topics/flakes"
+	"istio.io/bots/policybot/plugins/topics/issues"
 	"istio.io/bots/policybot/plugins/topics/maintainers"
 	"istio.io/bots/policybot/plugins/topics/members"
 	"istio.io/bots/policybot/plugins/topics/perf"
@@ -113,6 +112,7 @@ func runWithConfig(a *config.Args) error {
 	}
 
 	ght := util.NewGitHubThrottle(context.Background(), a.StartupOptions.GitHubToken)
+	zht := util.NewZenHubThrottle(context.Background(), a.StartupOptions.ZenHubToken)
 	_ = util.NewMailer(a.StartupOptions.SendGridAPIKey, a.EmailFrom, a.EmailOriginAddress)
 
 	store, err := spanner.NewStore(context.Background(), a.SpannerDatabase, creds)
@@ -176,7 +176,7 @@ func runWithConfig(a *config.Args) error {
 
 	// github webhook handlers (keep refresher first in the list such that other plugins see an up-to-date view in storage)
 	webhooks := []fw.Webhook{
-		refresher.NewRefresher(store, a.Orgs),
+		refresher.NewRefresher(context.Background(), store, ghs, ght, a.Orgs),
 		nag,
 		labeler,
 		monitor,
@@ -189,8 +189,8 @@ func runWithConfig(a *config.Args) error {
 
 	// event handlers
 	router.Handle("/githubwebhook", ghHandler).Methods("POST")
-	router.Handle("/zenhubwebhook", zenhub.NewHandler()).Methods("POST")
-	router.Handle("/sync", syncer.NewHandler(context.Background(), ght, ghs, store, a.Orgs)).Methods("GET")
+	router.Handle("/zenhubwebhook", zenhub.NewHandler(store, ghs)).Methods("POST")
+	router.Handle("/sync", syncer.NewHandler(context.Background(), ght, ghs, zht, store, a.Orgs)).Methods("GET")
 	router.HandleFunc("/login", s.handleLogin)
 	router.HandleFunc("/githuboauthcallback", s.handleOAuthCallback)
 
@@ -216,7 +216,6 @@ func runWithConfig(a *config.Args) error {
 	s.registerTopic(router, mainLayout, flakes.NewTopic(store, ghs))
 	s.registerTopic(router, mainLayout, coverage.NewTopic(store, ghs))
 	s.registerTopic(router, mainLayout, features.NewTopic(store, ghs))
-	s.registerTopic(router, mainLayout, flakes.NewTopic(store, ghs))
 
 	// home page
 	router.
