@@ -12,14 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package util
+package zh
 
 import (
 	"context"
 
 	"golang.org/x/time/rate"
-
-	"istio.io/bots/policybot/pkg/zh"
 )
 
 const (
@@ -30,23 +28,23 @@ const (
 
 // ZenHubThrottle is used to throttle our use of the ZenHub API in order to
 // prevent hitting rate limits or abuse limits.
-type ZenHubThrottle struct {
+type ThrottledClient struct {
 	ctx     context.Context
-	client  *zh.Client
+	client  *Client
 	limiter *rate.Limiter
 }
 
-func NewZenHubThrottle(ctx context.Context, zenhubToken string) *ZenHubThrottle {
-	return &ZenHubThrottle{
+func NewThrottledClient(ctx context.Context, zenhubToken string) *ThrottledClient {
+	return &ThrottledClient{
 		ctx:     ctx,
-		client:  zh.NewClient(zenhubToken),
+		client:  NewClient(zenhubToken),
 		limiter: rate.NewLimiter(maxZenHubRequestsPerSecond, maxZenHubBurst),
 	}
 }
 
 // Get the ZenHub client in a throttled fashion, so we don't exceed ZenHub's usage limits. This will block
 // until it is safe to make the call to GitHub.
-func (zht *ZenHubThrottle) Get() *zh.Client {
+func (zht *ThrottledClient) Get() *Client {
 	_ = zht.limiter.Wait(zht.ctx)
 	return zht.client
 }

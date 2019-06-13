@@ -19,8 +19,8 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage"
+	"istio.io/bots/policybot/pkg/storage/cache"
 	"istio.io/bots/policybot/pkg/zh"
 	"istio.io/pkg/log"
 )
@@ -30,13 +30,13 @@ var scope = log.RegisterScope("zenhub", "The ZenHub webhook handler", 0)
 // Decodes and dispatches ZenHub webhook calls
 type handler struct {
 	store storage.Store
-	ghs   *gh.GitHubState
+	cache *cache.Cache
 }
 
-func NewHandler(store storage.Store, ghs *gh.GitHubState) http.Handler {
+func NewHandler(store storage.Store, cache *cache.Cache) http.Handler {
 	return &handler{
 		store: store,
-		ghs:   ghs,
+		cache: cache,
 	}
 }
 
@@ -85,7 +85,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) storePipeline(org string, repo string, issueNumber int, pipeline string) {
-	o, err := h.ghs.ReadOrgByLogin(org)
+	o, err := h.cache.ReadOrgByLogin(org)
 	if err != nil {
 		scope.Errorf("Unable to get info on organization %s: %v", org, err)
 		return
@@ -94,7 +94,7 @@ func (h *handler) storePipeline(org string, repo string, issueNumber int, pipeli
 		return
 	}
 
-	r, err := h.ghs.ReadRepoByName(o.OrgID, repo)
+	r, err := h.cache.ReadRepoByName(o.OrgID, repo)
 	if err != nil {
 		scope.Errorf("Unable to get info on repo %s/%s: %v", org, repo, err)
 		return

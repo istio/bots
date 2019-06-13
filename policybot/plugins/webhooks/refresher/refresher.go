@@ -24,7 +24,7 @@ import (
 	"istio.io/bots/policybot/pkg/fw"
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage"
-	"istio.io/bots/policybot/pkg/util"
+	"istio.io/bots/policybot/pkg/storage/cache"
 	"istio.io/pkg/log"
 )
 
@@ -32,18 +32,18 @@ import (
 type Refresher struct {
 	store storage.Store
 	repos map[string]bool
-	ghs   *gh.GitHubState
-	ght   *util.GitHubThrottle
+	cache *cache.Cache
+	ght   *gh.ThrottledClient
 	ctx   context.Context
 }
 
 var scope = log.RegisterScope("refresher", "Dynamic database refresher", 0)
 
-func NewRefresher(ctx context.Context, store storage.Store, ghs *gh.GitHubState, ght *util.GitHubThrottle, orgs []config.Org) fw.Webhook {
+func NewRefresher(ctx context.Context, store storage.Store, cache *cache.Cache, ght *gh.ThrottledClient, orgs []config.Org) fw.Webhook {
 	r := &Refresher{
 		store: store,
 		repos: make(map[string]bool),
-		ghs:   ghs,
+		cache: cache,
 		ght:   ght,
 		ctx:   ctx,
 	}
@@ -126,7 +126,7 @@ func (r *Refresher) Handle(_ http.ResponseWriter, githubObject interface{}) {
 func (r *Refresher) syncUsers(discoveredUsers map[string]string) {
 	var users []*storage.User
 	for _, du := range discoveredUsers {
-		user, err := r.ghs.ReadUserByLogin(du)
+		user, err := r.cache.ReadUserByLogin(du)
 		if err != nil {
 			scope.Warnf("unable to read user %s from storage: %v", du, err)
 		}
