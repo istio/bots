@@ -283,16 +283,18 @@ func (s *Server) registerTopic(router *mux.Router, layout *template.Template, t 
 }
 
 type topic struct {
-	Name string
-	URL  string
+	Name        string
+	URL         string
+	Description string
 }
 
 func (s *Server) getTopics() []topic {
 	var result []topic
 	for _, t := range s.allTopics {
 		result = append(result, topic{
-			Name: t.Title(),
-			URL:  "/" + t.Prefix(),
+			Name:        t.Title(),
+			URL:         "/" + t.Prefix(),
+			Description: t.Description(),
 		})
 	}
 	return result
