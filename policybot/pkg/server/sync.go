@@ -19,10 +19,12 @@ import (
 	"encoding/base64"
 	"fmt"
 
-	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
+	"istio.io/bots/policybot/pkg/zh"
+
+	"istio.io/bots/policybot/pkg/config"
+	"istio.io/bots/policybot/pkg/storage/cache"
 	"istio.io/bots/policybot/pkg/storage/spanner"
-	"istio.io/bots/policybot/pkg/util"
 	"istio.io/bots/policybot/plugins/handlers/syncer"
 )
 
@@ -45,8 +47,8 @@ func Sync(a *config.Args, filters string) error {
 		return fmt.Errorf("unable to decode GCP credentials: %v", err)
 	}
 
-	ght := util.NewGitHubThrottle(context.Background(), a.StartupOptions.GitHubToken)
-	zht := util.NewZenHubThrottle(context.Background(), a.StartupOptions.ZenHubToken)
+	ght := gh.NewThrottledClient(context.Background(), a.StartupOptions.GitHubToken)
+	zht := zh.NewThrottledClient(context.Background(), a.StartupOptions.ZenHubToken)
 
 	store, err := spanner.NewStore(context.Background(), a.SpannerDatabase, creds)
 	if err != nil {
@@ -54,8 +56,8 @@ func Sync(a *config.Args, filters string) error {
 	}
 	defer store.Close()
 
-	ghs := gh.NewGitHubState(store, a.CacheTTL)
+	cache := cache.New(store, a.CacheTTL)
 
-	h := syncer.NewHandler(context.Background(), ght, ghs, zht, store, a.Orgs).(*syncer.Syncer)
+	h := syncer.NewHandler(context.Background(), ght, cache, zht, store, a.Orgs).(*syncer.Syncer)
 	return h.Sync(filters)
 }
