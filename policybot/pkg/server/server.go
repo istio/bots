@@ -27,17 +27,17 @@ import (
 	"sync"
 	"time"
 
-	"istio.io/bots/policybot/pkg/gh"
-	"istio.io/bots/policybot/pkg/zh"
-
 	"github.com/gorilla/mux"
 
 	"istio.io/bots/policybot/dashboard/templates"
+	"istio.io/bots/policybot/pkg/blobstorage/gcs"
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/fw"
+	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage/cache"
 	"istio.io/bots/policybot/pkg/storage/spanner"
 	"istio.io/bots/policybot/pkg/util"
+	"istio.io/bots/policybot/pkg/zh"
 	"istio.io/bots/policybot/plugins/handlers/github"
 	"istio.io/bots/policybot/plugins/handlers/syncer"
 	"istio.io/bots/policybot/plugins/handlers/zenhub"
@@ -107,7 +107,7 @@ func RunServer(base *config.Args) error {
 }
 
 func runWithConfig(a *config.Args) error {
-	log.Infof("Starting with:\n%s", a)
+	log.Debugf("Starting with:\n%s", a)
 
 	creds, err := base64.StdEncoding.DecodeString(a.StartupOptions.GCPCredentials)
 	if err != nil {
@@ -123,6 +123,12 @@ func runWithConfig(a *config.Args) error {
 		return fmt.Errorf("unable to create storage layer: %v", err)
 	}
 	defer store.Close()
+
+	bs, err := gcs.NewStore(context.Background(), creds)
+	if err != nil {
+		return fmt.Errorf("unable to create blob storage lsyer: %v", err)
+	}
+	defer bs.Close()
 
 	cache := cache.New(store, a.CacheTTL)
 
@@ -179,7 +185,7 @@ func runWithConfig(a *config.Args) error {
 
 	// github webhook handlers (keep refresher first in the list such that other plugins see an up-to-date view in storage)
 	webhooks := []fw.Webhook{
-		refresher.NewRefresher(context.Background(), store, cache, ght, a.Orgs),
+		refresher.NewRefresher(context.Background(), cache, ght, a.Orgs),
 		nag,
 		labeler,
 		monitor,
@@ -193,7 +199,7 @@ func runWithConfig(a *config.Args) error {
 	// event handlers
 	router.Handle("/githubwebhook", ghHandler).Methods("POST")
 	router.Handle("/zenhubwebhook", zenhub.NewHandler(store, cache)).Methods("POST")
-	router.Handle("/sync", syncer.NewHandler(context.Background(), ght, cache, zht, store, a.Orgs)).Methods("GET")
+	router.Handle("/sync", syncer.NewHandler(context.Background(), ght, cache, zht, store, bs, a.Orgs)).Methods("GET")
 	router.HandleFunc("/login", s.handleLogin)
 	router.HandleFunc("/githuboauthcallback", s.handleOAuthCallback)
 
