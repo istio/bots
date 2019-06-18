@@ -78,3 +78,31 @@ func (s *store) QueryIssuesByRepo(orgID string, repoID string, cb func(*storage.
 
 	return err
 }
+
+func (s *store) QueryTestFlakeIssues(inactiveDays, createdDays int) ([]*storage.Issue, error) {
+	sql := `SELECT * from Issues
+	WHERE TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), UpdatedAt, DAY) > @inactiveDays AND 
+				TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), CreatedAt, DAY) < @createdDays AND
+				State = 'open' AND
+				( REGEXP_CONTAINS(title, 'flak[ey]') OR 
+  				  REGEXP_CONTAINS(body, 'flake[ey]')
+				);`
+	stmt := spanner.NewStatement(sql)
+	stmt.Params["inactiveDays"] = inactiveDays
+	stmt.Params["createdDays"] = createdDays
+	scope.Infof("QueryTestFlakeIssues SQL\n%v", stmt.SQL)
+	var issues []*storage.Issue
+	getIssue := func(row *spanner.Row) error {
+		issue := storage.Issue{}
+		if err := row.ToStruct(&issue); err != nil {
+			return err
+		}
+		issues = append(issues, &issue)
+		return nil
+	}
+	iter := s.client.Single().Query(s.ctx, stmt)
+	if err := iter.Do(getIssue); err != nil {
+		return nil, fmt.Errorf("error in fetching flaky test issues, %v", err)
+	}
+	return issues, nil
+}

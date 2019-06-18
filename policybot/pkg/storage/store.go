@@ -41,7 +41,6 @@ type Store interface {
 	ReadRepoByID(orgID string, repoID string) (*Repo, error)
 	ReadRepoByName(orgID string, name string) (*Repo, error)
 	ReadIssueByID(orgID string, repoID string, issueID string) (*Issue, error)
-	ReadTestFlakyIssues(inactiveDays, createdDays int) ([]*Issue, error)
 	ReadIssueByNumber(orgID string, repoID string, number int) (*Issue, error)
 	ReadIssueCommentByID(orgID string, repoID string, issueID string, issueCommentID string) (*IssueComment, error)
 	ReadIssuePipelineByNumber(orgID string, repoID string, number int) (*IssuePipeline, error)
@@ -56,6 +55,7 @@ type Store interface {
 	QueryMembersByOrg(orgID string, cb func(*Member) error) error
 	QueryMaintainersByOrg(orgID string, cb func(*Maintainer) error) error
 	QueryIssuesByRepo(orgID string, repoID string, cb func(*Issue) error) error
+	QueryTestFlakeIssues(inactiveDays, createdDays int) ([]*Issue, error)
 
 	EnumUsers(cb func(*User) bool) error
 }
