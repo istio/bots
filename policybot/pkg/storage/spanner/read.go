@@ -15,7 +15,8 @@
 package spanner
 
 import (
-	"google.golang.org/api/iterator"
+	"fmt"
+
 	"google.golang.org/grpc/codes"
 
 	"cloud.google.com/go/spanner"
@@ -294,20 +295,8 @@ func (s *store) ReadTestFlakyIssues(inactiveDays, createdDays int) ([]*storage.I
 		return nil
 	}
 	iter := s.client.Single().Query(s.ctx, stmt)
-	defer iter.Stop()
-	for {
-		row, err := iter.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			scope.Errorf("Encountered a Spanner read error: %v", err)
-			continue
-		}
-		if err := getIssue(row); err != nil {
-			scope.Errorf("stop reading rows %v\n", err)
-			return nil, err
-		}
+	if err := iter.Do(getIssue); err != nil {
+		return nil, fmt.Errorf("error in fetching flaky test issues, %v", err)
 	}
 	return issues, nil
 }

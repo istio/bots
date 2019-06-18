@@ -22,6 +22,7 @@ import (
 	"github.com/google/go-github/v25/github"
 
 	"istio.io/bots/policybot/pkg/config"
+	"istio.io/bots/policybot/pkg/storage/cache"
 
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/pkg/log"
@@ -31,9 +32,9 @@ var scope = log.RegisterScope("flakechaser", "The GitHub flaky test chaser.", 0)
 
 // Chaser scans the test flakiness issues and neg issuer assignee when no updates occur for a while.
 type Chaser struct {
-	ght  *gh.ThrottledClient
-	ghs  *gh.GitHubState
-	repo string
+	ght   *gh.ThrottledClient
+	cache *cache.Cache
+	repo  string
 	// we select issues hasn't bee updated for last `inactiveDays`
 	inactiveDays int
 	// we only consider issues that are created within last `createdDays`.
@@ -43,16 +44,15 @@ type Chaser struct {
 }
 
 // New creates a flake chaser.
-func New(ght *gh.ThrottledClient, ghs *gh.GitHubState, config config.FlakeChaser) *Chaser {
+func New(ght *gh.ThrottledClient, cache *cache.Cache, config config.FlakeChaser) *Chaser {
 	c := &Chaser{
 		ght:          ght,
-		ghs:          ghs,
+		cache:        cache,
 		repo:         "istio",
 		inactiveDays: config.InactiveDays,
 		createdDays:  config.CreatedDays,
 		dryRun:       config.DryRun,
 	}
-	scope.Infof("Flake chaser configuration %+v, config %+v", c, config)
 	return c
 }
 
@@ -60,7 +60,7 @@ func New(ght *gh.ThrottledClient, ghs *gh.GitHubState, config config.FlakeChaser
 func (c *Chaser) ServeHTTP(_ http.ResponseWriter, _ *http.Request) {
 	flakeComments := `Hey, there's no updates for this test flakes for 3 days.`
 	scope.Infof("Handle request for flake chaser")
-	issues, err := c.ghs.ReadTestFlakyIssues(c.inactiveDays, c.createdDays)
+	issues, err := c.cache.ReadTestFlakyIssues(c.inactiveDays, c.createdDays)
 	if err != nil {
 		scope.Errorf("Failed to read issue from storage: %v", err)
 		return
@@ -69,12 +69,12 @@ func (c *Chaser) ServeHTTP(_ http.ResponseWriter, _ *http.Request) {
 		comment := &github.IssueComment{
 			Body: &flakeComments,
 		}
-		repo, err := c.ghs.ReadRepo(issue.OrgID, issue.RepoID)
+		repo, err := c.cache.ReadRepo(issue.OrgID, issue.RepoID)
 		if err != nil {
 			scope.Errorf("Failed to look up the repo: %v", err)
 			continue
 		}
-		org, err := c.ghs.ReadRepo(issue.OrgID, issue.RepoID)
+		org, err := c.cache.ReadRepo(issue.OrgID, issue.RepoID)
 		if err != nil {
 			scope.Errorf("Failed to read the repo: %v", err)
 			continue

@@ -271,3 +271,8 @@ func (c *Cache) ReadIssuePipeline(orgID string, repoID string, issueNumber int) 
 
 	return result, err
 }
+
+// ReadTestFlakyIssues returns issue based on the SQL query.
+func (c *Cache) ReadTestFlakyIssues(inactiveDays, createdDays int) ([]*storage.Issue, error) {
+	return c.store.ReadTestFlakyIssues(inactiveDays, createdDays)
+}

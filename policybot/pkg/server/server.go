@@ -192,7 +192,7 @@ func runWithConfig(a *config.Args) error {
 	}
 	// event handlers
 	router.Handle("/githubwebhook", ghHandler).Methods("POST")
-	router.Handle("/flakechaser", flakechaser.New(ght, ght, a.FlakeChaser)).Methods("GET")
+	router.Handle("/flakechaser", flakechaser.New(ght, cache, a.FlakeChaser)).Methods("GET")
 	router.Handle("/zenhubwebhook", zenhub.NewHandler(store, cache)).Methods("POST")
 	router.Handle("/sync", syncer.NewHandler(context.Background(), ght, cache, zht, store, a.Orgs)).Methods("GET")
 	router.HandleFunc("/login", s.handleLogin)
