@@ -280,11 +280,13 @@ func (s *store) ReadTestFlakyIssues(inactiveDays, createdDays int) ([]*storage.I
 	WHERE TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), UpdatedAt, DAY) > @inactiveDays AND 
 				TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), CreatedAt, DAY) < @createdDays AND
 				State = 'open' AND
-				( REGEXP_CONTAINS(title, 'flake') OR 
-					REGEXP_CONTAINS(body, 'flake') );`
+				( REGEXP_CONTAINS(title, 'flak[ey]') OR 
+  				  REGEXP_CONTAINS(body, 'flake[ey]')
+				);`
 	stmt := spanner.NewStatement(sql)
 	stmt.Params["inactiveDays"] = inactiveDays
 	stmt.Params["createdDays"] = createdDays
+	scope.Infof("ReadTestFlakyIssues SQL\n%v", stmt.SQL)
 	var issues []*storage.Issue
 	getIssue := func(row *spanner.Row) error {
 		issue := storage.Issue{}

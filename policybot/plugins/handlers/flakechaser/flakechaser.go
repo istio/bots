@@ -65,6 +65,7 @@ func (c *Chaser) ServeHTTP(_ http.ResponseWriter, _ *http.Request) {
 		scope.Errorf("Failed to read issue from storage: %v", err)
 		return
 	}
+	scope.Infof("Found %v potential issues %v", len(issues))
 	for _, issue := range issues {
 		comment := &github.IssueComment{
 			Body: &flakeComments,
@@ -80,6 +81,7 @@ func (c *Chaser) ServeHTTP(_ http.ResponseWriter, _ *http.Request) {
 			continue
 		}
 		if repo.Name != c.repo {
+			scope.Infof("Unmatched repo, skip, configured %v, issue %v", c.repo, repo.Name)
 			continue
 		}
 		url := fmt.Sprintf("https://github.com/%v/%v/issues/%v", org.Name, repo.Name, issue.Number)
