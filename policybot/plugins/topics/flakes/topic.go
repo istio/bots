@@ -19,19 +19,19 @@ import (
 	"net/http"
 
 	"istio.io/bots/policybot/pkg/fw"
-	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage"
+	"istio.io/bots/policybot/pkg/storage/cache"
 )
 
 type Topic struct {
 	store storage.Store
-	ghs   *gh.GitHubState
+	cache *cache.Cache
 }
 
-func NewTopic(store storage.Store, ghs *gh.GitHubState) fw.Topic {
+func NewTopic(store storage.Store, cache *cache.Cache) fw.Topic {
 	return &Topic{
 		store: store,
-		ghs:   ghs,
+		cache: cache,
 	}
 }
 

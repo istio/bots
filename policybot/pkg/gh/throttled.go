@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package util
+package gh
 
 import (
 	"context"
@@ -29,20 +29,20 @@ const (
 	maxGitHubBurst             = 10  // max burst size, to stay under abuse detection limit
 )
 
-// GitHubThrottle is used to throttle our use of the GitHub API in order to
+// ThrottledClient is used to throttle our use of the GitHub API in order to
 // prevent hitting rate limits or abuse limits.
-type GitHubThrottle struct {
+type ThrottledClient struct {
 	ctx     context.Context
 	client  *github.Client
 	limiter *rate.Limiter
 }
 
-func NewGitHubThrottle(ctx context.Context, githubToken string) *GitHubThrottle {
+func NewThrottledClient(ctx context.Context, githubToken string) *ThrottledClient {
 	src := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: githubToken},
 	)
 
-	return &GitHubThrottle{
+	return &ThrottledClient{
 		ctx:     ctx,
 		client:  github.NewClient(oauth2.NewClient(ctx, src)),
 		limiter: rate.NewLimiter(maxGitHubRequestsPerSecond, maxGitHubBurst),
@@ -51,7 +51,7 @@ func NewGitHubThrottle(ctx context.Context, githubToken string) *GitHubThrottle 
 
 // Get the GitHub client in a throttled fashion, so we don't exceed GitHub's usage limits. This will block
 // until it is safe to make the call to GitHub.
-func (ght *GitHubThrottle) Get() *github.Client {
+func (ght *ThrottledClient) Get() *github.Client {
 	_ = ght.limiter.Wait(ght.ctx)
 	return ght.client
 }
