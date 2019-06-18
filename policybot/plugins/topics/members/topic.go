@@ -20,13 +20,13 @@ import (
 	"net/http"
 
 	"istio.io/bots/policybot/pkg/fw"
-	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage"
+	"istio.io/bots/policybot/pkg/storage/cache"
 )
 
 type Topic struct {
 	store storage.Store
-	ghs   *gh.GitHubState
+	cache *cache.Cache
 }
 
 type Member struct {
@@ -36,10 +36,10 @@ type Member struct {
 	AvatarURL string `json:"avatar_url"`
 }
 
-func NewTopic(store storage.Store, ghs *gh.GitHubState) fw.Topic {
+func NewTopic(store storage.Store, cache *cache.Cache) fw.Topic {
 	return &Topic{
 		store: store,
-		ghs:   ghs,
+		cache: cache,
 	}
 }
 
@@ -77,7 +77,7 @@ func (t *Topic) getMembers(w http.ResponseWriter, r *http.Request) ([]Member, er
 		o = "istio"
 	}
 
-	org, err := t.ghs.ReadOrgByLogin(o)
+	org, err := t.cache.ReadOrgByLogin(o)
 	if err != nil {
 		err = fmt.Errorf("no information available on organization %s: %v", o, err)
 		fw.RenderError(w, http.StatusNotFound, err)
@@ -90,7 +90,7 @@ func (t *Topic) getMembers(w http.ResponseWriter, r *http.Request) ([]Member, er
 
 	var members []Member
 	if err = t.store.QueryMembersByOrg(org.OrgID, func(m *storage.Member) error {
-		u, err := t.ghs.ReadUser(m.UserID)
+		u, err := t.cache.ReadUser(m.UserID)
 		if err != nil {
 			return err
 		}

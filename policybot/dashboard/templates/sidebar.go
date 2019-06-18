@@ -27,7 +27,7 @@ var SidebarTemplate = `
 				<ul role="tree" aria-expanded="true">
 					{{ range getTopics }}
 						<li role="none">
-							<a role="treeitem" title="{{ template "description" . }}" href="{{.URL}}">{{.Name}}</a>
+							<a role="treeitem" title="{{.Description}}" href="{{.URL}}">{{.Name}}</a>
 						</li>
 					{{ end }}
 				</ul>

@@ -21,24 +21,22 @@ import (
 	"regexp"
 	"strings"
 
-	"istio.io/bots/policybot/pkg/fw"
-
-	"istio.io/pkg/log"
-
 	webhook "github.com/go-playground/webhooks/github"
 	"github.com/google/go-github/v25/github"
 
 	"istio.io/bots/policybot/pkg/config"
+	"istio.io/bots/policybot/pkg/fw"
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage"
-	"istio.io/bots/policybot/pkg/util"
+	"istio.io/bots/policybot/pkg/storage/cache"
+	"istio.io/pkg/log"
 )
 
 // Generates nagging messages in PRs based on regex matches on the title, body, and affected files
 type Nagger struct {
 	ctx               context.Context
-	ghs               *gh.GitHubState
-	ght               *util.GitHubThrottle
+	cache             *cache.Cache
+	ght               *gh.ThrottledClient
 	orgs              []config.Org
 	nags              []config.Nag
 	multiLineRegexes  map[string]*regexp.Regexp
@@ -50,10 +48,10 @@ const nagSignature = "\n\n_Courtesy of your friendly test nag_."
 
 var scope = log.RegisterScope("nagger", "The GitHub test nagger", 0)
 
-func NewNagger(ctx context.Context, ght *util.GitHubThrottle, ghs *gh.GitHubState, orgs []config.Org, nags []config.Nag) (fw.Webhook, error) {
+func NewNagger(ctx context.Context, ght *gh.ThrottledClient, cache *cache.Cache, orgs []config.Org, nags []config.Nag) (fw.Webhook, error) {
 	n := &Nagger{
 		ctx:               ctx,
-		ghs:               ghs,
+		cache:             cache,
 		ght:               ght,
 		orgs:              orgs,
 		nags:              nags,
@@ -143,7 +141,7 @@ func (n *Nagger) Handle(_ http.ResponseWriter, githubObject interface{}) {
 		return
 	}
 
-	pr := gh.PullRequestFromHook(&prp)
+	pr, _ := gh.PullRequestFromHook(&prp)
 
 	scope.Infof("Processing PR %d from repo %s", prp.Number, prp.Repository.FullName)
 

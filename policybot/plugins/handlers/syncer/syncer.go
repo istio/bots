@@ -28,15 +28,17 @@ import (
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage"
-	"istio.io/bots/policybot/pkg/util"
+	"istio.io/bots/policybot/pkg/storage/cache"
+	"istio.io/bots/policybot/pkg/zh"
 	"istio.io/pkg/log"
 )
 
 // Syncer is responsible for synchronizing issues and pull request from GitHub to our local store
 type Syncer struct {
 	ctx   context.Context
-	ghs   *gh.GitHubState
-	ght   *util.GitHubThrottle
+	cache *cache.Cache
+	ght   *gh.ThrottledClient
+	zht   *zh.ThrottledClient
 	store storage.Store
 	orgs  []config.Org
 }
@@ -63,11 +65,13 @@ type syncState struct {
 
 var scope = log.RegisterScope("syncer", "The GitHub data syncer", 0)
 
-func NewHandler(ctx context.Context, ght *util.GitHubThrottle, ghs *gh.GitHubState, store storage.Store, orgs []config.Org) http.Handler {
+func NewHandler(ctx context.Context, ght *gh.ThrottledClient, cache *cache.Cache,
+	zht *zh.ThrottledClient, store storage.Store, orgs []config.Org) http.Handler {
 	return &Syncer{
 		ctx:   ctx,
 		ght:   ght,
-		ghs:   ghs,
+		cache: cache,
+		zht:   zht,
 		store: store,
 		orgs:  orgs,
 	}
@@ -142,7 +146,7 @@ func (s *Syncer) Sync(filter string) error {
 		return err
 	}
 
-	if flags&(members|labels|issues|prs) != 0 {
+	if flags&(members|labels|issues|prs|zenhub) != 0 {
 		for _, org := range orgs {
 			var orgRepos []*storage.Repo
 			for _, repo := range repos {
@@ -245,6 +249,12 @@ func (ss *syncState) handleRepo(org *storage.Org, repo *storage.Repo) error {
 		}
 	}
 
+	if ss.flags&zenhub != 0 {
+		if err := ss.handleZenHub(org, repo); err != nil {
+			return err
+		}
+	}
+
 	if ss.flags&prs != 0 {
 		if err := ss.handlePullRequests(org, repo); err != nil {
 			return err
@@ -294,7 +304,7 @@ func (ss *syncState) handleIssues(org *storage.Org, repo *storage.Repo, startTim
 
 		for _, issue := range issues {
 			// if this issue is already known to us and is up to date, skip further processing
-			if existing, _ := ss.syncer.ghs.ReadIssue(org.OrgID, repo.RepoID, issue.GetNodeID()); existing != nil {
+			if existing, _ := ss.syncer.cache.ReadIssue(org.OrgID, repo.RepoID, issue.GetNodeID()); existing != nil {
 				if existing.UpdatedAt == issue.GetUpdatedAt() {
 					continue
 				}
@@ -328,19 +338,74 @@ func (ss *syncState) handleIssues(org *storage.Org, repo *storage.Repo, startTim
 	})
 }
 
+func (ss *syncState) handleZenHub(org *storage.Org, repo *storage.Repo) error {
+	scope.Debugf("Getting ZenHub issue data for repo %s/%s", org.Login, repo.Name)
+
+	// get all the issues
+	var issues []*storage.Issue
+	if err := ss.syncer.store.QueryIssuesByRepo(org.OrgID, repo.RepoID, func(issue *storage.Issue) error {
+		issues = append(issues, issue)
+		return nil
+	}); err != nil {
+		return fmt.Errorf("unable to read issues from repo %s/%s: %v", org.Login, repo.Name, err)
+	}
+
+	// now get the ZenHub data for all issues
+	var pipelines []*storage.IssuePipeline
+	for _, issue := range issues {
+		pipeline, err := ss.syncer.zht.Get().GetIssueData(int(repo.RepoNumber), int(issue.Number))
+		if err != nil {
+			if err == zh.ErrNotFound {
+				// not found, so nothing to do...
+				return nil
+			}
+
+			return fmt.Errorf("unable to get issue data from zenhub for issue %d in repo %s/%s: %v", issue.Number, org.Login, repo.Name, err)
+		}
+
+		pipelines = append(pipelines, &storage.IssuePipeline{
+			OrgID:       org.OrgID,
+			RepoID:      repo.RepoID,
+			IssueNumber: issue.Number,
+			Pipeline:    pipeline.Pipeline.Name,
+		})
+
+		if len(pipelines)%100 == 0 {
+			if err = ss.syncer.store.WriteIssuePipelines(pipelines); err != nil {
+				return err
+			}
+			pipelines = pipelines[:0]
+		}
+	}
+
+	return ss.syncer.store.WriteIssuePipelines(pipelines)
+}
+
 func (ss *syncState) handlePullRequests(org *storage.Org, repo *storage.Repo) error {
 	scope.Debugf("Getting pull requests from repo %s/%s", org.Login, repo.Name)
 
 	return ss.syncer.fetchPullRequests(org, repo, func(prs []*github.PullRequest) error {
 		var storagePRs []*storage.PullRequest
 		var storagePRReviews []*storage.PullRequestReview
+		var storagePRComments []*storage.PullRequestComment
 
 		for _, pr := range prs {
 			// if this pr is already known to us and is up to date, skip further processing
-			if existing, _ := ss.syncer.ghs.ReadPullRequest(org.OrgID, repo.RepoID, pr.GetNodeID()); existing != nil {
+			if existing, _ := ss.syncer.cache.ReadPullRequest(org.OrgID, repo.RepoID, pr.GetNodeID()); existing != nil {
 				if existing.UpdatedAt == pr.GetUpdatedAt() {
 					continue
 				}
+			}
+
+			if err := ss.syncer.fetchComments(org, repo, pr.GetNumber(), time.Time{}, func(comments []*github.IssueComment) error {
+				for _, comment := range comments {
+					ss.addUser(comment.User)
+					storagePRComments = append(storagePRComments, gh.PullRequestCommentFromAPI(org.OrgID, repo.RepoID, pr.GetNodeID(), comment))
+				}
+
+				return nil
+			}); err != nil {
+				return err
 			}
 
 			if err := ss.syncer.fetchReviews(org, repo, pr.GetNumber(), func(reviews []*github.PullRequestReview) error {
@@ -375,6 +440,9 @@ func (ss *syncState) handlePullRequests(org *storage.Org, repo *storage.Repo) er
 		err := ss.syncer.store.WritePullRequests(storagePRs)
 		if err == nil {
 			err = ss.syncer.store.WritePullRequestReviews(storagePRReviews)
+			if err == nil {
+				err = ss.syncer.store.WritePullRequestComments(storagePRComments)
+			}
 		}
 
 		return err
@@ -536,7 +604,7 @@ func (ss *syncState) getMaintainer(org *storage.Org, maintainers map[string]*sto
 	user, ok := ss.users[login]
 	if !ok {
 		var err error
-		user, err = ss.syncer.ghs.ReadUserByLogin(login)
+		user, err = ss.syncer.cache.ReadUserByLogin(login)
 		if err != nil {
 			return nil, fmt.Errorf("unable to read information from storage for user %s: %v", login, err)
 		}

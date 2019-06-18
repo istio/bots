@@ -103,9 +103,9 @@ autolabels:
 orgs:
   - name: istio
     repos:
+      - name: istio
       - name: bottestrepo
       - name: api
-      - name: istio
       - name: istio.io
       - name: cni
       - name: operator

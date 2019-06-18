@@ -74,6 +74,7 @@ type Repo struct {
 	RepoID      string
 	Name        string
 	Description string
+	RepoNumber  int64
 }
 
 type PullRequest struct {
@@ -93,6 +94,17 @@ type PullRequest struct {
 	AuthorID             string
 	State                string
 	Number               int64
+}
+
+type PullRequestComment struct {
+	OrgID                string
+	RepoID               string
+	PullRequestID        string
+	PullRequestCommentID string
+	AuthorID             string
+	Body                 string
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
 }
 
 type PullRequestReview struct {
@@ -122,4 +134,23 @@ type Maintainer struct {
 	UserID   string
 	Paths    []string
 	Emeritus bool
+}
+
+type IssuePipeline struct {
+	OrgID       string
+	RepoID      string
+	IssueNumber int64
+	Pipeline    string
+}
+
+type TestFlake struct {
+	OrgID       string
+	TestName    string
+	IssueNumber int64
+}
+
+type FlakeOccurrence struct {
+	OrgID      string
+	TestName   string
+	OccurredAt time.Time
 }

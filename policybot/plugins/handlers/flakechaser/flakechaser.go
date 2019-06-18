@@ -24,7 +24,6 @@ import (
 	"istio.io/bots/policybot/pkg/config"
 
 	"istio.io/bots/policybot/pkg/gh"
-	"istio.io/bots/policybot/pkg/util"
 	"istio.io/pkg/log"
 )
 
@@ -32,7 +31,7 @@ var scope = log.RegisterScope("flakechaser", "The GitHub flaky test chaser.", 0)
 
 // Chaser scans the test flakiness issues and neg issuer assignee when no updates occur for a while.
 type Chaser struct {
-	ght  *util.GitHubThrottle
+	ght  *gh.ThrottledClient
 	ghs  *gh.GitHubState
 	repo string
 	// we select issues hasn't bee updated for last `inactiveDays`
@@ -44,7 +43,7 @@ type Chaser struct {
 }
 
 // New creates a flake chaser.
-func New(ght *util.GitHubThrottle, ghs *gh.GitHubState, config config.FlakeChaser) *Chaser {
+func New(ght *gh.ThrottledClient, ghs *gh.GitHubState, config config.FlakeChaser) *Chaser {
 	c := &Chaser{
 		ght:          ght,
 		ghs:          ghs,

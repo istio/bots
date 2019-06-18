@@ -20,18 +20,19 @@ import (
 	"net/http"
 	"strings"
 
+	"istio.io/bots/policybot/pkg/gh"
+
 	"istio.io/bots/policybot/pkg/fw"
 
 	webhook "github.com/go-playground/webhooks/github"
 
-	"istio.io/bots/policybot/pkg/util"
 	"istio.io/pkg/log"
 )
 
 // Monitors for changes in the bot's config file.
 type Monitor struct {
 	ctx    context.Context
-	ght    *util.GitHubThrottle
+	ght    *gh.ThrottledClient
 	org    string
 	repo   string
 	branch string
@@ -41,7 +42,7 @@ type Monitor struct {
 
 var scope = log.RegisterScope("monitor", "Listens for changes in policybot config", 0)
 
-func NewMonitor(ctx context.Context, ght *util.GitHubThrottle, repo string, file string, notify func()) (fw.Webhook, error) {
+func NewMonitor(ctx context.Context, ght *gh.ThrottledClient, repo string, file string, notify func()) (fw.Webhook, error) {
 	if repo == "" {
 		// disable everything if we don't have a repo
 		return &Monitor{}, nil

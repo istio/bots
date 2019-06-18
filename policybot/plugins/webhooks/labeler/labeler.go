@@ -21,23 +21,21 @@ import (
 	"regexp"
 	"strings"
 
-	"istio.io/bots/policybot/pkg/fw"
-
-	"istio.io/pkg/log"
-
 	webhook "github.com/go-playground/webhooks/github"
 
 	"istio.io/bots/policybot/pkg/config"
+	"istio.io/bots/policybot/pkg/fw"
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage"
-	"istio.io/bots/policybot/pkg/util"
+	"istio.io/bots/policybot/pkg/storage/cache"
+	"istio.io/pkg/log"
 )
 
 // Generates nagging messages in PRs based on regex matches on the title, body, and affected files
 type Labeler struct {
 	ctx               context.Context
-	ghs               *gh.GitHubState
-	ght               *util.GitHubThrottle
+	cache             *cache.Cache
+	ght               *gh.ThrottledClient
 	orgs              []config.Org
 	autoLabels        []config.AutoLabel
 	singleLineRegexes map[string]*regexp.Regexp
@@ -47,10 +45,10 @@ type Labeler struct {
 
 var scope = log.RegisterScope("labeler", "Issue and PR auto-labeler", 0)
 
-func NewLabeler(ctx context.Context, ght *util.GitHubThrottle, ghs *gh.GitHubState, orgs []config.Org, autoLabels []config.AutoLabel) (fw.Webhook, error) {
+func NewLabeler(ctx context.Context, ght *gh.ThrottledClient, cache *cache.Cache, orgs []config.Org, autoLabels []config.AutoLabel) (fw.Webhook, error) {
 	l := &Labeler{
 		ctx:               ctx,
-		ghs:               ghs,
+		cache:             cache,
 		ght:               ght,
 		orgs:              orgs,
 		autoLabels:        autoLabels,
@@ -131,7 +129,7 @@ func (l *Labeler) Handle(_ http.ResponseWriter, githubObject interface{}) {
 		action = ip.Action
 		repo = ip.Repository.FullName
 		number = int(ip.Issue.Number)
-		issue = gh.IssueFromHook(&ip)
+		issue, _ = gh.IssueFromHook(&ip)
 	}
 
 	prp, ok := githubObject.(webhook.PullRequestPayload)
@@ -139,7 +137,7 @@ func (l *Labeler) Handle(_ http.ResponseWriter, githubObject interface{}) {
 		action = prp.Action
 		repo = prp.Repository.FullName
 		number = int(prp.PullRequest.Number)
-		pr = gh.PullRequestFromHook(&prp)
+		pr, _ = gh.PullRequestFromHook(&prp)
 	}
 
 	if action != "opened" && action != "review_requested" {
@@ -169,7 +167,7 @@ func (l *Labeler) processIssue(issue *storage.Issue, fullRepoName, orgName, repo
 	// get all the issue's labels
 	var labels []*storage.Label
 	for _, labelID := range issue.LabelIDs {
-		label, err := l.ghs.ReadLabel(issue.OrgID, issue.RepoID, labelID)
+		label, err := l.cache.ReadLabel(issue.OrgID, issue.RepoID, labelID)
 		if err != nil {
 			scope.Errorf("Unable to get labels for issue %d in repo %s: %v", issue.Number, fullRepoName, err)
 			return
@@ -206,7 +204,7 @@ func (l *Labeler) processPullRequest(pr *storage.PullRequest, fullRepoName, orgN
 	// get all the pr's labels
 	var labels []*storage.Label
 	for _, labelID := range pr.LabelIDs {
-		label, err := l.ghs.ReadLabel(pr.OrgID, pr.RepoID, labelID)
+		label, err := l.cache.ReadLabel(pr.OrgID, pr.RepoID, labelID)
 		if err != nil {
 			scope.Errorf("Unable to get labels for pr %d in repo %s: %v", pr.Number, fullRepoName, err)
 			return

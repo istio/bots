@@ -82,6 +82,21 @@ func (s *store) WriteIssueComments(issueComments []*storage.IssueComment) error 
 	return err
 }
 
+func (s *store) WriteIssuePipelines(issuePipelines []*storage.IssuePipeline) error {
+	scope.Debugf("Writing %d issue pipelines", len(issuePipelines))
+
+	mutations := make([]*spanner.Mutation, len(issuePipelines))
+	for i := 0; i < len(issuePipelines); i++ {
+		var err error
+		if mutations[i], err = spanner.InsertOrUpdateStruct(issuePipelineTable, issuePipelines[i]); err != nil {
+			return err
+		}
+	}
+
+	_, err := s.client.Apply(s.ctx, mutations)
+	return err
+}
+
 func (s *store) WritePullRequests(prs []*storage.PullRequest) error {
 	scope.Debugf("Writing %d pull requests", len(prs))
 
@@ -89,6 +104,21 @@ func (s *store) WritePullRequests(prs []*storage.PullRequest) error {
 	for i := 0; i < len(prs); i++ {
 		var err error
 		if mutations[i], err = spanner.InsertOrUpdateStruct(pullRequestTable, prs[i]); err != nil {
+			return err
+		}
+	}
+
+	_, err := s.client.Apply(s.ctx, mutations)
+	return err
+}
+
+func (s *store) WritePullRequestComments(prComments []*storage.PullRequestComment) error {
+	scope.Debugf("Writing %d pr comments", len(prComments))
+
+	mutations := make([]*spanner.Mutation, len(prComments))
+	for i := 0; i < len(prComments); i++ {
+		var err error
+		if mutations[i], err = spanner.InsertOrUpdateStruct(pullRequestCommentTable, prComments[i]); err != nil {
 			return err
 		}
 	}
