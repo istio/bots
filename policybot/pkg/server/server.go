@@ -203,6 +203,7 @@ func runWithConfig(a *config.Args) error {
 	registerStaticDir(router, "dashboard/generated/js", "/js/")
 	registerStaticDir(router, "dashboard/static/img", "/img/")
 	registerStaticDir(router, "dashboard/static/favicons", "/favicons/")
+	registerStaticDir(router, "dashboard/libraries", "/libraries/")
 
 	// statically served files
 	registerStaticFile(router, "dashboard/static/favicon.ico", "/favicon.ico")
