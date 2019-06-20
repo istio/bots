@@ -1,0 +1,11 @@
+#image: gcr.io/istio-testing/policybot:20190617055749
+image: gcr.io/mixologist-142215/policybot:20190619150613
+imagePullPolicy: Always
+istio: true
+
+# pass the following args to helm template on the command line
+GITHUB_WEBHOOK_SECRET: gh
+GITHUB_TOKEN: gt
+ZENHUB_TOKEN: zt
+GCP_CREDS: gc
+SENDGRID_APIKEY: sa

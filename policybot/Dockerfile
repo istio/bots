@@ -10,5 +10,6 @@ COPY policybot /policybot
 COPY policybot.yaml /policybot.yaml
 COPY dashboard/generated /dashboard/generated
 COPY dashboard/static /dashboard/static
+COPY run.sh /run.sh
 
-CMD ["/policybot", "server", "--configFile", "./policybot.yaml"]
+CMD ["/run.sh"]
