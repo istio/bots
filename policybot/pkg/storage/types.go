@@ -143,12 +143,6 @@ type IssuePipeline struct {
 	Pipeline    string
 }
 
-type TestFlake struct {
-	OrgID       string
-	TestName    string
-	IssueNumber int64
-}
-
 type FlakeOccurrence struct {
 	OrgID      string
 	TestName   string
