@@ -273,7 +273,7 @@ func (s *store) ReadBotActivityByID(orgID string, repoID string) (*storage.BotAc
 }
 
 func (s *store) ReadTestFlakeByID(testName string, prNum string, runNum string) (*storage.TestFlake, error) {
-	row, err := s.client.Single().ReadRow(s.ctx, testFlakeTable, testFlakeKey(testName, prNum, runNum), botActivityColumns)
+	row, err := s.client.Single().ReadRow(s.ctx, testFlakeTable, testFlakeKey(testName, prNum, runNum), TestFlakeColumns)
 	if spanner.ErrCode(err) == codes.NotFound {
 		return nil, nil
 	} else if err != nil {
