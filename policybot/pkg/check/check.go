@@ -46,14 +46,14 @@ type Finished struct {
 /*
  * Clone_Record struct to store values for all fields in clone-records.json
  */
-type Clone_Record struct {
+type CloneRecord struct {
 	Refs struct {
 		Org string
 		Repo string
-		Base_ref string
-		Base_sha string
+		BaseRef string
+		BaseSha string
 		Pulls []Pull
-		Path_alias string
+		PathAlias string
 	}
 	Commands []Cmnd
 	Failed bool
@@ -130,9 +130,9 @@ func getTests(client *storage.Client, prNum string) []Tests {
 		pullNum := nameSlice[5]
 		testName := nameSlice[len(nameSlice) - 3]
 		fileName := nameSlice[len(nameSlice)-1] // C
-		var newString string = "pr-logs/pull/istio_istio/" + prNum + "/" + testName + "/" + pullNum
+		var newString = "pr-logs/pull/istio_istio/" + prNum + "/" + testName + "/" + pullNum
 		if strings.Compare(fileName, "started.json") == 0 || strings.Compare(fileName, "clone-records.json") == 0 || strings.Compare(fileName, "finished.json") == 0 {
-			var contain bool = false
+			var contain = false
 			for ind, ele := range(testSlice) {
 				if strings.Compare(ele.Name, testName) == 0 {
 					prs := ele.Prs
@@ -206,7 +206,7 @@ func getShaAndPassStatus(client *storage.Client, testSlice []Tests) []TestFlake 
 			fmt.Printf("%T: %v\n", t, t)
 
 			for dec.More() {
-				var record Clone_Record
+				var record CloneRecord
 				err := dec.Decode(&record)
 				if err != nil {
 					log.Fatal(err)
@@ -216,7 +216,7 @@ func getShaAndPassStatus(client *storage.Client, testSlice []Tests) []TestFlake 
 				pulls := refs.Pulls
 				pull := pulls[0]
 				sha := pull.Sha
-				baseSha := refs.Base_sha
+				baseSha := refs.BaseSha
 
 				failed := record.Failed
 				failedToString := strconv.FormatBool(failed)
@@ -306,7 +306,7 @@ func getShaAndPassStatus(client *storage.Client, testSlice []Tests) []TestFlake 
 /* 
  * Read in gcs the folder of the given pr number and write the result of each test runs into a slice of TestFlake struct.
  */
-func checkTestFlakesForPr(prNum string) {
+func checkTestFlakesForPr(prNum string) []fullResult {
 	ctx := context.Background()
 
 	client, err := storage.NewClient(ctx)
@@ -315,10 +315,9 @@ func checkTestFlakesForPr(prNum string) {
 	}
 	defer client.Close()
 
-	var testSlice []Tests = getTests(client, prNum)
-	var fullResult []TestFlake = getShaAndPassStatus(client, testSlice)
+	var testSlice = getTests(client, prNum)
+	var fullResult = getShaAndPassStatus(client, testSlice)
 
-
-	//j, err := json.Marshal(fullResult)
 	log.Println(fullResult)
+	return fullResult
 }
