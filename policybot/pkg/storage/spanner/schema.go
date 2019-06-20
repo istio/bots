@@ -39,7 +39,7 @@ const (
 	memberTable             = "Members"
 	botActivityTable        = "BotActivity"
 	maintainerTable         = "Maintainers"
-	testFlakeTable			= "TestFlakes"
+	testFlakeTable		= "TestFlakes"
 )
 
 // All the DB indices we use
