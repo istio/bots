@@ -78,3 +78,41 @@ func (s *store) QueryIssuesByRepo(orgID string, repoID string, cb func(*storage.
 
 	return err
 }
+
+func (s *store) QueryTestFlakeByTestName(testName string, cb func(*storage.TestFlake) error) error {
+	iter := s.client.Single().Query(s.ctx, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM TestFlakes WHERE TestName = '%s'", testName)})
+	err := iter.Do(func(row *spanner.Row) error {
+		issue := &storage.Issue{}
+		if err := row.ToStruct(issue); err != nil {
+			return err
+		}
+
+		if err := cb(issue); err != nil {
+			iter.Stop()
+			return err
+		}
+
+		return nil
+	})
+
+	return err
+}
+
+func (s *store) QueryTestFlakeByPrNumber(prNum string, cb func(*storage.TestFlake) error) error {
+	iter := s.client.Single().Query(s.ctx, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM TestFlakes WHERE PrNum = '%s'", prNum)})
+	err := iter.Do(func(row *spanner.Row) error {
+		issue := &storage.Issue{}
+		if err := row.ToStruct(issue); err != nil {
+			return err
+		}
+
+		if err := cb(issue); err != nil {
+			iter.Stop()
+			return err
+		}
+
+		return nil
+	})
+
+	return err
+}

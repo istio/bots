@@ -154,3 +154,17 @@ type FlakeOccurrence struct {
 	TestName   string
 	OccurredAt time.Time
 }
+
+type TestFlake struct {
+	TestName string
+	PrNum string
+	RunNum string
+	StartTime time.Time 
+	FinishTime time.Time
+	Passed string
+	CloneFailed string
+	Sha string
+	Result string
+	BaseSha string
+	RunPath string
+}
