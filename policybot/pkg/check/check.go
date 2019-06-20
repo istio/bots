@@ -306,7 +306,7 @@ func getShaAndPassStatus(client *storage.Client, testSlice []Tests) []TestFlake 
 /* 
  * Read in gcs the folder of the given pr number and write the result of each test runs into a slice of TestFlake struct.
  */
-func checkTestFlakesForPr(prNum string) []fullResult {
+func checkTestFlakesForPr(prNum string) []TestFlake {
 	ctx := context.Background()
 
 	client, err := storage.NewClient(ctx)
