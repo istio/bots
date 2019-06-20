@@ -35,6 +35,8 @@ type Store interface {
 	WriteAllMembers(members []*Member) error
 	WriteAllMaintainers(maintainers []*Maintainer) error
 	WriteBotActivities(activities []*BotActivity) error
+	WriteTestFlakes(flakes []*TestFlake) error
+	WriteFlakeOccurrences(flakeOccurrences []*FlakeOccurrence) error
 
 	ReadOrgByID(orgID string) (*Org, error)
 	ReadOrgByLogin(login string) (*Org, error)
@@ -51,10 +53,12 @@ type Store interface {
 	ReadPullRequestCommentByID(orgID string, repoID string, prID string, prCommentID string) (*PullRequestComment, error)
 	ReadPullRequestReviewByID(orgID string, repoID string, prID string, prReviewID string) (*PullRequestReview, error)
 	ReadBotActivityByID(orgID string, repoID string) (*BotActivity, error)
+	ReadTestFlakeByName(orgID string, repoID string, branchName string, testName string) (*TestFlake, error)
 
 	QueryMembersByOrg(orgID string, cb func(*Member) error) error
 	QueryMaintainersByOrg(orgID string, cb func(*Maintainer) error) error
+	QueryMaintainerInfo(maintainer *Maintainer) (*MaintainerInfo, error)
 	QueryIssuesByRepo(orgID string, repoID string, cb func(*Issue) error) error
-
-	EnumUsers(cb func(*User) bool) error
+	QueryAllUsers(cb func(*User) error) error
+	QueryFlakeOccurrencesByFlake(orgID string, repoID string, branchName string, testName string, cb func(*FlakeOccurrence) error) error
 }

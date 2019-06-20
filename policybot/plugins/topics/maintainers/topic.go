@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"strings"
 
 	"istio.io/bots/policybot/pkg/fw"
 	"istio.io/bots/policybot/pkg/storage"
@@ -61,9 +62,7 @@ func (t *Topic) Activate(context fw.TopicContext) {
 	tmpl := template.Must(context.Layout().Parse(maintainerTemplate))
 
 	_ = context.HTMLRouter().StrictSlash(true).NewRoute().Path("/").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		if m, err := t.getMaintainers(w, req); err == nil {
-			fw.RenderHTML(w, tmpl, m)
-		}
+		fw.RenderHTML(w, tmpl, nil)
 	})
 
 	_ = context.JSONRouter().StrictSlash(true).NewRoute().Methods("GET").Path("/").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -76,7 +75,7 @@ func (t *Topic) Activate(context fw.TopicContext) {
 func (t *Topic) getMaintainers(w http.ResponseWriter, r *http.Request) ([]Maintainer, error) {
 	o := r.URL.Query().Get("org")
 	if o == "" {
-		o = "istio"
+		o = "istio" // TODO: Remove Istio-specific string
 	}
 
 	org, err := t.cache.ReadOrgByLogin(o)
@@ -97,13 +96,38 @@ func (t *Topic) getMaintainers(w http.ResponseWriter, r *http.Request) ([]Mainta
 			return err
 		}
 
+		/*
+			info, err := t.store.QueryMaintainerInfo(m)
+			if err != nil {
+				fmt.Printf("Couldn't get maintainer info for %s: %v\n", u.Login, err)
+			} else {
+				fmt.Printf("Maintainer %s\n", u.Login)
+				for _, repo := range info.Repos {
+					r, _ := t.cache.ReadRepo(org.OrgID, repo.RepoID)
+
+					for path, entry := range repo.LastPullRequestCommittedByPath {
+						fmt.Printf("  Path %s/%s/%s: %v\n", org.Login, r.Name, path, entry.Time)
+					}
+				}
+			}
+		*/
+		// The first component of each path is a repoID, so lets convert that to a repo name
+		paths := make([]string, 0, len(m.Paths))
+		for _, path := range m.Paths {
+			slashIndex := strings.Index(path, "/")
+			repo, _ := t.cache.ReadRepo(org.OrgID, path[:slashIndex])
+			if repo != nil {
+				paths = append(paths, repo.Name+path[slashIndex:])
+			}
+		}
+
 		maintainers = append(maintainers, Maintainer{
 			Login:     u.Login,
 			Name:      u.Name,
 			Company:   u.Company,
 			AvatarURL: u.AvatarURL,
 			Emeritus:  m.Emeritus,
-			Paths:     m.Paths,
+			Paths:     paths,
 		})
 		return nil
 	}); err != nil {

@@ -81,6 +81,10 @@ func IssueCommentFromHook(icp *hook.IssueCommentPayload) (*storage.IssueComment,
 
 // Maps from a GitHub webhook event to a storage pr. Also returns the set of
 // users discovered in the event in a map of {UserID:Login}.
+//
+// WARNING: sadly, the webhook doesn't supply the set of files affected by the PR
+// so the Files field of the returned storage.PullRequest will not have been
+// populated and will need to be retrieved separately by calling the GitHub API
 func PullRequestFromHook(prp *hook.PullRequestPayload) (*storage.PullRequest, map[string]string) {
 	labels := make([]string, len(prp.PullRequest.Labels))
 	for i, label := range prp.PullRequest.Labels {

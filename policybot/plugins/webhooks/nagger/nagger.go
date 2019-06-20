@@ -141,7 +141,12 @@ func (n *Nagger) Handle(_ http.ResponseWriter, githubObject interface{}) {
 		return
 	}
 
-	pr, _ := gh.PullRequestFromHook(&prp)
+	// NOTE: this assumes the PR state has already been stored by the refresher plugin
+	pr, err := n.cache.ReadPullRequest(prp.Repository.Owner.NodeID, prp.Repository.NodeID, prp.PullRequest.NodeID)
+	if err != nil {
+		scope.Errorf("Unable to retrieve data from storage for PR %d from repo %s: %v", prp.Number, prp.Repository.FullName, err)
+		return
+	}
 
 	scope.Infof("Processing PR %d from repo %s", prp.Number, prp.Repository.FullName)
 
@@ -181,32 +186,9 @@ func (n *Nagger) processPR(prb pullRequestBundle, orgNags []config.Nag) {
 		return
 	}
 
-	opt := &github.ListOptions{
-		PerPage: 100,
-	}
-
-	var allFiles []string
-	for {
-		files, resp, err := n.ght.Get().PullRequests.ListFiles(n.ctx, prb.orgName, prb.repoName, int(prb.Number), opt)
-		if err != nil {
-			scope.Errorf("Unable to list all files for pull request %d in repo %s: %v\n", prb.Number, prb.fullRepoName, err)
-			return
-		}
-
-		for _, f := range files {
-			allFiles = append(allFiles, f.GetFilename())
-		}
-
-		if resp.NextPage == 0 {
-			break
-		}
-
-		opt.Page = resp.NextPage
-	}
-
 	fileMatches := make([]config.Nag, 0)
 	for _, nag := range contentMatches {
-		if n.fileMatch(nag.MatchFiles, allFiles) {
+		if n.fileMatch(nag.MatchFiles, prb.PullRequest.Files) {
 			fileMatches = append(fileMatches, nag)
 		}
 	}
@@ -221,7 +203,7 @@ func (n *Nagger) processPR(prb pullRequestBundle, orgNags []config.Nag) {
 
 	// now see if the required files are present in order to avoid the nag comment
 	for _, nag := range fileMatches {
-		if !n.fileMatch(nag.AbsentFiles, allFiles) {
+		if !n.fileMatch(nag.AbsentFiles, prb.PullRequest.Files) {
 			scope.Infof("Nagging PR %d from repo %s (nag: %s)", prb.Number, prb.fullRepoName, nag.Name)
 			n.postNagComment(prb, nag)
 
