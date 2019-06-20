@@ -93,7 +93,7 @@ var (
 	pullRequestCommentColumns []string
 	pullRequestReviewColumns  []string
 	botActivityColumns        []string
-	testFlakeColumns		  []string
+	testFlakeColumns	  []string
 )
 
 // Bunch of functions to from keys for the tables and indices in the DB
