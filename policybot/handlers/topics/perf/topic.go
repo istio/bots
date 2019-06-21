@@ -51,15 +51,11 @@ func (t *Topic) Activate(context fw.TopicContext) {
 	tmpl := template.Must(context.Layout().Parse(perfTemplate))
 
 	_ = context.HTMLRouter().StrictSlash(true).NewRoute().Path("/").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		if p, err := t.getPerformanceResults(); err == nil {
-			fw.RenderHTML(w, tmpl, p)
-		}
+		fw.RenderHTML(w, tmpl, t.getPerformanceResults())
 	})
 
 	_ = context.JSONRouter().StrictSlash(true).NewRoute().Methods("GET").Path("/").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		if p, err := t.getPerformanceResults(); err == nil {
-			fw.RenderJSON(w, http.StatusOK, p)
-		}
+		fw.RenderJSON(w, http.StatusOK, t.getPerformanceResults())
 	})
 }
 
@@ -69,11 +65,11 @@ type Result struct {
 	Target     string
 }
 
-func (t *Topic) getPerformanceResults() ([]Result, error) {
+func (t *Topic) getPerformanceResults() []Result {
 	results := []Result{
 		{Name: "Perf Test 1", Target: "perftest1", TimeSeries: t.getTimeSeries1()},
 		{Name: "Perf Test 2", Target: "perftest2", TimeSeries: t.getTimeSeries2()}}
-	return results, nil
+	return results
 }
 
 func (t *Topic) getTimeSeries1() string {
