@@ -69,7 +69,7 @@ func (c *Chaser) ServeHTTP(_ http.ResponseWriter, _ *http.Request) {
 		scope.Errorf("Failed to read issue from storage: %v", err)
 		return
 	}
-	scope.Infof("Found %v potential issues %v", len(issues))
+	scope.Infof("Found %v potential issues", len(issues))
 	for _, issue := range issues {
 		comment := &github.IssueComment{
 			Body: &flakeComments,
