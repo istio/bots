@@ -160,6 +160,7 @@ type FlakeOccurrence struct {
 }
 
 type TestFlakeForPr struct {
+	OrgID       string
 	TestName    string
 	PrNum       int64
 	RunNum      int64
