@@ -41,6 +41,8 @@ type Chaser struct {
 	createdDays int
 	// dryRun if true, will not make comments on the github.
 	dryRun bool
+	// message is what the bot will post on the github issue.
+	message string
 }
 
 // New creates a flake chaser.
@@ -56,13 +58,13 @@ func New(ght *gh.ThrottledClient, cache *cache.Cache, config config.FlakeChaser)
 		inactiveDays: config.InactiveDays,
 		createdDays:  config.CreatedDays,
 		dryRun:       config.DryRun,
+		message:      config.Message,
 	}
 	return c
 }
 
 // Handle implements http interface, will be invoked periodically to fulfill the test flakes comments.
 func (c *Chaser) ServeHTTP(_ http.ResponseWriter, _ *http.Request) {
-	flakeComments := `:snowflake: Hey there's no update for this test flakes for 3 days.`
 	scope.Infof("Handle request for flake chaser")
 	issues, err := c.cache.ReadTestFlakyIssues(c.inactiveDays, c.createdDays)
 	if err != nil {
@@ -72,7 +74,7 @@ func (c *Chaser) ServeHTTP(_ http.ResponseWriter, _ *http.Request) {
 	scope.Infof("Found %v potential issues", len(issues))
 	for _, issue := range issues {
 		comment := &github.IssueComment{
-			Body: &flakeComments,
+			Body: &c.message,
 		}
 		repo, err := c.cache.ReadRepo(issue.OrgID, issue.RepoID)
 		if err != nil {

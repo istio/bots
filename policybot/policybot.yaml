@@ -18,8 +18,7 @@ flakechaser:
   name: flakey-test
   inactivedays: 3
   createddays: 180
-#  dryrun: true
-  message: ":thinking: You haven't updated this flaky test for a while."
+  message: "🤔 ❄️ Hey there's no update for this test flakes for 3 days."
   repos:
     - "istio/istio"
 
