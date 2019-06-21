@@ -1,5 +1,4 @@
-#image: gcr.io/istio-testing/policybot:20190617055749
-image: gcr.io/mixologist-142215/policybot:20190619150613
+image: gcr.io/istio-testing/policybot:20190617055749
 imagePullPolicy: Always
 istio: false
 

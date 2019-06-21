@@ -2,19 +2,20 @@ VERSION := $(shell date +%Y%m%d%H%M%S)
 TAG ?= $(VERSION)
 IMG := gcr.io/istio-testing/policybot:$(TAG)
 
-
 deploy: push deploy_only
 .PHONY: deploy
 
 deploy_only:
-	helm template --set image=$(IMG) \
+	@helm template --set image=$(IMG) \
 		--set GITHUB_WEBHOOK_SECRET=$(GITHUB_WEBHOOK_SECRET) \
 		--set GITHUB_TOKEN=$(GITHUB_TOKEN) \
 		--set ZENHUB_TOKEN=$(ZENHUB_TOKEN) \
 		--set GCP_CREDS=$(GCP_CREDS) \
 		--set SENDGRID_APIKEY=$(SENDGRID_APIKEY) \
+		--set GITHUB_OAUTH_CLIENT_ID=$(GITHUB_OAUTH_CLIENT_ID) \
+		--set GITHUB_OAUTH_CLIENT_SECRET=$(GITHUB_OAUTH_CLIENT_SECRET) \
 		deploy/kube | kubectl apply -f -
-	@echo "Deployed container $(IMG) to GKE"
+	@echo "Deployed policybot:$(IMG) to GKE"
 .PHONY: deploy_only
 
 container:
@@ -25,3 +26,4 @@ container:
 push: container
 	@docker push $(IMG)
 	@echo "Built container and published to $(IMG)"
+.PHONY: push
