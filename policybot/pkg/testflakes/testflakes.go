@@ -119,7 +119,7 @@ func NewPrFlakeTest() (*PrFlakeTest, error) {
 	ctx := context.Background()
 	client, err := storage.NewClient(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create client: %v", err)
+		return nil, err
 	}
 
 	return &PrFlakeTest{
@@ -241,7 +241,7 @@ func (prFlakeTest PrFlakeTest) getShaAndPassStatus(testSlice []Tests) ([]TestFla
 
 			t, err := dec.Token()
 			if err != nil {
-				return nil, fmt.Errorf(err)
+				return nil, err
 			}
 			fmt.Printf("%T: %v\n", t, t)
 
@@ -297,40 +297,39 @@ func (prFlakeTest PrFlakeTest) getShaAndPassStatus(testSlice []Tests) ([]TestFla
 			nrdr, nerr = newObj.NewReader(ctx)
 			if nerr != nil {
 				return nil, fmt.Errorf("readFile: unable to open file from bucket %q, file %q: %v", nerr)
-			} else {
+			}
 
-				defer nrdr.Close()
-				slur, nerr = ioutil.ReadAll(nrdr)
+			defer nrdr.Close()
+			slur, nerr = ioutil.ReadAll(nrdr)
+			if err != nil {
+				return nil, fmt.Errorf("readFile: unable to read data from bucket %q, file %q: %v", nerr)
+			}
+			ns = string(slur)
+			ndec = json.NewDecoder(strings.NewReader(ns))
+
+			for ndec.More() {
+				var finished Finished
+				err = ndec.Decode(&finished)
 				if err != nil {
-					return nil, fmt.Errorf("readFile: unable to read data from bucket %q, file %q: %v", nerr)
-				}
-				ns = string(slur)
-				ndec = json.NewDecoder(strings.NewReader(ns))
-
-				for ndec.More() {
-					var finished Finished
-					err = ndec.Decode(&finished)
-					if err != nil {
-						return nil, fmt.Errorf(err)
-					}
-
-					passed := finished.Passed
-					result := finished.Result
-					t := finished.Timestamp
-					tm := time.Unix(t, 0)
-
-					onePull.TestPassed = passed
-					onePull.Result = result
-					onePull.FinishTime = tm
+					return nil, fmt.Errorf(err)
 				}
 
+				passed := finished.Passed
+				result := finished.Result
+				t := finished.Timestamp
+				tm := time.Unix(t, 0)
+
+				onePull.TestPassed = passed
+				onePull.Result = result
+				onePull.FinishTime = tm
 			}
 
 			prefSplit := strings.Split(pref, "/")
 
-			onePull.RunNum, err = strconv.ParseInt(prefSplit[len(prefSplit)-1], 10, 64)
-			onePull.PrNum, err = strconv.ParseInt(prefSplit[len(prefSplit)-3], 10, 64)
-
+			runNo, err := strconv.ParseInt(prefSplit[len(prefSplit)-1], 10, 64)
+			onePull.RunNum = runNo
+			prNo, err := strconv.ParseInt(prefSplit[len(prefSplit)-3], 10, 64)
+			onePull.PrNum = prNo
 			allTestRuns = append(allTestRuns, onePull)
 
 		}
@@ -341,13 +340,15 @@ func (prFlakeTest PrFlakeTest) getShaAndPassStatus(testSlice []Tests) ([]TestFla
 /*
  * Read in gcs the folder of the given pr number and write the result of each test runs into a slice of TestFlake struct.
  */
-func (prFlakeTest PrFlakeTest) checkTestFlakesForPr(prNum string) []TestFlakeForPr {
+func (prFlakeTest PrFlakeTest) checkTestFlakesForPr(prNum string) ([]TestFlakeForPr, err) {
 	client := prFlakeTest.client
 	defer client.Close()
 
-	var testSlice = prFlakeTest.getTests(prNum)
-	var fullResult = prFlakeTest.getShaAndPassStatus(testSlice)
+	testSlice, err := prFlakeTest.getTests(prNum)
+	if err != nil {
+		return nil, err
+	}
+	fullResult, err = prFlakeTest.getShaAndPassStatus(testSlice)
 
-	log.Println(fullResult)
-	return fullResult
+	return fullResult, nil
 }

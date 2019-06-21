@@ -114,8 +114,8 @@ func (s *store) QueryTestFlakeForPrByTestName(testName string, cb func(*storage.
 	return err
 }
 
-func (s *store) QueryTestFlakeForPrByPrNumber(prNum string, cb func(*storage.TestFlakeForPr) error) error {
-	iter := s.client.Single().Query(s.ctx, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM TestFlakeForPrs WHERE PrNum = '%s'", prNum)})
+func (s *store) QueryTestFlakeForPrByPrNumber(prNum int64, cb func(*storage.TestFlakeForPr) error) error {
+	iter := s.client.Single().Query(s.ctx, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM TestFlakeForPrs WHERE PrNum = '%f'", prNum)})
 	err := iter.Do(func(row *spanner.Row) error {
 		flake := &storage.TestFlakeForPr{}
 		if err := row.ToStruct(flake); err != nil {

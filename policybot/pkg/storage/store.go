@@ -54,7 +54,7 @@ type Store interface {
 	ReadPullRequestCommentByID(orgID string, repoID string, prID string, prCommentID string) (*PullRequestComment, error)
 	ReadPullRequestReviewByID(orgID string, repoID string, prID string, prReviewID string) (*PullRequestReview, error)
 	ReadBotActivityByID(orgID string, repoID string) (*BotActivity, error)
-	ReadTestFlakeForPrByName(orgID string, testName string, prNum string, runNum string) (*TestFlakeForPr, error)
+	ReadTestFlakeForPrByName(orgID string, testName string, prNum int64, runNum int64) (*TestFlakeForPr, error)
 	ReadTestFlakeByName(orgID string, repoID string, branchName string, testName string) (*TestFlake, error)
 
 	QueryMembersByOrg(orgID string, cb func(*Member) error) error
@@ -62,7 +62,7 @@ type Store interface {
 	QueryMaintainerInfo(maintainer *Maintainer) (*MaintainerInfo, error)
 	QueryIssuesByRepo(orgID string, repoID string, cb func(*Issue) error) error
 	QueryTestFlakeForPrByTestName(testName string, cb func(*TestFlake) error) error
-	QueryTestFlakeForPrByPrNumber(prNum string, cb func(*TestFlake) error) error
+	QueryTestFlakeForPrByPrNumber(prNum int64, cb func(*TestFlake) error) error
 
 	EnumUsers(cb func(*User) bool) error
 	QueryAllUsers(cb func(*User) error) error
