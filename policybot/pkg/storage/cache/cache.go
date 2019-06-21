@@ -39,8 +39,6 @@ type Cache struct {
 	pullRequestCommentCache cache.ExpiringCache
 	pullRequestReviewCache  cache.ExpiringCache
 	pipelineCache           cache.ExpiringCache
-	flakeCache              cache.ExpiringCache
-	flakeOccurrenceCache    cache.ExpiringCache
 }
 
 func New(store storage.Store, entryTTL time.Duration) *Cache {
@@ -66,8 +64,6 @@ func New(store storage.Store, entryTTL time.Duration) *Cache {
 		pullRequestCommentCache: cache.NewTTL(entryTTL, evictionInterval),
 		pullRequestReviewCache:  cache.NewTTL(entryTTL, evictionInterval),
 		pipelineCache:           cache.NewTTL(entryTTL, evictionInterval),
-		flakeCache:              cache.NewTTL(entryTTL, evictionInterval),
-		flakeOccurrenceCache:    cache.NewTTL(entryTTL, evictionInterval),
 	}
 }
 
@@ -344,21 +340,6 @@ func (c *Cache) ReadIssuePipeline(orgID string, repoID string, issueNumber int) 
 	result, err := c.store.ReadIssuePipelineByNumber(orgID, repoID, issueNumber)
 	if err == nil {
 		c.pipelineCache.Set(key, result)
-	}
-
-	return result, err
-}
-
-// Reads from cache and if not found reads from DB
-func (c *Cache) ReadTestFlake(orgID string, repoID string, branchName string, testName string) (*storage.TestFlake, error) {
-	key := orgID + repoID + branchName + testName
-	if value, ok := c.flakeCache.Get(key); ok {
-		return value.(*storage.TestFlake), nil
-	}
-
-	result, err := c.store.ReadTestFlakeByName(orgID, repoID, branchName, testName)
-	if err == nil {
-		c.flakeCache.Set(key, result)
 	}
 
 	return result, err

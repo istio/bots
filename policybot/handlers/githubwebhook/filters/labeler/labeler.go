@@ -23,8 +23,8 @@ import (
 
 	webhook "github.com/go-playground/webhooks/github"
 
+	"istio.io/bots/policybot/handlers/githubwebhook/filters"
 	"istio.io/bots/policybot/pkg/config"
-	"istio.io/bots/policybot/pkg/fw"
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
@@ -45,7 +45,7 @@ type Labeler struct {
 
 var scope = log.RegisterScope("labeler", "Issue and PR auto-labeler", 0)
 
-func NewLabeler(ctx context.Context, ght *gh.ThrottledClient, cache *cache.Cache, orgs []config.Org, autoLabels []config.AutoLabel) (fw.Webhook, error) {
+func NewLabeler(ctx context.Context, ght *gh.ThrottledClient, cache *cache.Cache, orgs []config.Org, autoLabels []config.AutoLabel) (filters.Filter, error) {
 	l := &Labeler{
 		ctx:               ctx,
 		cache:             cache,

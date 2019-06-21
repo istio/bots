@@ -271,19 +271,3 @@ func (s *store) ReadBotActivityByID(orgID string, repoID string) (*storage.BotAc
 
 	return &result, nil
 }
-
-func (s *store) ReadTestFlakeByName(orgID string, repoID string, branchName string, testName string) (*storage.TestFlake, error) {
-	row, err := s.client.Single().ReadRow(s.ctx, flakeTable, flakeKey(orgID, repoID, branchName, testName), flakeColumns)
-	if spanner.ErrCode(err) == codes.NotFound {
-		return nil, nil
-	} else if err != nil {
-		return nil, err
-	}
-
-	var result storage.TestFlake
-	if err := row.ToStruct(&result); err != nil {
-		return nil, err
-	}
-
-	return &result, nil
-}

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package fw
+package filters
 
 import (
 	"net/http"
@@ -20,13 +20,13 @@ import (
 	webhook "github.com/go-playground/webhooks/github"
 )
 
-// The interface to a GitHub webhook plugin.
+// The interface to a GitHub webhook filter.
 //
-// Note that individual plugins are invoked for any events incoming to the
+// Note that individual filters are invoked for any events incoming to the
 // bot. The events specified by this interface therefore don't constrain
 // what Handle is used for and are merely used to control which events will
-// be accepted as a whole by the bot.
-type Webhook interface {
+// be accepted as a whole by the webhook.
+type Filter interface {
 	Events() []webhook.Event
 	Handle(w http.ResponseWriter, ghPayload interface{})
 }

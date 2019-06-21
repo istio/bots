@@ -12,34 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package github
+package githubwebhook
 
 import (
 	"fmt"
 	"net/http"
 
-	"istio.io/bots/policybot/pkg/fw"
-
 	webhook "github.com/go-playground/webhooks/github"
 
+	"istio.io/bots/policybot/handlers/githubwebhook/filters"
 	"istio.io/pkg/log"
 )
 
 // Decodes and dispatches GitHub webhook calls
 type handler struct {
 	wh      *webhook.Webhook
-	plugins []fw.Webhook
+	filters []filters.Filter
 	events  []webhook.Event
 }
 
-func NewHandler(githubWebhookSecret string, plugins ...fw.Webhook) (http.Handler, error) {
+func NewHandler(githubWebhookSecret string, filters ...filters.Filter) (http.Handler, error) {
 	wh, err := webhook.New(webhook.Options.Secret(githubWebhookSecret))
 	if err != nil {
 		return nil, fmt.Errorf("unable to create webhook: %v", err)
 	}
 
 	m := make(map[webhook.Event]bool)
-	for _, p := range plugins {
+	for _, p := range filters {
 		for _, e := range p.Events() {
 			m[e] = true
 		}
@@ -52,7 +51,7 @@ func NewHandler(githubWebhookSecret string, plugins ...fw.Webhook) (http.Handler
 
 	return &handler{
 		wh:      wh,
-		plugins: plugins,
+		filters: filters,
 		events:  events,
 	}, nil
 }
@@ -67,7 +66,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// dispatch to all the registered plugins
-	for _, plugin := range h.plugins {
-		plugin.Handle(w, payload)
+	for _, filter := range h.filters {
+		filter.Handle(w, payload)
 	}
 }
