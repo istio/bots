@@ -62,7 +62,7 @@ and maintaining its code base.
 				    const row = document.createElement("tr");
 
 				    const avatarCell = document.createElement("td");
-				    avatarCell.innerText = maintainers[i].avatar_url;
+				    avatarCell.innerHTML = "<img style='width: 40px;' src=" + maintainers[i].avatar_url + "/>";
 				    row.appendChild(avatarCell);
 
 				    const loginCell = document.createElement("td");
