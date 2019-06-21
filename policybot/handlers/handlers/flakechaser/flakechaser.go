@@ -34,7 +34,7 @@ var scope = log.RegisterScope("flakechaser", "The GitHub flaky test chaser.", 0)
 type Chaser struct {
 	ght   *gh.ThrottledClient
 	cache *cache.Cache
-	repo  string
+	repos map[string]bool
 	// we select issues hasn't bee updated for last `inactiveDays`
 	inactiveDays int
 	// we only consider issues that are created within last `createdDays`.
@@ -45,10 +45,14 @@ type Chaser struct {
 
 // New creates a flake chaser.
 func New(ght *gh.ThrottledClient, cache *cache.Cache, config config.FlakeChaser) *Chaser {
+	enabledRepo := map[string]bool{}
+	for _, repo := range config.Repos {
+		enabledRepo[repo] = true
+	}
 	c := &Chaser{
 		ght:          ght,
 		cache:        cache,
-		repo:         "istio",
+		repos:        enabledRepo,
 		inactiveDays: config.InactiveDays,
 		createdDays:  config.CreatedDays,
 		dryRun:       config.DryRun,
@@ -75,22 +79,23 @@ func (c *Chaser) ServeHTTP(_ http.ResponseWriter, _ *http.Request) {
 			scope.Errorf("Failed to look up the repo: %v", err)
 			continue
 		}
-		org, err := c.cache.ReadRepo(issue.OrgID, issue.RepoID)
+		org, err := c.cache.ReadOrg(issue.OrgID)
 		if err != nil {
 			scope.Errorf("Failed to read the repo: %v", err)
 			continue
 		}
-		if repo.Name != c.repo {
-			scope.Infof("Unmatched repo, skip, configured %v, issue %v", c.repo, repo.Name)
+		repoURI := fmt.Sprintf("%v/%v", org.Login, repo.Name)
+		if _, ok := c.repos[repoURI]; !ok {
+			scope.Infof("Uninterested repo %v, skipping...", repoURI)
 			continue
 		}
-		url := fmt.Sprintf("https://github.com/%v/%v/issues/%v", org.Name, repo.Name, issue.Number)
+		url := fmt.Sprintf("https://github.com/%v/%v/issues/%v", repo.Name, repo.Name, issue.Number)
 		scope.Infof("About to nag test flaky issue with %v", url)
 		if c.dryRun {
 			continue
 		}
 		_, _, err = c.ght.Get().Issues.CreateComment(
-			context.Background(), org.Name, repo.Name, int(issue.Number), comment)
+			context.Background(), org.Login, repo.Name, int(issue.Number), comment)
 		if err != nil {
 			scope.Errorf("Failed to create flakes nagging comments: %v", err)
 		}

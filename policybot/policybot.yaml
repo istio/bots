@@ -18,8 +18,10 @@ flakechaser:
   name: flakey-test
   inactivedays: 3
   createddays: 180
-  dryrun: true
+#  dryrun: true
   message: ":thinking: You haven't updated this flaky test for a while."
+  repos:
+    - "istio/istio"
 
 autolabels:
   - name: Config

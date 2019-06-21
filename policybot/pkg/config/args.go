@@ -84,8 +84,8 @@ type FlakeChaser struct {
 	// DryRun determines whether we post updates to the issues.
 	DryRun bool
 
-	// Repo determines the repo this bot is applied on.
-	Repo string
+	// Repos determines the repo this bot is applied on, format, "istio/istio", "istio/proxy"
+	Repos []string
 }
 
 type AutoLabel struct {
