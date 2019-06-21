@@ -1,9 +1,21 @@
 VERSION := $(shell date +%Y%m%d%H%M%S)
-IMG := gcr.io/istio-testing/policybot:$(VERSION)
+TAG ?= $(VERSION)
+IMG := gcr.io/istio-testing/policybot:$(TAG)
 
-deploy: push
-	@gcloud beta run deploy policybot --image $(IMG) --project istio-testing
+
+deploy: push deploy_only
+.PHONY: deploy
+
+deploy_only:
+	helm template --set image=$(IMG) \
+		--set GITHUB_WEBHOOK_SECRET=$(GITHUB_WEBHOOK_SECRET) \
+		--set GITHUB_TOKEN=$(GITHUB_TOKEN) \
+		--set ZENHUB_TOKEN=$(ZENHUB_TOKEN) \
+		--set GCP_CREDS=$(GCP_CREDS) \
+		--set SENDGRID_APIKEY=$(SENDGRID_APIKEY) \
+		deploy/kube | kubectl apply -f -
 	@echo "Deployed container $(IMG) to Cloud Run"
+.PHONY: deploy_only
 
 container:
 	@GO111MODULE=on CGO_ENABLED=0 GOOS=linux go build
