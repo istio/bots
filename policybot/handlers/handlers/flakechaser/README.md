@@ -10,3 +10,8 @@ flaky test issues owners if
 
 The bot scanning the Cloud Spanner database with matching criteria to find the
 work set, and then update the issues via Github API.
+
+Know Issue
+
+if the bot is triggered again before the /sync is invoked, due to the
+storage lag behind, the bot can nag flakey test issue again...
