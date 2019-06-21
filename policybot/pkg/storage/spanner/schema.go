@@ -162,7 +162,7 @@ func botActivityKey(orgID string, repoID string) spanner.Key {
 }
 
 func testFlakeForPrKey(orgID string, testName string, prNum int64, runNum int64) spanner.Key {
-	return spanner.Key(orgID, testName, prNum, runNum)
+	return spanner.Key{orgID, testName, prNum, runNum}
 }
 
 func flakeKey(orgID string, repoID string, branchName string, testName string) spanner.Key {

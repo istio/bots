@@ -347,7 +347,7 @@ func (prFlakeTest PrFlakeTest) getShaAndPassStatus(testSlice []Tests) ([]TestFla
 /*
  * Read in gcs the folder of the given pr number and write the result of each test runs into a slice of TestFlake struct.
  */
-func (prFlakeTest PrFlakeTest) checkTestFlakesForPr(prNum string) ([]TestFlakeForPr, err) {
+func (prFlakeTest PrFlakeTest) checkTestFlakesForPr(prNum string) ([]TestFlakeForPr, error) {
 	client := prFlakeTest.client
 	defer client.Close()
 
