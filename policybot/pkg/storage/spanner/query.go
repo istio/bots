@@ -80,21 +80,6 @@ func (s *store) QueryAllUsers(cb func(*storage.User) error) error {
 	return err
 }
 
-func (s *store) QueryFlakeOccurrencesByFlake(orgID string, repoID string, branchName string, testName string, cb func(*storage.FlakeOccurrence) error) error {
-	iter := s.client.Single().Query(s.ctx, spanner.Statement{SQL: fmt.Sprintf(
-		"SELECT * FROM FlakeOccurrences WHERE OrgID = '%s' AND RepoID = '%s' AND BranchName = '%s' AND TestName='%s'", orgID, repoID, branchName, testName)})
-	err := iter.Do(func(row *spanner.Row) error {
-		occurrence := &storage.FlakeOccurrence{}
-		if err := row.ToStruct(occurrence); err != nil {
-			return err
-		}
-
-		return cb(occurrence)
-	})
-
-	return err
-}
-
 func (s *store) QueryMaintainerInfo(maintainer *storage.Maintainer) (*storage.MaintainerInfo, error) {
 	info := &storage.MaintainerInfo{
 		Repos: make(map[string]*storage.RepoActivityInfo),

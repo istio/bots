@@ -19,13 +19,13 @@ import (
 	"encoding/base64"
 	"fmt"
 
+	"istio.io/bots/policybot/handlers/syncer"
 	"istio.io/bots/policybot/pkg/blobstorage/gcs"
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage/cache"
 	"istio.io/bots/policybot/pkg/storage/spanner"
 	"istio.io/bots/policybot/pkg/zh"
-	"istio.io/bots/policybot/plugins/handlers/syncer"
 )
 
 // Runs the syncer.

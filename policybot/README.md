@@ -4,7 +4,7 @@ The policy bot enforces a number of Istio-wide policies around how we manage
 issues, pull requests, test flakes, and more.
 
 - [Overview](#overivew)
-- [Plugins](#plugins)
+- [Handlers, Filters, and Topics](#handlers-filters-and-topics)
 - [Startup options](#startup-options)
 - [Configuration file](#configuration-file)
 - [Deployment](#deployment)
@@ -25,22 +25,25 @@ also calls the GitHub API.
 
 - SendGrid. The bot sends email using SendGrid.
 
-## Plugins
+## Handlers, Filters, and Topics
 
-The bot consists of a simple framework and distinct plugins that have specific isolated responsibilities. There are three
-flavors of plugins:
-. API plugins expose a REST API, whereas Webhook Plugins listen to GitHub notifications. At the moment,
-the plugins are:
+The bot consists of a simple framework and distinct handlers that have specific isolated responsibilities.
 
-Handler plugins expose a REST API to trigger some actions:
+A handler is responsible for dealing with requests arriving at a specific path. A specialized form of handler is called
+a topic, which represents a top-level area in the dashboard UI. Topics are responsible for serving HTML and JSON traffic. 
+The existing handlers include: 
 
-- syncer. Synchronizes GitHub data to Google Cloud Spanner, where the data can then be used
-for analysis. The syncer needs to be invoked on a periodic basis to refresh the data. This is handled by using
-Google Cloud Schedule to invoke the syncer's REST API.
+- githubwebhook. Handles GitHub web hook events by dispatching to a set of filters (described below)
+ 
+- zenhubwebhook. Handles ZenHub web hook events
 
-- github. Handles GitHub web hook events by dispatching to the various Webhook plugins deacribed below
+- syncer. Initiates a synchronization of GitHub data to Google Cloud Spanner, where the data can then be used
+for analysis. The syncer needs to be invoked on a periodic basis to refresh the data.
 
-Webhook plugins respond to incoming GitHub events:
+- topics. A number of handlers which each deliver the HTML and JSON to support the dashboard UI.
+
+The githubwebhook handler supports a chain of filters which each get called for incoming
+GitHub events. These includes:
 
 - cfgmonitor. Monitors GitHub for changes to the bot's configuration file. When it sees such a change, it triggers a
 partial shutdown and restart of the bot, which will reread the config and start back up fully.
@@ -55,11 +58,6 @@ creatively for other nagging comments.
 
 - refresher. Updates the local Google Cloud Spanner copy of GitHub data based on events
 reported by the GitHub webhook.
-
-Finally topic plugins are responsible for the dashboard UI exposed by the bot:
-
-- maintainers. Lets users view the set of project maintainers and perform operations on
-them.
 
 ## Startup options
 
