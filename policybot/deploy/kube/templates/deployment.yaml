@@ -22,6 +22,9 @@ spec:
           imagePullPolicy: "{{ .Values.imagePullPolicy }}"
           ports:
           - containerPort: 8080
+          env:
+          - name: HTTPS_ONLY
+            value: "true"
           envFrom:
           - secretRef:
               name: policybot

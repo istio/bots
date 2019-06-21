@@ -1,6 +1,7 @@
 VERSION := $(shell date +%Y%m%d%H%M%S)
 TAG ?= $(VERSION)
-IMG := gcr.io/istio-testing/policybot:$(TAG)
+HUB ?= gcr.io/istio-testing/policybot
+IMG := $(HUB):$(TAG)
 
 deploy: push deploy_only
 .PHONY: deploy
