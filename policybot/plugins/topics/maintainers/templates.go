@@ -14,7 +14,6 @@
 
 package maintainers
 
-// TODO: in the JavaScript, remove org=istio and assume the same org the page was initially rendered with
 var maintainerTemplate = `
 {{ define "content" }}
 
@@ -31,19 +30,63 @@ and maintaining its code base.
         <th>Name</th>
         <th>Company</th>
         <th>Emeritus</th>
+		<th>Paths</th>
     </tr>
     </thead>
-    <tbody>
-        {{ range . }}
-            <tr>
-                <td><img style='width: 30px' src='{{ .AvatarURL }}'/></td>
-                <td>{{ .Login }}</td>
-                <td>{{ .Name }}</td>
-                <td>{{ .Company }}</td>
-                <td>{{ .Emeritus }}</td>
-            </tr>
-        {{ end }}
+    <tbody id="tbody">
     </tbody>
 </table>
+
+<script>
+    "use strict";
+
+    function refreshMaintainers() {
+        const url = window.location.protocol + "//" + window.location.host + "/maintainersapi/";
+
+		fetch(url)
+			.then(response => {
+				if (response.status !== 200) {
+					return "Unable to access " + url + ": " + response.statusText;
+				}
+
+				return response.text();
+			})
+			.catch(e => {
+				return "Unable to access " + url + ": " + e;
+			})
+			.then(data => {
+                const maintainers = JSON.parse(data);
+
+				const tbody = document.getElementById("tbody");
+				for (let i = 0; i < maintainers.length; i++) {
+				    const row = document.createElement("tr");
+
+				    const avatarCell = document.createElement("td");
+				    avatarCell.innerText = maintainers[i].avatar_url;
+				    row.appendChild(avatarCell);
+
+				    const loginCell = document.createElement("td");
+				    loginCell.innerText = maintainers[i].login;
+				    row.appendChild(loginCell);
+
+				    const nameCell = document.createElement("td");
+				    nameCell.innerText = maintainers[i].name;
+				    row.appendChild(nameCell);
+
+				    const companyCell = document.createElement("td");
+				    companyCell.innerText = maintainers[i].company;
+				    row.appendChild(companyCell);
+
+				    const emeritusCell = document.createElement("td");
+				    emeritusCell.innerText = maintainers[i].emeritus;
+				    row.appendChild(emeritusCell);
+
+				    tbody.appendChild(row);
+				}
+			});
+    }
+
+    refreshMaintainers();
+</script>
 {{ end }}
 `

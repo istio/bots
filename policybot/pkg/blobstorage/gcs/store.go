@@ -12,28 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package spanner
+package gcs
 
 import (
-	"cloud.google.com/go/spanner"
+	"context"
+	"fmt"
 
-	"istio.io/bots/policybot/pkg/storage"
+	"cloud.google.com/go/storage"
+	"google.golang.org/api/option"
+
+	"istio.io/bots/policybot/pkg/blobstorage"
 )
 
-func (s *store) EnumUsers(cb func(*storage.User) bool) error {
-	iter := s.client.Single().Query(s.ctx, spanner.Statement{SQL: "SELECT * FROM Users;"})
-	err := iter.Do(func(row *spanner.Row) error {
-		user := &storage.User{}
-		if err := row.ToStruct(user); err != nil {
-			return err
-		}
+type store struct {
+	client *storage.Client
+}
 
-		if !cb(user) {
-			iter.Stop()
-		}
+func NewStore(ctx context.Context, gcpCreds []byte) (blobstorage.Store, error) {
+	client, err := storage.NewClient(ctx, option.WithCredentialsJSON(gcpCreds))
+	if err != nil {
+		return nil, fmt.Errorf("unable to create GCS client: %v", err)
+	}
 
-		return nil
-	})
+	return &store{
+		client: client,
+	}, nil
+}
 
-	return err
+func (s *store) Close() error {
+	return s.client.Close()
+}
+
+func (s *store) ReadBlob(path string) ([]byte, error) {
+	return nil, nil
 }

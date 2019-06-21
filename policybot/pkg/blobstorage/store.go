@@ -12,27 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package testresults
+package blobstorage
 
 import (
-	"context"
-	"fmt"
-
-	"cloud.google.com/go/storage"
-	"google.golang.org/api/option"
+	"io"
 )
 
-type ResultsClient struct {
-	client *storage.Client
-}
+// Store defines how the bot interacts with a blob store
+type Store interface {
+	io.Closer
 
-func NewResultsClient(ctx context.Context, gcpCreds []byte) (*ResultsClient, error) {
-	client, err := storage.NewClient(ctx, option.WithCredentialsJSON(gcpCreds))
-	if err != nil {
-		return nil, fmt.Errorf("unable to create GCS client: %v", err)
-	}
-
-	return &ResultsClient{
-		client: client,
-	}, nil
+	ReadBlob(path string) ([]byte, error)
 }
