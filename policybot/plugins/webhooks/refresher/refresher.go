@@ -19,6 +19,7 @@ import (
 	"net/http"
 
 	webhook "github.com/go-playground/webhooks/github"
+	"github.com/google/go-github/v25/github"
 
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/fw"
@@ -30,7 +31,6 @@ import (
 
 // Updates the DB based on incoming GitHub webhook events.
 type Refresher struct {
-	store storage.Store
 	repos map[string]bool
 	cache *cache.Cache
 	ght   *gh.ThrottledClient
@@ -39,9 +39,8 @@ type Refresher struct {
 
 var scope = log.RegisterScope("refresher", "Dynamic database refresher", 0)
 
-func NewRefresher(ctx context.Context, store storage.Store, cache *cache.Cache, ght *gh.ThrottledClient, orgs []config.Org) fw.Webhook {
+func NewRefresher(ctx context.Context, cache *cache.Cache, ght *gh.ThrottledClient, orgs []config.Org) fw.Webhook {
 	r := &Refresher{
-		store: store,
 		repos: make(map[string]bool),
 		cache: cache,
 		ght:   ght,
@@ -72,9 +71,14 @@ func (r *Refresher) Handle(_ http.ResponseWriter, githubObject interface{}) {
 	case webhook.IssuesPayload:
 		scope.Infof("Received IssuePayload: %s, %d, %s", p.Repository.FullName, p.Issue.Number, p.Action)
 
+		if !r.repos[p.Repository.FullName] {
+			scope.Infof("Ignoring issue %d from repo %s since it's not in a monitored repo", p.Issue.Number, p.Repository.FullName)
+			return
+		}
+
 		issue, discoveredUsers := gh.IssueFromHook(&p)
 		issues := []*storage.Issue{issue}
-		if err := r.store.WriteIssues(issues); err != nil {
+		if err := r.cache.WriteIssues(issues); err != nil {
 			scope.Errorf(err.Error())
 		}
 		r.syncUsers(discoveredUsers)
@@ -82,15 +86,20 @@ func (r *Refresher) Handle(_ http.ResponseWriter, githubObject interface{}) {
 	case webhook.IssueCommentPayload:
 		scope.Infof("Received IssueCommentPayload: %s, %d, %s", p.Repository.FullName, p.Issue.Number, p.Action)
 
+		if !r.repos[p.Repository.FullName] {
+			scope.Infof("Ignoring issue comment for issue %d from repo %s since it's not in a monitored repo", p.Issue.Number, p.Repository.FullName)
+			return
+		}
+
 		issueComment, discoveredUsers := gh.IssueCommentFromHook(&p)
 		issueComments := []*storage.IssueComment{issueComment}
-		if err := r.store.WriteIssueComments(issueComments); err != nil {
+		if err := r.cache.WriteIssueComments(issueComments); err != nil {
 
 			// try again, this time as a PR comment
 			var prComment *storage.PullRequestComment
 			prComment, discoveredUsers = gh.PullRequestCommentFromHook(&p)
 			prComments := []*storage.PullRequestComment{prComment}
-			if err := r.store.WritePullRequestComments(prComments); err != nil {
+			if err := r.cache.WritePullRequestComments(prComments); err != nil {
 				scope.Errorf(err.Error())
 			}
 		}
@@ -99,9 +108,40 @@ func (r *Refresher) Handle(_ http.ResponseWriter, githubObject interface{}) {
 	case webhook.PullRequestPayload:
 		scope.Infof("Received PullRequestPayload: %s, %d, %s", p.Repository.FullName, p.Number, p.Action)
 
+		if !r.repos[p.Repository.FullName] {
+			scope.Infof("Ignoring PR %d from repo %s since it's not in a monitored repo", p.PullRequest.Number, p.Repository.FullName)
+			return
+		}
+
 		pr, discoveredUsers := gh.PullRequestFromHook(&p)
+
+		opt := &github.ListOptions{
+			PerPage: 100,
+		}
+
+		// get the set of files comprising this PR since the payload didn't supply them
+		var allFiles []string
+		for {
+			files, resp, err := r.ght.Get().PullRequests.ListFiles(r.ctx, p.Repository.Owner.Login, p.Repository.Name, int(p.Number), opt)
+			if err != nil {
+				scope.Errorf("Unable to list all files for pull request %d in repo %s: %v\n", p.Number, p.Repository.FullName, err)
+				return
+			}
+
+			for _, f := range files {
+				allFiles = append(allFiles, f.GetFilename())
+			}
+
+			if resp.NextPage == 0 {
+				break
+			}
+
+			opt.Page = resp.NextPage
+		}
+		pr.Files = allFiles
+
 		prs := []*storage.PullRequest{pr}
-		if err := r.store.WritePullRequests(prs); err != nil {
+		if err := r.cache.WritePullRequests(prs); err != nil {
 			scope.Errorf(err.Error())
 		}
 		r.syncUsers(discoveredUsers)
@@ -109,9 +149,14 @@ func (r *Refresher) Handle(_ http.ResponseWriter, githubObject interface{}) {
 	case webhook.PullRequestReviewPayload:
 		scope.Infof("Received PullRequestReviewPayload: %s, %d, %s", p.Repository.FullName, p.PullRequest.Number, p.Action)
 
+		if !r.repos[p.Repository.FullName] {
+			scope.Infof("Ignoring PR review for PR %d from repo %s since it's not in a monitored repo", p.PullRequest.Number, p.Repository.FullName)
+			return
+		}
+
 		review, discoveredUsers := gh.PullRequestReviewFromHook(&p)
 		reviews := []*storage.PullRequestReview{review}
-		if err := r.store.WritePullRequestReviews(reviews); err != nil {
+		if err := r.cache.WritePullRequestReviews(reviews); err != nil {
 			scope.Errorf(err.Error())
 		}
 		r.syncUsers(discoveredUsers)
@@ -136,7 +181,7 @@ func (r *Refresher) syncUsers(discoveredUsers map[string]string) {
 			continue
 		}
 
-		// didn't get user info from our storage layer, ask GiHub for details
+		// didn't get user info from our storage layer, ask GitHub for details
 		u, _, err := r.ght.Get().Users.Get(r.ctx, du)
 		if err != nil {
 			scope.Errorf("Unable to get info on user %s from GitHub: %v", du, err)
@@ -145,7 +190,7 @@ func (r *Refresher) syncUsers(discoveredUsers map[string]string) {
 		}
 	}
 
-	if err := r.store.WriteUsers(users); err != nil {
+	if err := r.cache.WriteUsers(users); err != nil {
 		scope.Errorf("Unable to write users: %v", err)
 	}
 }

@@ -132,7 +132,7 @@ type BotActivity struct {
 type Maintainer struct {
 	OrgID    string
 	UserID   string
-	Paths    []string
+	Paths    []string // where each path is of the form RepoID/path_in_repo
 	Emeritus bool
 }
 
@@ -143,22 +143,49 @@ type IssuePipeline struct {
 	Pipeline    string
 }
 
+type TestFlake struct {
+	OrgID       string
+	RepoID      string
+	BranchName  string
+	TestName    string
+	IssueNumber int64
+}
+
 type FlakeOccurrence struct {
 	OrgID      string
+	RepoID     string
+	BranchName string
 	TestName   string
 	OccurredAt time.Time
 }
 
-type TestFlake struct {
-	TestName string
-	PrNum string
-	RunNum string
-	StartTime time.Time 
-	FinishTime time.Time
-	Passed string
-	CloneFailed string
-	Sha string
-	Result string
-	BaseSha string
-	RunPath string
+type TestFlakeForPr struct {
+	TestName    string
+	PrNum       int64
+	RunNum      int64
+	StartTime   time.Time
+	FinishTime  time.Time
+	TestPassed  bool
+	CloneFailed bool
+	Sha         string
+	Result      string
+	BaseSha     string
+	RunPath     string
+}
+
+type TimedEntry struct {
+	Time time.Time
+	ID   string // an object ID (pr, issue, issue comment
+}
+
+type RepoActivityInfo struct {
+	RepoID                         string                // ID of the repo
+	LastPullRequestCommittedByPath map[string]TimedEntry // last update a maintainer has done to one of their maintained paths
+	LastIssueCommented             TimedEntry            // last issue commented on by the maintainer
+	LastIssueClosed                TimedEntry            // last issue closed by the maintainer
+	LastIssueTriaged               TimedEntry            // last issue triaged by the maintainer
+}
+
+type MaintainerInfo struct {
+	Repos map[string]*RepoActivityInfo // about the maintainer's activity in different repos (index is repo id)
 }

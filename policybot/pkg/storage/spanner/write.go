@@ -237,13 +237,43 @@ func (s *store) WriteBotActivities(activities []*storage.BotActivity) error {
 	return err
 }
 
-func (s *store) WriteTestFlakes(testFlakes []*storage.TestFlake) error {
-	scope.Debugf("Writing %d test flakes", len(testFlakes))
+func (s *store) WriteTestFlakeForPr(testFlakeForPrs []*storage.TestFlakeForPr) error {
+	scope.Debugf("Writing %d test flakes", len(testFlakeForPrs))
 
-	mutations := make([]*spanner.Mutation, len(testFlakes))
-	for i := 0; i < len(testFlakes); i++ {
+	mutations := make([]*spanner.Mutation, len(testFlakeForPrs))
+	for i := 0; i < len(testFlakeForPrs); i++ {
 		var err error
-		if mutations[i], err = spanner.InsertOrUpdateStruct(testFlakeTable, testFlakes[i]); err != nil {
+		if mutations[i], err = spanner.InsertOrUpdateStruct(testFlakeForPrTable, testFlakeForPrs[i]); err != nil {
+			return err
+		}
+	}
+
+	_, err := s.client.Apply(s.ctx, mutations)
+	return err
+}
+
+func (s *store) WriteTestFlakes(flakes []*storage.TestFlake) error {
+	scope.Debugf("Writing %d test flakes", len(flakes))
+
+	mutations := make([]*spanner.Mutation, len(flakes))
+	for i := 0; i < len(flakes); i++ {
+		var err error
+		if mutations[i], err = spanner.InsertOrUpdateStruct(flakeTable, flakes[i]); err != nil {
+			return err
+		}
+	}
+
+	_, err := s.client.Apply(s.ctx, mutations)
+	return err
+}
+
+func (s *store) WriteFlakeOccurrences(flakeOccurrences []*storage.FlakeOccurrence) error {
+	scope.Debugf("Writing %d test flake occurrences", len(flakeOccurrences))
+
+	mutations := make([]*spanner.Mutation, len(flakeOccurrences))
+	for i := 0; i < len(flakeOccurrences); i++ {
+		var err error
+		if mutations[i], err = spanner.InsertOrUpdateStruct(flakeOccurrenceTable, flakeOccurrences[i]); err != nil {
 			return err
 		}
 	}
