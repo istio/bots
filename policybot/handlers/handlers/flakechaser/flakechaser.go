@@ -62,7 +62,7 @@ func New(ght *gh.ThrottledClient, cache *cache.Cache, config config.FlakeChaser)
 
 // Handle implements http interface, will be invoked periodically to fulfill the test flakes comments.
 func (c *Chaser) ServeHTTP(_ http.ResponseWriter, _ *http.Request) {
-	flakeComments := `Hey, there's no updates for this test flakes for 3 days.`
+	flakeComments := `:snowflake: Hey there's no update for this test flakes for 3 days.`
 	scope.Infof("Handle request for flake chaser")
 	issues, err := c.cache.ReadTestFlakyIssues(c.inactiveDays, c.createdDays)
 	if err != nil {
