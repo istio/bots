@@ -39,7 +39,7 @@ const (
 	memberTable             = "Members"
 	botActivityTable        = "BotActivity"
 	maintainerTable         = "Maintainers"
-	testFlakeForPrTable		= "TestFlakeForPrs"
+	testFlakeForPrTable     = "TestFlakeForPrs"
 	flakeTable              = "TestFlakes"
 	flakeOccurrenceTable    = "FlakeOccurrences"
 )
@@ -95,7 +95,7 @@ var (
 	pullRequestCommentColumns []string
 	pullRequestReviewColumns  []string
 	botActivityColumns        []string
-	testFlakeForPrColumns	  []string
+	testFlakeForPrColumns     []string
 	flakeColumns              []string
 )
 

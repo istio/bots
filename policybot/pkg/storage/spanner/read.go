@@ -272,7 +272,7 @@ func (s *store) ReadBotActivityByID(orgID string, repoID string) (*storage.BotAc
 	return &result, nil
 }
 
-func (s *store) ReadTestFlakeForPrByName(orgID string, testName string, prNum string, runNum string) (*storage.TestFlakeForPr, error) {
+func (s *store) ReadTestFlakeForPrByName(orgID string, testName string, prNum int64, runNum int64) (*storage.TestFlakeForPr, error) {
 	row, err := s.client.Single().ReadRow(s.ctx, testFlakeForPrTable, testFlakeForPrKey(orgID, testName, prNum, runNum), testFlakeForPrColumns)
 	if spanner.ErrCode(err) == codes.NotFound {
 		return nil, nil
@@ -280,7 +280,7 @@ func (s *store) ReadTestFlakeForPrByName(orgID string, testName string, prNum st
 		return nil, err
 	}
 
-	var result storage.TestFlake
+	var result storage.TestFlakeForPr
 	if err := row.ToStruct(&result); err != nil {
 		return nil, err
 	}
