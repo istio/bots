@@ -148,7 +148,6 @@ func contains(slic []string, ele string) bool {
  * Return []Tests return a slice of Tests objects.
  */
 func (prFlakeTest PrFlakeTest) getTests(prNum string) ([]Tests, error) {
-	//ctx := context.Background()
 	ctx := prFlakeTest.ctx
 	client := prFlakeTest.client
 	bucket := client.Bucket("istio-prow")
