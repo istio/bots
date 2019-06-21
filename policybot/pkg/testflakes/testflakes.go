@@ -356,5 +356,8 @@ func (prFlakeTest PrFlakeTest) checkTestFlakesForPr(prNum string) ([]TestFlakeFo
 	}
 	fullResult, err := prFlakeTest.getShaAndPassStatus(testSlice)
 
+	if err != nil {
+		return nil, err
+	}
 	return fullResult, nil
 }
