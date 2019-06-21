@@ -67,6 +67,27 @@ type Nag struct {
 	Message string
 }
 
+type FlakeChaser struct {
+	// Name of the nag.
+	Name string
+
+	// InactiveDays represents the days that a flakey test issue hasn't been updated.
+	InactiveDays int
+
+	// CreatedDays determines the bot search range, only issues created within this days ago
+	// are considered.
+	CreatedDays int
+
+	// Message is the message the bot comments on flaky test issues.
+	Message string
+
+	// DryRun determines whether we post updates to the issues.
+	DryRun bool
+
+	// Repos determines the repo this bot is applied on, format, "istio/istio", "istio/proxy"
+	Repos []string
+}
+
 type AutoLabel struct {
 	// Name of the auto label
 	Name string
@@ -116,6 +137,9 @@ type Args struct {
 
 	// Global nagging state
 	Nags []Nag `json:"nags"`
+
+	// Global flaky test bots to nag issuer owner.
+	FlakeChaser FlakeChaser `json:"flakechaser"`
 
 	// Global auto-labeling
 	AutoLabels []AutoLabel `json:"autolabels"`

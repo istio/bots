@@ -36,6 +36,7 @@ import (
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/labeler"
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/nagger"
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/refresher"
+	"istio.io/bots/policybot/handlers/handlers/flakechaser"
 	"istio.io/bots/policybot/handlers/syncer"
 	"istio.io/bots/policybot/handlers/topics/commithub"
 	"istio.io/bots/policybot/handlers/topics/coverage"
@@ -213,9 +214,9 @@ func runWithConfig(a *config.Args) error {
 	if err != nil {
 		return fmt.Errorf("unable to create GitHub webhook: %v", err)
 	}
-
 	// event handlers
 	router.Handle("/githubwebhook", ghHandler).Methods("POST")
+	router.Handle("/flakechaser", flakechaser.New(ght, cache, a.FlakeChaser)).Methods("GET")
 	router.Handle("/zenhubwebhook", zenhubwebhook.NewHandler(store, cache)).Methods("POST")
 	router.Handle("/sync", syncer.NewHandler(context.Background(), ght, cache, zht, store, bs, a.Orgs)).Methods("GET")
 	router.HandleFunc("/login", s.handleLogin)

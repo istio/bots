@@ -114,7 +114,7 @@ the Istio repos.
 
 The bot's behavior is controlled entirely through its configuration file. The
 format of the configuration file is described by the `Args` struct in
-`pkg/config/args.go` 
+`pkg/config/args.go`.
 
 ## Deployment
 
