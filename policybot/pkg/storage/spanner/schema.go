@@ -28,6 +28,7 @@ import (
 const (
 	orgTable                = "Orgs"
 	repoTable               = "Repos"
+	repoCommentTable        = "RepoComments"
 	userTable               = "Users"
 	labelTable              = "Labels"
 	issueTable              = "Issues"
@@ -92,6 +93,7 @@ var (
 	pullRequestCommentColumns []string
 	pullRequestReviewColumns  []string
 	botActivityColumns        []string
+	maintainerColumns         []string
 )
 
 // Bunch of functions to from keys for the tables and indices in the DB
@@ -156,6 +158,10 @@ func botActivityKey(orgID string, repoID string) spanner.Key {
 	return spanner.Key{orgID, repoID}
 }
 
+func maintainerKey(orgID string, userID string) spanner.Key {
+	return spanner.Key{orgID, userID}
+}
+
 func init() {
 	orgColumns = getFields(storage.Org{})
 	orgLoginColumns = getFields(orgLoginRow{})
@@ -171,6 +177,7 @@ func init() {
 	pullRequestColumns = getFields(storage.PullRequest{})
 	pullRequestReviewColumns = getFields(storage.PullRequestReview{})
 	botActivityColumns = getFields(storage.BotActivity{})
+	maintainerColumns = getFields(storage.Maintainer{})
 }
 
 // Produces a string array representing all the fields in the input object

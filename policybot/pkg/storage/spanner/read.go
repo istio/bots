@@ -15,15 +15,16 @@
 package spanner
 
 import (
-	"google.golang.org/grpc/codes"
+	"context"
 
 	"cloud.google.com/go/spanner"
+	"google.golang.org/grpc/codes"
 
 	"istio.io/bots/policybot/pkg/storage"
 )
 
-func (s *store) ReadOrgByID(org string) (*storage.Org, error) {
-	row, err := s.client.Single().ReadRow(s.ctx, orgTable, orgKey(org), orgColumns)
+func (s store) ReadOrgByID(context context.Context, org string) (*storage.Org, error) {
+	row, err := s.client.Single().ReadRow(context, orgTable, orgKey(org), orgColumns)
 	if spanner.ErrCode(err) == codes.NotFound {
 		return nil, nil
 	} else if err != nil {
@@ -38,8 +39,8 @@ func (s *store) ReadOrgByID(org string) (*storage.Org, error) {
 	return &result, nil
 }
 
-func (s *store) ReadOrgByLogin(login string) (*storage.Org, error) {
-	iter := s.client.Single().ReadUsingIndex(s.ctx, orgTable, orgLoginIndex, orgLoginKey(login), orgLoginColumns)
+func (s store) ReadOrgByLogin(context context.Context, login string) (*storage.Org, error) {
+	iter := s.client.Single().ReadUsingIndex(context, orgTable, orgLoginIndex, orgLoginKey(login), orgLoginColumns)
 
 	var olr orgLoginRow
 
@@ -59,8 +60,8 @@ func (s *store) ReadOrgByLogin(login string) (*storage.Org, error) {
 	}, nil
 }
 
-func (s *store) ReadRepoByID(org string, repo string) (*storage.Repo, error) {
-	row, err := s.client.Single().ReadRow(s.ctx, repoTable, repoKey(org, repo), repoColumns)
+func (s store) ReadRepoByID(context context.Context, org string, repo string) (*storage.Repo, error) {
+	row, err := s.client.Single().ReadRow(context, repoTable, repoKey(org, repo), repoColumns)
 	if spanner.ErrCode(err) == codes.NotFound {
 		return nil, nil
 	} else if err != nil {
@@ -75,8 +76,8 @@ func (s *store) ReadRepoByID(org string, repo string) (*storage.Repo, error) {
 	return &result, nil
 }
 
-func (s *store) ReadRepoByName(org string, name string) (*storage.Repo, error) {
-	iter := s.client.Single().ReadUsingIndex(s.ctx, repoTable, repoNameIndex, repoNameKey(org, name), repoNameColumns)
+func (s store) ReadRepoByName(context context.Context, org string, name string) (*storage.Repo, error) {
+	iter := s.client.Single().ReadUsingIndex(context, repoTable, repoNameIndex, repoNameKey(org, name), repoNameColumns)
 
 	var rnr repoNameRow
 
@@ -90,11 +91,11 @@ func (s *store) ReadRepoByName(org string, name string) (*storage.Repo, error) {
 		return nil, err
 	}
 
-	return s.ReadRepoByID(org, rnr.RepoID)
+	return s.ReadRepoByID(context, org, rnr.RepoID)
 }
 
-func (s *store) ReadIssueByID(org string, repo string, issue string) (*storage.Issue, error) {
-	row, err := s.client.Single().ReadRow(s.ctx, issueTable, issueKey(org, repo, issue), issueColumns)
+func (s store) ReadIssueByID(context context.Context, org string, repo string, issue string) (*storage.Issue, error) {
+	row, err := s.client.Single().ReadRow(context, issueTable, issueKey(org, repo, issue), issueColumns)
 	if spanner.ErrCode(err) == codes.NotFound {
 		return nil, nil
 	} else if err != nil {
@@ -109,8 +110,8 @@ func (s *store) ReadIssueByID(org string, repo string, issue string) (*storage.I
 	return &result, nil
 }
 
-func (s *store) ReadIssueByNumber(org string, repo string, number int) (*storage.Issue, error) {
-	iter := s.client.Single().ReadUsingIndex(s.ctx, issueTable, issueNumberIndex, issueNumberKey(repo, number), issueNumberColumns)
+func (s store) ReadIssueByNumber(context context.Context, org string, repo string, number int) (*storage.Issue, error) {
+	iter := s.client.Single().ReadUsingIndex(context, issueTable, issueNumberIndex, issueNumberKey(repo, number), issueNumberColumns)
 
 	var inr issueNumberRow
 
@@ -124,11 +125,11 @@ func (s *store) ReadIssueByNumber(org string, repo string, number int) (*storage
 		return nil, err
 	}
 
-	return s.ReadIssueByID(org, repo, inr.IssueID)
+	return s.ReadIssueByID(context, org, repo, inr.IssueID)
 }
 
-func (s *store) ReadIssueCommentByID(org string, repo string, issue string, issueComment string) (*storage.IssueComment, error) {
-	row, err := s.client.Single().ReadRow(s.ctx, issueCommentTable, issueCommentKey(org, repo, issue, issueComment), issueCommentColumns)
+func (s store) ReadIssueCommentByID(context context.Context, org string, repo string, issue string, issueComment string) (*storage.IssueComment, error) {
+	row, err := s.client.Single().ReadRow(context, issueCommentTable, issueCommentKey(org, repo, issue, issueComment), issueCommentColumns)
 	if spanner.ErrCode(err) == codes.NotFound {
 		return nil, nil
 	} else if err != nil {
@@ -143,8 +144,8 @@ func (s *store) ReadIssueCommentByID(org string, repo string, issue string, issu
 	return &result, nil
 }
 
-func (s *store) ReadIssuePipelineByNumber(orgID string, repoID string, number int) (*storage.IssuePipeline, error) {
-	row, err := s.client.Single().ReadRow(s.ctx, issuePipelineTable, issuePipelineKey(orgID, repoID, number), issuePipelineColumns)
+func (s store) ReadIssuePipelineByNumber(context context.Context, orgID string, repoID string, number int) (*storage.IssuePipeline, error) {
+	row, err := s.client.Single().ReadRow(context, issuePipelineTable, issuePipelineKey(orgID, repoID, number), issuePipelineColumns)
 	if spanner.ErrCode(err) == codes.NotFound {
 		return nil, nil
 	} else if err != nil {
@@ -159,8 +160,8 @@ func (s *store) ReadIssuePipelineByNumber(orgID string, repoID string, number in
 	return &result, nil
 }
 
-func (s *store) ReadPullRequestByID(org string, repo string, issue string) (*storage.PullRequest, error) {
-	row, err := s.client.Single().ReadRow(s.ctx, pullRequestTable, pullRequestKey(org, repo, issue), pullRequestColumns)
+func (s store) ReadPullRequestByID(context context.Context, org string, repo string, issue string) (*storage.PullRequest, error) {
+	row, err := s.client.Single().ReadRow(context, pullRequestTable, pullRequestKey(org, repo, issue), pullRequestColumns)
 	if spanner.ErrCode(err) == codes.NotFound {
 		return nil, nil
 	} else if err != nil {
@@ -175,8 +176,9 @@ func (s *store) ReadPullRequestByID(org string, repo string, issue string) (*sto
 	return &result, nil
 }
 
-func (s *store) ReadPullRequestCommentByID(orgID string, repoID string, prID string, prCommentID string) (*storage.PullRequestComment, error) {
-	row, err := s.client.Single().ReadRow(s.ctx, pullRequestCommentTable, pullRequestCommentKey(orgID, repoID, prID, prCommentID), pullRequestCommentColumns)
+func (s store) ReadPullRequestCommentByID(context context.Context, orgID string, repoID string, prID string,
+	prCommentID string) (*storage.PullRequestComment, error) {
+	row, err := s.client.Single().ReadRow(context, pullRequestCommentTable, pullRequestCommentKey(orgID, repoID, prID, prCommentID), pullRequestCommentColumns)
 	if spanner.ErrCode(err) == codes.NotFound {
 		return nil, nil
 	} else if err != nil {
@@ -191,8 +193,9 @@ func (s *store) ReadPullRequestCommentByID(orgID string, repoID string, prID str
 	return &result, nil
 }
 
-func (s *store) ReadPullRequestReviewByID(org string, repo string, issue string, pullRequestReview string) (*storage.PullRequestReview, error) {
-	row, err := s.client.Single().ReadRow(s.ctx, pullRequestReviewTable, pullRequestReviewKey(org, repo, issue, pullRequestReview), pullRequestReviewColumns)
+func (s store) ReadPullRequestReviewByID(context context.Context, org string, repo string, issue string,
+	pullRequestReview string) (*storage.PullRequestReview, error) {
+	row, err := s.client.Single().ReadRow(context, pullRequestReviewTable, pullRequestReviewKey(org, repo, issue, pullRequestReview), pullRequestReviewColumns)
 	if spanner.ErrCode(err) == codes.NotFound {
 		return nil, nil
 	} else if err != nil {
@@ -207,8 +210,8 @@ func (s *store) ReadPullRequestReviewByID(org string, repo string, issue string,
 	return &result, nil
 }
 
-func (s *store) ReadLabelByID(org string, repo string, label string) (*storage.Label, error) {
-	row, err := s.client.Single().ReadRow(s.ctx, labelTable, labelKey(org, repo, label), labelColumns)
+func (s store) ReadLabelByID(context context.Context, org string, repo string, label string) (*storage.Label, error) {
+	row, err := s.client.Single().ReadRow(context, labelTable, labelKey(org, repo, label), labelColumns)
 	if spanner.ErrCode(err) == codes.NotFound {
 		return nil, nil
 	} else if err != nil {
@@ -223,8 +226,8 @@ func (s *store) ReadLabelByID(org string, repo string, label string) (*storage.L
 	return &result, nil
 }
 
-func (s *store) ReadUserByID(user string) (*storage.User, error) {
-	row, err := s.client.Single().ReadRow(s.ctx, userTable, userKey(user), userColumns)
+func (s store) ReadUserByID(context context.Context, user string) (*storage.User, error) {
+	row, err := s.client.Single().ReadRow(context, userTable, userKey(user), userColumns)
 	if spanner.ErrCode(err) == codes.NotFound {
 		return nil, nil
 	} else if err != nil {
@@ -239,8 +242,8 @@ func (s *store) ReadUserByID(user string) (*storage.User, error) {
 	return &result, nil
 }
 
-func (s *store) ReadUserByLogin(login string) (*storage.User, error) {
-	iter := s.client.Single().ReadUsingIndex(s.ctx, userTable, userLoginIndex, userLoginKey(login), userLoginColumns)
+func (s store) ReadUserByLogin(context context.Context, login string) (*storage.User, error) {
+	iter := s.client.Single().ReadUsingIndex(context, userTable, userLoginIndex, userLoginKey(login), userLoginColumns)
 
 	var ulr userLoginRow
 
@@ -254,11 +257,11 @@ func (s *store) ReadUserByLogin(login string) (*storage.User, error) {
 		return nil, err
 	}
 
-	return s.ReadUserByID(ulr.UserID)
+	return s.ReadUserByID(context, ulr.UserID)
 }
 
-func (s *store) ReadBotActivityByID(orgID string, repoID string) (*storage.BotActivity, error) {
-	row, err := s.client.Single().ReadRow(s.ctx, botActivityTable, botActivityKey(orgID, repoID), botActivityColumns)
+func (s store) ReadBotActivityByID(context context.Context, orgID string, repoID string) (*storage.BotActivity, error) {
+	row, err := s.client.Single().ReadRow(context, botActivityTable, botActivityKey(orgID, repoID), botActivityColumns)
 	if spanner.ErrCode(err) == codes.NotFound {
 		return nil, nil
 	} else if err != nil {
@@ -266,6 +269,22 @@ func (s *store) ReadBotActivityByID(orgID string, repoID string) (*storage.BotAc
 	}
 
 	var result storage.BotActivity
+	if err := row.ToStruct(&result); err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
+
+func (s store) ReadMaintainerByID(context context.Context, orgID string, userID string) (*storage.Maintainer, error) {
+	row, err := s.client.Single().ReadRow(context, maintainerTable, maintainerKey(orgID, userID), maintainerColumns)
+	if spanner.ErrCode(err) == codes.NotFound {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	var result storage.Maintainer
 	if err := row.ToStruct(&result); err != nil {
 		return nil, err
 	}

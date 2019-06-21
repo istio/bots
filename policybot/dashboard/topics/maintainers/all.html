@@ -1,0 +1,117 @@
+<aside class="callout warning">
+    <div class="type">
+        <svg class="large-icon">
+            <use xlink:href="/icons/icons.svg#callout-warning">
+            </use>
+        </svg>
+    </div>
+    <div class="content">
+        This page is under construction
+    </div>
+</aside>
+
+<p>
+These kind folks are responsible for specific areas of the Istio product, guiding its development
+and maintaining its code base.
+</p>
+
+<div id="gallery" class="user-gallery">
+</div>
+
+<script>
+    "use strict";
+
+    function getMaintainers() {
+        let url = "ws://" + window.location.host + "/maintainersapi/";
+        if (window.location.protocol === "https:") {
+            url = "wss://" + window.location.host + "/maintainersapi/";
+        }
+
+        const ws = new WebSocket(url);
+        const gallery = document.getElementById("gallery");
+
+        // Attach a popper to the given anchor
+        function attachPopper(anchor, element) {
+            if (popper) {
+                popper.destroy();
+            }
+
+            popper = new Popper(anchor, element, {
+                modifiers: {
+                    flip: {
+                        enabled: true,
+                    },
+                    preventOverflow: {
+                        enabled: true,
+                    },
+                    shift: {
+                        enabled: true,
+                    },
+                },
+                placement: "auto-start",
+            });
+        }
+
+        ws.onmessage = evt => {
+            const maintainer = JSON.parse(evt.data);
+
+            const title = document.createElement("div");
+            title.className = "title";
+            title.innerText = maintainer.name;
+
+            const body = document.createElement("div");
+            body.className = "body";
+            body.innerText = evt.data;
+
+            const arrow = document.createElement("div");
+            arrow.className = "arrow";
+            arrow.setAttribute("x-arrow", "");
+
+            const popover = document.createElement("div");
+            popover.className = "popover";
+            popover.appendChild(title);
+            popover.appendChild(body);
+            popover.appendChild(arrow);
+            listen(popover, click, e => {
+                e.cancelBubble = true;
+            });
+
+            const avatar = document.createElement("div");
+            avatar.className = "avatar";
+            avatar.innerHTML = "<img src='" + maintainer.avatar_url + "'>";
+
+            const name = document.createElement("div");
+            name.className = "name";
+            name.innerText = maintainer.name;
+
+            const numRepos = document.createElement("div");
+            numRepos.className = "num-repos";
+            if (maintainer.repo_info.length == 1) {
+                numRepos.innerText = "Maintainer in 1 repo";
+            } else {
+                numRepos.innerText = "Maintainer in " + maintainer.repo_info.length + " repos";
+            }
+
+            const lastSeen = document.createElement("div");
+            lastSeen.className = "last-seen";
+            lastSeen.innerText = "Last active on " + maintainer.last_seen;
+
+            const user = document.createElement("div");
+            user.className = "user";
+            user.appendChild(avatar);
+            user.appendChild(name);
+            user.appendChild(numRepos);
+            user.appendChild(lastSeen);
+            listen(user, click, e => {
+                e.cancelBubble = true;
+                toggleOverlay(popover);
+                attachPopper(user, popover);
+            });
+
+            gallery.appendChild(user);
+            gallery.appendChild(popover);
+        };
+    }
+
+    getMaintainers();
+</script>

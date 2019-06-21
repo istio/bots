@@ -1,0 +1,13 @@
+<p>
+Use this dashboard to access and control a variety of Istio engineering systems.
+Please make a selection below to get going.
+</p>
+
+<div class="section-index">
+    {{ range . }}
+        <div class="entry">
+            <h5><a href="{{ .URL }}">{{ .Title }}</a></h5>
+            <p>{{ .Description }}</p>
+        </div>
+    {{ end }}
+</div>

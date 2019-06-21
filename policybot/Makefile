@@ -5,6 +5,8 @@ HUB ?= gcr.io/istio-testing/policybot
 IMG := $(HUB):$(TAG)
 export GO111MODULE=on
 
+dockerrun := docker run -t -i --sig-proxy=true --rm -v $(shell pwd):/site -w /site "gcr.io/istio-testing/website-builder:2019-05-03"
+
 deploy: push deploy_only
 .PHONY: deploy
 
@@ -21,7 +23,7 @@ deploy_only:
 	@echo "Deployed policybot:$(IMG) to GKE"
 .PHONY: deploy_only
 
-container:
+container: gen
 	@GO111MODULE=on CGO_ENABLED=0 GOOS=linux go build
 	@docker build --no-cache --quiet --tag $(IMG) .
 .PHONY: container
@@ -30,3 +32,13 @@ push: container
 	@docker push $(IMG)
 	@echo "Built container and published to $(IMG)"
 .PHONY: push
+
+gen:
+	@$(dockerrun) scripts/gen_dashboard.sh
+	@go generate ./...
+
+lint:
+	@$(dockerrun) scripts/lint_dashboard.sh
+
+clean:
+	@rm -fr policybot tmp generated */*.gen.go */*/*.gen.go */*/*/*.gen.go

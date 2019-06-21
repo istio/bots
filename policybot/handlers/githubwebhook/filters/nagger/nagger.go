@@ -17,7 +17,6 @@ package nagger
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"regexp"
 	"strings"
 
@@ -34,7 +33,6 @@ import (
 
 // Generates nagging messages in PRs based on regex matches on the title, body, and affected files
 type Nagger struct {
-	ctx               context.Context
 	cache             *cache.Cache
 	ght               *gh.ThrottledClient
 	orgs              []config.Org
@@ -48,9 +46,8 @@ const nagSignature = "\n\n_Courtesy of your friendly test nag_."
 
 var scope = log.RegisterScope("nagger", "The GitHub test nagger", 0)
 
-func NewNagger(ctx context.Context, ght *gh.ThrottledClient, cache *cache.Cache, orgs []config.Org, nags []config.Nag) (filters.Filter, error) {
+func NewNagger(ght *gh.ThrottledClient, cache *cache.Cache, orgs []config.Org, nags []config.Nag) (filters.Filter, error) {
 	n := &Nagger{
-		ctx:               ctx,
 		cache:             cache,
 		ght:               ght,
 		orgs:              orgs,
@@ -127,7 +124,7 @@ func (n *Nagger) Events() []webhook.Event {
 }
 
 // process an event arriving from GitHub
-func (n *Nagger) Handle(_ http.ResponseWriter, githubObject interface{}) {
+func (n *Nagger) Handle(context context.Context, githubObject interface{}) {
 	prp, ok := githubObject.(webhook.PullRequestPayload)
 	if !ok {
 		// not what we're looking for
@@ -142,7 +139,7 @@ func (n *Nagger) Handle(_ http.ResponseWriter, githubObject interface{}) {
 	}
 
 	// NOTE: this assumes the PR state has already been stored by the refresher plugin
-	pr, err := n.cache.ReadPullRequest(prp.Repository.Owner.NodeID, prp.Repository.NodeID, prp.PullRequest.NodeID)
+	pr, err := n.cache.ReadPullRequest(context, prp.Repository.Owner.NodeID, prp.Repository.NodeID, prp.PullRequest.NodeID)
 	if err != nil {
 		scope.Errorf("Unable to retrieve data from storage for PR %d from repo %s: %v", prp.Number, prp.Repository.FullName, err)
 		return
@@ -152,7 +149,7 @@ func (n *Nagger) Handle(_ http.ResponseWriter, githubObject interface{}) {
 
 	split := strings.Split(prp.Repository.FullName, "/")
 	prb := pullRequestBundle{pr, prp.Repository.FullName, split[0], split[1]}
-	n.processPR(prb, nags)
+	n.processPR(context, prb, nags)
 }
 
 type pullRequestBundle struct {
@@ -163,7 +160,7 @@ type pullRequestBundle struct {
 }
 
 // process a PR
-func (n *Nagger) processPR(prb pullRequestBundle, orgNags []config.Nag) {
+func (n *Nagger) processPR(context context.Context, prb pullRequestBundle, orgNags []config.Nag) {
 	body := prb.Body
 	title := prb.Title
 
@@ -182,7 +179,7 @@ func (n *Nagger) processPR(prb pullRequestBundle, orgNags []config.Nag) {
 
 	if len(contentMatches) == 0 {
 		scope.Infof("Nothing to nag about for PR %d from repo %s since its title and body don't match any nags", prb.Number, prb.fullRepoName)
-		n.removeNagComment(prb)
+		n.removeNagComment(context, prb)
 		return
 	}
 
@@ -195,7 +192,7 @@ func (n *Nagger) processPR(prb pullRequestBundle, orgNags []config.Nag) {
 
 	if len(fileMatches) == 0 {
 		scope.Infof("Nothing to nag about for PR %d from repo %s since its affected files don't match any nags", prb.Number, prb.fullRepoName)
-		n.removeNagComment(prb)
+		n.removeNagComment(context, prb)
 		return
 	}
 
@@ -205,7 +202,7 @@ func (n *Nagger) processPR(prb pullRequestBundle, orgNags []config.Nag) {
 	for _, nag := range fileMatches {
 		if !n.fileMatch(nag.AbsentFiles, prb.PullRequest.Files) {
 			scope.Infof("Nagging PR %d from repo %s (nag: %s)", prb.Number, prb.fullRepoName, nag.Name)
-			n.postNagComment(prb, nag)
+			n.postNagComment(context, prb, nag)
 
 			// only post a single nag comment per PR even if it's got multiple hits
 			return
@@ -213,19 +210,19 @@ func (n *Nagger) processPR(prb pullRequestBundle, orgNags []config.Nag) {
 	}
 
 	scope.Infof("Nothing to nag about for PR %d from repo %s since it contains required files", prb.Number, prb.fullRepoName)
-	n.removeNagComment(prb)
+	n.removeNagComment(context, prb)
 }
 
-func (n *Nagger) removeNagComment(prb pullRequestBundle) {
-	existing, id := n.getNagComment(prb)
+func (n *Nagger) removeNagComment(context context.Context, prb pullRequestBundle) {
+	existing, id := n.getNagComment(context, prb)
 	if existing != "" {
-		if _, err := n.ght.Get().Issues.DeleteComment(n.ctx, prb.orgName, prb.repoName, id); err != nil {
+		if _, err := n.ght.Get(context).Issues.DeleteComment(context, prb.orgName, prb.repoName, id); err != nil {
 			scope.Errorf("Unable to delete nag comment in PR %d from repo %s: %v", prb.Number, prb.fullRepoName, err)
 		}
 	}
 }
 
-func (n *Nagger) getNagComment(prb pullRequestBundle) (string, int64) {
+func (n *Nagger) getNagComment(context context.Context, prb pullRequestBundle) (string, int64) {
 	opt := &github.IssueListCommentsOptions{
 		ListOptions: github.ListOptions{
 			PerPage: 100,
@@ -233,7 +230,7 @@ func (n *Nagger) getNagComment(prb pullRequestBundle) (string, int64) {
 	}
 
 	for {
-		comments, resp, err := n.ght.Get().Issues.ListComments(n.ctx, prb.orgName, prb.repoName, int(prb.Number), opt)
+		comments, resp, err := n.ght.Get(context).Issues.ListComments(context, prb.orgName, prb.repoName, int(prb.Number), opt)
 		if err != nil {
 			scope.Errorf("Unable to list comments for pull request %d in repo %s: %v\n", prb.Number, prb.fullRepoName, err)
 			return "", -1
@@ -256,24 +253,24 @@ func (n *Nagger) getNagComment(prb pullRequestBundle) (string, int64) {
 	return "", -1
 }
 
-func (n *Nagger) postNagComment(prb pullRequestBundle, nag config.Nag) {
+func (n *Nagger) postNagComment(context context.Context, prb pullRequestBundle, nag config.Nag) {
 	msg := nag.Message + nagSignature
 	pc := &github.IssueComment{
 		Body: &msg,
 	}
 
-	existing, id := n.getNagComment(prb)
+	existing, id := n.getNagComment(context, prb)
 	if existing == msg {
 		// nag comment is already present
 		return
 	} else if existing != "" {
 		// try to delete the previous nag
-		if _, err := n.ght.Get().Issues.DeleteComment(n.ctx, prb.orgName, prb.repoName, id); err != nil {
+		if _, err := n.ght.Get(context).Issues.DeleteComment(context, prb.orgName, prb.repoName, id); err != nil {
 			scope.Errorf("Unable to delete nag comment in PR %d from repo %s: %v", prb.Number, prb.fullRepoName, err)
 		}
 	}
 
-	_, _, err := n.ght.Get().Issues.CreateComment(n.ctx, prb.orgName, prb.repoName, int(prb.Number), pc)
+	_, _, err := n.ght.Get(context).Issues.CreateComment(context, prb.orgName, prb.repoName, int(prb.Number), pc)
 	if err != nil {
 		scope.Errorf("Unable to attach nagging comment to PR %d from repo %s: %v", prb.Number, prb.fullRepoName, err)
 	}

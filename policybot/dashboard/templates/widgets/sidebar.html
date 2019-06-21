@@ -1,0 +1,21 @@
+{{ define "sidebar" }}
+<nav id="sidebar" aria-label="Section Navigation">
+    <div class="directory">
+        <div class="card">
+            <div id="header0" class="header">
+	            Istio Eng Dashboard
+        	</div>
+
+            <div class="body default" aria-labelledby="header0">
+				<ul role="tree" aria-expanded="true">
+					{{ range getTopics }}
+						<li role="none">
+							<a role="treeitem" title="{{.Description}}" href="{{.URL}}">{{.Title}}</a>
+						</li>
+					{{ end }}
+				</ul>
+			</div>
+        </div>
+    </div>
+</nav>
+{{ end }}

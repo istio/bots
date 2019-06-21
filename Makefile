@@ -1,5 +1,6 @@
 
 build:
+	@go generate ./...
 	@go build ./...
 
 lint:
