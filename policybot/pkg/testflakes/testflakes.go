@@ -19,16 +19,17 @@
 package testflakes
 
 import (
-	"cloud.google.com/go/storage"
 	"context"
 	"encoding/json"
 	"fmt"
-	"google.golang.org/api/iterator"
 	"io/ioutil"
 	"log"
 	"strconv"
 	"strings"
 	"time"
+
+	"cloud.google.com/go/storage"
+	"google.golang.org/api/iterator"
 )
 
 /*
@@ -111,7 +112,7 @@ type PrFlakeTest struct {
 }
 
 /*
- * Functtion to initionalize new PrFlakeTest object.
+ * Function to initionalize new PrFlakeTest object.
  * Use `prFlakeyTest, err := NewPrFlakeTest()` and `testFlakes := prFlakeyTest.checkTestFlakesForPr(<pr_number>)`
  * to get test flakes information for a given pr.
  */
@@ -228,13 +229,13 @@ func (prFlakeTest PrFlakeTest) getShaAndPassStatus(testSlice []Tests) ([]TestFla
 			log.Println("read clone")
 			rdr, err := obj.NewReader(ctx)
 			if err != nil {
-				return nil, fmt.Errorf("readFile: unable to open file from bucket %q, file %q: %v", err)
+				return nil, err
 			}
 
 			defer rdr.Close()
 			slurp, err := ioutil.ReadAll(rdr)
 			if err != nil {
-				return nil, fmt.Errorf("readFile: unable to read data from bucket %q, file %q: %v", err)
+				return nil, err
 			}
 			s := string(slurp)
 			dec := json.NewDecoder(strings.NewReader(s))
@@ -249,7 +250,7 @@ func (prFlakeTest PrFlakeTest) getShaAndPassStatus(testSlice []Tests) ([]TestFla
 				var record CloneRecord
 				err := dec.Decode(&record)
 				if err != nil {
-					return nil, fmt.Errorf(err)
+					return nil, err
 				}
 
 				refs := record.Refs
@@ -268,13 +269,13 @@ func (prFlakeTest PrFlakeTest) getShaAndPassStatus(testSlice []Tests) ([]TestFla
 			newObj := bucket.Object(pref + "/started.json")
 			nrdr, nerr := newObj.NewReader(ctx)
 			if nerr != nil {
-				return nil, fmt.Errorf("readFile: unable to open file from bucket %q, file %q: %v", nerr)
+				return nil, nerr
 			}
 
 			defer nrdr.Close()
 			slur, nerr := ioutil.ReadAll(nrdr)
 			if err != nil {
-				return nil, fmt.Errorf("readFile: unable to read data from bucket %q, file %q: %v", nerr)
+				return nil, nerr
 			}
 			ns := string(slur)
 			ndec := json.NewDecoder(strings.NewReader(ns))
@@ -283,7 +284,7 @@ func (prFlakeTest PrFlakeTest) getShaAndPassStatus(testSlice []Tests) ([]TestFla
 				var started Started
 				err = ndec.Decode(&started)
 				if err != nil {
-					return nil, fmt.Errorf(err)
+					return nil, err
 				}
 
 				t := started.Timestamp
@@ -296,13 +297,13 @@ func (prFlakeTest PrFlakeTest) getShaAndPassStatus(testSlice []Tests) ([]TestFla
 			newObj = bucket.Object(pref + "/finished.json")
 			nrdr, nerr = newObj.NewReader(ctx)
 			if nerr != nil {
-				return nil, fmt.Errorf("readFile: unable to open file from bucket %q, file %q: %v", nerr)
+				return nil, nerr
 			}
 
 			defer nrdr.Close()
 			slur, nerr = ioutil.ReadAll(nrdr)
 			if err != nil {
-				return nil, fmt.Errorf("readFile: unable to read data from bucket %q, file %q: %v", nerr)
+				return nil, nerr
 			}
 			ns = string(slur)
 			ndec = json.NewDecoder(strings.NewReader(ns))
@@ -311,7 +312,7 @@ func (prFlakeTest PrFlakeTest) getShaAndPassStatus(testSlice []Tests) ([]TestFla
 				var finished Finished
 				err = ndec.Decode(&finished)
 				if err != nil {
-					return nil, fmt.Errorf(err)
+					return nil, err
 				}
 
 				passed := finished.Passed
@@ -326,9 +327,15 @@ func (prFlakeTest PrFlakeTest) getShaAndPassStatus(testSlice []Tests) ([]TestFla
 
 			prefSplit := strings.Split(pref, "/")
 
-			runNo, err := strconv.ParseInt(prefSplit[len(prefSplit)-1], 10, 64)
+			runNo, errr := strconv.ParseInt(prefSplit[len(prefSplit)-1], 10, 64)
+			if errr != nil {
+				return nil, errr
+			}
 			onePull.RunNum = runNo
-			prNo, err := strconv.ParseInt(prefSplit[len(prefSplit)-3], 10, 64)
+			prNo, newError := strconv.ParseInt(prefSplit[len(prefSplit)-3], 10, 64)
+			if newError != nil {
+				return nil, newError
+			}
 			onePull.PrNum = prNo
 			allTestRuns = append(allTestRuns, onePull)
 
