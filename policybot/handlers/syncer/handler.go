@@ -55,7 +55,6 @@ const (
 	members                 = 1 << 3
 	labels                  = 1 << 4
 	zenhub                  = 1 << 5
-	testresults             = 1 << 6
 )
 
 // The state in Syncer is immutable once created. syncState on the other hand represents
@@ -108,8 +107,6 @@ func convFilters(filter string) (filterFlags, error) {
 			result |= labels
 		case "zenhub":
 			result |= zenhub
-		case "testresults":
-			result |= testresults
 		default:
 			return 0, fmt.Errorf("unknown filter value %s", f)
 		}
@@ -152,7 +149,7 @@ func (s *Syncer) Sync(filter string) error {
 		return err
 	}
 
-	if flags&(members|labels|issues|prs|zenhub|testresults) != 0 {
+	if flags&(members|labels|issues|prs|zenhub) != 0 {
 		for _, org := range orgs {
 			var orgRepos []*storage.Repo
 			for _, repo := range repos {
@@ -265,10 +262,6 @@ func (ss *syncState) handleRepo(org *storage.Org, repo *storage.Repo) error {
 		if err := ss.handlePullRequests(org, repo); err != nil {
 			return err
 		}
-	}
-
-	if ss.flags&testresults != 0 {
-		_ = ss.syncer.fetchTestResults(org, repo)
 	}
 
 	return nil

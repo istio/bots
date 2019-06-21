@@ -143,22 +143,6 @@ type IssuePipeline struct {
 	Pipeline    string
 }
 
-type TestFlake struct {
-	OrgID       string
-	RepoID      string
-	BranchName  string
-	TestName    string
-	IssueNumber int64
-}
-
-type FlakeOccurrence struct {
-	OrgID      string
-	RepoID     string
-	BranchName string
-	TestName   string
-	OccurredAt time.Time
-}
-
 type TimedEntry struct {
 	Time time.Time
 	ID   string // an object ID (pr, issue, issue comment

@@ -236,33 +236,3 @@ func (s *store) WriteBotActivities(activities []*storage.BotActivity) error {
 	_, err := s.client.Apply(s.ctx, mutations)
 	return err
 }
-
-func (s *store) WriteTestFlakes(flakes []*storage.TestFlake) error {
-	scope.Debugf("Writing %d test flakes", len(flakes))
-
-	mutations := make([]*spanner.Mutation, len(flakes))
-	for i := 0; i < len(flakes); i++ {
-		var err error
-		if mutations[i], err = spanner.InsertOrUpdateStruct(flakeTable, flakes[i]); err != nil {
-			return err
-		}
-	}
-
-	_, err := s.client.Apply(s.ctx, mutations)
-	return err
-}
-
-func (s *store) WriteFlakeOccurrences(flakeOccurrences []*storage.FlakeOccurrence) error {
-	scope.Debugf("Writing %d test flake occurrences", len(flakeOccurrences))
-
-	mutations := make([]*spanner.Mutation, len(flakeOccurrences))
-	for i := 0; i < len(flakeOccurrences); i++ {
-		var err error
-		if mutations[i], err = spanner.InsertOrUpdateStruct(flakeOccurrenceTable, flakeOccurrences[i]); err != nil {
-			return err
-		}
-	}
-
-	_, err := s.client.Apply(s.ctx, mutations)
-	return err
-}

@@ -39,8 +39,6 @@ const (
 	memberTable             = "Members"
 	botActivityTable        = "BotActivity"
 	maintainerTable         = "Maintainers"
-	flakeTable              = "TestFlakes"
-	flakeOccurrenceTable    = "FlakeOccurrences"
 )
 
 // All the DB indices we use
@@ -94,7 +92,6 @@ var (
 	pullRequestCommentColumns []string
 	pullRequestReviewColumns  []string
 	botActivityColumns        []string
-	flakeColumns              []string
 )
 
 // Bunch of functions to from keys for the tables and indices in the DB
@@ -159,10 +156,6 @@ func botActivityKey(orgID string, repoID string) spanner.Key {
 	return spanner.Key{orgID, repoID}
 }
 
-func flakeKey(orgID string, repoID string, branchName string, testName string) spanner.Key {
-	return spanner.Key{orgID, repoID, branchName, testName}
-}
-
 func init() {
 	orgColumns = getFields(storage.Org{})
 	orgLoginColumns = getFields(orgLoginRow{})
@@ -178,7 +171,6 @@ func init() {
 	pullRequestColumns = getFields(storage.PullRequest{})
 	pullRequestReviewColumns = getFields(storage.PullRequestReview{})
 	botActivityColumns = getFields(storage.BotActivity{})
-	flakeColumns = getFields(storage.TestFlake{})
 }
 
 // Produces a string array representing all the fields in the input object

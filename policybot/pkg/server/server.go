@@ -30,6 +30,23 @@ import (
 	"github.com/gorilla/mux"
 
 	"istio.io/bots/policybot/dashboard/templates"
+	"istio.io/bots/policybot/handlers/githubwebhook"
+	"istio.io/bots/policybot/handlers/githubwebhook/filters"
+	"istio.io/bots/policybot/handlers/githubwebhook/filters/cfgmonitor"
+	"istio.io/bots/policybot/handlers/githubwebhook/filters/labeler"
+	"istio.io/bots/policybot/handlers/githubwebhook/filters/nagger"
+	"istio.io/bots/policybot/handlers/githubwebhook/filters/refresher"
+	"istio.io/bots/policybot/handlers/syncer"
+	"istio.io/bots/policybot/handlers/topics/commithub"
+	"istio.io/bots/policybot/handlers/topics/coverage"
+	"istio.io/bots/policybot/handlers/topics/features"
+	"istio.io/bots/policybot/handlers/topics/flakes"
+	"istio.io/bots/policybot/handlers/topics/issues"
+	"istio.io/bots/policybot/handlers/topics/maintainers"
+	"istio.io/bots/policybot/handlers/topics/members"
+	"istio.io/bots/policybot/handlers/topics/perf"
+	"istio.io/bots/policybot/handlers/topics/pullrequests"
+	"istio.io/bots/policybot/handlers/zenhubwebhook"
 	"istio.io/bots/policybot/pkg/blobstorage/gcs"
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/fw"
@@ -38,22 +55,6 @@ import (
 	"istio.io/bots/policybot/pkg/storage/spanner"
 	"istio.io/bots/policybot/pkg/util"
 	"istio.io/bots/policybot/pkg/zh"
-	"istio.io/bots/policybot/plugins/handlers/github"
-	"istio.io/bots/policybot/plugins/handlers/syncer"
-	"istio.io/bots/policybot/plugins/handlers/zenhub"
-	"istio.io/bots/policybot/plugins/topics/commithub"
-	"istio.io/bots/policybot/plugins/topics/coverage"
-	"istio.io/bots/policybot/plugins/topics/features"
-	"istio.io/bots/policybot/plugins/topics/flakes"
-	"istio.io/bots/policybot/plugins/topics/issues"
-	"istio.io/bots/policybot/plugins/topics/maintainers"
-	"istio.io/bots/policybot/plugins/topics/members"
-	"istio.io/bots/policybot/plugins/topics/perf"
-	"istio.io/bots/policybot/plugins/topics/pullrequests"
-	"istio.io/bots/policybot/plugins/webhooks/cfgmonitor"
-	"istio.io/bots/policybot/plugins/webhooks/labeler"
-	"istio.io/bots/policybot/plugins/webhooks/nagger"
-	"istio.io/bots/policybot/plugins/webhooks/refresher"
 	"istio.io/pkg/log"
 )
 
@@ -183,22 +184,22 @@ func runWithConfig(a *config.Args) error {
 	_ = template.Must(baseLayout.Parse(templates.SidebarTemplate))
 	mainLayout := template.Must(template.Must(baseLayout.Clone()).Parse(templates.MainTemplate))
 
-	// github webhook handlers (keep refresher first in the list such that other plugins see an up-to-date view in storage)
-	webhooks := []fw.Webhook{
+	// github webhook filters (keep refresher first in the list such that other plugins see an up-to-date view in storage)
+	filters := []filters.Filter{
 		refresher.NewRefresher(context.Background(), cache, ght, a.Orgs),
 		nag,
 		labeler,
 		monitor,
 	}
 
-	ghHandler, err := github.NewHandler(a.StartupOptions.GitHubWebhookSecret, webhooks...)
+	ghHandler, err := githubwebhook.NewHandler(a.StartupOptions.GitHubWebhookSecret, filters...)
 	if err != nil {
 		return fmt.Errorf("unable to create GitHub webhook: %v", err)
 	}
 
 	// event handlers
 	router.Handle("/githubwebhook", ghHandler).Methods("POST")
-	router.Handle("/zenhubwebhook", zenhub.NewHandler(store, cache)).Methods("POST")
+	router.Handle("/zenhubwebhook", zenhubwebhook.NewHandler(store, cache)).Methods("POST")
 	router.Handle("/sync", syncer.NewHandler(context.Background(), ght, cache, zht, store, bs, a.Orgs)).Methods("GET")
 	router.HandleFunc("/login", s.handleLogin)
 	router.HandleFunc("/githuboauthcallback", s.handleOAuthCallback)

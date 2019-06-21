@@ -21,8 +21,8 @@ import (
 	webhook "github.com/go-playground/webhooks/github"
 	"github.com/google/go-github/v25/github"
 
+	"istio.io/bots/policybot/handlers/githubwebhook/filters"
 	"istio.io/bots/policybot/pkg/config"
-	"istio.io/bots/policybot/pkg/fw"
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
@@ -39,7 +39,7 @@ type Refresher struct {
 
 var scope = log.RegisterScope("refresher", "Dynamic database refresher", 0)
 
-func NewRefresher(ctx context.Context, cache *cache.Cache, ght *gh.ThrottledClient, orgs []config.Org) fw.Webhook {
+func NewRefresher(ctx context.Context, cache *cache.Cache, ght *gh.ThrottledClient, orgs []config.Org) filters.Filter {
 	r := &Refresher{
 		repos: make(map[string]bool),
 		cache: cache,
