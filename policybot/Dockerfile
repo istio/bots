@@ -11,4 +11,4 @@ COPY policybot.yaml /policybot.yaml
 COPY dashboard/generated /dashboard/generated
 COPY dashboard/static /dashboard/static
 
-CMD ["/policybot", "server", "--configFile", "./policybot.yaml"]
+CMD ["/policybot", "server", "--configFile", "./policybot.yaml", "--https_only"]

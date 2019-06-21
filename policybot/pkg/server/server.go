@@ -107,6 +107,18 @@ func RunServer(base *config.Args) error {
 	}
 }
 
+func httpsRedirectHandler(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		proto := req.Header.Get("x-forwarded-proto")
+		if proto == "http" || proto == "HTTP" {
+			http.Redirect(res, req, fmt.Sprintf("https://%s%s", req.Host, req.URL), http.StatusPermanentRedirect)
+			return
+		}
+
+		next.ServeHTTP(res, req)
+	})
+}
+
 func runWithConfig(a *config.Args) error {
 	log.Debugf("Starting with:\n%s", a)
 
@@ -148,8 +160,13 @@ func runWithConfig(a *config.Args) error {
 		return fmt.Errorf("unable to listen to port: %v", err)
 	}
 
+	var handler http.Handler
 	router := mux.NewRouter()
-
+	handler = router
+	if a.StartupOptions.HTTPSOnly {
+		log.Infof("Using httpsOnly mode")
+		handler = httpsRedirectHandler(router)
+	}
 	// secret state for OAuth exchanges
 	secretState := make([]byte, 32)
 	if _, err := rand.Read(secretState); err != nil {
@@ -163,7 +180,7 @@ func runWithConfig(a *config.Args) error {
 			ReadTimeout:    10 * time.Second,
 			WriteTimeout:   10 * time.Second,
 			MaxHeaderBytes: 1 << 20,
-			Handler:        router,
+			Handler:        handler,
 		},
 		clientID:     a.StartupOptions.GitHubOAuthClientID,
 		clientSecret: a.StartupOptions.GitHubOAuthClientSecret,
