@@ -71,8 +71,8 @@ type Result struct {
 
 func (t *Topic) getPerformanceResults() ([]Result, error) {
 	results := []Result{
-		Result{Name: "Perf Test 1", Target: "perftest1", TimeSeries: t.getTimeSeries1()},
-		Result{Name: "Perf Test 2", Target: "perftest2", TimeSeries: t.getTimeSeries2()}}
+		{Name: "Perf Test 1", Target: "perftest1", TimeSeries: t.getTimeSeries1()},
+		{Name: "Perf Test 2", Target: "perftest2", TimeSeries: t.getTimeSeries2()}}
 	return results, nil
 }
 
