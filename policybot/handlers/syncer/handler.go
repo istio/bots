@@ -25,6 +25,7 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/google/go-github/v25/github"
 
+	"istio.io/bots/policybot/pkg/blobstorage"
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage"
@@ -40,6 +41,7 @@ type Syncer struct {
 	ght   *gh.ThrottledClient
 	zht   *zh.ThrottledClient
 	store storage.Store
+	bs    blobstorage.Store
 	orgs  []config.Org
 }
 
@@ -66,7 +68,7 @@ type syncState struct {
 var scope = log.RegisterScope("syncer", "The GitHub data syncer", 0)
 
 func NewHandler(ctx context.Context, ght *gh.ThrottledClient, cache *cache.Cache,
-	zht *zh.ThrottledClient, store storage.Store, orgs []config.Org) http.Handler {
+	zht *zh.ThrottledClient, store storage.Store, bs blobstorage.Store, orgs []config.Org) http.Handler {
 	return &Syncer{
 		ctx:   ctx,
 		ght:   ght,
@@ -74,6 +76,7 @@ func NewHandler(ctx context.Context, ght *gh.ThrottledClient, cache *cache.Cache
 		zht:   zht,
 		store: store,
 		orgs:  orgs,
+		bs:    bs,
 	}
 }
 
@@ -421,10 +424,7 @@ func (ss *syncState) handlePullRequests(org *storage.Org, repo *storage.Repo) er
 
 			var prFiles []string
 			if err := ss.syncer.fetchFiles(org, repo, pr.GetNumber(), func(files []string) error {
-				for _, file := range files {
-					prFiles = append(prFiles, org.Login+"/"+repo.Name+"/"+file)
-				}
-
+				prFiles = append(prFiles, files...)
 				return nil
 			}); err != nil {
 				return err
@@ -499,7 +499,14 @@ func (ss *syncState) handleCODEOWNERS(org *storage.Org, repo *storage.Repo, main
 		for _, login := range logins {
 			login = strings.TrimPrefix(login, "@")
 
-			scope.Debugf("User '%s' can review path '%s'", login, fields[0])
+			// add the path to this maintainer's list
+			path := strings.TrimPrefix(fields[0], "/")
+			path = strings.TrimSuffix(path, "/*")
+			if path == "*" {
+				path = ""
+			}
+
+			scope.Debugf("User '%s' can review path '%s/%s/%s'", login, org.Login, repo.Name, path)
 
 			maintainer, err := ss.getMaintainer(org, maintainers, login)
 			if maintainer == nil || err != nil {
@@ -507,14 +514,7 @@ func (ss *syncState) handleCODEOWNERS(org *storage.Org, repo *storage.Repo, main
 				continue
 			}
 
-			// add the path to this maintainer's list
-			path := repo.Name
-			if !strings.HasPrefix(path, "/") {
-				path += "/"
-			}
-			path += fields[0]
-
-			maintainer.Paths = append(maintainer.Paths, path)
+			maintainer.Paths = append(maintainer.Paths, repo.RepoID+"/"+path)
 		}
 	}
 
@@ -583,13 +583,10 @@ func (ss *syncState) handleOWNERS(org *storage.Org, repo *storage.Repo, maintain
 			}
 
 			p := strings.TrimSuffix(path, "OWNERS")
-			if p == "" {
-				p = "*"
-			}
 
-			scope.Debugf("User %s can approve path %s", user, p)
+			scope.Debugf("User '%s' can approve path %s/%s/%s", user, org.Login, repo.Name, p)
 
-			maintainer.Paths = append(maintainer.Paths, p)
+			maintainer.Paths = append(maintainer.Paths, repo.RepoID+"/"+p)
 		}
 	}
 

@@ -170,6 +170,19 @@ func (c *Cache) ReadUserByLogin(login string) (*storage.User, error) {
 	return result, err
 }
 
+// Writes to DB and if successful, updates the cache
+func (c *Cache) WriteUsers(users []*storage.User) error {
+	err := c.store.WriteUsers(users)
+	if err == nil {
+		for _, user := range users {
+			c.userCache.Set(user.UserID, user)
+			c.userByLoginCache.Set(user.Login, user)
+		}
+	}
+
+	return err
+}
+
 // Reads from cache and if not found reads from DB
 func (c *Cache) ReadLabel(orgID string, repoID string, labelID string) (*storage.Label, error) {
 	if value, ok := c.labelCache.Get(labelID); ok {
@@ -198,6 +211,18 @@ func (c *Cache) ReadIssue(orgID string, repoID string, issueID string) (*storage
 	return result, err
 }
 
+// Writes to DB and if successful, updates the cache
+func (c *Cache) WriteIssues(issues []*storage.Issue) error {
+	err := c.store.WriteIssues(issues)
+	if err == nil {
+		for _, issue := range issues {
+			c.issueCache.Set(issue.IssueID, issue)
+		}
+	}
+
+	return err
+}
+
 // Reads from cache and if not found reads from DB
 func (c *Cache) ReadIssueComment(orgID string, repoID string, issueID string,
 	issueCommentID string) (*storage.IssueComment, error) {
@@ -213,6 +238,18 @@ func (c *Cache) ReadIssueComment(orgID string, repoID string, issueID string,
 	return result, err
 }
 
+// Writes to DB and if successful, updates the cache
+func (c *Cache) WriteIssueComments(issueComments []*storage.IssueComment) error {
+	err := c.store.WriteIssueComments(issueComments)
+	if err == nil {
+		for _, comment := range issueComments {
+			c.issueCommentCache.Set(comment.IssueCommentID, comment)
+		}
+	}
+
+	return err
+}
+
 // Reads from cache and if not found reads from DB
 func (c *Cache) ReadPullRequest(orgID string, repoID string, prID string) (*storage.PullRequest, error) {
 	if value, ok := c.pullRequestCache.Get(prID); ok {
@@ -225,6 +262,18 @@ func (c *Cache) ReadPullRequest(orgID string, repoID string, prID string) (*stor
 	}
 
 	return result, err
+}
+
+// Writes to DB and if successful, updates the cache
+func (c *Cache) WritePullRequests(prs []*storage.PullRequest) error {
+	err := c.store.WritePullRequests(prs)
+	if err == nil {
+		for _, pr := range prs {
+			c.pullRequestCache.Set(pr.PullRequestID, pr)
+		}
+	}
+
+	return err
 }
 
 // Reads from cache and if not found reads from DB
@@ -242,6 +291,18 @@ func (c *Cache) ReadPullRequestComment(orgID string, repoID string, prID string,
 	return result, err
 }
 
+// Writes to DB and if successful, updates the cache
+func (c *Cache) WritePullRequestComments(prComments []*storage.PullRequestComment) error {
+	err := c.store.WritePullRequestComments(prComments)
+	if err == nil {
+		for _, comment := range prComments {
+			c.pullRequestCommentCache.Set(comment.PullRequestCommentID, comment)
+		}
+	}
+
+	return err
+}
+
 // Reads from cache and if not found reads from DB
 func (c *Cache) ReadPullRequestReview(orgID string, repoID string, prID string,
 	prReviewID string) (*storage.PullRequestReview, error) {
@@ -255,6 +316,18 @@ func (c *Cache) ReadPullRequestReview(orgID string, repoID string, prID string,
 	}
 
 	return result, err
+}
+
+// Writes to DB and if successful, updates the cache
+func (c *Cache) WritePullRequestReviews(prReviews []*storage.PullRequestReview) error {
+	err := c.store.WritePullRequestReviews(prReviews)
+	if err == nil {
+		for _, review := range prReviews {
+			c.pullRequestReviewCache.Set(review.PullRequestReviewID, review)
+		}
+	}
+
+	return err
 }
 
 // Reads from cache and if not found reads from DB

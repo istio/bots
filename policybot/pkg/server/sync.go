@@ -19,13 +19,13 @@ import (
 	"encoding/base64"
 	"fmt"
 
-	"istio.io/bots/policybot/pkg/gh"
-	"istio.io/bots/policybot/pkg/zh"
-
+	"istio.io/bots/policybot/handlers/syncer"
+	"istio.io/bots/policybot/pkg/blobstorage/gcs"
 	"istio.io/bots/policybot/pkg/config"
+	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage/cache"
 	"istio.io/bots/policybot/pkg/storage/spanner"
-	"istio.io/bots/policybot/plugins/handlers/syncer"
+	"istio.io/bots/policybot/pkg/zh"
 )
 
 // Runs the syncer.
@@ -56,8 +56,14 @@ func Sync(a *config.Args, filters string) error {
 	}
 	defer store.Close()
 
+	bs, err := gcs.NewStore(context.Background(), creds)
+	if err != nil {
+		return fmt.Errorf("unable to create blob storage lsyer: %v", err)
+	}
+	defer bs.Close()
+
 	cache := cache.New(store, a.CacheTTL)
 
-	h := syncer.NewHandler(context.Background(), ght, cache, zht, store, a.Orgs).(*syncer.Syncer)
+	h := syncer.NewHandler(context.Background(), ght, cache, zht, store, bs, a.Orgs).(*syncer.Syncer)
 	return h.Sync(filters)
 }

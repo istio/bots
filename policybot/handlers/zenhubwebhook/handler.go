@@ -12,16 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package zenhub
+package zenhubwebhook
 
 import (
-	"encoding/json"
-	"io/ioutil"
 	"net/http"
+	"strconv"
 
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
-	"istio.io/bots/policybot/pkg/zh"
 	"istio.io/pkg/log"
 )
 
@@ -40,47 +38,22 @@ func NewHandler(store storage.Store, cache *cache.Cache) http.Handler {
 	}
 }
 
-type typer struct {
-	Type string `json:"type"`
-}
-
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		scope.Errorf("Unable to read body from ZenHub event: %v", err)
+	if err := r.ParseForm(); err != nil {
+		scope.Errorf("Unable to parse ZenHub webhook data: %v", err)
 		return
 	}
 
-	data := &typer{}
-	if err = json.Unmarshal(body, data); err != nil {
-		scope.Errorf("Unable to parse ZenHub event body: %v", err)
-		return
-	}
+	t := r.Form.Get("type")
+	if t == "issue_transfer" || t == "issue_reprioritized" {
+		scope.Infof("Received %s from ZenHub", t)
 
-	switch data.Type {
-	case "issue_transfer":
-		scope.Infof("Received IssueTransferEvent from ZenHub")
-
-		result := &zh.IssueTransferEvent{}
-		if err = json.Unmarshal(body, result); err != nil {
-			log.Errorf("Unable to decode ZenHub issue transfer event: %v", err)
-			return
-		}
-
-		h.storePipeline(result.Organization, result.Repo, result.IssueNumber, result.ToPipelineName)
-
-	case "issue_reprioritized_event":
-		scope.Infof("Received IssueReprioritizedEvent from ZenHub")
-
-		result := &zh.IssueReprioritizedEvent{}
-		if err = json.Unmarshal(body, result); err != nil {
-			log.Errorf("Unable to decode ZenHub issue reprioritization event: %v", err)
-			return
-		}
-
-		h.storePipeline(result.Organization, result.Repo, result.IssueNumber, result.ToPipelineName)
+		num, _ := strconv.Atoi(r.Form.Get("issue_number"))
+		h.storePipeline(
+			r.Form.Get("organization"),
+			r.Form.Get("repo"),
+			num,
+			r.Form.Get("to_pipeline_name"))
 	}
 }
 
