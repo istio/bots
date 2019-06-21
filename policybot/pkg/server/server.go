@@ -162,7 +162,7 @@ func runWithConfig(a *config.Args) error {
 	var handler http.Handler
 	router := mux.NewRouter()
 	handler = router
-	if a.StartupOptions.HttpsOnly {
+	if a.StartupOptions.HTTPSOnly {
 		log.Infof("Using httpsOnly mode")
 		handler = httpsRedirectHandler(router)
 	}

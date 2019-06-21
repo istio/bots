@@ -54,7 +54,7 @@ func serverCmd() *cobra.Command {
 		env.RegisterStringVar("GITHUB_OAUTH_CLIENT_SECRET", ca.StartupOptions.GitHubOAuthClientSecret, githubOAuthClientSecret).Get()
 	ca.StartupOptions.GitHubOAuthClientID =
 		env.RegisterStringVar("GITHUB_OAUTH_CLIENT_ID", ca.StartupOptions.GitHubOAuthClientID, githubOAuthClientID).Get()
-	env.RegisterBoolVar("HTTPS_ONLY", ca.StartupOptions.HttpsOnly, httpsOnly).Get()
+	env.RegisterBoolVar("HTTPS_ONLY", ca.StartupOptions.HTTPSOnly, httpsOnly).Get()
 
 	loggingOptions := log.DefaultOptions()
 	introspectionOptions := ctrlz.DefaultOptions()
@@ -103,8 +103,8 @@ func serverCmd() *cobra.Command {
 		"github_oauth_client_secret", "", ca.StartupOptions.GitHubOAuthClientSecret, githubOAuthClientSecret)
 	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.GitHubOAuthClientID,
 		"github_oauth_client_id", "", ca.StartupOptions.GitHubOAuthClientID, githubOAuthClientID)
-	serverCmd.PersistentFlags().BoolVarP(&ca.StartupOptions.HttpsOnly,
-		"https_only", "", ca.StartupOptions.HttpsOnly, httpsOnly)
+	serverCmd.PersistentFlags().BoolVarP(&ca.StartupOptions.HTTPSOnly,
+		"https_only", "", ca.StartupOptions.HTTPSOnly, httpsOnly)
 
 	loggingOptions.AttachCobraFlags(serverCmd)
 	introspectionOptions.AttachCobraFlags(serverCmd)
