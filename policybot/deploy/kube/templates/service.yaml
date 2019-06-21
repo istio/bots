@@ -9,7 +9,7 @@ spec:
   - name: http
     port: 8080
 {{- if not .Values.istio }}
-    nodePort: 18080
+    nodePort: 31000
 {{- end }}
   selector:
     app: policybot

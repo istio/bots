@@ -14,7 +14,7 @@ deploy_only:
 		--set GCP_CREDS=$(GCP_CREDS) \
 		--set SENDGRID_APIKEY=$(SENDGRID_APIKEY) \
 		deploy/kube | kubectl apply -f -
-	@echo "Deployed container $(IMG) to Cloud Run"
+	@echo "Deployed container $(IMG) to GKE"
 .PHONY: deploy_only
 
 container:
