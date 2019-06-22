@@ -30,6 +30,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"istio.io/bots/policybot/dashboard/templates"
+	"istio.io/bots/policybot/dashboard/widgets/charts"
 	"istio.io/bots/policybot/handlers/githubwebhook"
 	"istio.io/bots/policybot/handlers/githubwebhook/filters"
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/cfgmonitor"
@@ -200,6 +201,7 @@ func runWithConfig(a *config.Args) error {
 	})
 	_ = template.Must(baseLayout.Parse(templates.HeaderTemplate))
 	_ = template.Must(baseLayout.Parse(templates.SidebarTemplate))
+	_ = template.Must(baseLayout.Parse(charts.TimeseriesTemplate))
 	mainLayout := template.Must(template.Must(baseLayout.Clone()).Parse(templates.MainTemplate))
 
 	// github webhook filters (keep refresher first in the list such that other plugins see an up-to-date view in storage)
@@ -228,6 +230,7 @@ func runWithConfig(a *config.Args) error {
 	registerStaticDir(router, "dashboard/generated/js", "/js/")
 	registerStaticDir(router, "dashboard/static/img", "/img/")
 	registerStaticDir(router, "dashboard/static/favicons", "/favicons/")
+	registerStaticDir(router, "dashboard/widgets/charts", "/charts/")
 
 	// statically served files
 	registerStaticFile(router, "dashboard/static/favicon.ico", "/favicon.ico")

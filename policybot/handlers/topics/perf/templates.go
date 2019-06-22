@@ -16,9 +16,16 @@ package perf
 
 var perfTemplate = `
 {{ define "content" }}
+  <p>
+  This will display information about Istio perf.
+  </p>
 
-<p>
-This will display information about Istio perf.
-</p>
+	<div class="callout tip">
+    Example Graphs: Not actual data
+	</div>
+	{{ range . }}
+		{{ template "timeseries" . }}
+	{{ end }}
+
 {{ end }}
 `
