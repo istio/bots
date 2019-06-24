@@ -35,6 +35,7 @@ type Store interface {
 	WriteAllMembers(members []*Member) error
 	WriteAllMaintainers(maintainers []*Maintainer) error
 	WriteBotActivities(activities []*BotActivity) error
+	WriteTestFlakes(testFlakes []*TestFlake) error
 
 	ReadOrgByID(orgID string) (*Org, error)
 	ReadOrgByLogin(login string) (*Org, error)
@@ -51,10 +52,14 @@ type Store interface {
 	ReadPullRequestCommentByID(orgID string, repoID string, prID string, prCommentID string) (*PullRequestComment, error)
 	ReadPullRequestReviewByID(orgID string, repoID string, prID string, prReviewID string) (*PullRequestReview, error)
 	ReadBotActivityByID(orgID string, repoID string) (*BotActivity, error)
+	ReadTestFlakeByName(orgID string, testName string, prNum int64, runNum int64) (*TestFlake, error)
 
 	QueryMembersByOrg(orgID string, cb func(*Member) error) error
 	QueryMaintainersByOrg(orgID string, cb func(*Maintainer) error) error
 	QueryMaintainerInfo(maintainer *Maintainer) (*MaintainerInfo, error)
 	QueryIssuesByRepo(orgID string, repoID string, cb func(*Issue) error) error
+	QueryTestFlakeByTestName(testName string, cb func(*TestFlake) error) error
+	QueryTestFlakeByPrNumber(prNum int64, cb func(*TestFlake) error) error
+
 	QueryAllUsers(cb func(*User) error) error
 }

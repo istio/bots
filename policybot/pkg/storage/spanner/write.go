@@ -236,3 +236,18 @@ func (s *store) WriteBotActivities(activities []*storage.BotActivity) error {
 	_, err := s.client.Apply(s.ctx, mutations)
 	return err
 }
+
+func (s *store) WriteTestFlakes(testFlakes []*storage.TestFlake) error {
+	scope.Debugf("Writing %d test flakes", len(testFlakes))
+
+	mutations := make([]*spanner.Mutation, len(testFlakes))
+	for i := 0; i < len(testFlakes); i++ {
+		var err error
+		if mutations[i], err = spanner.InsertOrUpdateStruct(testFlakeTable, testFlakes[i]); err != nil {
+			return err
+		}
+	}
+
+	_, err := s.client.Apply(s.ctx, mutations)
+	return err
+}

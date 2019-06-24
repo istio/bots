@@ -39,6 +39,7 @@ type Cache struct {
 	pullRequestCommentCache cache.ExpiringCache
 	pullRequestReviewCache  cache.ExpiringCache
 	pipelineCache           cache.ExpiringCache
+	testFlakeCache          cache.ExpiringCache
 }
 
 func New(store storage.Store, entryTTL time.Duration) *Cache {
@@ -64,6 +65,7 @@ func New(store storage.Store, entryTTL time.Duration) *Cache {
 		pullRequestCommentCache: cache.NewTTL(entryTTL, evictionInterval),
 		pullRequestReviewCache:  cache.NewTTL(entryTTL, evictionInterval),
 		pipelineCache:           cache.NewTTL(entryTTL, evictionInterval),
+		testFlakeCache:          cache.NewTTL(entryTTL, evictionInterval),
 	}
 }
 
@@ -343,4 +345,37 @@ func (c *Cache) ReadIssuePipeline(orgID string, repoID string, issueNumber int) 
 	}
 
 	return result, err
+}
+
+// Reads from cache and if not found reads from DB
+func (c *Cache) ReadTestFlakeByName(orgID string, testName string, prNum int64, runNum int64) (*storage.TestFlake, error) {
+	key := orgID + testName + strconv.FormatInt(prNum, 10) + strconv.FormatInt(runNum, 10)
+	if value, ok := c.testFlakeCache.Get(key); ok {
+		return value.(*storage.TestFlake), nil
+	}
+
+	result, err := c.store.ReadTestFlakeByName(orgID, testName, prNum, runNum)
+	if err == nil {
+		c.testFlakeCache.Set(key, result)
+	}
+
+	return result, err
+}
+
+// Writes to DB and if successful, updates the cache
+func (c *Cache) WriteTestFlakes(testFlakes []*storage.TestFlake) error {
+	err := c.store.WriteTestFlakes(testFlakes)
+	if err == nil {
+		for _, testFlake := range testFlakes {
+			orgID := testFlake.OrgID
+			testName := testFlake.TestName
+			prNum := testFlake.PrNum
+			runNum := testFlake.RunNum
+			key := orgID + testName + strconv.FormatInt(prNum, 10) + strconv.FormatInt(runNum, 10)
+
+			c.testFlakeCache.Set(key, testFlake)
+		}
+	}
+
+	return err
 }

@@ -80,6 +80,44 @@ func (s *store) QueryAllUsers(cb func(*storage.User) error) error {
 	return err
 }
 
+func (s *store) QueryTestFlakeByTestName(testName string, cb func(*storage.TestFlake) error) error {
+	iter := s.client.Single().Query(s.ctx, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM TestFlakes WHERE TestName = '%s'", testName)})
+	err := iter.Do(func(row *spanner.Row) error {
+		flake := &storage.TestFlake{}
+		if err := row.ToStruct(flake); err != nil {
+			return err
+		}
+
+		if err := cb(flake); err != nil {
+			iter.Stop()
+			return err
+		}
+
+		return nil
+	})
+
+	return err
+}
+
+func (s *store) QueryTestFlakeByPrNumber(prNum int64, cb func(*storage.TestFlake) error) error {
+	iter := s.client.Single().Query(s.ctx, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM TestFlakes WHERE PrNum = '%v'", prNum)})
+	err := iter.Do(func(row *spanner.Row) error {
+		flake := &storage.TestFlake{}
+		if err := row.ToStruct(flake); err != nil {
+			return err
+		}
+
+		if err := cb(flake); err != nil {
+			iter.Stop()
+			return err
+		}
+
+		return nil
+	})
+
+	return err
+}
+
 func (s *store) QueryMaintainerInfo(maintainer *storage.Maintainer) (*storage.MaintainerInfo, error) {
 	info := &storage.MaintainerInfo{
 		Repos: make(map[string]*storage.RepoActivityInfo),
