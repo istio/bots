@@ -93,7 +93,7 @@ func (s *store) QueryTestFlakeByTestName(testName string, cb func(*storage.TestF
 			return err
 		}
 
-    return cb(flake)
+		return cb(flake)
 	})
 
 	return err
@@ -112,7 +112,7 @@ func (s *store) QueryTestFlakeByPrNumber(prNum int64, cb func(*storage.TestFlake
 			return err
 		}
 
-    return cb(flake)
+		return cb(flake)
 	})
 
 	return err
