@@ -30,13 +30,9 @@ import (
 
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/iterator"
+
 	store "istio.io/bots/policybot/pkg/storage"
 )
-
-type Flake interface {
-    checkTestFlakesForPr(prNum int64) ([]*store.TestFlake, error)
-    setOrgID(orgID string, testFlakes []*store.TestFlake) []*store.TestFlake
-}
 
 /*
  * Pull struct for the structure under refs/pulls in clone-records.json
@@ -333,7 +329,7 @@ func (prFlakeTest PrFlakeTest) getShaAndPassStatus(testSlice []Tests) ([]*store.
 	return allTestRuns, nil
 }
 
-func (prFlakeTest PrFlakeTest) setOrgID(orgID string, testFlakes []*store.TestFlake) []*store.TestFlake {
+func (prFlakeTest PrFlakeTest) SetOrgID(orgID string, testFlakes []*store.TestFlake) []*store.TestFlake {
 	newTestFlakes := []*store.TestFlake{}
 	for _, testFlake := range testFlakes {
 		testFlake.OrgID = orgID
@@ -345,7 +341,7 @@ func (prFlakeTest PrFlakeTest) setOrgID(orgID string, testFlakes []*store.TestFl
 /*
  * Read in gcs the folder of the given pr number and write the result of each test runs into a slice of TestFlake struct.
  */
-func (prFlakeTest PrFlakeTest) checkTestFlakesForPr(prNum int64) ([]*store.TestFlake, error) {
+func (prFlakeTest PrFlakeTest) CheckTestFlakesForPr(prNum int64) ([]*store.TestFlake, error) {
 	client := prFlakeTest.client
 	defer client.Close()
 

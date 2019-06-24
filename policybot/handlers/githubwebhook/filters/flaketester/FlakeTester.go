@@ -31,6 +31,7 @@ import (
 
 // Updates the DB based on incoming GitHub webhook events.
 type FlakeTester struct {
+	store storage.Store
 	repos map[string]bool
 	cache *cache.Cache
 	ght   *gh.ThrottledClient
@@ -39,8 +40,9 @@ type FlakeTester struct {
 
 var scope = log.RegisterScope("refresher", "Dynamic database refresher", 0)
 
-func NewFlakeTester(ctx context.Context, cache *cache.Cache, ght *gh.ThrottledClient, orgs []config.Org) filters.Filter {
+func NewFlakeTester(ctx context.Context, store storage.Store, cache *cache.Cache, ght *gh.ThrottledClient, orgs []config.Org) filters.Filter {
 	r := &FlakeTester{
+		store: store,
 		repos: make(map[string]bool),
 		cache: cache,
 		ght:   ght,
@@ -69,7 +71,7 @@ func (r *FlakeTester) Events() []webhook.Event {
 // accept an event arriving from GitHub
 func (r *FlakeTester) Handle(_ http.ResponseWriter, githubObject interface{}) {
 	switch p := githubObject.(type) {
-	case webhook.ChechRunPayload:
+	case webhook.CheckRunPayload:
 		scope.Infof("Received CheckSuitePayload: %s", p.Repository.FullName)
 		if !r.repos[p.Repository.FullName] {
 			scope.Infof("Ignoring ChechSuite event from repo %s since it's not in a monitored repo", p.Repository.FullName)
@@ -78,26 +80,25 @@ func (r *FlakeTester) Handle(_ http.ResponseWriter, githubObject interface{}) {
 		testFlake, discoveredUsers := gh.TestFlakeFromHook(&p)
 		orgID := testFlake.OrgID
 		prNum := testFlake.PrNum
-		//var prFlakeTest testflakes.Flake = testflakes.PrFlakeTest{}
-		prFlakeTest, err := &testflakes.NewPrFlakeTest()
+
+		prFlakeTest, err := testflakes.NewPrFlakeTest()
 		if err != nil {
 			scope.Errorf(err.Error())
 		}
-		testFlakes, errr := prFlakeTest.checkTestFlakesForPr(prNum)
-
-		
-		
-		//testFlakes, errr := r.prFlakeTest.checkTestFlakesForPr(prNum)
+		testFlakes, errr := prFlakeTest.CheckTestFlakesForPr(prNum)
 
 		if errr != nil {
 			scope.Errorf(errr.Error())
+			return
 		}
-		testFlakes = prFlakeTest.setOrgID(orgID, testFlakes)
-		var store storage.Store
-		erro := store.WriteTestFlakes(testFlakes)
+
+		testFlakes = prFlakeTest.SetOrgID(orgID, testFlakes)
+
+		erro := r.store.WriteTestFlakes(testFlakes)
 		if erro != nil {
 			scope.Errorf(erro.Error())
 		}
+
 		r.syncUsers(discoveredUsers)
 
 	default:
