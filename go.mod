@@ -13,6 +13,7 @@ require (
 	github.com/sendgrid/sendgrid-go v3.4.1+incompatible
 	github.com/spf13/cobra v0.0.4
 	golang.org/x/oauth2 v0.0.0-20190402181905-9f3314589c9a
+	golang.org/x/sync v0.0.0-20190423024810-112230192c58 // indirect
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
 	google.golang.org/api v0.4.0
 	google.golang.org/grpc v1.20.1

@@ -1,0 +1,10 @@
+apiVersion: v1
+name: policybot
+tillerVersion: ">=2.7.2"
+description: Helm chart for policybot
+keywords:
+  - istio
+  - policybot
+sources:
+  - http://github.com/istio/bot
+engine: gotpl

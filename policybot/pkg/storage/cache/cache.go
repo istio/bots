@@ -379,3 +379,9 @@ func (c *Cache) WriteTestFlakes(testFlakes []*storage.TestFlake) error {
 
 	return err
 }
+
+// QueryTestFlakeIssues returns issue based on the SQL query.
+func (c *Cache) ReadTestFlakyIssues(inactiveDays, createdDays int) ([]*storage.Issue, error) {
+	return c.store.QueryTestFlakeIssues(inactiveDays, createdDays)
+
+}

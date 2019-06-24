@@ -30,6 +30,8 @@ import (
 	"github.com/gorilla/mux"
 
 	"istio.io/bots/policybot/dashboard/templates"
+	"istio.io/bots/policybot/dashboard/widgets/charts"
+	"istio.io/bots/policybot/handlers/flakechaser"
 	"istio.io/bots/policybot/handlers/githubwebhook"
 	"istio.io/bots/policybot/handlers/githubwebhook/filters"
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/cfgmonitor"
@@ -107,6 +109,18 @@ func RunServer(base *config.Args) error {
 	}
 }
 
+func httpsRedirectHandler(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		proto := req.Header.Get("x-forwarded-proto")
+		if proto == "http" || proto == "HTTP" {
+			http.Redirect(res, req, fmt.Sprintf("https://%s%s", req.Host, req.URL), http.StatusPermanentRedirect)
+			return
+		}
+
+		next.ServeHTTP(res, req)
+	})
+}
+
 func runWithConfig(a *config.Args) error {
 	log.Debugf("Starting with:\n%s", a)
 
@@ -148,8 +162,13 @@ func runWithConfig(a *config.Args) error {
 		return fmt.Errorf("unable to listen to port: %v", err)
 	}
 
+	var handler http.Handler
 	router := mux.NewRouter()
-
+	handler = router
+	if a.StartupOptions.HTTPSOnly {
+		log.Infof("Using httpsOnly mode")
+		handler = httpsRedirectHandler(router)
+	}
 	// secret state for OAuth exchanges
 	secretState := make([]byte, 32)
 	if _, err := rand.Read(secretState); err != nil {
@@ -163,7 +182,7 @@ func runWithConfig(a *config.Args) error {
 			ReadTimeout:    10 * time.Second,
 			WriteTimeout:   10 * time.Second,
 			MaxHeaderBytes: 1 << 20,
-			Handler:        router,
+			Handler:        handler,
 		},
 		clientID:     a.StartupOptions.GitHubOAuthClientID,
 		clientSecret: a.StartupOptions.GitHubOAuthClientSecret,
@@ -182,6 +201,7 @@ func runWithConfig(a *config.Args) error {
 	})
 	_ = template.Must(baseLayout.Parse(templates.HeaderTemplate))
 	_ = template.Must(baseLayout.Parse(templates.SidebarTemplate))
+	_ = template.Must(baseLayout.Parse(charts.TimeseriesTemplate))
 	mainLayout := template.Must(template.Must(baseLayout.Clone()).Parse(templates.MainTemplate))
 
 	// github webhook filters (keep refresher first in the list such that other plugins see an up-to-date view in storage)
@@ -196,9 +216,9 @@ func runWithConfig(a *config.Args) error {
 	if err != nil {
 		return fmt.Errorf("unable to create GitHub webhook: %v", err)
 	}
-
 	// event handlers
 	router.Handle("/githubwebhook", ghHandler).Methods("POST")
+	router.Handle("/flakechaser", flakechaser.New(ght, cache, a.FlakeChaser)).Methods("GET")
 	router.Handle("/zenhubwebhook", zenhubwebhook.NewHandler(store, cache)).Methods("POST")
 	router.Handle("/sync", syncer.NewHandler(context.Background(), ght, cache, zht, store, bs, a.Orgs)).Methods("GET")
 	router.HandleFunc("/login", s.handleLogin)
@@ -210,6 +230,7 @@ func runWithConfig(a *config.Args) error {
 	registerStaticDir(router, "dashboard/generated/js", "/js/")
 	registerStaticDir(router, "dashboard/static/img", "/img/")
 	registerStaticDir(router, "dashboard/static/favicons", "/favicons/")
+	registerStaticDir(router, "dashboard/widgets/charts", "/charts/")
 
 	// statically served files
 	registerStaticFile(router, "dashboard/static/favicon.ico", "/favicon.ico")
