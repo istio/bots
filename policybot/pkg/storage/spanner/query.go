@@ -16,8 +16,10 @@ package spanner
 
 import (
 	"fmt"
+	"strings"
 
 	"cloud.google.com/go/spanner"
+	"google.golang.org/api/iterator"
 
 	"istio.io/bots/policybot/pkg/storage"
 )
@@ -30,12 +32,7 @@ func (s *store) QueryMembersByOrg(orgID string, cb func(*storage.Member) error) 
 			return err
 		}
 
-		if err := cb(member); err != nil {
-			iter.Stop()
-			return err
-		}
-
-		return nil
+		return cb(member)
 	})
 
 	return err
@@ -49,12 +46,7 @@ func (s *store) QueryMaintainersByOrg(orgID string, cb func(*storage.Maintainer)
 			return err
 		}
 
-		if err := cb(maintainer); err != nil {
-			iter.Stop()
-			return err
-		}
-
-		return nil
+		return cb(maintainer)
 	})
 
 	return err
@@ -68,13 +60,124 @@ func (s *store) QueryIssuesByRepo(orgID string, repoID string, cb func(*storage.
 			return err
 		}
 
-		if err := cb(issue); err != nil {
-			iter.Stop()
-			return err
-		}
-
-		return nil
+		return cb(issue)
 	})
 
 	return err
+}
+
+func (s *store) QueryAllUsers(cb func(*storage.User) error) error {
+	iter := s.client.Single().Query(s.ctx, spanner.Statement{SQL: "SELECT * FROM Users;"})
+	err := iter.Do(func(row *spanner.Row) error {
+		user := &storage.User{}
+		if err := row.ToStruct(user); err != nil {
+			return err
+		}
+
+		return cb(user)
+	})
+
+	return err
+}
+
+func (s *store) QueryTestFlakeIssues(inactiveDays, createdDays int) ([]*storage.Issue, error) {
+	sql := `SELECT * from Issues
+	WHERE TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), UpdatedAt, DAY) > @inactiveDays AND 
+				TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), CreatedAt, DAY) < @createdDays AND
+				State = 'open' AND
+				( REGEXP_CONTAINS(title, 'flak[ey]') OR 
+  				  REGEXP_CONTAINS(body, 'flake[ey]')
+				);`
+	stmt := spanner.NewStatement(sql)
+	stmt.Params["inactiveDays"] = inactiveDays
+	stmt.Params["createdDays"] = createdDays
+	scope.Infof("QueryTestFlakeIssues SQL\n%v", stmt.SQL)
+	var issues []*storage.Issue
+	getIssue := func(row *spanner.Row) error {
+		issue := storage.Issue{}
+		if err := row.ToStruct(&issue); err != nil {
+			return err
+		}
+		issues = append(issues, &issue)
+		return nil
+	}
+	iter := s.client.Single().Query(s.ctx, stmt)
+	if err := iter.Do(getIssue); err != nil {
+		return nil, fmt.Errorf("error in fetching flaky test issues, %v", err)
+	}
+	return issues, nil
+}
+
+func (s *store) QueryMaintainerInfo(maintainer *storage.Maintainer) (*storage.MaintainerInfo, error) {
+	info := &storage.MaintainerInfo{
+		Repos: make(map[string]*storage.RepoActivityInfo),
+	}
+
+	// prep all the repo infos
+	soughtPaths := make(map[string]map[string]bool)
+	for _, mp := range maintainer.Paths {
+		slashIndex := strings.Index(mp, "/")
+		repoID := mp[0:slashIndex]
+		path := mp[slashIndex+1:]
+
+		repoInfo, ok := info.Repos[repoID]
+		if !ok {
+			repoInfo = &storage.RepoActivityInfo{
+				RepoID:                         repoID,
+				LastPullRequestCommittedByPath: make(map[string]storage.TimedEntry),
+			}
+			info.Repos[repoID] = repoInfo
+			soughtPaths[repoID] = make(map[string]bool)
+		}
+		repoInfo.LastPullRequestCommittedByPath[path] = storage.TimedEntry{}
+
+		// track all the specific paths we care about for the repo
+		soughtPaths[repoID][path] = true
+	}
+
+	for repoID, repoInfo := range info.Repos {
+		iter := s.client.Single().Query(s.ctx, spanner.Statement{SQL: fmt.Sprintf(
+			"SELECT * FROM PullRequests WHERE OrgID = '%s' AND RepoID = '%s' AND AuthorID = '%s'",
+			maintainer.OrgID, repoID, maintainer.UserID)})
+
+		err := iter.Do(func(row *spanner.Row) error {
+
+			var pr storage.PullRequest
+			if err := row.ToStruct(&pr); err != nil {
+				return err
+			}
+
+			// if the pr affects any files in any of the maintainer's paths, update the timed entry for the path
+			for sp := range soughtPaths[repoID] {
+				for _, file := range pr.Files {
+					if strings.HasPrefix(file, sp) {
+						repoInfo.LastPullRequestCommittedByPath[sp] = storage.TimedEntry{
+							Time: pr.MergedAt,
+							ID:   pr.PullRequestID,
+						}
+						delete(soughtPaths[repoID], sp)
+						break
+					}
+				}
+			}
+
+			if len(soughtPaths[repoID]) == 0 {
+				// all the path for this repo have been handled, move on
+				//				fmt.Printf("All sought paths have been found\n")
+				return iterator.Done
+			}
+
+			return nil
+		})
+
+		if err == iterator.Done {
+			err = nil
+		}
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return info, nil
 }

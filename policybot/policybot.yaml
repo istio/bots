@@ -9,10 +9,18 @@ nags:
     matchbody:
       - ".*Fix.*"
     matchfiles:
-      - ".*.go"
+      - ".*.go$"
     absentfiles:
-      - ".*_test.go"
-    message: ":thinking: :bug: You appear to be fixing a bug in Go code, yet your PR doesn't include updates to any test files. Did you forget to add a test?"
+      - ".*_test.go$"
+    message: "🤔 🐛 You appear to be fixing a bug in Go code, yet your PR doesn't include updates to any test files. Did you forget to add a test?"
+
+flakechaser:
+  name: flakey-test
+  inactivedays: 3
+  createddays: 180
+  message: "🤔 ❄️ Hey there's no update for this test flakes for 3 days."
+  repos:
+    - "istio/istio"
 
 autolabels:
   - name: Config
@@ -58,6 +66,7 @@ autolabels:
   - name: Test and Release
     matchbody:
       - "\\[ ?x ?\\] ?Test and Release"
+      - "\\[ ?x ?\\] ?Developer Infrastructure"
     absentlabels:
       - "area/.?"
     labels:
@@ -96,10 +105,11 @@ autolabels:
 orgs:
   - name: istio
     repos:
+      - name: tools
       - name: istio
-      - name: bottestrepo
       - name: api
       - name: istio.io
+      - name: bottestrepo
       - name: cni
       - name: operator
       - name: installer

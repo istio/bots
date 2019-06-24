@@ -54,7 +54,8 @@ type Store interface {
 
 	QueryMembersByOrg(orgID string, cb func(*Member) error) error
 	QueryMaintainersByOrg(orgID string, cb func(*Maintainer) error) error
+	QueryMaintainerInfo(maintainer *Maintainer) (*MaintainerInfo, error)
 	QueryIssuesByRepo(orgID string, repoID string, cb func(*Issue) error) error
-
-	EnumUsers(cb func(*User) bool) error
+	QueryTestFlakeIssues(inactiveDays, createdDays int) ([]*Issue, error)
+	QueryAllUsers(cb func(*User) error) error
 }
