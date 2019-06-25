@@ -17,7 +17,7 @@ package gh
 import (
 	"context"
 
-	"github.com/google/go-github/v25/github"
+	"github.com/google/go-github/v26/github"
 	"golang.org/x/oauth2"
 	"golang.org/x/time/rate"
 )

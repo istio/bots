@@ -50,7 +50,7 @@ func (t *topic) Name() string {
 	return "features"
 }
 
-func (t *topic) Configure(htmlRouter *mux.Router, apiRouter *mux.Router, context dashboard.RenderContext) {
+func (t *topic) Configure(htmlRouter *mux.Router, apiRouter *mux.Router, context dashboard.RenderContext, opt *dashboard.Options) {
 	page := string(MustAsset("page.html"))
 
 	htmlRouter.StrictSlash(true).

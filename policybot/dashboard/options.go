@@ -14,21 +14,7 @@
 
 package dashboard
 
-import (
-	"github.com/gorilla/mux"
-)
-
-// Topic represents a single major functional area within the dashboard
-type Topic interface {
-	// Title returns the title for the area, which will be used in the sidenav and window title.
-	Title() string
-
-	// Description returns a general deacription for the area
-	Description() string
-
-	// The name of this topic, used with URLs
-	Name() string
-
-	// Installs the routes
-	Configure(htmlRouter *mux.Router, apiRouter *mux.Router, rc RenderContext, opt *Options)
+// Options captures curret runtime dashboard options
+type Options struct {
+	DefaultOrg string
 }

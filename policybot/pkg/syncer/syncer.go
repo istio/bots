@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/ghodss/yaml"
-	"github.com/google/go-github/v25/github"
+	"github.com/google/go-github/v26/github"
 
 	"istio.io/bots/policybot/pkg/blobstorage"
 	"istio.io/bots/policybot/pkg/config"

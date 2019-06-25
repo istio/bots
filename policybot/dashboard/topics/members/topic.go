@@ -17,10 +17,12 @@
 package members
 
 import (
-	"fmt"
+	"context"
 	"net/http"
 	"strings"
 	"text/template"
+
+	"istio.io/bots/policybot/pkg/util"
 
 	"github.com/gorilla/mux"
 
@@ -30,9 +32,11 @@ import (
 )
 
 type topic struct {
-	store storage.Store
-	cache *cache.Cache
-	page  *template.Template
+	store   storage.Store
+	cache   *cache.Cache
+	page    *template.Template
+	context dashboard.RenderContext
+	options *dashboard.Options
 }
 
 type memberInfo struct {
@@ -62,53 +66,69 @@ func (t *topic) Name() string {
 	return "members"
 }
 
-func (t *topic) Configure(htmlRouter *mux.Router, apiRouter *mux.Router, context dashboard.RenderContext) {
+func (t *topic) Configure(htmlRouter *mux.Router, apiRouter *mux.Router, context dashboard.RenderContext, opt *dashboard.Options) {
+	t.context = context
+	t.options = opt
+
 	htmlRouter.StrictSlash(true).
 		Path("/").
 		Methods("GET").
-		HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			if m, err := t.getMembers(w, req); err == nil {
-				sb := &strings.Builder{}
-				if err := t.page.Execute(sb, m); err != nil {
-					dashboard.RenderError(w, http.StatusInternalServerError, err)
-					return
-				}
-				context.RenderHTML(w, sb.String())
-			}
-		})
+		HandlerFunc(t.handleListMembersHTML)
 
 	apiRouter.StrictSlash(true).
 		Path("/").
 		Methods("GET").
-		HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			if m, err := t.getMembers(w, req); err == nil {
-				context.RenderJSON(w, http.StatusOK, m)
-			}
-		})
+		HandlerFunc(t.handleListMembersJSON)
 }
 
-func (t *topic) getMembers(w http.ResponseWriter, r *http.Request) ([]memberInfo, error) {
-	o := r.URL.Query().Get("org")
-	if o == "" {
-		o = "istio" // TODO: remove istio dependency
+func (t *topic) handleListMembersHTML(w http.ResponseWriter, r *http.Request) {
+	orgLogin := r.URL.Query().Get("org")
+	if orgLogin == "" {
+		orgLogin = t.options.DefaultOrg
 	}
 
-	org, err := t.cache.ReadOrgByLogin(r.Context(), o)
+	m, err := t.getMembers(r.Context(), orgLogin)
 	if err != nil {
-		err = fmt.Errorf("unable to get information on organization %s: %v", o, err)
-		dashboard.RenderError(w, http.StatusInternalServerError, err)
-		return nil, err
+		t.context.RenderHTMLError(w, err)
+	}
+
+	sb := &strings.Builder{}
+	if err := t.page.Execute(sb, m); err != nil {
+		t.context.RenderHTMLError(w, err)
+		return
+	}
+
+	t.context.RenderHTML(w, sb.String())
+}
+
+func (t *topic) handleListMembersJSON(w http.ResponseWriter, r *http.Request) {
+	orgLogin := r.URL.Query().Get("org")
+	if orgLogin == "" {
+		orgLogin = "istio" // TODO: remove istio dependency
+	}
+
+	m, err := t.getMembers(r.Context(), orgLogin)
+	if err != nil {
+		t.context.RenderHTMLError(w, err)
+		return
+	}
+
+	t.context.RenderJSON(w, http.StatusOK, m)
+}
+
+func (t *topic) getMembers(context context.Context, orgLogin string) ([]memberInfo, error) {
+	org, err := t.cache.ReadOrgByLogin(context, orgLogin)
+	if err != nil {
+		return nil, util.HTTPErrorf(http.StatusInternalServerError, "unable to get information on organization %s: %v", orgLogin, err)
 	} else if org == nil {
-		err = fmt.Errorf("no information available on organization %s", o)
-		dashboard.RenderError(w, http.StatusNotFound, err)
-		return nil, err
+		return nil, util.HTTPErrorf(http.StatusNotFound, "no information available on organization %s", orgLogin)
 	}
 
 	var members []memberInfo
-	if err = t.store.QueryMembersByOrg(r.Context(), org.OrgID, func(m *storage.Member) error {
-		u, err := t.cache.ReadUser(r.Context(), m.UserID)
+	if err = t.store.QueryMembersByOrg(context, org.OrgID, func(m *storage.Member) error {
+		u, err := t.cache.ReadUser(context, m.UserID)
 		if err != nil {
-			return err
+			return util.HTTPErrorf(http.StatusInternalServerError, "unable to read user information from storage: %v", err)
 		}
 
 		members = append(members, memberInfo{
@@ -117,9 +137,9 @@ func (t *topic) getMembers(w http.ResponseWriter, r *http.Request) ([]memberInfo
 			Company:   u.Company,
 			AvatarURL: u.AvatarURL,
 		})
+
 		return nil
 	}); err != nil {
-		dashboard.RenderError(w, http.StatusInternalServerError, err)
 		return nil, err
 	}
 

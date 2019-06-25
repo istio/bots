@@ -20,17 +20,22 @@ import (
 	"fmt"
 	"net/http"
 	"text/template"
+
+	"istio.io/bots/policybot/pkg/util"
+	"istio.io/pkg/log"
 )
 
 // RenderContext exposes methods to let topics produce output
 type RenderContext interface {
 	RenderHTML(w http.ResponseWriter, htmlFragment string)
+	RenderHTMLError(w http.ResponseWriter, err error)
 	RenderJSON(w http.ResponseWriter, statusCode int, data interface{})
 }
 
 type renderContext struct {
-	topic        Topic
-	baseTemplate *template.Template
+	topic            Topic
+	primaryTemplates *template.Template
+	errorTemplates   *template.Template
 }
 
 type templateInfo struct {
@@ -39,10 +44,13 @@ type templateInfo struct {
 	Content     string
 }
 
-func newRenderContext(topic Topic, baseTemplate *template.Template) RenderContext {
+var scope = log.RegisterScope("dashboard", "The UI dashboard.", 0)
+
+func newRenderContext(topic Topic, primaryTemplates *template.Template, errorTemplates *template.Template) RenderContext {
 	return renderContext{
-		topic:        topic,
-		baseTemplate: baseTemplate,
+		topic:            topic,
+		primaryTemplates: primaryTemplates,
+		errorTemplates:   errorTemplates,
 	}
 }
 
@@ -55,8 +63,8 @@ func (rc renderContext) RenderHTML(w http.ResponseWriter, htmlFragment string) {
 		Content:     htmlFragment,
 	}
 
-	if err := rc.baseTemplate.Execute(b, info); err != nil {
-		RenderError(w, http.StatusInternalServerError, err)
+	if err := rc.primaryTemplates.Execute(b, info); err != nil {
+		rc.RenderHTMLError(w, err)
 		return
 	}
 
@@ -64,19 +72,39 @@ func (rc renderContext) RenderHTML(w http.ResponseWriter, htmlFragment string) {
 	_, _ = b.WriteTo(w)
 }
 
+// RenderHTMLError outputs an error message
+func (rc renderContext) RenderHTMLError(w http.ResponseWriter, err error) {
+	b := &bytes.Buffer{}
+
+	info := templateInfo{
+		Title:       "ERROR",
+		Description: "ERROR",
+		Content:     fmt.Sprintf("%v", err),
+	}
+
+	if err2 := rc.errorTemplates.Execute(b, info); err2 != nil {
+		util.RenderError(w, err)
+		return
+	}
+
+	statusCode := http.StatusInternalServerError
+	if httpErr, ok := err.(util.HTTPError); ok {
+		statusCode = httpErr.StatusCode
+	}
+
+	w.WriteHeader(statusCode)
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = b.WriteTo(w)
+
+	scope.Errorf("Returning error to client: %v", info.Content)
+}
+
 func (rc renderContext) RenderJSON(w http.ResponseWriter, statusCode int, data interface{}) {
 	w.WriteHeader(statusCode)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
 	if err := json.NewEncoder(w).Encode(data); err != nil {
-		RenderError(w, http.StatusInternalServerError, err)
+		util.RenderError(w, util.HTTPErrorf(http.StatusInternalServerError, "%v", err))
 	}
-}
-
-// RenderError outputs an error message
-func RenderError(w http.ResponseWriter, statusCode int, err error) {
-	w.WriteHeader(statusCode)
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	_, _ = fmt.Fprintf(w, "%v", err)
 }
