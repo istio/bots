@@ -15,7 +15,7 @@
 package filters
 
 import (
-	"net/http"
+	"context"
 
 	webhook "github.com/go-playground/webhooks/github"
 )
@@ -28,5 +28,5 @@ import (
 // be accepted as a whole by the webhook.
 type Filter interface {
 	Events() []webhook.Event
-	Handle(w http.ResponseWriter, ghPayload interface{})
+	Handle(context context.Context, ghPayload interface{})
 }

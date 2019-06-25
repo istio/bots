@@ -145,7 +145,7 @@ type IssuePipeline struct {
 
 type TimedEntry struct {
 	Time time.Time
-	ID   string // an object ID (pr, issue, issue comment
+	ID   string // an object ID (pr, issue, issue comment)
 }
 
 type RepoActivityInfo struct {
@@ -173,4 +173,14 @@ type TestResult struct {
 	Result      string
 	BaseSha     string
 	RunPath     string
+}
+
+type RepoComment struct {
+	OrgID     string
+	RepoID    string
+	CommentID string
+	Body      string
+	AuthorID  string
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }

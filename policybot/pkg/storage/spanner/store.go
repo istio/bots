@@ -28,24 +28,22 @@ import (
 
 type store struct {
 	client *spanner.Client
-	ctx    context.Context
 }
 
 var scope = log.RegisterScope("spanner", "Spanner abstraction layer", 0)
 
-func NewStore(ctx context.Context, database string, gcpCreds []byte) (storage.Store, error) {
-	client, err := spanner.NewClient(ctx, database, option.WithCredentialsJSON(gcpCreds))
+func NewStore(context context.Context, database string, gcpCreds []byte) (storage.Store, error) {
+	client, err := spanner.NewClient(context, database, option.WithCredentialsJSON(gcpCreds))
 	if err != nil {
 		return nil, fmt.Errorf("unable to create Spanner client: %v", err)
 	}
 
-	return &store{
+	return store{
 		client: client,
-		ctx:    ctx,
 	}, nil
 }
 
-func (s *store) Close() error {
+func (s store) Close() error {
 	s.client.Close()
 	return nil
 }

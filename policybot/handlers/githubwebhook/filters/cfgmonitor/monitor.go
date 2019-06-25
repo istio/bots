@@ -17,7 +17,6 @@ package cfgmonitor
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"strings"
 
 	webhook "github.com/go-playground/webhooks/github"
@@ -29,7 +28,6 @@ import (
 
 // Monitors for changes in the bot's config file.
 type Monitor struct {
-	ctx    context.Context
 	ght    *gh.ThrottledClient
 	org    string
 	repo   string
@@ -40,7 +38,7 @@ type Monitor struct {
 
 var scope = log.RegisterScope("monitor", "Listens for changes in policybot config", 0)
 
-func NewMonitor(ctx context.Context, ght *gh.ThrottledClient, repo string, file string, notify func()) (filters.Filter, error) {
+func NewMonitor(ght *gh.ThrottledClient, repo string, file string, notify func()) (filters.Filter, error) {
 	if repo == "" {
 		// disable everything if we don't have a repo
 		return &Monitor{}, nil
@@ -53,7 +51,6 @@ func NewMonitor(ctx context.Context, ght *gh.ThrottledClient, repo string, file 
 
 	ct := &Monitor{
 		ght:    ght,
-		ctx:    ctx,
 		org:    splits[0],
 		repo:   splits[1],
 		branch: splits[2],
@@ -70,7 +67,7 @@ func (m *Monitor) Events() []webhook.Event {
 }
 
 // monitor for changes to policybot's config file
-func (m *Monitor) Handle(_ http.ResponseWriter, githubObject interface{}) {
+func (m *Monitor) Handle(context context.Context, githubObject interface{}) {
 	pp, ok := githubObject.(webhook.PushPayload)
 	if !ok {
 		// not what we're looking for

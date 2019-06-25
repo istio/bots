@@ -1,0 +1,19 @@
+<p>
+What has {{ .Name }} been up to?
+</p>
+
+Login: {{ .Login }}<br/>
+Company: {{ .Company }}<br/>
+
+{{ range .RepoInfo }}
+    Repo: {{ .Name }}<br/>
+    Last Issue Commented: {{ .LastIssueCommented }}<br/>
+    Last Issue Closed: {{ .LastIssueClosed }}<br/>
+    Last Issue Triaged: {{ .LastIssueTriaged }}<br/>
+
+    {{ range .LastPullRequestActions }}
+        Path: {{ .Path }} {{ .When }}<br/>
+    {{ end }}
+
+    ---<br/>
+{{ end }}

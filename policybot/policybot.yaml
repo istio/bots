@@ -106,9 +106,7 @@ orgs:
   - name: istio
     repos:
       - name: tools
-      - name: istio
       - name: api
-      - name: istio.io
       - name: bottestrepo
       - name: cni
       - name: operator
@@ -117,3 +115,5 @@ orgs:
       - name: bots
       - name: proxy
       - name: common-files
+      - name: istio.io
+      - name: istio
