@@ -310,7 +310,7 @@ func (prt PrResultTester) getInformationFromCloneFile(pref string, onePull *stor
  * TestSlice: a slice of Tests objects containing all tests and the path to folder for each test run for the test under such pr.
  * Return a map of test suite name -- pr number -- run number -- ForEachRun objects.
  */
-func (prt PrResultTester) getShaAndPassStatus(testSlice []tests, orgID string) ([]*store.TestResult, error) {
+func (prt PrResultTester) getShaAndPassStatus(testSlice []tests, orgID string, repoID string) ([]*store.TestResult, error) {
 	var allTestRuns = []*store.TestResult{}
 
 	for _, test := range testSlice {
@@ -322,6 +322,7 @@ func (prt PrResultTester) getShaAndPassStatus(testSlice []tests, orgID string) (
 
 			var onePull = &store.TestResult{}
 			onePull.OrgID = orgID
+			onePull.RepoID = repoID
 			onePull.TestName = testName
 			onePull.RunPath = pref
 
@@ -363,7 +364,7 @@ func (prt PrResultTester) getShaAndPassStatus(testSlice []tests, orgID string) (
 /*
  * Read in gcs the folder of the given pr number and write the result of each test runs into a slice of TestFlake struct.
  */
-func (prt PrResultTester) CheckTestResultsForPr(prNum int64, orgID string) ([]*store.TestResult, error) {
+func (prt PrResultTester) CheckTestResultsForPr(prNum int64, orgID string, repoID string) ([]*store.TestResult, error) {
 	client := prt.client
 	defer client.Close()
 
@@ -371,7 +372,7 @@ func (prt PrResultTester) CheckTestResultsForPr(prNum int64, orgID string) ([]*s
 	if err != nil {
 		return nil, err
 	}
-	fullResult, er := prt.getShaAndPassStatus(testSlice, orgID)
+	fullResult, er := prt.getShaAndPassStatus(testSlice, orgID, repoID)
 
 	if er != nil {
 		return nil, er

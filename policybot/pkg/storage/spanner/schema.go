@@ -94,11 +94,8 @@ var (
 	pullRequestCommentColumns []string
 	pullRequestReviewColumns  []string
 	botActivityColumns        []string
-<<<<<<< HEAD
 	testResultColumns         []string
-=======
 	maintainerColumns         []string
->>>>>>> d10db62544d809aac74457b5a8b6d1351632b116
 )
 
 // Bunch of functions to from keys for the tables and indices in the DB
@@ -163,8 +160,8 @@ func botActivityKey(orgID string, repoID string) spanner.Key {
 	return spanner.Key{orgID, repoID}
 }
 
-func testResultKey(orgID string, testName string, prNum int64, runNum int64) spanner.Key {
-	return spanner.Key{orgID, testName, prNum, runNum}
+func testResultKey(orgID string, repoID string, testName string, prNum int64, runNum int64) spanner.Key {
+	return spanner.Key{orgID, repoID, testName, prNum, runNum}
 }
 func maintainerKey(orgID string, userID string) spanner.Key {
 	return spanner.Key{orgID, userID}

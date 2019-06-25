@@ -197,7 +197,8 @@ func TestResultFromHook(crp *hook.CheckRunPayload) (*storage.TestResult, map[str
 	discoveredUsers := make(map[string]string, len(pullRequestPayload.PullRequest.Assignees)+len(pullRequestPayload.PullRequest.RequestedReviewers))
 
 	return &storage.TestResult{
-		OrgID: crp.Repository.Owner.NodeID,
-		PrNum: pullRequestPayload.PullRequest.Number,
+		OrgID:  crp.Repository.Owner.NodeID,
+		RepoID: crp.Repository.NodeID,
+		PrNum:  pullRequestPayload.PullRequest.Number,
 	}, discoveredUsers
 }

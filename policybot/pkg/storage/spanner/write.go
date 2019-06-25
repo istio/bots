@@ -252,8 +252,8 @@ func (s store) WriteBotActivities(context context.Context, activities []*storage
 	return err
 }
 
-func (s *store) WriteTestResults(context context.Context, testResults []*storage.TestResult) error {
-	scope.Debugf("Writing %d test flakes", len(testResults))
+func (s store) WriteTestResults(context context.Context, testResults []*storage.TestResult) error {
+	scope.Debugf("Writing %d test results", len(testResults))
 
 	mutations := make([]*spanner.Mutation, len(testResults))
 	for i := 0; i < len(testResults); i++ {

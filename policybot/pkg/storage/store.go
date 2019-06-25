@@ -15,8 +15,8 @@
 package storage
 
 import (
-	"io"
 	"context"
+	"io"
 )
 
 // Store defines how the bot interacts with the database
@@ -55,13 +55,13 @@ type Store interface {
 	ReadPullRequestReviewByID(context context.Context, orgID string, repoID string, prID string, prReviewID string) (*PullRequestReview, error)
 	ReadBotActivityByID(context context.Context, orgID string, repoID string) (*BotActivity, error)
 	ReadMaintainerByID(context context.Context, orgID string, userID string) (*Maintainer, error)
-	ReadTestResultByName(context context.Context, orgID string, testName string, prNum int64, runNum int64) (*TestResult, error)
+	ReadTestResultByName(context context.Context, orgID string, repoID string, testName string, prNum int64, runNum int64) (*TestResult, error)
 
 	QueryMembersByOrg(context context.Context, orgID string, cb func(*Member) error) error
 	QueryMaintainersByOrg(context context.Context, orgID string, cb func(*Maintainer) error) error
 	QueryMaintainerInfo(context context.Context, maintainer *Maintainer) (*MaintainerInfo, error)
 	QueryIssuesByRepo(context context.Context, orgID string, repoID string, cb func(*Issue) error) error
 	QueryTestFlakeIssues(context context.Context, inactiveDays, createdDays int) ([]*Issue, error)
-	QueryTestResultByTestName(context context.Context, testName string, cb func(*TestResult) error) error
+	QueryTestResultByName(context context.Context, testName string, cb func(*TestResult) error) error
 	QueryTestResultByPrNumber(context context.Context, prNum int64, cb func(*TestResult) error) error
 }

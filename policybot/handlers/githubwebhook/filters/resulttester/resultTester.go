@@ -16,8 +16,6 @@ package resulttester
 
 import (
 	"context"
-	"net/http"
-	"context"
 
 	webhook "github.com/go-playground/webhooks/github"
 
@@ -79,6 +77,7 @@ func (r *ResultTester) Handle(context context.Context, githubObject interface{})
 		}
 		testResult, discoveredUsers := gh.TestResultFromHook(&p)
 		orgID := testResult.OrgID
+		repoID := testResult.RepoID
 		prNum := testResult.PrNum
 
 		prResultTest, err := testresults.NewPrResultTester(r.bucketName)
@@ -86,7 +85,7 @@ func (r *ResultTester) Handle(context context.Context, githubObject interface{})
 			scope.Errorf(err.Error())
 			return
 		}
-		testResults, errr := prResultTest.CheckTestResultsForPr(prNum, orgID)
+		testResults, errr := prResultTest.CheckTestResultsForPr(prNum, orgID, repoID)
 
 		if errr != nil {
 			scope.Errorf(errr.Error())

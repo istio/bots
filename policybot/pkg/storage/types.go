@@ -162,6 +162,7 @@ type MaintainerInfo struct {
 
 type TestResult struct {
 	OrgID       string
+	RepoID      string
 	TestName    string
 	PrNum       int64
 	RunNum      int64

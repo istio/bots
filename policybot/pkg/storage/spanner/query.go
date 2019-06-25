@@ -15,9 +15,9 @@
 package spanner
 
 import (
+	"context"
 	"fmt"
 	"strings"
-	"context"
 
 	"cloud.google.com/go/spanner"
 	"google.golang.org/api/iterator"
@@ -67,54 +67,39 @@ func (s store) QueryIssuesByRepo(context context.Context, orgID string, repoID s
 	return err
 }
 
-<<<<<<< HEAD
-func (s *store) QueryAllUsers(cb func(*storage.User) error) error {
-	iter := s.client.Single().Query(s.ctx, spanner.Statement{SQL: "SELECT * FROM Users;"})
-	err := iter.Do(func(row *spanner.Row) error {
-		user := &storage.User{}
-		if err := row.ToStruct(user); err != nil {
-			return err
-		}
-
-		return cb(user)
-	})
-
-	return err
-}
-
-func (s *store) QueryTestResultByTestName(context context.Context, testName string, cb func(*storage.TestResult) error) error {
+func (s store) QueryTestResultByName(context context.Context, testName string, cb func(*storage.TestResult) error) error {
 	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM TestResults WHERE TestName = '%s'", testName)})
 	err := iter.Do(func(row *spanner.Row) error {
-		flake := &storage.TestResult{}
-		if err := row.ToStruct(flake); err != nil {
+		testResult := &storage.TestResult{}
+		if err := row.ToStruct(testResult); err != nil {
 			return err
 		}
 
-		if err := cb(flake); err != nil {
+		if err := cb(testResult); err != nil {
 			iter.Stop()
 			return err
 		}
 
-		return cb(flake)
+		return cb(testResult)
 	})
 
 	return err
 }
 
-func (s *store) QueryTestResultByPrNumber(context context.Context, prNum int64, cb func(*storage.TestResult) error) error {
+func (s store) QueryTestResultByPrNumber(context context.Context, prNum int64, cb func(*storage.TestResult) error) error {
 	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM TestResults WHERE PrNum = '%v'", prNum)})
 	err := iter.Do(func(row *spanner.Row) error {
-		flake := &storage.TestResult{}
-		if err := row.ToStruct(flake); err != nil {
+		testResult := &storage.TestResult{}
+		if err := row.ToStruct(testResult); err != nil {
 			return err
 		}
 
-		if err := cb(flake); err != nil {
+		if err := cb(testResult); err != nil {
 			iter.Stop()
 			return err
 		}
 
-		return cb(flake)
+		return cb(testResult)
 	})
 
 	return err

@@ -19,7 +19,6 @@ import (
 	"context"
 	"strconv"
 	"time"
-	"context"
 
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/pkg/cache"
@@ -366,13 +365,14 @@ func (c *Cache) ReadIssuePipeline(context context.Context, orgID string, repoID 
 }
 
 // Reads from cache and if not found reads from DB
-func (c *Cache) ReadTestResultByName(context context.Context, orgID string, testName string, prNum int64, runNum int64) (*storage.TestResult, error) {
-	key := orgID + testName + strconv.FormatInt(prNum, 10) + strconv.FormatInt(runNum, 10)
+func (c *Cache) ReadTestResult(context context.Context,
+	orgID string, repoID string, testName string, prNum int64, runNum int64) (*storage.TestResult, error) {
+	key := orgID + repoID + testName + strconv.FormatInt(prNum, 10) + strconv.FormatInt(runNum, 10)
 	if value, ok := c.testResultCache.Get(key); ok {
 		return value.(*storage.TestResult), nil
 	}
 
-	result, err := c.store.ReadTestResultByName(context, orgID, testName, prNum, runNum)
+	result, err := c.store.ReadTestResultByName(context, orgID, repoID, testName, prNum, runNum)
 	if err == nil {
 		c.testResultCache.Set(key, result)
 	}
@@ -386,10 +386,11 @@ func (c *Cache) WriteTestResults(context context.Context, testResults []*storage
 	if err == nil {
 		for _, testResult := range testResults {
 			orgID := testResult.OrgID
+			repoID := testResult.RepoID
 			testName := testResult.TestName
 			prNum := testResult.PrNum
 			runNum := testResult.RunNum
-			key := orgID + testName + strconv.FormatInt(prNum, 10) + strconv.FormatInt(runNum, 10)
+			key := orgID + repoID + testName + strconv.FormatInt(prNum, 10) + strconv.FormatInt(runNum, 10)
 
 			c.testResultCache.Set(key, testResult)
 		}

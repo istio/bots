@@ -276,8 +276,9 @@ func (s store) ReadBotActivityByID(context context.Context, orgID string, repoID
 	return &result, nil
 }
 
-func (s *store) ReadTestResultByName(context context.Context, orgID string, testName string, prNum int64, runNum int64) (*storage.TestResult, error) {
-	row, err := s.client.Single().ReadRow(context, testResultTable, testResultKey(orgID, testName, prNum, runNum), testResultColumns)
+func (s store) ReadTestResultByName(context context.Context, orgID string,
+	repoID string, testName string, prNum int64, runNum int64) (*storage.TestResult, error) {
+	row, err := s.client.Single().ReadRow(context, testResultTable, testResultKey(orgID, repoID, testName, prNum, runNum), testResultColumns)
 	if spanner.ErrCode(err) == codes.NotFound {
 		return nil, nil
 	} else if err != nil {
