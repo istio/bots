@@ -32,26 +32,24 @@ const (
 // ThrottledClient is used to throttle our use of the GitHub API in order to
 // prevent hitting rate limits or abuse limits.
 type ThrottledClient struct {
-	ctx     context.Context
 	client  *github.Client
 	limiter *rate.Limiter
 }
 
-func NewThrottledClient(ctx context.Context, githubToken string) *ThrottledClient {
+func NewThrottledClient(context context.Context, githubToken string) *ThrottledClient {
 	src := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: githubToken},
 	)
 
 	return &ThrottledClient{
-		ctx:     ctx,
-		client:  github.NewClient(oauth2.NewClient(ctx, src)),
+		client:  github.NewClient(oauth2.NewClient(context, src)),
 		limiter: rate.NewLimiter(maxGitHubRequestsPerSecond, maxGitHubBurst),
 	}
 }
 
 // Get the GitHub client in a throttled fashion, so we don't exceed GitHub's usage limits. This will block
 // until it is safe to make the call to GitHub.
-func (ght *ThrottledClient) Get() *github.Client {
-	_ = ght.limiter.Wait(ght.ctx)
+func (ght *ThrottledClient) Get(context context.Context) *github.Client {
+	_ = ght.limiter.Wait(context)
 	return ght.client
 }

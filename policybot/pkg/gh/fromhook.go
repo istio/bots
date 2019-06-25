@@ -79,6 +79,25 @@ func IssueCommentFromHook(icp *hook.IssueCommentPayload) (*storage.IssueComment,
 	}, discoveredUsers
 }
 
+// Maps from a GitHub webhook event to a storage repo comment.
+// Also returns the set of
+// users discovered in the event in a map of {UserID:Login}.
+func RepoCommentFromHook(icp *hook.CommitCommentPayload) (*storage.RepoComment, map[string]string) {
+	discoveredUsers := map[string]string{
+		icp.Comment.User.NodeID: icp.Comment.User.Login,
+	}
+
+	return &storage.RepoComment{
+		OrgID:     icp.Repository.Owner.NodeID,
+		RepoID:    icp.Repository.NodeID,
+		CommentID: icp.Comment.NodeID,
+		Body:      icp.Comment.Body,
+		CreatedAt: icp.Comment.CreatedAt,
+		UpdatedAt: icp.Comment.UpdatedAt,
+		AuthorID:  icp.Comment.User.NodeID,
+	}, discoveredUsers
+}
+
 // Maps from a GitHub webhook event to a storage pr. Also returns the set of
 // users discovered in the event in a map of {UserID:Login}.
 //

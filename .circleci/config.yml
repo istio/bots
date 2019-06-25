@@ -8,8 +8,9 @@ jobs:
       - checkout
       - run:
           name: Building policybot
-          command:
-            cd policybot && go build
+          command: |
+            cd policybot
+            go build
 
   lint:
     docker:
@@ -19,7 +20,8 @@ jobs:
       - checkout
       - run:
           name: Linting
-          command: make lint
+          command: |
+            make lint
 
 workflows:
   version: 2

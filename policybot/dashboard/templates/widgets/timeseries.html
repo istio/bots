@@ -1,0 +1,19 @@
+{{ define "timeseries" }}
+<div id={{ .Target }}></div>
+<script>
+  var data = MG.convert.date(JSON.parse({{ .TimeSeries }}), 'date');
+	MG.data_graphic({
+	title: {{ .Name }},
+	description: "This graphic shows a time-series of downloads.",
+	data: data,
+	area: false,
+  interpolate: d3.curveLinear,
+	show_tooltips: false,
+	width: 600,
+	height: 250,
+	target: '#' + {{ .Target }},
+	x_accessor: 'date',
+	y_accessor: 'value',
+  });
+</script>
+{{ end }}

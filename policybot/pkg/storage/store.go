@@ -15,6 +15,7 @@
 package storage
 
 import (
+	"context"
 	"io"
 )
 
@@ -22,40 +23,41 @@ import (
 type Store interface {
 	io.Closer
 
-	WriteOrgs(orgs []*Org) error
-	WriteRepos(repos []*Repo) error
-	WriteIssues(issues []*Issue) error
-	WriteIssueComments(issueComments []*IssueComment) error
-	WriteIssuePipelines(issueData []*IssuePipeline) error
-	WritePullRequests(prs []*PullRequest) error
-	WritePullRequestComments(prComments []*PullRequestComment) error
-	WritePullRequestReviews(prReviews []*PullRequestReview) error
-	WriteUsers(users []*User) error
-	WriteLabels(labels []*Label) error
-	WriteAllMembers(members []*Member) error
-	WriteAllMaintainers(maintainers []*Maintainer) error
-	WriteBotActivities(activities []*BotActivity) error
+	WriteOrgs(context context.Context, orgs []*Org) error
+	WriteRepos(context context.Context, repos []*Repo) error
+	WriteRepoComments(context context.Context, comments []*RepoComment) error
+	WriteIssues(context context.Context, issues []*Issue) error
+	WriteIssueComments(context context.Context, issueComments []*IssueComment) error
+	WriteIssuePipelines(context context.Context, issueData []*IssuePipeline) error
+	WritePullRequests(context context.Context, prs []*PullRequest) error
+	WritePullRequestComments(context context.Context, prComments []*PullRequestComment) error
+	WritePullRequestReviews(context context.Context, prReviews []*PullRequestReview) error
+	WriteUsers(context context.Context, users []*User) error
+	WriteLabels(context context.Context, labels []*Label) error
+	WriteAllMembers(context context.Context, members []*Member) error
+	WriteAllMaintainers(context context.Context, maintainers []*Maintainer) error
+	WriteBotActivities(context context.Context, activities []*BotActivity) error
 
-	ReadOrgByID(orgID string) (*Org, error)
-	ReadOrgByLogin(login string) (*Org, error)
-	ReadRepoByID(orgID string, repoID string) (*Repo, error)
-	ReadRepoByName(orgID string, name string) (*Repo, error)
-	ReadIssueByID(orgID string, repoID string, issueID string) (*Issue, error)
-	ReadIssueByNumber(orgID string, repoID string, number int) (*Issue, error)
-	ReadIssueCommentByID(orgID string, repoID string, issueID string, issueCommentID string) (*IssueComment, error)
-	ReadIssuePipelineByNumber(orgID string, repoID string, number int) (*IssuePipeline, error)
-	ReadLabelByID(orgID string, repoID string, labelID string) (*Label, error)
-	ReadUserByID(userID string) (*User, error)
-	ReadUserByLogin(login string) (*User, error)
-	ReadPullRequestByID(orgID string, repoID string, prID string) (*PullRequest, error)
-	ReadPullRequestCommentByID(orgID string, repoID string, prID string, prCommentID string) (*PullRequestComment, error)
-	ReadPullRequestReviewByID(orgID string, repoID string, prID string, prReviewID string) (*PullRequestReview, error)
-	ReadBotActivityByID(orgID string, repoID string) (*BotActivity, error)
+	ReadOrgByID(context context.Context, orgID string) (*Org, error)
+	ReadOrgByLogin(context context.Context, login string) (*Org, error)
+	ReadRepoByID(context context.Context, orgID string, repoID string) (*Repo, error)
+	ReadRepoByName(context context.Context, orgID string, name string) (*Repo, error)
+	ReadIssueByID(context context.Context, orgID string, repoID string, issueID string) (*Issue, error)
+	ReadIssueByNumber(context context.Context, orgID string, repoID string, number int) (*Issue, error)
+	ReadIssueCommentByID(context context.Context, orgID string, repoID string, issueID string, issueCommentID string) (*IssueComment, error)
+	ReadIssuePipelineByNumber(context context.Context, orgID string, repoID string, number int) (*IssuePipeline, error)
+	ReadLabelByID(context context.Context, orgID string, repoID string, labelID string) (*Label, error)
+	ReadUserByID(context context.Context, userID string) (*User, error)
+	ReadUserByLogin(context context.Context, login string) (*User, error)
+	ReadPullRequestByID(context context.Context, orgID string, repoID string, prID string) (*PullRequest, error)
+	ReadPullRequestCommentByID(context context.Context, orgID string, repoID string, prID string, prCommentID string) (*PullRequestComment, error)
+	ReadPullRequestReviewByID(context context.Context, orgID string, repoID string, prID string, prReviewID string) (*PullRequestReview, error)
+	ReadBotActivityByID(context context.Context, orgID string, repoID string) (*BotActivity, error)
+	ReadMaintainerByID(context context.Context, orgID string, userID string) (*Maintainer, error)
 
-	QueryMembersByOrg(orgID string, cb func(*Member) error) error
-	QueryMaintainersByOrg(orgID string, cb func(*Maintainer) error) error
-	QueryMaintainerInfo(maintainer *Maintainer) (*MaintainerInfo, error)
-	QueryIssuesByRepo(orgID string, repoID string, cb func(*Issue) error) error
-	QueryTestFlakeIssues(inactiveDays, createdDays int) ([]*Issue, error)
-	QueryAllUsers(cb func(*User) error) error
+	QueryMembersByOrg(context context.Context, orgID string, cb func(*Member) error) error
+	QueryMaintainersByOrg(context context.Context, orgID string, cb func(*Maintainer) error) error
+	QueryMaintainerInfo(context context.Context, maintainer *Maintainer) (*MaintainerInfo, error)
+	QueryIssuesByRepo(context context.Context, orgID string, repoID string, cb func(*Issue) error) error
+	QueryTestFlakeIssues(context context.Context, inactiveDays, createdDays int) ([]*Issue, error)
 }

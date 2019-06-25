@@ -29,14 +29,12 @@ const (
 // ZenHubThrottle is used to throttle our use of the ZenHub API in order to
 // prevent hitting rate limits or abuse limits.
 type ThrottledClient struct {
-	ctx     context.Context
 	client  *Client
 	limiter *rate.Limiter
 }
 
-func NewThrottledClient(ctx context.Context, zenhubToken string) *ThrottledClient {
+func NewThrottledClient(zenhubToken string) *ThrottledClient {
 	return &ThrottledClient{
-		ctx:     ctx,
 		client:  NewClient(zenhubToken),
 		limiter: rate.NewLimiter(maxZenHubRequestsPerSecond, maxZenHubBurst),
 	}
@@ -44,7 +42,7 @@ func NewThrottledClient(ctx context.Context, zenhubToken string) *ThrottledClien
 
 // Get the ZenHub client in a throttled fashion, so we don't exceed ZenHub's usage limits. This will block
 // until it is safe to make the call to GitHub.
-func (zht *ThrottledClient) Get() *Client {
-	_ = zht.limiter.Wait(zht.ctx)
+func (zht *ThrottledClient) Get(context context.Context) *Client {
+	_ = zht.limiter.Wait(context)
 	return zht.client
 }

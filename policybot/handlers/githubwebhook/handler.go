@@ -67,6 +67,6 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// dispatch to all the registered plugins
 	for _, filter := range h.filters {
-		filter.Handle(w, payload)
+		filter.Handle(r.Context(), payload)
 	}
 }

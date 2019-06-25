@@ -17,7 +17,6 @@ package labeler
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"regexp"
 	"strings"
 
@@ -33,7 +32,6 @@ import (
 
 // Generates nagging messages in PRs based on regex matches on the title, body, and affected files
 type Labeler struct {
-	ctx               context.Context
 	cache             *cache.Cache
 	ght               *gh.ThrottledClient
 	orgs              []config.Org
@@ -45,9 +43,8 @@ type Labeler struct {
 
 var scope = log.RegisterScope("labeler", "Issue and PR auto-labeler", 0)
 
-func NewLabeler(ctx context.Context, ght *gh.ThrottledClient, cache *cache.Cache, orgs []config.Org, autoLabels []config.AutoLabel) (filters.Filter, error) {
+func NewLabeler(ght *gh.ThrottledClient, cache *cache.Cache, orgs []config.Org, autoLabels []config.AutoLabel) (filters.Filter, error) {
 	l := &Labeler{
-		ctx:               ctx,
 		cache:             cache,
 		ght:               ght,
 		orgs:              orgs,
@@ -117,7 +114,7 @@ func (l *Labeler) Events() []webhook.Event {
 }
 
 // process an event arriving from GitHub
-func (l *Labeler) Handle(_ http.ResponseWriter, githubObject interface{}) {
+func (l *Labeler) Handle(context context.Context, githubObject interface{}) {
 	action := ""
 	repo := ""
 	number := 0
@@ -157,17 +154,17 @@ func (l *Labeler) Handle(_ http.ResponseWriter, githubObject interface{}) {
 	split := strings.Split(repo, "/")
 
 	if issue != nil {
-		l.processIssue(issue, repo, split[0], split[1], autoLabels)
+		l.processIssue(context, issue, repo, split[0], split[1], autoLabels)
 	} else {
-		l.processPullRequest(pr, repo, split[0], split[1], autoLabels)
+		l.processPullRequest(context, pr, repo, split[0], split[1], autoLabels)
 	}
 }
 
-func (l *Labeler) processIssue(issue *storage.Issue, fullRepoName, orgName, repoName string, orgALs []config.AutoLabel) {
+func (l *Labeler) processIssue(context context.Context, issue *storage.Issue, fullRepoName, orgName, repoName string, orgALs []config.AutoLabel) {
 	// get all the issue's labels
 	var labels []*storage.Label
 	for _, labelID := range issue.LabelIDs {
-		label, err := l.cache.ReadLabel(issue.OrgID, issue.RepoID, labelID)
+		label, err := l.cache.ReadLabel(context, issue.OrgID, issue.RepoID, labelID)
 		if err != nil {
 			scope.Errorf("Unable to get labels for issue %d in repo %s: %v", issue.Number, fullRepoName, err)
 			return
@@ -191,7 +188,7 @@ func (l *Labeler) processIssue(issue *storage.Issue, fullRepoName, orgName, repo
 	}
 
 	if len(toApply) > 0 {
-		if _, _, err := l.ght.Get().Issues.AddLabelsToIssue(l.ctx, orgName, repoName, int(issue.Number), toApply); err != nil {
+		if _, _, err := l.ght.Get(context).Issues.AddLabelsToIssue(context, orgName, repoName, int(issue.Number), toApply); err != nil {
 			scope.Errorf("Unable to set labels on issue %d in repo %s: %v", issue.Number, fullRepoName, err)
 			return
 		}
@@ -200,11 +197,11 @@ func (l *Labeler) processIssue(issue *storage.Issue, fullRepoName, orgName, repo
 	scope.Infof("Applied %d label(s) to issue %d from repo %s", len(toApply), issue.Number, fullRepoName)
 }
 
-func (l *Labeler) processPullRequest(pr *storage.PullRequest, fullRepoName, orgName, repoName string, orgALs []config.AutoLabel) {
+func (l *Labeler) processPullRequest(context context.Context, pr *storage.PullRequest, fullRepoName, orgName, repoName string, orgALs []config.AutoLabel) {
 	// get all the pr's labels
 	var labels []*storage.Label
 	for _, labelID := range pr.LabelIDs {
-		label, err := l.cache.ReadLabel(pr.OrgID, pr.RepoID, labelID)
+		label, err := l.cache.ReadLabel(context, pr.OrgID, pr.RepoID, labelID)
 		if err != nil {
 			scope.Errorf("Unable to get labels for pr %d in repo %s: %v", pr.Number, fullRepoName, err)
 			return
@@ -228,7 +225,7 @@ func (l *Labeler) processPullRequest(pr *storage.PullRequest, fullRepoName, orgN
 	}
 
 	if len(toApply) > 0 {
-		if _, _, err := l.ght.Get().Issues.AddLabelsToIssue(l.ctx, orgName, repoName, int(pr.Number), toApply); err != nil {
+		if _, _, err := l.ght.Get(context).Issues.AddLabelsToIssue(context, orgName, repoName, int(pr.Number), toApply); err != nil {
 			scope.Errorf("Unable to set labels on event %d in repo %s: %v", pr.Number, fullRepoName, err)
 			return
 		}

@@ -22,7 +22,7 @@ import (
 	"istio.io/bots/policybot/pkg/storage"
 )
 
-func (s *store) WriteOrgs(orgs []*storage.Org) error {
+func (s store) WriteOrgs(context context.Context, orgs []*storage.Org) error {
 	scope.Debugf("Writing %d orgs", len(orgs))
 
 	mutations := make([]*spanner.Mutation, len(orgs))
@@ -33,11 +33,11 @@ func (s *store) WriteOrgs(orgs []*storage.Org) error {
 		}
 	}
 
-	_, err := s.client.Apply(s.ctx, mutations)
+	_, err := s.client.Apply(context, mutations)
 	return err
 }
 
-func (s *store) WriteRepos(repos []*storage.Repo) error {
+func (s store) WriteRepos(context context.Context, repos []*storage.Repo) error {
 	scope.Debugf("Writing %d repos", len(repos))
 
 	mutations := make([]*spanner.Mutation, len(repos))
@@ -48,11 +48,26 @@ func (s *store) WriteRepos(repos []*storage.Repo) error {
 		}
 	}
 
-	_, err := s.client.Apply(s.ctx, mutations)
+	_, err := s.client.Apply(context, mutations)
 	return err
 }
 
-func (s *store) WriteIssues(issues []*storage.Issue) error {
+func (s store) WriteRepoComments(context context.Context, comments []*storage.RepoComment) error {
+	scope.Debugf("Writing %d repo comments", len(comments))
+
+	mutations := make([]*spanner.Mutation, len(comments))
+	for i := 0; i < len(comments); i++ {
+		var err error
+		if mutations[i], err = spanner.InsertOrUpdateStruct(repoCommentTable, comments[i]); err != nil {
+			return err
+		}
+	}
+
+	_, err := s.client.Apply(context, mutations)
+	return err
+}
+
+func (s store) WriteIssues(context context.Context, issues []*storage.Issue) error {
 	scope.Debugf("Writing %d issues", len(issues))
 
 	mutations := make([]*spanner.Mutation, len(issues))
@@ -63,11 +78,11 @@ func (s *store) WriteIssues(issues []*storage.Issue) error {
 		}
 	}
 
-	_, err := s.client.Apply(s.ctx, mutations)
+	_, err := s.client.Apply(context, mutations)
 	return err
 }
 
-func (s *store) WriteIssueComments(issueComments []*storage.IssueComment) error {
+func (s store) WriteIssueComments(context context.Context, issueComments []*storage.IssueComment) error {
 	scope.Debugf("Writing %d issue comments", len(issueComments))
 
 	mutations := make([]*spanner.Mutation, len(issueComments))
@@ -78,11 +93,11 @@ func (s *store) WriteIssueComments(issueComments []*storage.IssueComment) error 
 		}
 	}
 
-	_, err := s.client.Apply(s.ctx, mutations)
+	_, err := s.client.Apply(context, mutations)
 	return err
 }
 
-func (s *store) WriteIssuePipelines(issuePipelines []*storage.IssuePipeline) error {
+func (s store) WriteIssuePipelines(context context.Context, issuePipelines []*storage.IssuePipeline) error {
 	scope.Debugf("Writing %d issue pipelines", len(issuePipelines))
 
 	mutations := make([]*spanner.Mutation, len(issuePipelines))
@@ -93,11 +108,11 @@ func (s *store) WriteIssuePipelines(issuePipelines []*storage.IssuePipeline) err
 		}
 	}
 
-	_, err := s.client.Apply(s.ctx, mutations)
+	_, err := s.client.Apply(context, mutations)
 	return err
 }
 
-func (s *store) WritePullRequests(prs []*storage.PullRequest) error {
+func (s store) WritePullRequests(context context.Context, prs []*storage.PullRequest) error {
 	scope.Debugf("Writing %d pull requests", len(prs))
 
 	mutations := make([]*spanner.Mutation, len(prs))
@@ -108,11 +123,11 @@ func (s *store) WritePullRequests(prs []*storage.PullRequest) error {
 		}
 	}
 
-	_, err := s.client.Apply(s.ctx, mutations)
+	_, err := s.client.Apply(context, mutations)
 	return err
 }
 
-func (s *store) WritePullRequestComments(prComments []*storage.PullRequestComment) error {
+func (s store) WritePullRequestComments(context context.Context, prComments []*storage.PullRequestComment) error {
 	scope.Debugf("Writing %d pr comments", len(prComments))
 
 	mutations := make([]*spanner.Mutation, len(prComments))
@@ -123,11 +138,11 @@ func (s *store) WritePullRequestComments(prComments []*storage.PullRequestCommen
 		}
 	}
 
-	_, err := s.client.Apply(s.ctx, mutations)
+	_, err := s.client.Apply(context, mutations)
 	return err
 }
 
-func (s *store) WritePullRequestReviews(prReviews []*storage.PullRequestReview) error {
+func (s store) WritePullRequestReviews(context context.Context, prReviews []*storage.PullRequestReview) error {
 	scope.Debugf("Writing %d pull request reviews", len(prReviews))
 
 	mutations := make([]*spanner.Mutation, len(prReviews))
@@ -138,11 +153,11 @@ func (s *store) WritePullRequestReviews(prReviews []*storage.PullRequestReview) 
 		}
 	}
 
-	_, err := s.client.Apply(s.ctx, mutations)
+	_, err := s.client.Apply(context, mutations)
 	return err
 }
 
-func (s *store) WriteUsers(users []*storage.User) error {
+func (s store) WriteUsers(context context.Context, users []*storage.User) error {
 	scope.Debugf("Writing %d users", len(users))
 
 	mutations := make([]*spanner.Mutation, len(users))
@@ -153,11 +168,11 @@ func (s *store) WriteUsers(users []*storage.User) error {
 		}
 	}
 
-	_, err := s.client.Apply(s.ctx, mutations)
+	_, err := s.client.Apply(context, mutations)
 	return err
 }
 
-func (s *store) WriteLabels(labels []*storage.Label) error {
+func (s store) WriteLabels(context context.Context, labels []*storage.Label) error {
 	scope.Debugf("Writing %d labels", len(labels))
 
 	mutations := make([]*spanner.Mutation, len(labels))
@@ -168,11 +183,11 @@ func (s *store) WriteLabels(labels []*storage.Label) error {
 		}
 	}
 
-	_, err := s.client.Apply(s.ctx, mutations)
+	_, err := s.client.Apply(context, mutations)
 	return err
 }
 
-func (s *store) WriteAllMembers(members []*storage.Member) error {
+func (s store) WriteAllMembers(ctx1 context.Context, members []*storage.Member) error {
 	scope.Debugf("Writing %d members", len(members))
 
 	mutations := make([]*spanner.Mutation, len(members))
@@ -183,9 +198,9 @@ func (s *store) WriteAllMembers(members []*storage.Member) error {
 		}
 	}
 
-	_, err := s.client.ReadWriteTransaction(s.ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
+	_, err := s.client.ReadWriteTransaction(ctx1, func(ctx2 context.Context, txn *spanner.ReadWriteTransaction) error {
 		// Remove all existing members
-		iter := txn.Query(ctx, spanner.Statement{SQL: "DELETE FROM Members WHERE true;"})
+		iter := txn.Query(ctx2, spanner.Statement{SQL: "DELETE FROM Members WHERE true;"})
 		if err := iter.Do(func(_ *spanner.Row) error { return nil }); err != nil {
 			return err
 		}
@@ -197,7 +212,7 @@ func (s *store) WriteAllMembers(members []*storage.Member) error {
 	return err
 }
 
-func (s *store) WriteAllMaintainers(maintainers []*storage.Maintainer) error {
+func (s store) WriteAllMaintainers(ctx1 context.Context, maintainers []*storage.Maintainer) error {
 	scope.Debugf("Writing %d maintainers", len(maintainers))
 
 	mutations := make([]*spanner.Mutation, len(maintainers))
@@ -208,9 +223,9 @@ func (s *store) WriteAllMaintainers(maintainers []*storage.Maintainer) error {
 		}
 	}
 
-	_, err := s.client.ReadWriteTransaction(s.ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
+	_, err := s.client.ReadWriteTransaction(ctx1, func(ctx2 context.Context, txn *spanner.ReadWriteTransaction) error {
 		// Remove all existing maintainers
-		iter := txn.Query(ctx, spanner.Statement{SQL: "DELETE FROM Maintainers WHERE true;"})
+		iter := txn.Query(ctx2, spanner.Statement{SQL: "DELETE FROM Maintainers WHERE true;"})
 		if err := iter.Do(func(_ *spanner.Row) error { return nil }); err != nil {
 			return err
 		}
@@ -222,7 +237,7 @@ func (s *store) WriteAllMaintainers(maintainers []*storage.Maintainer) error {
 	return err
 }
 
-func (s *store) WriteBotActivities(activities []*storage.BotActivity) error {
+func (s store) WriteBotActivities(context context.Context, activities []*storage.BotActivity) error {
 	scope.Debugf("Writing %d activities", len(activities))
 
 	mutations := make([]*spanner.Mutation, len(activities))
@@ -233,6 +248,6 @@ func (s *store) WriteBotActivities(activities []*storage.BotActivity) error {
 		}
 	}
 
-	_, err := s.client.Apply(s.ctx, mutations)
+	_, err := s.client.Apply(context, mutations)
 	return err
 }

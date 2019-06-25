@@ -61,6 +61,18 @@ func IssueCommentFromAPI(orgID string, repoID string, issueID string, issueComme
 	}
 }
 
+func RepoCommentFromAPI(orgID string, repoID string, comment *api.RepositoryComment) *storage.RepoComment {
+	return &storage.RepoComment{
+		OrgID:  orgID,
+		RepoID: repoID,
+		//		CommentID:      comment.GetNodeID(),  TODO: enabled once upstream PR is merged
+		Body:      comment.GetBody(),
+		CreatedAt: comment.GetCreatedAt(),
+		UpdatedAt: comment.GetUpdatedAt(),
+		AuthorID:  comment.GetUser().GetNodeID(),
+	}
+}
+
 func UserFromAPI(u *api.User) *storage.User {
 	return &storage.User{
 		UserID:    u.GetNodeID(),

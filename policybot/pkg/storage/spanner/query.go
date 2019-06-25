@@ -15,6 +15,7 @@
 package spanner
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -24,8 +25,8 @@ import (
 	"istio.io/bots/policybot/pkg/storage"
 )
 
-func (s *store) QueryMembersByOrg(orgID string, cb func(*storage.Member) error) error {
-	iter := s.client.Single().Query(s.ctx, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM Members WHERE OrgID = '%s'", orgID)})
+func (s store) QueryMembersByOrg(context context.Context, orgID string, cb func(*storage.Member) error) error {
+	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM Members WHERE OrgID = '%s'", orgID)})
 	err := iter.Do(func(row *spanner.Row) error {
 		member := &storage.Member{}
 		if err := row.ToStruct(member); err != nil {
@@ -38,8 +39,8 @@ func (s *store) QueryMembersByOrg(orgID string, cb func(*storage.Member) error) 
 	return err
 }
 
-func (s *store) QueryMaintainersByOrg(orgID string, cb func(*storage.Maintainer) error) error {
-	iter := s.client.Single().Query(s.ctx, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM Maintainers WHERE OrgID = '%s'", orgID)})
+func (s store) QueryMaintainersByOrg(context context.Context, orgID string, cb func(*storage.Maintainer) error) error {
+	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM Maintainers WHERE OrgID = '%s'", orgID)})
 	err := iter.Do(func(row *spanner.Row) error {
 		maintainer := &storage.Maintainer{}
 		if err := row.ToStruct(maintainer); err != nil {
@@ -52,8 +53,8 @@ func (s *store) QueryMaintainersByOrg(orgID string, cb func(*storage.Maintainer)
 	return err
 }
 
-func (s *store) QueryIssuesByRepo(orgID string, repoID string, cb func(*storage.Issue) error) error {
-	iter := s.client.Single().Query(s.ctx, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM Issues WHERE OrgID = '%s' AND RepoID = '%s';", orgID, repoID)})
+func (s store) QueryIssuesByRepo(context context.Context, orgID string, repoID string, cb func(*storage.Issue) error) error {
+	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM Issues WHERE OrgID = '%s' AND RepoID = '%s';", orgID, repoID)})
 	err := iter.Do(func(row *spanner.Row) error {
 		issue := &storage.Issue{}
 		if err := row.ToStruct(issue); err != nil {
@@ -66,21 +67,7 @@ func (s *store) QueryIssuesByRepo(orgID string, repoID string, cb func(*storage.
 	return err
 }
 
-func (s *store) QueryAllUsers(cb func(*storage.User) error) error {
-	iter := s.client.Single().Query(s.ctx, spanner.Statement{SQL: "SELECT * FROM Users;"})
-	err := iter.Do(func(row *spanner.Row) error {
-		user := &storage.User{}
-		if err := row.ToStruct(user); err != nil {
-			return err
-		}
-
-		return cb(user)
-	})
-
-	return err
-}
-
-func (s *store) QueryTestFlakeIssues(inactiveDays, createdDays int) ([]*storage.Issue, error) {
+func (s store) QueryTestFlakeIssues(context context.Context, inactiveDays, createdDays int) ([]*storage.Issue, error) {
 	sql := `SELECT * from Issues
 	WHERE TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), UpdatedAt, DAY) > @inactiveDays AND 
 				TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), CreatedAt, DAY) < @createdDays AND
@@ -101,14 +88,14 @@ func (s *store) QueryTestFlakeIssues(inactiveDays, createdDays int) ([]*storage.
 		issues = append(issues, &issue)
 		return nil
 	}
-	iter := s.client.Single().Query(s.ctx, stmt)
+	iter := s.client.Single().Query(context, stmt)
 	if err := iter.Do(getIssue); err != nil {
 		return nil, fmt.Errorf("error in fetching flaky test issues, %v", err)
 	}
 	return issues, nil
 }
 
-func (s *store) QueryMaintainerInfo(maintainer *storage.Maintainer) (*storage.MaintainerInfo, error) {
+func (s store) QueryMaintainerInfo(context context.Context, maintainer *storage.Maintainer) (*storage.MaintainerInfo, error) {
 	info := &storage.MaintainerInfo{
 		Repos: make(map[string]*storage.RepoActivityInfo),
 	}
@@ -136,7 +123,7 @@ func (s *store) QueryMaintainerInfo(maintainer *storage.Maintainer) (*storage.Ma
 	}
 
 	for repoID, repoInfo := range info.Repos {
-		iter := s.client.Single().Query(s.ctx, spanner.Statement{SQL: fmt.Sprintf(
+		iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
 			"SELECT * FROM PullRequests WHERE OrgID = '%s' AND RepoID = '%s' AND AuthorID = '%s'",
 			maintainer.OrgID, repoID, maintainer.UserID)})
 
