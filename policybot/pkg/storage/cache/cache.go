@@ -18,6 +18,7 @@ package cache
 import (
 	"strconv"
 	"time"
+	"context"
 
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/pkg/cache"
@@ -39,7 +40,7 @@ type Cache struct {
 	pullRequestCommentCache cache.ExpiringCache
 	pullRequestReviewCache  cache.ExpiringCache
 	pipelineCache           cache.ExpiringCache
-	testFlakeCache          cache.ExpiringCache
+	testResultCache         cache.ExpiringCache
 }
 
 func New(store storage.Store, entryTTL time.Duration) *Cache {
@@ -65,7 +66,7 @@ func New(store storage.Store, entryTTL time.Duration) *Cache {
 		pullRequestCommentCache: cache.NewTTL(entryTTL, evictionInterval),
 		pullRequestReviewCache:  cache.NewTTL(entryTTL, evictionInterval),
 		pipelineCache:           cache.NewTTL(entryTTL, evictionInterval),
-		testFlakeCache:          cache.NewTTL(entryTTL, evictionInterval),
+		testResultCache:         cache.NewTTL(entryTTL, evictionInterval),
 	}
 }
 
@@ -348,32 +349,32 @@ func (c *Cache) ReadIssuePipeline(orgID string, repoID string, issueNumber int) 
 }
 
 // Reads from cache and if not found reads from DB
-func (c *Cache) ReadTestFlakeByName(orgID string, testName string, prNum int64, runNum int64) (*storage.TestFlake, error) {
+func (c *Cache) ReadTestResultByName(context context.Context, orgID string, testName string, prNum int64, runNum int64) (*storage.TestResult, error) {
 	key := orgID + testName + strconv.FormatInt(prNum, 10) + strconv.FormatInt(runNum, 10)
-	if value, ok := c.testFlakeCache.Get(key); ok {
-		return value.(*storage.TestFlake), nil
+	if value, ok := c.testResultCache.Get(key); ok {
+		return value.(*storage.TestResult), nil
 	}
 
-	result, err := c.store.ReadTestFlakeByName(orgID, testName, prNum, runNum)
+	result, err := c.store.ReadTestResultByName(context, orgID, testName, prNum, runNum)
 	if err == nil {
-		c.testFlakeCache.Set(key, result)
+		c.testResultCache.Set(key, result)
 	}
 
 	return result, err
 }
 
 // Writes to DB and if successful, updates the cache
-func (c *Cache) WriteTestFlakes(testFlakes []*storage.TestFlake) error {
-	err := c.store.WriteTestFlakes(testFlakes)
+func (c *Cache) WriteTestResults(context context.Context, testResults []*storage.TestResult) error {
+	err := c.store.WriteTestResults(context, testResults)
 	if err == nil {
-		for _, testFlake := range testFlakes {
-			orgID := testFlake.OrgID
-			testName := testFlake.TestName
-			prNum := testFlake.PrNum
-			runNum := testFlake.RunNum
+		for _, testResult := range testResults {
+			orgID := testResult.OrgID
+			testName := testResult.TestName
+			prNum := testResult.PrNum
+			runNum := testResult.RunNum
 			key := orgID + testName + strconv.FormatInt(prNum, 10) + strconv.FormatInt(runNum, 10)
 
-			c.testFlakeCache.Set(key, testFlake)
+			c.testResultCache.Set(key, testResult)
 		}
 	}
 

@@ -17,6 +17,7 @@ package spanner
 import (
 	"fmt"
 	"strings"
+	"context"
 
 	"cloud.google.com/go/spanner"
 	"google.golang.org/api/iterator"
@@ -80,10 +81,10 @@ func (s *store) QueryAllUsers(cb func(*storage.User) error) error {
 	return err
 }
 
-func (s *store) QueryTestFlakeByTestName(testName string, cb func(*storage.TestFlake) error) error {
-	iter := s.client.Single().Query(s.ctx, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM TestFlakes WHERE TestName = '%s'", testName)})
+func (s *store) QueryTestResultByTestName(context context.Context, testName string, cb func(*storage.TestResult) error) error {
+	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM TestResults WHERE TestName = '%s'", testName)})
 	err := iter.Do(func(row *spanner.Row) error {
-		flake := &storage.TestFlake{}
+		flake := &storage.TestResult{}
 		if err := row.ToStruct(flake); err != nil {
 			return err
 		}
@@ -99,10 +100,10 @@ func (s *store) QueryTestFlakeByTestName(testName string, cb func(*storage.TestF
 	return err
 }
 
-func (s *store) QueryTestFlakeByPrNumber(prNum int64, cb func(*storage.TestFlake) error) error {
-	iter := s.client.Single().Query(s.ctx, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM TestFlakes WHERE PrNum = '%v'", prNum)})
+func (s *store) QueryTestResultByPrNumber(context context.Context, prNum int64, cb func(*storage.TestResult) error) error {
+	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM TestResults WHERE PrNum = '%v'", prNum)})
 	err := iter.Do(func(row *spanner.Row) error {
-		flake := &storage.TestFlake{}
+		flake := &storage.TestResult{}
 		if err := row.ToStruct(flake); err != nil {
 			return err
 		}

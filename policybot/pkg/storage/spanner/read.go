@@ -273,15 +273,15 @@ func (s *store) ReadBotActivityByID(orgID string, repoID string) (*storage.BotAc
 	return &result, nil
 }
 
-func (s *store) ReadTestFlakeByName(orgID string, testName string, prNum int64, runNum int64) (*storage.TestFlake, error) {
-	row, err := s.client.Single().ReadRow(s.ctx, testFlakeTable, testFlakeKey(orgID, testName, prNum, runNum), testFlakeColumns)
+func (s *store) ReadTestResultByName(context context.Context, orgID string, testName string, prNum int64, runNum int64) (*storage.TestResult, error) {
+	row, err := s.client.Single().ReadRow(context, testResultTable, testResultKey(orgID, testName, prNum, runNum), testResultColumns)
 	if spanner.ErrCode(err) == codes.NotFound {
 		return nil, nil
 	} else if err != nil {
 		return nil, err
 	}
 
-	var result storage.TestFlake
+	var result storage.TestResult
 	if err := row.ToStruct(&result); err != nil {
 		return nil, err
 	}

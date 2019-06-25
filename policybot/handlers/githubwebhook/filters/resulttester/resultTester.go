@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package flaketester
+package resulttester
 
 import (
 	"context"
 	"net/http"
+	"context"
 
 	webhook "github.com/go-playground/webhooks/github"
 
@@ -25,28 +26,31 @@ import (
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
-	"istio.io/bots/policybot/pkg/testflakes"
+	"istio.io/bots/policybot/pkg/testresults"
 	"istio.io/pkg/log"
 )
 
 // Updates the DB based on incoming GitHub webhook events.
-type FlakeTester struct {
-	store storage.Store
-	repos map[string]bool
-	cache *cache.Cache
-	ght   *gh.ThrottledClient
-	ctx   context.Context
+type ResultTester struct {
+	store      storage.Store
+	repos      map[string]bool
+	cache      *cache.Cache
+	ght        *gh.ThrottledClient
+	ctx        context.Context
+	bucketName string
 }
 
-var scope = log.RegisterScope("refresher", "Dynamic database refresher", 0)
+var scope = log.RegisterScope("ResultTester", "Result tester for each pr test run", 0)
 
-func NewFlakeTester(ctx context.Context, store storage.Store, cache *cache.Cache, ght *gh.ThrottledClient, orgs []config.Org) filters.Filter {
-	r := &FlakeTester{
-		store: store,
-		repos: make(map[string]bool),
-		cache: cache,
-		ght:   ght,
-		ctx:   ctx,
+func NewResultTester(ctx context.Context, bucketName string, store storage.Store,
+	cache *cache.Cache, ght *gh.ThrottledClient, orgs []config.Org) filters.Filter {
+	r := &ResultTester{
+		store:      store,
+		repos:      make(map[string]bool),
+		cache:      cache,
+		ght:        ght,
+		ctx:        ctx,
+		bucketName: bucketName,
 	}
 
 	for _, org := range orgs {
@@ -58,48 +62,43 @@ func NewFlakeTester(ctx context.Context, store storage.Store, cache *cache.Cache
 	return r
 }
 
-func (r *FlakeTester) Events() []webhook.Event {
+func (r *ResultTester) Events() []webhook.Event {
 	return []webhook.Event{
-		webhook.IssuesEvent,
-		webhook.IssueCommentEvent,
-		webhook.PullRequestEvent,
-		webhook.PullRequestReviewEvent,
-		webhook.PushEvent,
+		webhook.CheckRunEvent,
 	}
 }
 
 // accept an event arriving from GitHub
-func (r *FlakeTester) Handle(_ http.ResponseWriter, githubObject interface{}) {
+func (r *ResultTester) Handle(context context.Context, githubObject interface{}) {
 	switch p := githubObject.(type) {
 	case webhook.CheckRunPayload:
-		scope.Infof("Received CheckSuitePayload: %s", p.Repository.FullName)
+		scope.Infof("Received CheckRunPayload: %s", p.Repository.FullName)
 		if !r.repos[p.Repository.FullName] {
-			scope.Infof("Ignoring ChechSuite event from repo %s since it's not in a monitored repo", p.Repository.FullName)
+			scope.Infof("Ignoring ChechRun event from repo %s since it's not in a monitored repo", p.Repository.FullName)
 			return
 		}
-		testFlake, discoveredUsers := gh.TestFlakeFromHook(&p)
-		orgID := testFlake.OrgID
-		prNum := testFlake.PrNum
+		testResult, discoveredUsers := gh.TestResultFromHook(&p)
+		orgID := testResult.OrgID
+		prNum := testResult.PrNum
 
-		prFlakeTest, err := testflakes.NewPrFlakeTest()
+		prResultTest, err := testresults.NewPrResultTester(r.bucketName)
 		if err != nil {
 			scope.Errorf(err.Error())
+			return
 		}
-		testFlakes, errr := prFlakeTest.CheckTestFlakesForPr(prNum)
+		testResults, errr := prResultTest.CheckTestResultsForPr(prNum, orgID)
 
 		if errr != nil {
 			scope.Errorf(errr.Error())
 			return
 		}
 
-		testFlakes = prFlakeTest.SetOrgID(orgID, testFlakes)
-
-		erro := r.store.WriteTestFlakes(testFlakes)
+		erro := r.store.WriteTestResults(context, testResults)
 		if erro != nil {
 			scope.Errorf(erro.Error())
 		}
 
-		r.syncUsers(discoveredUsers)
+		r.syncUsers(context, discoveredUsers)
 
 	default:
 		// not what we're looking for
@@ -108,10 +107,10 @@ func (r *FlakeTester) Handle(_ http.ResponseWriter, githubObject interface{}) {
 	}
 }
 
-func (r *FlakeTester) syncUsers(discoveredUsers map[string]string) {
+func (r *ResultTester) syncUsers(context context.Context, discoveredUsers map[string]string) {
 	var users []*storage.User
 	for _, du := range discoveredUsers {
-		user, err := r.cache.ReadUserByLogin(du)
+		user, err := r.cache.ReadUserByLogin(context, du)
 		if err != nil {
 			scope.Warnf("unable to read user %s from storage: %v", du, err)
 		}
@@ -122,7 +121,7 @@ func (r *FlakeTester) syncUsers(discoveredUsers map[string]string) {
 		}
 
 		// didn't get user info from our storage layer, ask GitHub for details
-		u, _, err := r.ght.Get().Users.Get(r.ctx, du)
+		u, _, err := r.ght.Get(context).Users.Get(context, du)
 		if err != nil {
 			scope.Errorf("Unable to get info on user %s from GitHub: %v", du, err)
 		} else {
@@ -130,7 +129,7 @@ func (r *FlakeTester) syncUsers(discoveredUsers map[string]string) {
 		}
 	}
 
-	if err := r.cache.WriteUsers(users); err != nil {
+	if err := r.cache.WriteUsers(context, users); err != nil {
 		scope.Errorf("Unable to write users: %v", err)
 	}
 }

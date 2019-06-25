@@ -160,7 +160,7 @@ type MaintainerInfo struct {
 	Repos map[string]*RepoActivityInfo // about the maintainer's activity in different repos (index is repo id)
 }
 
-type TestFlake struct {
+type TestResult struct {
 	OrgID       string
 	TestName    string
 	PrNum       int64

@@ -16,14 +16,13 @@
  * Take in a pr number from path "istio-prow/pr-logs/pull/istio-istio" and examine the pr
  * for all tests that are run and their results. The results are then written to Spanner.
  */
-package testflakes
+package testresults
 
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+
 	"io/ioutil"
-	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -32,12 +31,13 @@ import (
 	"google.golang.org/api/iterator"
 
 	store "istio.io/bots/policybot/pkg/storage"
+	"istio.io/pkg/log"
 )
 
 /*
  * Pull struct for the structure under refs/pulls in clone-records.json
  */
-type Pull struct {
+type pull struct {
 	Number int
 	Author string
 	Sha    string
@@ -46,7 +46,7 @@ type Pull struct {
 /*
  * Cmd struct for Commands object under clone-records.json
  */
-type Cmnd struct {
+type cmnd struct {
 	Command string
 	Output  string
 }
@@ -54,7 +54,7 @@ type Cmnd struct {
 /*
  * Finished struct to store values for all fields in Finished.json
  */
-type Finished struct {
+type finished struct {
 	Timestamp int64
 	Passed    bool
 	Result    string
@@ -63,23 +63,23 @@ type Finished struct {
 /*
  * Clone_Record struct to store values for all fields in clone-records.json
  */
-type CloneRecord struct {
+type cloneRecord struct {
 	Refs struct {
 		Org       string
 		Repo      string
 		BaseRef   string
 		BaseSha   string
-		Pulls     []Pull
+		Pulls     []pull
 		PathAlias string
 	}
-	Commands []Cmnd
+	Commands []cmnd
 	Failed   bool
 }
 
 /*
- * Tests strut to keep track of the test suite names and the directory for each test runs for the pr.
+ * Tests struct to keep track of the test suite names and the directory for each test runs for the pr.
  */
-type Tests struct {
+type tests struct {
 	Name string
 	Prs  []string
 }
@@ -87,30 +87,34 @@ type Tests struct {
 /*
  * Started struct to store values from started.json
  */
-type Started struct {
+type started struct {
 	Timestamp int64
 }
 
-type PrFlakeTest struct {
-	client *storage.Client
-	ctx    context.Context
+type PrResultTester struct {
+	client     *storage.Client
+	ctx        context.Context
+	bucketName string
 }
+
+var scope = log.RegisterScope("TestResult", "Check error while reading from google cloud storage", 0)
 
 /*
  * Function to initionalize new PrFlakeTest object.
  * Use `prFlakeyTest, err := NewPrFlakeTest()` and `testFlakes := prFlakeyTest.checkTestFlakesForPr(<pr_number>)`
  * to get test flakes information for a given pr.
  */
-func NewPrFlakeTest() (*PrFlakeTest, error) {
+func NewPrResultTester(bucketName string) (*PrResultTester, error) {
 	ctx := context.Background()
 	client, err := storage.NewClient(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return &PrFlakeTest{
-		client: client,
-		ctx:    ctx,
+	return &PrResultTester{
+		client:     client,
+		ctx:        ctx,
+		bucketName: bucketName,
 	}, nil
 }
 
@@ -132,14 +136,14 @@ func contains(slic []string, ele string) bool {
  * PrNum: the PR number inputted.
  * Return []Tests return a slice of Tests objects.
  */
-func (prFlakeTest PrFlakeTest) getTests(prNumInt int64) ([]Tests, error) {
+func (prt PrResultTester) getTests(prNumInt int64) ([]tests, error) {
 	prNum := strconv.FormatInt(prNumInt, 10)
-	ctx := prFlakeTest.ctx
-	client := prFlakeTest.client
-	bucket := client.Bucket("istio-prow")
+	ctx := prt.ctx
+	client := prt.client
+	bucket := client.Bucket(prt.bucketName)
 	query := &storage.Query{Prefix: "pr-logs/pull/istio_istio/" + prNum}
 	it := bucket.Objects(ctx, query)
-	var testSlice []Tests
+	var testSlice []tests
 	for {
 		attrs, err := it.Next()
 		if err == iterator.Done {
@@ -173,7 +177,7 @@ func (prFlakeTest PrFlakeTest) getTests(prNumInt int64) ([]Tests, error) {
 
 			}
 			if !contain {
-				t := Tests{
+				t := tests{
 					Name: testName,
 				}
 				newSlice := []string{newString}
@@ -185,18 +189,129 @@ func (prFlakeTest PrFlakeTest) getTests(prNumInt int64) ([]Tests, error) {
 	return testSlice, nil
 }
 
+func (prt PrResultTester) getInformationFromFinishedFile(pref string, onePull *store.TestResult) (*store.TestResult, error) {
+	// It is possible that the folder might not contain finished.json.
+	client := prt.client
+	bucket := client.Bucket(prt.bucketName)
+	newObj := bucket.Object(pref + "/finished.json")
+	nrdr, nerr := newObj.NewReader(prt.ctx)
+	if nerr != nil {
+		return nil, nerr
+	}
+
+	defer nrdr.Close()
+	slur, err := ioutil.ReadAll(nrdr)
+	if err != nil {
+		return nil, nerr
+	}
+	ns := string(slur)
+	ndec := json.NewDecoder(strings.NewReader(ns))
+
+	for ndec.More() {
+		var finished finished
+		err = ndec.Decode(&finished)
+		if err != nil {
+			return nil, err
+		}
+
+		passed := finished.Passed
+		result := finished.Result
+		t := finished.Timestamp
+		tm := time.Unix(t, 0)
+
+		onePull.TestPassed = passed
+		onePull.Result = result
+		onePull.FinishTime = tm
+	}
+	return onePull, nil
+}
+
+func (prt PrResultTester) getInformationFromStartedFile(pref string, onePull *store.TestResult) (*store.TestResult, error) {
+	client := prt.client
+	bucket := client.Bucket(prt.bucketName)
+	newObj := bucket.Object(pref + "/started.json")
+	nrdr, nerr := newObj.NewReader(prt.ctx)
+	if nerr != nil {
+		return nil, nerr
+	}
+
+	defer nrdr.Close()
+	slur, nerr := ioutil.ReadAll(nrdr)
+	if nerr != nil {
+		return nil, nerr
+	}
+	ns := string(slur)
+	ndec := json.NewDecoder(strings.NewReader(ns))
+
+	for ndec.More() {
+		var started started
+		err := ndec.Decode(&started)
+		if err != nil {
+			return nil, err
+		}
+
+		t := started.Timestamp
+		tm := time.Unix(t, 0)
+		onePull.StartTime = tm
+
+	}
+	return onePull, nil
+}
+
+func (prt PrResultTester) getInformationFromCloneFile(pref string, onePull *store.TestResult) (*store.TestResult, error) {
+	client := prt.client
+	bucket := client.Bucket(prt.bucketName)
+	obj := bucket.Object(pref + "/clone-records.json")
+	scope.Infof("read clone")
+	rdr, err := obj.NewReader(prt.ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rdr.Close()
+	slurp, err := ioutil.ReadAll(rdr)
+	if err != nil {
+		return nil, err
+	}
+	s := string(slurp)
+	dec := json.NewDecoder(strings.NewReader(s))
+
+	_, err = dec.Token()
+	if err != nil {
+		return nil, err
+	}
+
+	for dec.More() {
+		var record cloneRecord
+		err := dec.Decode(&record)
+		if err != nil {
+			return nil, err
+		}
+
+		refs := record.Refs
+		pulls := refs.Pulls
+		pull := pulls[0]
+		sha := pull.Sha
+		baseSha := refs.BaseSha
+
+		failed := record.Failed
+
+		onePull.Sha = sha
+		onePull.BaseSha = baseSha
+		onePull.CloneFailed = failed
+
+	}
+	return onePull, nil
+}
+
 /*
  * GetShaAndPassStatus function return the status of test passing, clone failure, sha number, base sha for each test run under each test suite for the given pr.
  * Client: client used to get buckets and objects from google cloud storage.
  * TestSlice: a slice of Tests objects containing all tests and the path to folder for each test run for the test under such pr.
  * Return a map of test suite name -- pr number -- run number -- ForEachRun objects.
  */
-func (prFlakeTest PrFlakeTest) getShaAndPassStatus(testSlice []Tests) ([]*store.TestFlake, error) {
-	ctx := prFlakeTest.ctx
-	client := prFlakeTest.client
-	bucket := client.Bucket("istio-prow")
-
-	var allTestRuns = []*store.TestFlake{}
+func (prt PrResultTester) getShaAndPassStatus(testSlice []tests, orgID string) ([]*store.TestResult, error) {
+	var allTestRuns = []*store.TestResult{}
 
 	for _, test := range testSlice {
 		testName := test.Name
@@ -205,109 +320,25 @@ func (prFlakeTest PrFlakeTest) getShaAndPassStatus(testSlice []Tests) ([]*store.
 
 		for _, pref := range prefs {
 
-			var onePull = &store.TestFlake{}
-
+			var onePull = &store.TestResult{}
+			onePull.OrgID = orgID
 			onePull.TestName = testName
 			onePull.RunPath = pref
 
-			obj := bucket.Object(pref + "/clone-records.json")
-			log.Println("read clone")
-			rdr, err := obj.NewReader(ctx)
+			var err error
+			onePull, err = prt.getInformationFromCloneFile(pref, onePull)
 			if err != nil {
 				return nil, err
 			}
 
-			defer rdr.Close()
-			slurp, err := ioutil.ReadAll(rdr)
+			onePull, err = prt.getInformationFromStartedFile(pref, onePull)
 			if err != nil {
 				return nil, err
 			}
-			s := string(slurp)
-			dec := json.NewDecoder(strings.NewReader(s))
 
-			t, err := dec.Token()
+			onePull, err = prt.getInformationFromFinishedFile(pref, onePull)
 			if err != nil {
 				return nil, err
-			}
-			fmt.Printf("%T: %v\n", t, t)
-
-			for dec.More() {
-				var record CloneRecord
-				err := dec.Decode(&record)
-				if err != nil {
-					return nil, err
-				}
-
-				refs := record.Refs
-				pulls := refs.Pulls
-				pull := pulls[0]
-				sha := pull.Sha
-				baseSha := refs.BaseSha
-
-				failed := record.Failed
-
-				onePull.Sha = sha
-				onePull.BaseSha = baseSha
-				onePull.CloneFailed = failed
-
-			}
-			newObj := bucket.Object(pref + "/started.json")
-			nrdr, nerr := newObj.NewReader(ctx)
-			if nerr != nil {
-				return nil, nerr
-			}
-
-			defer nrdr.Close()
-			slur, nerr := ioutil.ReadAll(nrdr)
-			if nerr != nil {
-				return nil, nerr
-			}
-			ns := string(slur)
-			ndec := json.NewDecoder(strings.NewReader(ns))
-
-			for ndec.More() {
-				var started Started
-				err = ndec.Decode(&started)
-				if err != nil {
-					return nil, err
-				}
-
-				t := started.Timestamp
-				tm := time.Unix(t, 0)
-				onePull.StartTime = tm
-
-			}
-
-			// It is possible that the folder might not contain finished.json.
-			newObj = bucket.Object(pref + "/finished.json")
-			nrdr, nerr = newObj.NewReader(ctx)
-			if nerr != nil {
-				return nil, nerr
-			}
-
-			defer nrdr.Close()
-			slur, nerr = ioutil.ReadAll(nrdr)
-			if err != nil {
-				return nil, nerr
-			}
-			ns = string(slur)
-			ndec = json.NewDecoder(strings.NewReader(ns))
-
-			for ndec.More() {
-				var finished Finished
-				err = ndec.Decode(&finished)
-				if err != nil {
-					return nil, err
-				}
-
-				passed := finished.Passed
-				result := finished.Result
-				t := finished.Timestamp
-				tm := time.Unix(t, 0)
-
-				onePull.TestPassed = passed
-				onePull.Result = result
-				onePull.FinishTime = tm
 			}
 
 			prefSplit := strings.Split(pref, "/")
@@ -329,27 +360,18 @@ func (prFlakeTest PrFlakeTest) getShaAndPassStatus(testSlice []Tests) ([]*store.
 	return allTestRuns, nil
 }
 
-func (prFlakeTest PrFlakeTest) SetOrgID(orgID string, testFlakes []*store.TestFlake) []*store.TestFlake {
-	newTestFlakes := []*store.TestFlake{}
-	for _, testFlake := range testFlakes {
-		testFlake.OrgID = orgID
-		newTestFlakes = append(newTestFlakes, testFlake)
-	}
-	return newTestFlakes
-}
-
 /*
  * Read in gcs the folder of the given pr number and write the result of each test runs into a slice of TestFlake struct.
  */
-func (prFlakeTest PrFlakeTest) CheckTestFlakesForPr(prNum int64) ([]*store.TestFlake, error) {
-	client := prFlakeTest.client
+func (prt PrResultTester) CheckTestResultsForPr(prNum int64, orgID string) ([]*store.TestResult, error) {
+	client := prt.client
 	defer client.Close()
 
-	testSlice, err := prFlakeTest.getTests(prNum)
+	testSlice, err := prt.getTests(prNum)
 	if err != nil {
 		return nil, err
 	}
-	fullResult, er := prFlakeTest.getShaAndPassStatus(testSlice)
+	fullResult, er := prt.getShaAndPassStatus(testSlice, orgID)
 
 	if er != nil {
 		return nil, er
