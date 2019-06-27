@@ -69,9 +69,9 @@ and maintaining its code base.
     "use strict";
 
     function getMaintainers() {
-        let url = "ws://" + window.location.host + "/maintainersapi/" + window.location.search;
+        let url = "ws://" + window.location.host + "/api/maintainers/" + window.location.search;
         if (window.location.protocol === "https:") {
-            url = "wss://" + window.location.host + "/maintainersapi/" + window.location.search;
+            url = "wss://" + window.location.host + "/api/maintainers/" + window.location.search;
         }
 
         const ws = new WebSocket(url);

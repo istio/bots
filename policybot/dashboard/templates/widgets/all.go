@@ -18,5 +18,6 @@ package widgets
 
 var HeaderTemplate = string(MustAsset("header.html"))
 var SidebarTemplate = string(MustAsset("sidebar.html"))
+var SidebarLevelTemplate = string(MustAsset("sidebar_level.html"))
 var TimeSeriesInitTemplate = string(MustAsset("timeseries_init.html"))
 var TimeSeriesTemplate = string(MustAsset("timeseries.html"))

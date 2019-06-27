@@ -1,0 +1,36 @@
+{{ define "sidebar_level" }}
+{{ $topics := .topics }}
+{{ $current := .current }}
+{{ $collapse := .collapse }}
+{{ $top := .top }}
+{{ $labelledby := .labelledby }}
+
+{{ $leafSection := true }}
+{{ range $topics }}
+    {{ if gt (len .Subtopics) 0 }}
+        {{ $leafSection = false }}
+    {{ end }}
+{{ end }}
+
+<ul role="{{ if $top }}tree{{ else }}group{{ end }}" aria-expanded="{{ if $collapse }}false{{ else }}true{{ end }}"{{ if $leafSection }} class="leaf-section"{{ end }} {{ if $labelledby}}aria-labelledby="{{ $labelledby }}"{{ end }}>
+    {{ range $topics }}
+        {{ if gt (len .Subtopics) 0 }}
+            <li role="treeitem" aria-label="{{ .Title }}">
+                {{ $collapse := not (.IsAncestor $current) }}
+
+                <button{{ if not $collapse }} class="show"{{ end }} aria-hidden="true"></button><a {{ if eq $current.URL .URL }}class="current"{{ end }} title="{{ .Description }}" href="{{ .URL }}">{{ .Title}}</a>
+
+                {{ template "sidebar_level" (dict "topics" .Subtopics "current" $current "collapse" $collapse "top" false "labelledby" "" ) }}
+            </li>
+        {{ else }}
+            <li role="none">
+                {{ if eq $current.URL .URL }}
+                    <span role="treeitem" class="current" title="{{ .Description }}">{{ .Title }}</span>
+                {{ else }}
+                    <a role="treeitem" title="{{ .Description }}" href="{{ .URL }}">{{ .Title }}</a>
+                {{ end }}
+            </li>
+        {{ end }}
+    {{ end }}
+</ul>
+{{ end }}
