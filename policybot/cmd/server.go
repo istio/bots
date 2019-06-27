@@ -47,6 +47,7 @@ import (
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/labeler"
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/nagger"
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/refresher"
+	"istio.io/bots/policybot/handlers/githubwebhook/filters/resulttester"
 	"istio.io/bots/policybot/handlers/syncer"
 	"istio.io/bots/policybot/handlers/zenhubwebhook"
 	"istio.io/bots/policybot/pkg/blobstorage/gcs"
@@ -295,6 +296,7 @@ func runWithConfig(a *config.Args) error {
 		nag,
 		labeler,
 		monitor,
+		resulttester.NewResultTester(context.Background(), "istio-prow", store, cache, ght, a.Orgs),
 	}
 
 	ghHandler, err := githubwebhook.NewHandler(a.StartupOptions.GitHubWebhookSecret, filters...)

@@ -67,8 +67,8 @@ type cloneRecord struct {
 	Refs struct {
 		Org       string
 		Repo      string
-		BaseRef   string
-		BaseSha   string
+		BaseRef   string `json:"base_ref"`
+		BaseSha   string `json:"base_sha"`
 		Pulls     []pull
 		PathAlias string
 	}
@@ -92,7 +92,7 @@ type started struct {
 }
 
 type PrResultTester struct {
-	client     *storage.Client
+	Client     *storage.Client
 	ctx        context.Context
 	bucketName string
 }
@@ -112,7 +112,7 @@ func NewPrResultTester(bucketName string) (*PrResultTester, error) {
 	}
 
 	return &PrResultTester{
-		client:     client,
+		Client:     client,
 		ctx:        ctx,
 		bucketName: bucketName,
 	}, nil
@@ -136,10 +136,10 @@ func contains(slic []string, ele string) bool {
  * PrNum: the PR number inputted.
  * Return []Tests return a slice of Tests objects.
  */
-func (prt PrResultTester) getTests(prNumInt int64) ([]tests, error) {
+func (prt *PrResultTester) getTests(prNumInt int64) ([]tests, error) {
 	prNum := strconv.FormatInt(prNumInt, 10)
 	ctx := prt.ctx
-	client := prt.client
+	client := prt.Client
 	bucket := client.Bucket(prt.bucketName)
 	query := &storage.Query{Prefix: "pr-logs/pull/istio_istio/" + prNum}
 	it := bucket.Objects(ctx, query)
@@ -189,9 +189,9 @@ func (prt PrResultTester) getTests(prNumInt int64) ([]tests, error) {
 	return testSlice, nil
 }
 
-func (prt PrResultTester) getInformationFromFinishedFile(pref string, onePull *store.TestResult) (*store.TestResult, error) {
+func (prt *PrResultTester) getInformationFromFinishedFile(pref string, onePull *store.TestResult) (*store.TestResult, error) {
 	// It is possible that the folder might not contain finished.json.
-	client := prt.client
+	client := prt.Client
 	bucket := client.Bucket(prt.bucketName)
 	newObj := bucket.Object(pref + "/finished.json")
 	nrdr, nerr := newObj.NewReader(prt.ctx)
@@ -226,8 +226,8 @@ func (prt PrResultTester) getInformationFromFinishedFile(pref string, onePull *s
 	return onePull, nil
 }
 
-func (prt PrResultTester) getInformationFromStartedFile(pref string, onePull *store.TestResult) (*store.TestResult, error) {
-	client := prt.client
+func (prt *PrResultTester) getInformationFromStartedFile(pref string, onePull *store.TestResult) (*store.TestResult, error) {
+	client := prt.Client
 	bucket := client.Bucket(prt.bucketName)
 	newObj := bucket.Object(pref + "/started.json")
 	nrdr, nerr := newObj.NewReader(prt.ctx)
@@ -258,8 +258,8 @@ func (prt PrResultTester) getInformationFromStartedFile(pref string, onePull *st
 	return onePull, nil
 }
 
-func (prt PrResultTester) getInformationFromCloneFile(pref string, onePull *store.TestResult) (*store.TestResult, error) {
-	client := prt.client
+func (prt *PrResultTester) getInformationFromCloneFile(pref string, onePull *store.TestResult) (*store.TestResult, error) {
+	client := prt.Client
 	bucket := client.Bucket(prt.bucketName)
 	obj := bucket.Object(pref + "/clone-records.json")
 	scope.Infof("read clone")
@@ -310,7 +310,7 @@ func (prt PrResultTester) getInformationFromCloneFile(pref string, onePull *stor
  * TestSlice: a slice of Tests objects containing all tests and the path to folder for each test run for the test under such pr.
  * Return a map of test suite name -- pr number -- run number -- ForEachRun objects.
  */
-func (prt PrResultTester) getShaAndPassStatus(testSlice []tests, orgID string, repoID string) ([]*store.TestResult, error) {
+func (prt *PrResultTester) getShaAndPassStatus(testSlice []tests, orgID string, repoID string) ([]*store.TestResult, error) {
 	var allTestRuns = []*store.TestResult{}
 
 	for _, test := range testSlice {
@@ -364,10 +364,7 @@ func (prt PrResultTester) getShaAndPassStatus(testSlice []tests, orgID string, r
 /*
  * Read in gcs the folder of the given pr number and write the result of each test runs into a slice of TestFlake struct.
  */
-func (prt PrResultTester) CheckTestResultsForPr(prNum int64, orgID string, repoID string) ([]*store.TestResult, error) {
-	client := prt.client
-	defer client.Close()
-
+func (prt *PrResultTester) CheckTestResultsForPr(prNum int64, orgID string, repoID string) ([]*store.TestResult, error) {
 	testSlice, err := prt.getTests(prNum)
 	if err != nil {
 		return nil, err
