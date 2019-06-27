@@ -143,7 +143,7 @@ func (flakeTest *FlakeTest) CheckResults(resultMap map[string]map[int64]map[bool
 			}
 			if prMap[true] != nil {
 				passedTests := prMap[true]
-				for _, pass := range(passedTests) {
+				for _, pass := range passedTests {
 					if flakeyResult.LastPass != nil {
 						lastPass := flakeyResult.LastPass
 						if lastPass.FinishTime.Before(pass.FinishTime) {
