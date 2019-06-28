@@ -40,6 +40,7 @@ type Cache struct {
 	pullRequestCommentCache cache.ExpiringCache
 	pullRequestReviewCache  cache.ExpiringCache
 	pipelineCache           cache.ExpiringCache
+	testResultCache         cache.ExpiringCache
 	maintainerCache         cache.ExpiringCache
 	repoCommentCache        cache.ExpiringCache
 }
@@ -67,6 +68,7 @@ func New(store storage.Store, entryTTL time.Duration) *Cache {
 		pullRequestCommentCache: cache.NewTTL(entryTTL, evictionInterval),
 		pullRequestReviewCache:  cache.NewTTL(entryTTL, evictionInterval),
 		pipelineCache:           cache.NewTTL(entryTTL, evictionInterval),
+		testResultCache:         cache.NewTTL(entryTTL, evictionInterval),
 		maintainerCache:         cache.NewTTL(entryTTL, evictionInterval),
 		repoCommentCache:        cache.NewTTL(entryTTL, evictionInterval),
 	}
@@ -363,6 +365,40 @@ func (c *Cache) ReadIssuePipeline(context context.Context, orgID string, repoID 
 }
 
 // Reads from cache and if not found reads from DB
+func (c *Cache) ReadTestResult(context context.Context,
+	orgID string, repoID string, testName string, prNum int64, runNum int64) (*storage.TestResult, error) {
+	key := orgID + repoID + testName + strconv.FormatInt(prNum, 10) + strconv.FormatInt(runNum, 10)
+	if value, ok := c.testResultCache.Get(key); ok {
+		return value.(*storage.TestResult), nil
+	}
+
+	result, err := c.store.ReadTestResultByName(context, orgID, repoID, testName, prNum, runNum)
+	if err == nil {
+		c.testResultCache.Set(key, result)
+	}
+
+	return result, err
+}
+
+// Writes to DB and if successful, updates the cache
+func (c *Cache) WriteTestResults(context context.Context, testResults []*storage.TestResult) error {
+	err := c.store.WriteTestResults(context, testResults)
+	if err == nil {
+		for _, testResult := range testResults {
+			orgID := testResult.OrgID
+			repoID := testResult.RepoID
+			testName := testResult.TestName
+			prNum := testResult.PrNum
+			runNum := testResult.RunNum
+			key := orgID + repoID + testName + strconv.FormatInt(prNum, 10) + strconv.FormatInt(runNum, 10)
+
+			c.testResultCache.Set(key, testResult)
+		}
+	}
+
+	return err
+}
+
 func (c *Cache) ReadMaintainer(context context.Context, orgID string, userID string) (*storage.Maintainer, error) {
 	key := orgID + userID
 	if value, ok := c.maintainerCache.Get(key); ok {

@@ -40,6 +40,7 @@ const (
 	memberTable             = "Members"
 	botActivityTable        = "BotActivity"
 	maintainerTable         = "Maintainers"
+	testResultTable         = "TestResults"
 )
 
 // All the DB indices we use
@@ -93,6 +94,7 @@ var (
 	pullRequestCommentColumns []string
 	pullRequestReviewColumns  []string
 	botActivityColumns        []string
+	testResultColumns         []string
 	maintainerColumns         []string
 )
 
@@ -158,6 +160,9 @@ func botActivityKey(orgID string, repoID string) spanner.Key {
 	return spanner.Key{orgID, repoID}
 }
 
+func testResultKey(orgID string, repoID string, testName string, prNum int64, runNum int64) spanner.Key {
+	return spanner.Key{orgID, repoID, testName, prNum, runNum}
+}
 func maintainerKey(orgID string, userID string) spanner.Key {
 	return spanner.Key{orgID, userID}
 }
@@ -177,6 +182,7 @@ func init() {
 	pullRequestColumns = getFields(storage.PullRequest{})
 	pullRequestReviewColumns = getFields(storage.PullRequestReview{})
 	botActivityColumns = getFields(storage.BotActivity{})
+	testResultColumns = getFields(storage.TestResult{})
 	maintainerColumns = getFields(storage.Maintainer{})
 }
 

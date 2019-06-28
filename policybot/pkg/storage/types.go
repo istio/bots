@@ -160,6 +160,22 @@ type MaintainerInfo struct {
 	Repos map[string]*RepoActivityInfo // about the maintainer's activity in different repos (index is repo id)
 }
 
+type TestResult struct {
+	OrgID       string
+	RepoID      string
+	TestName    string
+	PrNum       int64
+	RunNum      int64
+	StartTime   time.Time
+	FinishTime  time.Time
+	TestPassed  bool
+	CloneFailed bool
+	Sha         string
+	Result      string
+	BaseSha     string
+	RunPath     string
+}
+
 type RepoComment struct {
 	OrgID     string
 	RepoID    string

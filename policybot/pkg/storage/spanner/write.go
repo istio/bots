@@ -251,3 +251,18 @@ func (s store) WriteBotActivities(context context.Context, activities []*storage
 	_, err := s.client.Apply(context, mutations)
 	return err
 }
+
+func (s store) WriteTestResults(context context.Context, testResults []*storage.TestResult) error {
+	scope.Debugf("Writing %d test results", len(testResults))
+
+	mutations := make([]*spanner.Mutation, len(testResults))
+	for i := 0; i < len(testResults); i++ {
+		var err error
+		if mutations[i], err = spanner.InsertOrUpdateStruct(testResultTable, testResults[i]); err != nil {
+			return err
+		}
+	}
+
+	_, err := s.client.Apply(context, mutations)
+	return err
+}

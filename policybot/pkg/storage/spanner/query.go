@@ -67,6 +67,44 @@ func (s store) QueryIssuesByRepo(context context.Context, orgID string, repoID s
 	return err
 }
 
+func (s store) QueryTestResultByName(context context.Context, testName string, cb func(*storage.TestResult) error) error {
+	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM TestResults WHERE TestName = '%s'", testName)})
+	err := iter.Do(func(row *spanner.Row) error {
+		testResult := &storage.TestResult{}
+		if err := row.ToStruct(testResult); err != nil {
+			return err
+		}
+
+		if err := cb(testResult); err != nil {
+			iter.Stop()
+			return err
+		}
+
+		return cb(testResult)
+	})
+
+	return err
+}
+
+func (s store) QueryTestResultByPrNumber(context context.Context, prNum int64, cb func(*storage.TestResult) error) error {
+	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM TestResults WHERE PrNum = '%v'", prNum)})
+	err := iter.Do(func(row *spanner.Row) error {
+		testResult := &storage.TestResult{}
+		if err := row.ToStruct(testResult); err != nil {
+			return err
+		}
+
+		if err := cb(testResult); err != nil {
+			iter.Stop()
+			return err
+		}
+
+		return cb(testResult)
+	})
+
+	return err
+}
+
 func (s store) QueryTestFlakeIssues(context context.Context, inactiveDays, createdDays int) ([]*storage.Issue, error) {
 	sql := `SELECT * from Issues
 	WHERE TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), UpdatedAt, DAY) > @inactiveDays AND 

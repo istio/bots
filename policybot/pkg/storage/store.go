@@ -37,6 +37,7 @@ type Store interface {
 	WriteAllMembers(context context.Context, members []*Member) error
 	WriteAllMaintainers(context context.Context, maintainers []*Maintainer) error
 	WriteBotActivities(context context.Context, activities []*BotActivity) error
+	WriteTestResults(context context.Context, testResults []*TestResult) error
 
 	ReadOrgByID(context context.Context, orgID string) (*Org, error)
 	ReadOrgByLogin(context context.Context, login string) (*Org, error)
@@ -54,10 +55,13 @@ type Store interface {
 	ReadPullRequestReviewByID(context context.Context, orgID string, repoID string, prID string, prReviewID string) (*PullRequestReview, error)
 	ReadBotActivityByID(context context.Context, orgID string, repoID string) (*BotActivity, error)
 	ReadMaintainerByID(context context.Context, orgID string, userID string) (*Maintainer, error)
+	ReadTestResultByName(context context.Context, orgID string, repoID string, testName string, prNum int64, runNum int64) (*TestResult, error)
 
 	QueryMembersByOrg(context context.Context, orgID string, cb func(*Member) error) error
 	QueryMaintainersByOrg(context context.Context, orgID string, cb func(*Maintainer) error) error
 	QueryMaintainerInfo(context context.Context, maintainer *Maintainer) (*MaintainerInfo, error)
 	QueryIssuesByRepo(context context.Context, orgID string, repoID string, cb func(*Issue) error) error
 	QueryTestFlakeIssues(context context.Context, inactiveDays, createdDays int) ([]*Issue, error)
+	QueryTestResultByName(context context.Context, testName string, cb func(*TestResult) error) error
+	QueryTestResultByPrNumber(context context.Context, prNum int64, cb func(*TestResult) error) error
 }
