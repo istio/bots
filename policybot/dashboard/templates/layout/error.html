@@ -1,0 +1,17 @@
+{{ define "main" }}
+{{ template "header" . }}
+
+<main class="notfound" role="main">
+    <svg class="icon">
+        <use xlink:href="/icons/icons.svg#exclamation-mark"/>
+    </svg>
+
+    <div class="error">
+        We're sorry, the server has experienced an error.
+    </div>
+
+    <div class="explanation">
+        {{ .Content }}
+    </div>
+</main>
+{{ end }}

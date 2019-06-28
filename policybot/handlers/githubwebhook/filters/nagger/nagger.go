@@ -21,7 +21,7 @@ import (
 	"strings"
 
 	webhook "github.com/go-playground/webhooks/github"
-	"github.com/google/go-github/v25/github"
+	"github.com/google/go-github/v26/github"
 
 	"istio.io/bots/policybot/handlers/githubwebhook/filters"
 	"istio.io/bots/policybot/pkg/config"

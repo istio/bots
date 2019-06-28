@@ -16,13 +16,10 @@ package cmd
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -154,15 +151,7 @@ func (dummyIoWriter) Write([]byte) (int, error) { return 0, nil }
 
 // Server represents a running bot instance.
 type server struct {
-	listener   net.Listener
-	shutdown   sync.WaitGroup
-	httpServer http.Server
-
-	clientID     string
-	clientSecret string
-	secretState  string
-
-	dashboard *dashboard.Dashboard
+	listener net.Listener
 }
 
 // Runs the server.
@@ -201,18 +190,6 @@ func runServer(base *config.Args) error {
 			log.Infof("Configuration change detected, attempting to reload configuration")
 		}
 	}
-}
-
-func httpsRedirectHandler(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		proto := req.Header.Get("x-forwarded-proto")
-		if proto == "http" || proto == "HTTP" {
-			http.Redirect(res, req, fmt.Sprintf("https://%s%s", req.Host, req.URL), http.StatusPermanentRedirect)
-			return
-		}
-
-		next.ServeHTTP(res, req)
-	})
 }
 
 func runWithConfig(a *config.Args) error {
@@ -256,32 +233,18 @@ func runWithConfig(a *config.Args) error {
 		return fmt.Errorf("unable to listen to port: %v", err)
 	}
 
-	var handler http.Handler
 	router := mux.NewRouter()
-	handler = router
-	if a.StartupOptions.HTTPSOnly {
-		log.Infof("Using httpsOnly mode")
-		handler = httpsRedirectHandler(router)
-	}
-	// secret state for OAuth exchanges
-	secretState := make([]byte, 32)
-	if _, err := rand.Read(secretState); err != nil {
-		return fmt.Errorf("unable to generate secret state: %v", err)
+
+	httpServer := http.Server{
+		Addr:           listener.Addr().(*net.TCPAddr).String(),
+		ReadTimeout:    10 * time.Second,
+		WriteTimeout:   10 * time.Second,
+		MaxHeaderBytes: 1 << 20,
+		Handler:        router,
 	}
 
 	s := &server{
 		listener: listener,
-		httpServer: http.Server{
-			Addr:           listener.Addr().(*net.TCPAddr).String(),
-			ReadTimeout:    10 * time.Second,
-			WriteTimeout:   10 * time.Second,
-			MaxHeaderBytes: 1 << 20,
-			Handler:        handler,
-		},
-		clientID:     a.StartupOptions.GitHubOAuthClientID,
-		clientSecret: a.StartupOptions.GitHubOAuthClientSecret,
-		secretState:  base64.StdEncoding.EncodeToString(secretState),
-		dashboard:    dashboard.New(router),
 	}
 
 	monitor, err := cfgmonitor.NewMonitor(ght, a.StartupOptions.ConfigRepo, a.StartupOptions.ConfigFile, s.Close)
@@ -302,29 +265,33 @@ func runWithConfig(a *config.Args) error {
 		return fmt.Errorf("unable to create GitHub webhook: %v", err)
 	}
 
+	if a.StartupOptions.HTTPSOnly {
+		// we only want https
+		router.Headers("X-Forwarded-Proto", "HTTP").HandlerFunc(handleHTTP)
+	}
+
 	// top-level handlers
 	router.Handle("/githubwebhook", ghHandler).Methods("POST")
 	router.Handle("/flakechaser", flakechaser.New(ght, store, cache, a.FlakeChaser)).Methods("GET")
 	router.Handle("/zenhubwebhook", zenhubwebhook.NewHandler(store, cache)).Methods("POST")
 	router.Handle("/sync", syncer.NewHandler(context.Background(), ght, cache, zht, store, bs, a.Orgs)).Methods("GET")
-	router.HandleFunc("/login", s.handleLogin)
-	router.HandleFunc("/githuboauthcallback", s.handleOAuthCallback)
 
 	// UI topics
-	s.dashboard.RegisterTopic(maintainers.NewTopic(store, cache))
-	s.dashboard.RegisterTopic(members.NewTopic(store, cache))
-	s.dashboard.RegisterTopic(issues.NewTopic(store, cache))
-	s.dashboard.RegisterTopic(pullrequests.NewTopic(store, cache))
-	s.dashboard.RegisterTopic(perf.NewTopic(store, cache))
-	s.dashboard.RegisterTopic(commithub.NewTopic(store, cache))
-	s.dashboard.RegisterTopic(flakes.NewTopic(store, cache))
-	s.dashboard.RegisterTopic(coverage.NewTopic(store, cache))
-	s.dashboard.RegisterTopic(features.NewTopic(store, cache))
-	s.dashboard.RegisterTopic(home.NewTopic(s.dashboard.Topics()))
-	s.dashboard.RegisterPageNotFound()
+	dashboard := dashboard.New(router, a.StartupOptions.GitHubOAuthClientID, a.StartupOptions.GitHubOAuthClientSecret)
+	dashboard.RegisterTopic(maintainers.NewTopic(store, cache))
+	dashboard.RegisterTopic(members.NewTopic(store, cache))
+	dashboard.RegisterTopic(issues.NewTopic(store, cache))
+	dashboard.RegisterTopic(pullrequests.NewTopic(store, cache))
+	dashboard.RegisterTopic(perf.NewTopic(store, cache))
+	dashboard.RegisterTopic(commithub.NewTopic(store, cache))
+	dashboard.RegisterTopic(flakes.NewTopic(store, cache))
+	dashboard.RegisterTopic(coverage.NewTopic(store, cache))
+	dashboard.RegisterTopic(features.NewTopic(store, cache))
+	dashboard.RegisterTopic(home.NewTopic(dashboard.Topics()))
+	dashboard.RegisterPageNotFound()
 
 	log.Infof("Listening on port %d", a.StartupOptions.Port)
-	err = s.httpServer.Serve(s.listener)
+	err = httpServer.Serve(s.listener)
 	if err != http.ErrServerClosed {
 		return fmt.Errorf("listening on port %d failed: %v", a.StartupOptions.Port, err)
 	}
@@ -337,56 +304,9 @@ func (s *server) Close() {
 		if err := s.listener.Close(); err != nil {
 			log.Warnf("Error shutting down: %v", err)
 		}
-		s.shutdown.Wait()
 	}
 }
 
-func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
-	url := "https://github.com/login/oauth/authorize?client_id=" + s.clientID + "&scope=user,repo&state=" + s.secretState
-	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
-}
-
-func (s *server) handleOAuthCallback(w http.ResponseWriter, r *http.Request) {
-	httpClient := http.Client{}
-
-	if err := r.ParseForm(); err != nil {
-		dashboard.RenderError(w, http.StatusBadRequest, fmt.Errorf("unable to parse query: %v", err))
-		return
-	}
-
-	if r.FormValue("state") != s.secretState {
-		dashboard.RenderError(w, http.StatusBadRequest, fmt.Errorf("unable to verify request state"))
-		return
-	}
-
-	url := fmt.Sprintf("https://github.com/login/oauth/access_token?client_id=%s&client_secret=%s&code=%s", s.clientID, s.clientSecret, r.FormValue("code"))
-	req, err := http.NewRequest(http.MethodPost, url, nil)
-	if err != nil {
-		dashboard.RenderError(w, http.StatusInternalServerError, fmt.Errorf("unable to create request: %v", err))
-		return
-	}
-	// ask for the response in JSON
-	req.Header.Set("accept", "application/json")
-
-	// send out the request to GitHub for the access token
-	res, err := httpClient.Do(req)
-	if err != nil {
-		dashboard.RenderError(w, http.StatusInternalServerError, fmt.Errorf("unable to contact GitHub: %v", err))
-		return
-	}
-	defer res.Body.Close()
-
-	var t OAuthAccessResponse
-	if err := json.NewDecoder(res.Body).Decode(&t); err != nil {
-		dashboard.RenderError(w, http.StatusBadRequest, fmt.Errorf("unable to parse response from GitHub: %v", err))
-		return
-	}
-
-	// finally, have GitHub redirect the user to the home page, passing the access token to the page
-	w.Header().Set("Location", "/?access_token="+t.AccessToken)
-	w.WriteHeader(http.StatusFound)
-}
-
-type OAuthAccessResponse struct {
-	AccessToken string `json:"access_token"`
+func handleHTTP(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, fmt.Sprintf("https://%s%s", r.Host, r.URL), http.StatusPermanentRedirect)
 }

@@ -15,7 +15,7 @@
 package gh
 
 import (
-	api "github.com/google/go-github/v25/github"
+	api "github.com/google/go-github/v26/github"
 
 	"istio.io/bots/policybot/pkg/storage"
 )
@@ -63,9 +63,9 @@ func IssueCommentFromAPI(orgID string, repoID string, issueID string, issueComme
 
 func RepoCommentFromAPI(orgID string, repoID string, comment *api.RepositoryComment) *storage.RepoComment {
 	return &storage.RepoComment{
-		OrgID:  orgID,
-		RepoID: repoID,
-		//		CommentID:      comment.GetNodeID(),  TODO: enabled once upstream PR is merged
+		OrgID:     orgID,
+		RepoID:    repoID,
+		CommentID: comment.GetNodeID(),
 		Body:      comment.GetBody(),
 		CreatedAt: comment.GetCreatedAt(),
 		UpdatedAt: comment.GetUpdatedAt(),

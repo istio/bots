@@ -59,14 +59,14 @@ func (t *topic) Name() string {
 	return "perf"
 }
 
-func (t *topic) Configure(htmlRouter *mux.Router, apiRouter *mux.Router, context dashboard.RenderContext) {
+func (t *topic) Configure(htmlRouter *mux.Router, apiRouter *mux.Router, context dashboard.RenderContext, opt *dashboard.Options) {
 	htmlRouter.StrictSlash(true).
 		Path("/").
 		Methods("GET").
 		HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			sb := &strings.Builder{}
 			if err := t.page.Execute(sb, t.getPerformanceResults()); err != nil {
-				dashboard.RenderError(w, http.StatusInternalServerError, err)
+				context.RenderHTMLError(w, err)
 				return
 			}
 
