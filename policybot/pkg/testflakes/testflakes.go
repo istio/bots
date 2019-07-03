@@ -22,12 +22,16 @@ package testflakes
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
-	"cloud.google.com/go/spanner"
-	"google.golang.org/api/iterator"
+	// "cloud.google.com/go/spanner"
+	//"google.golang.org/api/iterator"
+	"github.com/google/go-github/v26/github"
 
+	"istio.io/bots/policybot/pkg/gh"
 	store "istio.io/bots/policybot/pkg/storage"
+	"istio.io/bots/policybot/pkg/storage/cache"
 	"istio.io/pkg/log"
 )
 
@@ -37,6 +41,8 @@ import (
  */
 type FlakyResult struct {
 	TestName   string
+	OrgID      string
+	RepoID     string
 	PrNum      int64
 	IsFlaky    bool
 	LastPass   string
@@ -45,62 +51,33 @@ type FlakyResult struct {
 	failResult *store.TestResult
 }
 
-type FlakeTest struct {
-	ctx    context.Context
-	client *spanner.Client
-	table  string
+type FlakeTester struct {
+	ght   *gh.ThrottledClient
+	ctx   context.Context
+	table string
+	cache *cache.Cache
+	store store.Store
 }
 
-var scope = log.RegisterScope("TestFlaky", "Check if tests are flaky", 0)
+var scope = log.RegisterScope("FlakeTester", "Check if tests are flaky", 0)
 
-func NewFlakeTest(ctx context.Context, project string, instance string, database string, table string) (*FlakeTest, error) {
-	client, err := spanner.NewClient(ctx, "projects/"+project+"/instances/"+instance+"/databases/"+database)
-
-	if err != nil {
-		scope.Errorf(err.Error())
-		return nil, err
+func NewFlakeTester(ctx context.Context, cache *cache.Cache, store store.Store, ght *gh.ThrottledClient, table string) (*FlakeTester, error) {
+	f := &FlakeTester{
+		ght:   ght,
+		ctx:   ctx,
+		cache: cache,
+		table: table,
+		store: store,
 	}
 
-	f := &FlakeTest{
-		ctx:    ctx,
-		client: client,
-		table:  table,
-	}
 	return f, nil
-}
-
-/*
- * Real all rows from table in Spanner and store the results into a slice of TestResult objects.
- */
-func (f *FlakeTest) readAll() ([]*store.TestResult, error) {
-	iter := f.client.Single().Read(f.ctx, f.table, spanner.AllKeys(),
-		[]string{"OrgID", "RepoID", "TestName", "PrNum", "RunNum", "StartTime",
-			"FinishTime", "TestPassed", "CloneFailed", "Sha", "Result", "BaseSha", "RunPath"})
-	defer iter.Stop()
-	testResults := []*store.TestResult{}
-	for {
-		row, err := iter.Next()
-		if err == iterator.Done {
-			scope.Infof("finished reading")
-			return testResults, nil
-		}
-		if err != nil {
-			return nil, err
-		}
-		testResult := &store.TestResult{}
-		err = row.ToStruct(testResult)
-		if err != nil {
-			return nil, err
-		}
-		testResults = append(testResults, testResult)
-	}
 }
 
 /*
  * Rearrange information from TestResult to extract test names and whether or not they
  * passed for each pull request and run.
  */
-func (f *FlakeTest) processResults(testResults []*store.TestResult) map[string]map[string]map[bool][]*store.TestResult {
+func (f *FlakeTester) ProcessResults(testResults []*store.TestResult) map[string]map[string]map[bool][]*store.TestResult {
 	resultMap := map[string]map[string]map[bool][]*store.TestResult{}
 	for _, result := range testResults {
 		testName := result.TestName
@@ -142,7 +119,7 @@ func (f *FlakeTest) processResults(testResults []*store.TestResult) map[string]m
  * coexisting at the same time. If for one Pull Request the test passed and failed for different runs
  * we mark the test to be flaky.
  */
-func (f *FlakeTest) checkResults(resultMap map[string]map[string]map[bool][]*store.TestResult) []*FlakyResult {
+func (f *FlakeTester) CheckResults(resultMap map[string]map[string]map[bool][]*store.TestResult) []*FlakyResult {
 	flakyResults := []*FlakyResult{}
 	for testName, testMap := range resultMap {
 		for _, shaMap := range testMap {
@@ -152,8 +129,14 @@ func (f *FlakeTest) checkResults(resultMap map[string]map[string]map[bool][]*sto
 			if len(shaMap) > 1 {
 				flakyResult.IsFlaky = true
 			}
+			failFirst := store.TestResult{
+				OrgID: "",
+			}
 			if shaMap[false] != nil {
 				failedTests := shaMap[false]
+				failFirst = *failedTests[0]
+				flakyResult.OrgID = failFirst.OrgID
+				flakyResult.RepoID = failFirst.RepoID
 				for _, fail := range failedTests {
 					if flakyResult.PrNum == 0 {
 						flakyResult.PrNum = fail.PrNum
@@ -171,6 +154,11 @@ func (f *FlakeTest) checkResults(resultMap map[string]map[string]map[bool][]*sto
 			}
 			if shaMap[true] != nil {
 				passedTests := shaMap[true]
+				if strings.Compare(failFirst.OrgID, "") == 0 {
+					passFirst := passedTests[0]
+					flakyResult.RepoID = passFirst.RepoID
+					flakyResult.OrgID = passFirst.OrgID
+				}
 				for _, pass := range passedTests {
 					if flakyResult.PrNum == 0 {
 						flakyResult.PrNum = pass.PrNum
@@ -193,14 +181,32 @@ func (f *FlakeTest) checkResults(resultMap map[string]map[string]map[bool][]*sto
 }
 
 /*
- * Read table to process stored data and output flaky results
+ * Chase function add issue comment and send emails about the flake results
  */
-func (f *FlakeTest) ReadTableAndCheckForFlake() ([]*FlakyResult, error) {
-	testResults, err := f.readAll()
-	if err != nil {
-		return nil, err
+func (f *FlakeTester) Chase(context context.Context, flakeResults []*FlakyResult, message string) {
+	scope.Infof("Found %v potential flakes", len(flakeResults))
+	for _, flake := range flakeResults {
+		comment := &github.PullRequestComment{
+			Body: &message,
+		}
+		repo, err := f.cache.ReadRepo(context, flake.OrgID, flake.RepoID)
+		if err != nil {
+			scope.Errorf("Failed to look up the repo: %v", err)
+			continue
+		}
+		org, err := f.cache.ReadOrg(context, flake.OrgID)
+		if err != nil {
+			scope.Errorf("Failed to read the repo: %v", err)
+			continue
+		}
+
+		url := fmt.Sprintf("https://github.com/%v/%v/pull/%v", org.Login, repo.Name, flake.PrNum)
+		scope.Infof("About to nag test flaky issue with %v", url)
+
+		_, _, err = f.ght.Get(context).PullRequests.CreateComment(
+			context, org.Login, repo.Name, int(flake.PrNum), comment)
+		if err != nil {
+			scope.Errorf("Failed to create flakes nagging comments: %v", err)
+		}
 	}
-	resultMap := f.processResults(testResults)
-	flakyResults := f.checkResults(resultMap)
-	return flakyResults, nil
 }

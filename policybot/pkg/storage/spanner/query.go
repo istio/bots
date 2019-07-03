@@ -75,11 +75,6 @@ func (s store) QueryTestResultByName(context context.Context, testName string, c
 			return err
 		}
 
-		if err := cb(testResult); err != nil {
-			iter.Stop()
-			return err
-		}
-
 		return cb(testResult)
 	})
 
@@ -94,15 +89,27 @@ func (s store) QueryTestResultByPrNumber(context context.Context, prNum int64, c
 			return err
 		}
 
-		if err := cb(testResult); err != nil {
-			iter.Stop()
-			return err
-		}
-
 		return cb(testResult)
 	})
 
 	return err
+}
+
+func (s store) QueryTestResultByUndone(context context.Context) ([]*storage.TestResult, error) {
+	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM TestResults WHERE Done = false")})
+	testResults := []*storage.TestResult{}
+	if err := iter.Do(func(row *spanner.Row) error {
+		testResult := &storage.TestResult{}
+		if err := row.ToStruct(testResult); err != nil {
+			return fmt.Errorf("error in fetching undone test result, %v", err)
+		}
+		testResults = append(testResults, testResult)
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return testResults, nil
 }
 
 func (s store) QueryTestFlakeIssues(context context.Context, inactiveDays, createdDays int) ([]*storage.Issue, error) {

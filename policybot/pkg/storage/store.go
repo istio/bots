@@ -56,6 +56,7 @@ type Store interface {
 	ReadBotActivityByID(context context.Context, orgID string, repoID string) (*BotActivity, error)
 	ReadMaintainerByID(context context.Context, orgID string, userID string) (*Maintainer, error)
 	ReadTestResultByName(context context.Context, orgID string, repoID string, testName string, prNum int64, runNum int64) (*TestResult, error)
+	ReadAllTestResults(context context.Context) ([]*TestResult, error)
 
 	QueryMembersByOrg(context context.Context, orgID string, cb func(*Member) error) error
 	QueryMaintainersByOrg(context context.Context, orgID string, cb func(*Maintainer) error) error
@@ -64,4 +65,5 @@ type Store interface {
 	QueryTestFlakeIssues(context context.Context, inactiveDays, createdDays int) ([]*Issue, error)
 	QueryTestResultByName(context context.Context, testName string, cb func(*TestResult) error) error
 	QueryTestResultByPrNumber(context context.Context, prNum int64, cb func(*TestResult) error) error
+	QueryTestResultByUndone(context context.Context) ([]*TestResult, error)
 }

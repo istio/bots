@@ -173,21 +173,21 @@ func (prt *PrResultTester) getInformationFromFinishedFile(pref string, eachRun *
 	client := prt.Client
 	bucket := client.Bucket(prt.bucketName)
 	newObj := bucket.Object(pref + "finished.json")
-	nrdr, nerr := newObj.NewReader(prt.ctx)
+	nrdr, err := newObj.NewReader(prt.ctx)
 	var finish finished
 
-	if nerr != nil {
-		return nil, nerr
+	if err != nil {
+		return eachRun, err
 	}
 
 	defer nrdr.Close()
 	finishFile, err := ioutil.ReadAll(nrdr)
 	if err != nil {
-		return nil, nerr
+		return nil, err
 	}
-	err = json.Unmarshal(finishFile, &finish)
-	if err != nil {
-		return eachRun, err
+
+	if err = json.Unmarshal(finishFile, &finish); err != nil {
+		return nil, err
 	}
 
 	passed := finish.Passed
@@ -206,9 +206,9 @@ func (prt *PrResultTester) getInformationFromStartedFile(pref string, eachRun *s
 	client := prt.Client
 	bucket := client.Bucket(prt.bucketName)
 	newObj := bucket.Object(pref + "started.json")
-	nrdr, nerr := newObj.NewReader(prt.ctx)
-	if nerr != nil {
-		return nil, nerr
+	nrdr, err := newObj.NewReader(prt.ctx)
+	if err != nil {
+		return eachRun, err
 	}
 
 	defer nrdr.Close()
@@ -218,9 +218,9 @@ func (prt *PrResultTester) getInformationFromStartedFile(pref string, eachRun *s
 	}
 
 	var started started
-	err := json.Unmarshal(startFile, &started)
-	if err != nil {
-		return eachRun, err
+
+	if err := json.Unmarshal(startFile, &started); err != nil {
+		return nil, err
 	}
 	t := started.Timestamp
 	tm := time.Unix(t, 0)
@@ -237,7 +237,7 @@ func (prt *PrResultTester) getInformationFromCloneFile(pref string, eachRun *sto
 	scope.Infof(pref + "clone-records.json")
 	rdr, err := obj.NewReader(prt.ctx)
 	if err != nil {
-		return nil, err
+		return eachRun, err
 	}
 
 	defer rdr.Close()
@@ -247,9 +247,9 @@ func (prt *PrResultTester) getInformationFromCloneFile(pref string, eachRun *sto
 	}
 
 	var records []cloneRecord
-	err = json.Unmarshal(cloneFile, &records)
-	if err != nil {
-		return eachRun, err
+
+	if err = json.Unmarshal(cloneFile, &records); err != nil {
+		return nil, err
 	}
 	record := records[0]
 	refs := record.Refs
@@ -283,6 +283,7 @@ func (prt *PrResultTester) getShaAndPassStatus(testSlice map[string][]string, or
 			eachRun.RepoID = repoID
 			eachRun.TestName = testName
 			eachRun.RunPath = runPath
+			eachRun.Done = false
 
 			var err error
 			eachRun, err = prt.getInformationFromCloneFile(runPath, eachRun)
@@ -302,9 +303,9 @@ func (prt *PrResultTester) getShaAndPassStatus(testSlice map[string][]string, or
 
 			prefSplit := strings.Split(runPath, "/")
 
-			runNo, errr := strconv.ParseInt(prefSplit[len(prefSplit)-2], 10, 64)
-			if errr != nil {
-				return nil, errr
+			runNo, err := strconv.ParseInt(prefSplit[len(prefSplit)-2], 10, 64)
+			if err != nil {
+				return nil, err
 			}
 			eachRun.RunNum = runNo
 			prNo, newError := strconv.ParseInt(prefSplit[len(prefSplit)-4], 10, 64)
@@ -327,10 +328,10 @@ func (prt *PrResultTester) CheckTestResultsForPr(prNum int64, orgID string, repo
 	if err != nil {
 		return nil, err
 	}
-	fullResult, er := prt.getShaAndPassStatus(testSlice, orgID, repoID)
+	fullResult, err := prt.getShaAndPassStatus(testSlice, orgID, repoID)
 
-	if er != nil {
-		return nil, er
+	if err != nil {
+		return nil, err
 	}
 	return fullResult, nil
 }

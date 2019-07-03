@@ -164,12 +164,13 @@ type TestResult struct {
 	OrgID       string
 	RepoID      string
 	TestName    string
+	TestPassed  bool
+	CloneFailed bool
+	Done        bool
 	PrNum       int64
 	RunNum      int64
 	StartTime   time.Time
 	FinishTime  time.Time
-	TestPassed  bool
-	CloneFailed bool
 	Sha         string
 	Result      string
 	BaseSha     string
