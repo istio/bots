@@ -189,16 +189,3 @@ func PullRequestReviewFromHook(prrp *hook.PullRequestReviewPayload) (*storage.Pu
 		State:               prrp.Review.State,
 	}, discoveredUsers
 }
-
-// Maps from a GitHub webhook event to a storage Test Flake. Also returns the set of
-// users discovered in the event in a map of {UserID:Login}.
-func TestResultFromHook(crp *hook.CheckRunPayload) (*storage.TestResult, map[string]string) {
-	pullRequestPayload := crp.CheckRun.CheckSuite.PullRequests[0]
-	discoveredUsers := make(map[string]string, len(pullRequestPayload.PullRequest.Assignees)+len(pullRequestPayload.PullRequest.RequestedReviewers))
-
-	return &storage.TestResult{
-		OrgID:  crp.Repository.Owner.NodeID,
-		RepoID: crp.Repository.NodeID,
-		PrNum:  pullRequestPayload.PullRequest.Number,
-	}, discoveredUsers
-}
