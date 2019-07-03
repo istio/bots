@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/**
- * Take in a pr number from path "istio-prow/pr-logs/pull/istio-istio" and examine the pr
- * for all tests that are run and their results. The results are then written to Spanner.
- */
+// Take in a pr number from blob storage and examines the pr
+// for all tests that are run and their results. The results are then written to storage.
+
 package testresults
 
 import (
@@ -34,35 +33,27 @@ import (
 	"istio.io/pkg/log"
 )
 
-/*
- * Pull struct for the structure under refs/pulls in clone-records.json
- */
+// Pull struct for the structure under refs/pulls in clone-records.json
 type pull struct {
 	Number int
 	Author string
 	Sha    string
 }
 
-/*
- * Cmd struct for Commands object under clone-records.json
- */
+// Cmd struct for Commands object under clone-records.json
 type cmnd struct {
 	Command string
 	Output  string
 }
 
-/*
- * Finished struct to store values for all fields in Finished.json
- */
+// Finished struct to store values for all fields in Finished.json
 type finished struct {
 	Timestamp int64
 	Passed    bool
 	Result    string
 }
 
-/*
- * Clone_Record struct to store values for all fields in clone-records.json
- */
+// Clone_Record struct to store values for all fields in clone-records.json
 type cloneRecord struct {
 	Refs struct {
 		Org       string
@@ -76,9 +67,7 @@ type cloneRecord struct {
 	Failed   bool
 }
 
-/*
- * Started struct to store values from started.json
- */
+// Started struct to store values from started.json
 type started struct {
 	Timestamp int64
 }
@@ -91,17 +80,10 @@ type PrResultTester struct {
 
 var scope = log.RegisterScope("TestResult", "Check error while reading from google cloud storage", 0)
 
-/*
- * Function to initionalize new PrFlakeTest object.
- * Use `prFlakeyTest, err := NewPrFlakeTest()` and `testFlakes := prFlakeyTest.checkTestFlakesForPr(<pr_number>)`
- * to get test flakes information for a given pr.
- */
-func NewPrResultTester(ctx context.Context, bucketName string) (*PrResultTester, error) {
-	client, err := storage.NewClient(ctx)
-	if err != nil {
-		return nil, err
-	}
-
+// Function to initionalize new PrFlakeTest object.
+// Use `prFlakeyTest, err := NewPrFlakeTest()` and `testFlakes := prFlakeyTest.checkTestFlakesForPr(<pr_number>)`
+// to get test flakes information for a given pr.
+func NewPrResultTester(ctx context.Context, client *storage.Client, bucketName string) (*PrResultTester, error) {
 	return &PrResultTester{
 		Client:     client,
 		ctx:        ctx,
@@ -130,15 +112,13 @@ func (prt *PrResultTester) query(prefix string) ([]string, error) {
 	return paths, nil
 }
 
-/*
- * GetTest function get all directories under the given pr in istio-prow/pr-logs/pull/istio-istio/PRNUMBER for each test suite name.
- * Client: client used to get buckets and objects.
- * PrNum: the PR number inputted.
- * Return []Tests return a slice of Tests objects.
- */
-func (prt *PrResultTester) getTests(prNumInt int64) (map[string][]string, error) {
+// GetTest function get all directories under the given pr in blob storage for each test suite name.
+// Client: client used to get buckets and objects.
+// PrNum: the PR number inputted.
+// Return []Tests return a slice of Tests objects.
+func (prt *PrResultTester) getTests(orgLogin string, repoName string, prNumInt int64) (map[string][]string, error) {
 	prNum := strconv.FormatInt(prNumInt, 10)
-	prefixForPr := "pr-logs/pull/istio_istio/" + prNum + "/"
+	prefixForPr := "pr-logs/pull/" + orgLogin + "_" + repoName + "/" + prNum + "/"
 	testNames, err := prt.query(prefixForPr)
 	if err != nil {
 		return nil, err
@@ -154,8 +134,7 @@ func (prt *PrResultTester) getTests(prNumInt int64) (map[string][]string, error)
 		}
 		var runPaths []string
 		var ok bool
-		runPaths, ok = testMap[testname]
-		if !ok {
+		if runPaths, ok = testMap[testname]; !ok {
 			runPaths = []string{}
 		}
 		for _, runPath := range runs {
@@ -266,12 +245,10 @@ func (prt *PrResultTester) getInformationFromCloneFile(pref string, eachRun *sto
 	return eachRun, nil
 }
 
-/*
- * GetShaAndPassStatus function return the status of test passing, clone failure, sha number, base sha for each test run under each test suite for the given pr.
- * Client: client used to get buckets and objects from google cloud storage.
- * TestSlice: a slice of Tests objects containing all tests and the path to folder for each test run for the test under such pr.
- * Return a map of test suite name -- pr number -- run number -- ForEachRun objects.
- */
+// GetShaAndPassStatus function return the status of test passing, clone failure, sha number, base sha for each test run under each test suite for the given pr.
+// Client: client used to get buckets and objects from google cloud storage.
+// TestSlice: a slice of Tests objects containing all tests and the path to folder for each test run for the test under such pr.
+// Return a map of test suite name -- pr number -- run number -- ForEachRun objects.
 func (prt *PrResultTester) getShaAndPassStatus(testSlice map[string][]string, orgID string, repoID string) ([]*store.TestResult, error) {
 	var allTestRuns = []*store.TestResult{}
 
@@ -320,11 +297,9 @@ func (prt *PrResultTester) getShaAndPassStatus(testSlice map[string][]string, or
 	return allTestRuns, nil
 }
 
-/*
- * Read in gcs the folder of the given pr number and write the result of each test runs into a slice of TestFlake struct.
- */
-func (prt *PrResultTester) CheckTestResultsForPr(prNum int64, orgID string, repoID string) ([]*store.TestResult, error) {
-	testSlice, err := prt.getTests(prNum)
+// Read in gcs the folder of the given pr number and write the result of each test runs into a slice of TestFlake struct.
+func (prt *PrResultTester) CheckTestResultsForPr(prNum int64, orgLogin string, orgID string, repoName string, repoID string) ([]*store.TestResult, error) {
+	testSlice, err := prt.getTests(orgLogin, repoName, prNum)
 	if err != nil {
 		return nil, err
 	}

@@ -101,7 +101,7 @@ func (s store) QueryTestResultByUndone(context context.Context) ([]*storage.Test
 	if err := iter.Do(func(row *spanner.Row) error {
 		testResult := &storage.TestResult{}
 		if err := row.ToStruct(testResult); err != nil {
-			return fmt.Errorf("error in fetching undone test result, %v", err)
+			return err
 		}
 		testResults = append(testResults, testResult)
 		return nil
@@ -110,6 +110,23 @@ func (s store) QueryTestResultByUndone(context context.Context) ([]*storage.Test
 	}
 
 	return testResults, nil
+}
+
+/*
+ * Real all rows from table in Spanner and store the results into a slice of TestResult objects.
+ */
+func (s store) QueryAllTestResults(context context.Context, cb func(*storage.TestResult) error) error {
+	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM TestResults")})
+	err := iter.Do(func(row *spanner.Row) error {
+		testResult := &storage.TestResult{}
+		if err := row.ToStruct(testResult); err != nil {
+			return err
+		}
+
+		return cb(testResult)
+	})
+
+	return err
 }
 
 func (s store) QueryTestFlakeIssues(context context.Context, inactiveDays, createdDays int) ([]*storage.Issue, error) {

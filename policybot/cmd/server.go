@@ -44,6 +44,7 @@ import (
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/labeler"
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/nagger"
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/refresher"
+	"istio.io/bots/policybot/handlers/githubwebhook/filters/resulttester"
 	"istio.io/bots/policybot/handlers/syncer"
 	"istio.io/bots/policybot/handlers/zenhubwebhook"
 	"istio.io/bots/policybot/pkg/blobstorage/gcs"
@@ -70,6 +71,7 @@ const (
 	githubOAuthClientSecret = "Client secret for GitHub OAuth2 flow"
 	githubOAuthClientID     = "Client ID for GitHub OAuth2 flow"
 	httpsOnly               = "Send https redirect if x-forwarded-header is not set"
+	bucketName              = "Bucket name for gcs storage blob"
 )
 
 func serverCmd() *cobra.Command {
@@ -87,6 +89,8 @@ func serverCmd() *cobra.Command {
 		env.RegisterStringVar("GITHUB_OAUTH_CLIENT_SECRET", ca.StartupOptions.GitHubOAuthClientSecret, githubOAuthClientSecret).Get()
 	ca.StartupOptions.GitHubOAuthClientID =
 		env.RegisterStringVar("GITHUB_OAUTH_CLIENT_ID", ca.StartupOptions.GitHubOAuthClientID, githubOAuthClientID).Get()
+	ca.StartupOptions.BucketName =
+		env.RegisterStringVar("BUCKET_NAME", ca.StartupOptions.BucketName, bucketName).Get()
 	env.RegisterBoolVar("HTTPS_ONLY", ca.StartupOptions.HTTPSOnly, httpsOnly).Get()
 
 	loggingOptions := log.DefaultOptions()
@@ -136,6 +140,8 @@ func serverCmd() *cobra.Command {
 		"github_oauth_client_secret", "", ca.StartupOptions.GitHubOAuthClientSecret, githubOAuthClientSecret)
 	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.GitHubOAuthClientID,
 		"github_oauth_client_id", "", ca.StartupOptions.GitHubOAuthClientID, githubOAuthClientID)
+	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.BucketName,
+		"bucket_name", "", ca.StartupOptions.BucketName, bucketName)
 	serverCmd.PersistentFlags().BoolVarP(&ca.StartupOptions.HTTPSOnly,
 		"https_only", "", ca.StartupOptions.HTTPSOnly, httpsOnly)
 
@@ -258,6 +264,7 @@ func runWithConfig(a *config.Args) error {
 		nag,
 		labeler,
 		monitor,
+		resulttester.NewResultTester(store, cache, ght, a.Orgs, a.StartupOptions.BucketName),
 	}
 
 	ghHandler, err := githubwebhook.NewHandler(a.StartupOptions.GitHubWebhookSecret, filters...)

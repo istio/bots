@@ -18,7 +18,6 @@ import (
 	"context"
 
 	"cloud.google.com/go/spanner"
-	"google.golang.org/api/iterator"
 	"google.golang.org/grpc/codes"
 
 	"istio.io/bots/policybot/pkg/storage"
@@ -291,31 +290,6 @@ func (s store) ReadTestResultByName(context context.Context, orgID string,
 	}
 
 	return &result, nil
-}
-
-/*
- * Real all rows from table in Spanner and store the results into a slice of TestResult objects.
- */
-func (s store) ReadAllTestResults(context context.Context) ([]*storage.TestResult, error) {
-	iter := s.client.Single().Read(context, testResultTable, spanner.AllKeys(), testResultColumns)
-	defer iter.Stop()
-	testResults := []*storage.TestResult{}
-	for {
-		row, err := iter.Next()
-		if err == iterator.Done {
-			scope.Infof("finished reading")
-			return testResults, nil
-		}
-		if err != nil {
-			return nil, err
-		}
-		testResult := &storage.TestResult{}
-		err = row.ToStruct(testResult)
-		if err != nil {
-			return nil, err
-		}
-		testResults = append(testResults, testResult)
-	}
 }
 
 func (s store) ReadMaintainerByID(context context.Context, orgID string, userID string) (*storage.Maintainer, error) {

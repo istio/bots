@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /*
- * Test Flakes read all rows from TestResults table in Spanner gh database.
+ * Test Flakes read all rows from TestResults table in storage.
  * Convert them back to TestResults struct in types and bind tests based on PR
  * number. If a test both pass and fail for the same PR, it is very likely to be flaky.
  */
@@ -25,8 +25,6 @@ import (
 	"fmt"
 	"strings"
 
-	// "cloud.google.com/go/spanner"
-	//"google.golang.org/api/iterator"
 	"github.com/google/go-github/v26/github"
 
 	"istio.io/bots/policybot/pkg/gh"
@@ -181,7 +179,7 @@ func (f *FlakeTester) CheckResults(resultMap map[string]map[string]map[bool][]*s
 }
 
 /*
- * Chase function add issue comment and send emails about the flake results
+ * Chase function add issue comment about the flake results
  */
 func (f *FlakeTester) Chase(context context.Context, flakeResults []*FlakyResult, message string) {
 	scope.Infof("Found %v potential flakes", len(flakeResults))
@@ -196,12 +194,12 @@ func (f *FlakeTester) Chase(context context.Context, flakeResults []*FlakyResult
 		}
 		org, err := f.cache.ReadOrg(context, flake.OrgID)
 		if err != nil {
-			scope.Errorf("Failed to read the repo: %v", err)
+			scope.Errorf("Failed to read the org: %v", err)
 			continue
 		}
 
 		url := fmt.Sprintf("https://github.com/%v/%v/pull/%v", org.Login, repo.Name, flake.PrNum)
-		scope.Infof("About to nag test flaky issue with %v", url)
+		scope.Infof("About to nag test flaky pr with %v", url)
 
 		_, _, err = f.ght.Get(context).PullRequests.CreateComment(
 			context, org.Login, repo.Name, int(flake.PrNum), comment)

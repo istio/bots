@@ -17,6 +17,7 @@ package resulttester
 import (
 	"context"
 
+	s "cloud.google.com/go/storage"
 	webhook "github.com/go-playground/webhooks/github"
 
 	"istio.io/bots/policybot/handlers/githubwebhook/filters"
@@ -29,29 +30,35 @@ import (
 )
 
 // Updates the DB based on incoming GitHub webhook events.
-type testerState struct {
-	tester *ResultTester
-	ctx    context.Context
-}
-
 type ResultTester struct {
-	store      storage.Store
-	repos      map[string]bool
-	cache      *cache.Cache
-	ght        *gh.ThrottledClient
-	bucketName string
+	store          storage.Store
+	repos          map[string]bool
+	cache          *cache.Cache
+	ght            *gh.ThrottledClient
+	prResultTester *testresults.PrResultTester
 }
 
 var scope = log.RegisterScope("ResultTester", "Result tester for each pr test run", 0)
 
-func NewResultTester(bucketName string, store storage.Store,
-	cache *cache.Cache, ght *gh.ThrottledClient, orgs []config.Org) filters.Filter {
+func NewResultTester(store storage.Store,
+	cache *cache.Cache, ght *gh.ThrottledClient, orgs []config.Org, bucketName string) filters.Filter {
+	ctx := context.Background()
+
+	client, err := s.NewClient(ctx)
+	if err != nil {
+		return nil
+	}
+	prResultTester, err := testresults.NewPrResultTester(ctx, client, bucketName)
+	if err != nil {
+		scope.Errorf(err.Error())
+		return nil
+	}
 	r := &ResultTester{
-		store:      store,
-		repos:      make(map[string]bool),
-		cache:      cache,
-		ght:        ght,
-		bucketName: bucketName,
+		store:          store,
+		repos:          make(map[string]bool),
+		cache:          cache,
+		ght:            ght,
+		prResultTester: prResultTester,
 	}
 
 	for _, org := range orgs {
@@ -70,11 +77,11 @@ func (r *ResultTester) Events() []webhook.Event {
 }
 
 // accept an event arriving from GitHub
-func (ts *testerState) handle(githubObject interface{}) {
+func (r *ResultTester) Handle(context context.Context, githubObject interface{}) {
 	switch p := githubObject.(type) {
 	case webhook.CheckRunPayload:
 		scope.Infof("Received CheckRunPayload: %s", p.Repository.FullName)
-		if !ts.tester.repos[p.Repository.FullName] {
+		if !r.repos[p.Repository.FullName] {
 			scope.Infof("Ignoring ChechRun event from repo %s since it's not in a monitored repo", p.Repository.FullName)
 			return
 		}
@@ -83,27 +90,23 @@ func (ts *testerState) handle(githubObject interface{}) {
 		pullRequestPayload := checkRunPayload.CheckRun.CheckSuite.PullRequests[0]
 		discoveredUsers := make(map[string]string, len(pullRequestPayload.PullRequest.Assignees)+len(pullRequestPayload.PullRequest.RequestedReviewers))
 
+		orgLogin := checkRunPayload.Repository.Owner.Login
 		orgID := checkRunPayload.Repository.Owner.NodeID
 		repoID := checkRunPayload.Repository.NodeID
+		repoName := checkRunPayload.Repository.Name
 		prNum := pullRequestPayload.PullRequest.Number
 
-		prResultTest, err := testresults.NewPrResultTester(ts.ctx, ts.tester.bucketName)
-		if err != nil {
-			scope.Errorf("Error: Unable to build result tester for bucket %s: %v", ts.tester.bucketName, err.Error())
-			return
-		}
-
-		testResults, err := prResultTest.CheckTestResultsForPr(prNum, orgID, repoID)
+		testResults, err := r.prResultTester.CheckTestResultsForPr(prNum, orgLogin, orgID, repoName, repoID)
 		if err != nil {
 			scope.Errorf("Error: Unable to get test result for PR %d in repo %s: %v", prNum, repoID, err)
 			return
 		}
 
-		if err = ts.tester.cache.WriteTestResults(ts.ctx, testResults); err != nil {
-			scope.Errorf("Error: Unable to write test results to Spanner: %v", err.Error())
+		if err = r.cache.WriteTestResults(context, testResults); err != nil {
+			scope.Errorf(err.Error())
 		}
 
-		ts.syncUsers(discoveredUsers)
+		r.syncUsers(context, discoveredUsers)
 
 	default:
 		// not what we're looking for
@@ -112,18 +115,10 @@ func (ts *testerState) handle(githubObject interface{}) {
 	}
 }
 
-func (r *ResultTester) Handle(context context.Context, githubObject interface{}) {
-	ts := &testerState{
-		ctx:    context,
-		tester: r,
-	}
-	ts.handle(githubObject)
-}
-
-func (ts *testerState) syncUsers(discoveredUsers map[string]string) {
+func (r *ResultTester) syncUsers(context context.Context, discoveredUsers map[string]string) {
 	var users []*storage.User
 	for _, du := range discoveredUsers {
-		user, err := ts.tester.cache.ReadUserByLogin(ts.ctx, du)
+		user, err := r.cache.ReadUserByLogin(context, du)
 		if err != nil {
 			scope.Warnf("unable to read user %s from storage: %v", du, err)
 		}
@@ -134,7 +129,7 @@ func (ts *testerState) syncUsers(discoveredUsers map[string]string) {
 		}
 
 		// didn't get user info from our storage layer, ask GitHub for details
-		u, _, err := ts.tester.ght.Get(ts.ctx).Users.Get(ts.ctx, du)
+		u, _, err := r.ght.Get(context).Users.Get(context, du)
 		if err != nil {
 			scope.Errorf("Unable to get info on user %s from GitHub: %v", du, err)
 		} else {
@@ -142,7 +137,7 @@ func (ts *testerState) syncUsers(discoveredUsers map[string]string) {
 		}
 	}
 
-	if err := ts.tester.cache.WriteUsers(ts.ctx, users); err != nil {
+	if err := r.cache.WriteUsers(context, users); err != nil {
 		scope.Errorf("Unable to write users: %v", err)
 	}
 }

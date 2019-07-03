@@ -21,6 +21,8 @@ import (
 	"testing"
 	"time"
 
+	store "cloud.google.com/go/storage"
+
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/testresults"
 )
@@ -52,12 +54,17 @@ func TestResults(t *testing.T) {
 	repoID := "MDEwOlJlcG9zaXRvcnk3NDE3NTgwNQ=="
 	var prNum int64 = 110
 
-	prResultTest, err := testresults.NewPrResultTester(context, "istio-flakey-test")
+	client, err := store.NewClient(context)
+	if err != nil {
+		return
+	}
+
+	prResultTest, err := testresults.NewPrResultTester(context, client, "istio-flakey-test")
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	testResults, _ := prResultTest.CheckTestResultsForPr(prNum, orgID, repoID)
+	testResults, _ := prResultTest.CheckTestResultsForPr(prNum, "istio", orgID, "istio", repoID)
 	test := testResults[0]
 	if !reflect.DeepEqual(test, correctInfo) {
 		t.Fail()
