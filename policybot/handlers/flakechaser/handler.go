@@ -17,7 +17,7 @@ package flakechaser
 import (
 	"net/http"
 
-	"github.com/google/go-github/v26/github"
+	"istio.io/bots/policybot/pkg/gh"
 
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/flakechaser"
@@ -33,7 +33,7 @@ type handler struct {
 }
 
 // NewHandler creates a flake chaser.
-func NewHandler(gc *github.Client, store storage.Store, cache *cache.Cache, config config.FlakeChaser) http.Handler {
+func NewHandler(gc *gh.ThrottledClient, store storage.Store, cache *cache.Cache, config config.FlakeChaser) http.Handler {
 	return &handler{
 		chaser: flakechaser.New(gc, store, cache, config),
 	}

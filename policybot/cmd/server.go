@@ -22,10 +22,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/google/go-github/v26/github"
 	"github.com/gorilla/mux"
 	"github.com/spf13/cobra"
-	"golang.org/x/oauth2"
 	"google.golang.org/grpc/grpclog"
 
 	"istio.io/bots/policybot/dashboard"
@@ -50,6 +48,7 @@ import (
 	"istio.io/bots/policybot/handlers/zenhubwebhook"
 	"istio.io/bots/policybot/pkg/blobstorage/gcs"
 	"istio.io/bots/policybot/pkg/config"
+	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage/cache"
 	"istio.io/bots/policybot/pkg/storage/spanner"
 	"istio.io/bots/policybot/pkg/util"
@@ -201,12 +200,8 @@ func runWithConfig(a *config.Args) error {
 		return fmt.Errorf("unable to decode GCP credentials: %v", err)
 	}
 
-	gc := github.NewClient(
-		oauth2.NewClient(
-			context.Background(),
-			oauth2.StaticTokenSource(&oauth2.Token{AccessToken: a.StartupOptions.GitHubToken})))
-
-	zc := zh.NewClient(a.StartupOptions.ZenHubToken)
+	gc := gh.NewThrottledClient(context.Background(), a.StartupOptions.GitHubToken)
+	zc := zh.NewThrottledClient(a.StartupOptions.ZenHubToken)
 	_ = util.NewMailer(a.StartupOptions.SendGridAPIKey, a.EmailFrom, a.EmailOriginAddress)
 
 	store, err := spanner.NewStore(context.Background(), a.SpannerDatabase, creds)
@@ -252,14 +247,14 @@ func runWithConfig(a *config.Args) error {
 		listener: listener,
 	}
 
-	monitor, err := cfgmonitor.NewMonitor(gc, a.StartupOptions.ConfigRepo, a.StartupOptions.ConfigFile, s.Close)
+	monitor, err := cfgmonitor.NewMonitor(a.StartupOptions.ConfigRepo, a.StartupOptions.ConfigFile, s.Close)
 	if err != nil {
 		return fmt.Errorf("unable to create config monitor: %v", err)
 	}
 
 	// github webhook filters (keep refresher first in the list such that other filter see an up-to-date view in storage)
 	filters := []filters.Filter{
-		refresher.NewRefresher(cache, gc, a.Orgs),
+		refresher.NewRefresher(cache, store, gc, a.Orgs),
 		nag,
 		labeler,
 		monitor,
@@ -274,7 +269,7 @@ func runWithConfig(a *config.Args) error {
 	router.Handle("/githubwebhook", githubwebhook.NewHandler(a.StartupOptions.GitHubWebhookSecret, filters...)).Methods("POST")
 	router.Handle("/flakechaser", flakechaser.NewHandler(gc, store, cache, a.FlakeChaser)).Methods("GET")
 	router.Handle("/zenhubwebhook", zenhubwebhook.NewHandler(store, cache)).Methods("POST")
-	router.Handle("/sync", syncer.NewHandler(context.Background(), gc, cache, zc, store, bs, a.Orgs)).Methods("GET")
+	router.Handle("/sync", syncer.NewHandler(context.Background(), gc, cache, zc, store, a.Orgs)).Methods("GET")
 
 	// UI topics
 	dashboard := dashboard.New(router, a.StartupOptions.GitHubOAuthClientID, a.StartupOptions.GitHubOAuthClientSecret)

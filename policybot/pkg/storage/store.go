@@ -30,34 +30,40 @@ type Store interface {
 	WriteIssueComments(context context.Context, issueComments []*IssueComment) error
 	WriteIssuePipelines(context context.Context, issueData []*IssuePipeline) error
 	WritePullRequests(context context.Context, prs []*PullRequest) error
-	WritePullRequestComments(context context.Context, prComments []*PullRequestComment) error
+	WritePullRequestReviewComments(context context.Context, prComments []*PullRequestReviewComment) error
 	WritePullRequestReviews(context context.Context, prReviews []*PullRequestReview) error
 	WriteUsers(context context.Context, users []*User) error
 	WriteLabels(context context.Context, labels []*Label) error
 	WriteAllMembers(context context.Context, members []*Member) error
 	WriteAllMaintainers(context context.Context, maintainers []*Maintainer) error
 	WriteBotActivities(context context.Context, activities []*BotActivity) error
+	WriteIssueEvents(context context.Context, events []*IssueEvent) error
+	WriteIssueCommentEvents(context context.Context, events []*IssueCommentEvent) error
+	WritePullRequestEvents(context context.Context, events []*PullRequestEvent) error
+	WritePullRequestReviewCommentEvents(context context.Context, events []*PullRequestReviewCommentEvent) error
+	WritePullRequestReviewEvents(context context.Context, events []*PullRequestReviewEvent) error
+	WriteRepoCommentEvents(context context.Context, events []*RepoCommentEvent) error
 
-	ReadOrgByID(context context.Context, orgID string) (*Org, error)
-	ReadOrgByLogin(context context.Context, login string) (*Org, error)
-	ReadRepoByID(context context.Context, orgID string, repoID string) (*Repo, error)
-	ReadRepoByName(context context.Context, orgID string, name string) (*Repo, error)
-	ReadIssueByID(context context.Context, orgID string, repoID string, issueID string) (*Issue, error)
-	ReadIssueByNumber(context context.Context, orgID string, repoID string, number int) (*Issue, error)
-	ReadIssueCommentByID(context context.Context, orgID string, repoID string, issueID string, issueCommentID string) (*IssueComment, error)
-	ReadIssuePipelineByNumber(context context.Context, orgID string, repoID string, number int) (*IssuePipeline, error)
-	ReadLabelByID(context context.Context, orgID string, repoID string, labelID string) (*Label, error)
-	ReadUserByID(context context.Context, userID string) (*User, error)
-	ReadUserByLogin(context context.Context, login string) (*User, error)
-	ReadPullRequestByID(context context.Context, orgID string, repoID string, prID string) (*PullRequest, error)
-	ReadPullRequestCommentByID(context context.Context, orgID string, repoID string, prID string, prCommentID string) (*PullRequestComment, error)
-	ReadPullRequestReviewByID(context context.Context, orgID string, repoID string, prID string, prReviewID string) (*PullRequestReview, error)
-	ReadBotActivityByID(context context.Context, orgID string, repoID string) (*BotActivity, error)
-	ReadMaintainerByID(context context.Context, orgID string, userID string) (*Maintainer, error)
+	UpdateBotActivity(context context.Context, orgLogin string, repoName string, cb func(*BotActivity) error) error
 
-	QueryMembersByOrg(context context.Context, orgID string, cb func(*Member) error) error
-	QueryMaintainersByOrg(context context.Context, orgID string, cb func(*Maintainer) error) error
+	ReadOrg(context context.Context, orgLogin string) (*Org, error)
+	ReadRepo(context context.Context, orgLogin string, repoName string) (*Repo, error)
+	ReadIssue(context context.Context, orgLogin string, repoName string, number int) (*Issue, error)
+	ReadIssueComment(context context.Context, orgLogin string, repoName string, issueNumber int, issueCommentID int) (*IssueComment, error)
+	ReadIssuePipeline(context context.Context, orgLogin string, repoName string, issueNumber int) (*IssuePipeline, error)
+	ReadLabel(context context.Context, orgLogin string, repoName string, labelName string) (*Label, error)
+	ReadUser(context context.Context, userLogin string) (*User, error)
+	ReadPullRequest(context context.Context, orgLogin string, repoName string, prNumber int) (*PullRequest, error)
+	ReadPullRequestReviewComment(context context.Context, orgLogin string, repoName string, prNumber int, prCommentID int) (*PullRequestReviewComment, error)
+	ReadPullRequestReview(context context.Context, orgLogin string, repoName string, prNumber int, prReviewID int) (*PullRequestReview, error)
+	ReadBotActivity(context context.Context, orgLogin string, repoName string) (*BotActivity, error)
+	ReadMaintainer(context context.Context, orgLogin string, userLogin string) (*Maintainer, error)
+
+	QueryMembersByOrg(context context.Context, orgLogin string, cb func(*Member) error) error
+	QueryMaintainersByOrg(context context.Context, orgLogin string, cb func(*Maintainer) error) error
 	QueryMaintainerInfo(context context.Context, maintainer *Maintainer) (*MaintainerInfo, error)
-	QueryIssuesByRepo(context context.Context, orgID string, repoID string, cb func(*Issue) error) error
+	QueryIssuesByRepo(context context.Context, orgLogin string, repoName string, cb func(*Issue) error) error
+
+	// TODO: needs to be org-specific and/or repo-specific
 	QueryTestFlakeIssues(context context.Context, inactiveDays, createdDays int) ([]*Issue, error)
 }

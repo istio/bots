@@ -130,7 +130,7 @@ with GCP. Once a new revision is deployed to GKE, it immediately starts receivin
 - The bot depends on having a configured Google Cloud Spanner database. The schema of the database
 is described by `spanner.ddl`
 
-- TBD: The bot'ss configuration is maintained in the file `policybot/policybot.yaml` in the <https://github.com/istio/test-infra> repo.
+- TBD: The bot's configuration is maintained in the file `policybot/policybot.yaml` in the <https://github.com/istio/test-infra> repo.
 Changes pushed to this file are automatically picked up by the bot.
 
 ## Credentials and secrets

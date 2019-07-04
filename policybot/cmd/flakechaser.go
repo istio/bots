@@ -19,9 +19,9 @@ import (
 	"encoding/base64"
 	"fmt"
 
-	"github.com/google/go-github/v26/github"
+	"istio.io/bots/policybot/pkg/gh"
+
 	"github.com/spf13/cobra"
-	"golang.org/x/oauth2"
 	"google.golang.org/grpc/grpclog"
 
 	"istio.io/bots/policybot/pkg/config"
@@ -82,10 +82,7 @@ func runFlakeChaser(a *config.Args) error {
 		return fmt.Errorf("unable to decode GCP credentials: %v", err)
 	}
 
-	gc := github.NewClient(
-		oauth2.NewClient(
-			context.Background(),
-			oauth2.StaticTokenSource(&oauth2.Token{AccessToken: a.StartupOptions.GitHubToken})))
+	gc := gh.NewThrottledClient(context.Background(), a.StartupOptions.GitHubToken)
 
 	store, err := spanner.NewStore(context.Background(), a.SpannerDatabase, creds)
 	if err != nil {

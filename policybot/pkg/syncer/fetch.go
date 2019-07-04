@@ -19,8 +19,6 @@ import (
 	"fmt"
 	"time"
 
-	"istio.io/bots/policybot/pkg/gh"
-
 	"github.com/google/go-github/v26/github"
 
 	"istio.io/bots/policybot/pkg/storage"
@@ -28,8 +26,8 @@ import (
 
 func (s *Syncer) fetchOrgs(context context.Context, cb func(organization *github.Organization) error) error {
 	for _, o := range s.orgs {
-		org, _, err := gh.ThrottledCall(func() (interface{}, *github.Response, error) {
-			return s.gc.Organizations.Get(context, o.Name)
+		org, _, err := s.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+			return client.Organizations.Get(context, o.Name)
 		})
 
 		if err != nil {
@@ -47,8 +45,8 @@ func (s *Syncer) fetchOrgs(context context.Context, cb func(organization *github
 func (s *Syncer) fetchRepos(context context.Context, cb func(repo *github.Repository) error) error {
 	for _, o := range s.orgs {
 		for _, r := range o.Repos {
-			repo, _, err := gh.ThrottledCall(func() (interface{}, *github.Response, error) {
-				return s.gc.Repositories.Get(context, o.Name, r.Name)
+			repo, _, err := s.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+				return client.Repositories.Get(context, o.Name, r.Name)
 			})
 
 			if err != nil {
@@ -64,18 +62,18 @@ func (s *Syncer) fetchRepos(context context.Context, cb func(repo *github.Reposi
 	return nil
 }
 
-func (s *Syncer) fetchRepoComments(context context.Context, org *storage.Org, repo *storage.Repo, cb func([]*github.RepositoryComment) error) error {
+func (s *Syncer) fetchRepoComments(context context.Context, repo *storage.Repo, cb func([]*github.RepositoryComment) error) error {
 	opt := &github.ListOptions{
 		PerPage: 100,
 	}
 
 	for {
-		comments, resp, err := gh.ThrottledCall(func() (interface{}, *github.Response, error) {
-			return s.gc.Repositories.ListComments(context, org.Login, repo.Name, opt)
+		comments, resp, err := s.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+			return client.Repositories.ListComments(context, repo.OrgLogin, repo.RepoName, opt)
 		})
 
 		if err != nil {
-			return fmt.Errorf("unable to list comments for repo %s/%s: %v", org.Login, repo.Name, err)
+			return fmt.Errorf("unable to list comments for repo %s/%s: %v", repo.OrgLogin, repo.RepoName, err)
 		}
 
 		if err := cb(comments.([]*github.RepositoryComment)); err != nil {
@@ -92,30 +90,22 @@ func (s *Syncer) fetchRepoComments(context context.Context, org *storage.Org, re
 
 func (s *Syncer) fetchMembers(context context.Context, org *storage.Org, cb func([]*github.User) error) error {
 	opt := &github.ListMembersOptions{
+		PublicOnly: true,
 		ListOptions: github.ListOptions{
 			PerPage: 100,
 		},
 	}
 
 	for {
-		membersRaw, resp, err := gh.ThrottledCall(func() (interface{}, *github.Response, error) {
-			return s.gc.Organizations.ListMembers(context, org.Login, opt)
+		members, resp, err := s.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+			return client.Organizations.ListMembers(context, org.OrgLogin, opt)
 		})
 
 		if err != nil {
-			return fmt.Errorf("unable to list members of org %s: %v", org.Login, err)
+			return fmt.Errorf("unable to list members of org %s: %v", org.OrgLogin, err)
 		}
 
-		// sadly, member info doesn't include the user name, so fetch the full user data explicitly
-		// TODO: remove this from here, and move to higher level so it can leverage cached data
-		members := membersRaw.([]*github.User)
-		for i := range members {
-			if u, _, err := s.gc.Users.Get(context, members[i].GetLogin()); err == nil {
-				members[i] = u
-			}
-		}
-
-		if err = cb(members); err != nil {
+		if err := cb(members.([]*github.User)); err != nil {
 			return err
 		}
 
@@ -127,18 +117,18 @@ func (s *Syncer) fetchMembers(context context.Context, org *storage.Org, cb func
 	}
 }
 
-func (s *Syncer) fetchLabels(context context.Context, org *storage.Org, repo *storage.Repo, cb func([]*github.Label) error) error {
+func (s *Syncer) fetchLabels(context context.Context, repo *storage.Repo, cb func([]*github.Label) error) error {
 	opt := &github.ListOptions{
 		PerPage: 100,
 	}
 
 	for {
-		labels, resp, err := gh.ThrottledCall(func() (interface{}, *github.Response, error) {
-			return s.gc.Issues.ListLabels(context, org.Login, repo.Name, opt)
+		labels, resp, err := s.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+			return client.Issues.ListLabels(context, repo.OrgLogin, repo.RepoName, opt)
 		})
 
 		if err != nil {
-			return fmt.Errorf("unable to list all labels in repo %s/%s: %v", org.Login, repo.Name, err)
+			return fmt.Errorf("unable to list all labels in repo %s/%s: %v", repo.OrgLogin, repo.RepoName, err)
 		}
 
 		if err := cb(labels.([]*github.Label)); err != nil {
@@ -153,7 +143,7 @@ func (s *Syncer) fetchLabels(context context.Context, org *storage.Org, repo *st
 	}
 }
 
-func (s *Syncer) fetchIssues(context context.Context, org *storage.Org, repo *storage.Repo, startTime time.Time, cb func([]*github.Issue) error) error {
+func (s *Syncer) fetchIssues(context context.Context, repo *storage.Repo, startTime time.Time, cb func([]*github.Issue) error) error {
 	opt := &github.IssueListByRepoOptions{
 		State: "all",
 		Since: startTime,
@@ -163,12 +153,12 @@ func (s *Syncer) fetchIssues(context context.Context, org *storage.Org, repo *st
 	}
 
 	for {
-		issues, resp, err := gh.ThrottledCall(func() (interface{}, *github.Response, error) {
-			return s.gc.Issues.ListByRepo(context, org.Login, repo.Name, opt)
+		issues, resp, err := s.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+			return client.Issues.ListByRepo(context, repo.OrgLogin, repo.RepoName, opt)
 		})
 
 		if err != nil {
-			return fmt.Errorf("unable to list all issues in repo %s/%s: %v", org.Login, repo.Name, err)
+			return fmt.Errorf("unable to list all issues in repo %s/%s: %v", repo.OrgLogin, repo.RepoName, err)
 		}
 
 		if err := cb(issues.([]*github.Issue)); err != nil {
@@ -183,7 +173,7 @@ func (s *Syncer) fetchIssues(context context.Context, org *storage.Org, repo *st
 	}
 }
 
-func (s *Syncer) fetchIssueComments(context context.Context, org *storage.Org, repo *storage.Repo, issueNumber int, startTime time.Time,
+func (s *Syncer) fetchIssueComments(context context.Context, repo *storage.Repo, startTime time.Time,
 	cb func([]*github.IssueComment) error) error {
 	opt := &github.IssueListCommentsOptions{
 		Since: startTime,
@@ -193,12 +183,12 @@ func (s *Syncer) fetchIssueComments(context context.Context, org *storage.Org, r
 	}
 
 	for {
-		comments, resp, err := gh.ThrottledCall(func() (interface{}, *github.Response, error) {
-			return s.gc.Issues.ListComments(context, org.Login, repo.Name, issueNumber, opt)
+		comments, resp, err := s.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+			return client.Issues.ListComments(context, repo.OrgLogin, repo.RepoName, 0, opt)
 		})
 
 		if err != nil {
-			return fmt.Errorf("unable to list comments for issue %d in repo %s/%s: %v", issueNumber, org.Login, repo.Name, err)
+			return fmt.Errorf("unable to list comments for repo %s/%s: %v", repo.OrgLogin, repo.RepoName, err)
 		}
 
 		if err := cb(comments.([]*github.IssueComment)); err != nil {
@@ -213,18 +203,48 @@ func (s *Syncer) fetchIssueComments(context context.Context, org *storage.Org, r
 	}
 }
 
-func (s *Syncer) fetchFiles(context context.Context, org *storage.Org, repo *storage.Repo, prNumber int, cb func([]string) error) error {
+func (s *Syncer) fetchPullRequestReviewComments(context context.Context, repo *storage.Repo, startTime time.Time,
+	cb func([]*github.PullRequestComment) error) error {
+	opt := &github.PullRequestListCommentsOptions{
+		Since: startTime,
+		ListOptions: github.ListOptions{
+			PerPage: 100,
+		},
+	}
+
+	for {
+		comments, resp, err := s.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+			return client.PullRequests.ListComments(context, repo.OrgLogin, repo.RepoName, 0, opt)
+		})
+
+		if err != nil {
+			return fmt.Errorf("unable to list review comments for repo %s/%s: %v", repo.OrgLogin, repo.RepoName, err)
+		}
+
+		if err := cb(comments.([]*github.PullRequestComment)); err != nil {
+			return err
+		}
+
+		if resp.NextPage == 0 {
+			return nil
+		}
+
+		opt.ListOptions.Page = resp.NextPage
+	}
+}
+
+func (s *Syncer) fetchFiles(context context.Context, repo *storage.Repo, prNumber int, cb func([]string) error) error {
 	opt := &github.ListOptions{
 		PerPage: 100,
 	}
 
 	for {
-		files, resp, err := gh.ThrottledCall(func() (interface{}, *github.Response, error) {
-			return s.gc.PullRequests.ListFiles(context, org.Login, repo.Name, prNumber, opt)
+		files, resp, err := s.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+			return client.PullRequests.ListFiles(context, repo.OrgLogin, repo.RepoName, prNumber, opt)
 		})
 
 		if err != nil {
-			return fmt.Errorf("unable to list files for pull request %d in repo %s/%s: %v", prNumber, org.Login, repo.Name, err)
+			return fmt.Errorf("unable to list files for pull request %d in repo %s/%s: %v", prNumber, repo.OrgLogin, repo.RepoName, err)
 		}
 
 		var result []string
@@ -244,7 +264,7 @@ func (s *Syncer) fetchFiles(context context.Context, org *storage.Org, repo *sto
 	}
 }
 
-func (s *Syncer) fetchPullRequests(context context.Context, org *storage.Org, repo *storage.Repo, cb func([]*github.PullRequest) error) error {
+func (s *Syncer) fetchPullRequests(context context.Context, repo *storage.Repo, cb func([]*github.PullRequest) error) error {
 	opt := &github.PullRequestListOptions{
 		State: "all",
 		ListOptions: github.ListOptions{
@@ -253,12 +273,12 @@ func (s *Syncer) fetchPullRequests(context context.Context, org *storage.Org, re
 	}
 
 	for {
-		prs, resp, err := gh.ThrottledCall(func() (interface{}, *github.Response, error) {
-			return s.gc.PullRequests.List(context, org.Login, repo.Name, opt)
+		prs, resp, err := s.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+			return client.PullRequests.List(context, repo.OrgLogin, repo.RepoName, opt)
 		})
 
 		if err != nil {
-			return fmt.Errorf("unable to list pull requests in repo %s/%s: %v", org.Login, repo.Name, err)
+			return fmt.Errorf("unable to list pull requests in repo %s/%s: %v", repo.OrgLogin, repo.RepoName, err)
 		}
 
 		if err := cb(prs.([]*github.PullRequest)); err != nil {
@@ -275,21 +295,73 @@ func (s *Syncer) fetchPullRequests(context context.Context, org *storage.Org, re
 	return nil
 }
 
-func (s *Syncer) fetchReviews(context context.Context, org *storage.Org, repo *storage.Repo, prNumber int, cb func([]*github.PullRequestReview) error) error {
+func (s *Syncer) fetchReviews(context context.Context, repo *storage.Repo, prNumber int, cb func([]*github.PullRequestReview) error) error {
 	opt := &github.ListOptions{
 		PerPage: 100,
 	}
 
 	for {
-		reviews, resp, err := gh.ThrottledCall(func() (interface{}, *github.Response, error) {
-			return s.gc.PullRequests.ListReviews(context, org.Login, repo.Name, prNumber, opt)
+		reviews, resp, err := s.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+			return client.PullRequests.ListReviews(context, repo.OrgLogin, repo.RepoName, prNumber, opt)
 		})
 
 		if err != nil {
-			return fmt.Errorf("unable to list comments for pr %d in repo %s/%s: %v", prNumber, org.Login, repo.Name, err)
+			return fmt.Errorf("unable to list comments for pr %d in repo %s/%s: %v", prNumber, repo.OrgLogin, repo.RepoName, err)
 		}
 
 		if err = cb(reviews.([]*github.PullRequestReview)); err != nil {
+			return err
+		}
+
+		if resp.NextPage == 0 {
+			return nil
+		}
+
+		opt.Page = resp.NextPage
+	}
+}
+
+func (s *Syncer) fetchRepoEvents(context context.Context, repo *storage.Repo, cb func([]*github.Event) error) error {
+	opt := &github.ListOptions{
+		PerPage: 100,
+	}
+
+	for {
+		events, resp, err := s.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+			return client.Activity.ListRepositoryEvents(context, repo.OrgLogin, repo.RepoName, opt)
+		})
+
+		if err != nil {
+			return fmt.Errorf("unable to list events for repo %s/%s: %v", repo.OrgLogin, repo.RepoName, err)
+		}
+
+		if err := cb(events.([]*github.Event)); err != nil {
+			return err
+		}
+
+		if resp.NextPage == 0 {
+			return nil
+		}
+
+		opt.Page = resp.NextPage
+	}
+}
+
+func (s *Syncer) fetchIssueEvents(context context.Context, repo *storage.Repo, cb func([]*github.IssueEvent) error) error {
+	opt := &github.ListOptions{
+		PerPage: 100,
+	}
+
+	for {
+		events, resp, err := s.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+			return client.Activity.ListIssueEventsForRepository(context, repo.OrgLogin, repo.RepoName, opt)
+		})
+
+		if err != nil {
+			return fmt.Errorf("unable to list issue events for repo %s/%s: %v", repo.OrgLogin, repo.RepoName, err)
+		}
+
+		if err := cb(events.([]*github.IssueEvent)); err != nil {
 			return err
 		}
 
