@@ -20,7 +20,6 @@ import (
 	"regexp"
 	"strings"
 
-	webhook "github.com/go-playground/webhooks/github"
 	"github.com/google/go-github/v26/github"
 
 	"istio.io/bots/policybot/handlers/githubwebhook/filters"
@@ -117,38 +116,32 @@ func (n *Nagger) processNagRegexes(nag config.Nag) error {
 	return nil
 }
 
-func (n *Nagger) Events() []webhook.Event {
-	return []webhook.Event{
-		webhook.PullRequestEvent,
-	}
-}
-
 // process an event arriving from GitHub
-func (n *Nagger) Handle(context context.Context, githubObject interface{}) {
-	prp, ok := githubObject.(webhook.PullRequestPayload)
+func (n *Nagger) Handle(context context.Context, event interface{}) {
+	prp, ok := event.(*github.PullRequestEvent)
 	if !ok {
 		// not what we're looking for
 		return
 	}
 
 	// see if the PR is in a repo we're monitoring
-	nags, ok := n.repos[prp.Repository.FullName]
+	nags, ok := n.repos[prp.GetRepo().GetFullName()]
 	if !ok {
-		scope.Infof("Ignoring PR %d from repo %s since it's not in a monitored repo", prp.Number, prp.Repository.FullName)
+		scope.Infof("Ignoring PR %d from repo %s since it's not in a monitored repo", prp.Number, prp.GetRepo().GetFullName())
 		return
 	}
 
-	// NOTE: this assumes the PR state has already been stored by the refresher plugin
-	pr, err := n.cache.ReadPullRequest(context, prp.Repository.Owner.NodeID, prp.Repository.NodeID, prp.PullRequest.NodeID)
+	// NOTE: this assumes the PR state has already been stored by the refresher filter
+	pr, err := n.cache.ReadPullRequest(context, prp.GetRepo().GetOwner().GetNodeID(), prp.GetRepo().GetNodeID(), prp.GetPullRequest().GetNodeID())
 	if err != nil {
-		scope.Errorf("Unable to retrieve data from storage for PR %d from repo %s: %v", prp.Number, prp.Repository.FullName, err)
+		scope.Errorf("Unable to retrieve data from storage for PR %d from repo %s: %v", prp.Number, prp.GetRepo().GetFullName(), err)
 		return
 	}
 
-	scope.Infof("Processing PR %d from repo %s", prp.Number, prp.Repository.FullName)
+	scope.Infof("Processing PR %d from repo %s", prp.Number, prp.GetRepo().GetFullName())
 
-	split := strings.Split(prp.Repository.FullName, "/")
-	prb := pullRequestBundle{pr, prp.Repository.FullName, split[0], split[1]}
+	split := strings.Split(prp.GetRepo().GetFullName(), "/")
+	prb := pullRequestBundle{pr, prp.GetRepo().GetFullName(), split[0], split[1]}
 	n.processPR(context, prb, nags)
 }
 

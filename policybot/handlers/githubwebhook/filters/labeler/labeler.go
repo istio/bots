@@ -20,7 +20,7 @@ import (
 	"regexp"
 	"strings"
 
-	webhook "github.com/go-playground/webhooks/github"
+	"github.com/google/go-github/v26/github"
 
 	"istio.io/bots/policybot/handlers/githubwebhook/filters"
 	"istio.io/bots/policybot/pkg/config"
@@ -106,35 +106,35 @@ func (l *Labeler) processAutoLabelRegexes(al config.AutoLabel) error {
 	return nil
 }
 
-func (l *Labeler) Events() []webhook.Event {
-	return []webhook.Event{
-		webhook.IssuesEvent,
-		webhook.PullRequestEvent,
-	}
-}
-
 // process an event arriving from GitHub
-func (l *Labeler) Handle(context context.Context, githubObject interface{}) {
+func (l *Labeler) Handle(context context.Context, event interface{}) {
 	action := ""
 	repo := ""
 	number := 0
 	var issue *storage.Issue
 	var pr *storage.PullRequest
 
-	ip, ok := githubObject.(webhook.IssuesPayload)
+	ip, ok := event.(*github.IssueEvent)
 	if ok {
-		action = ip.Action
-		repo = ip.Repository.FullName
-		number = int(ip.Issue.Number)
-		issue, _ = gh.IssueFromHook(&ip)
+		action = ip.GetEvent()
+		repo = ip.GetIssue().GetRepository().GetFullName()
+		number = ip.GetIssue().GetNumber()
+		issue, _ = gh.ConvertIssue(
+			ip.GetIssue().GetRepository().GetOwner().GetNodeID(),
+			ip.GetIssue().GetRepository().GetNodeID(),
+			ip.GetIssue())
 	}
 
-	prp, ok := githubObject.(webhook.PullRequestPayload)
+	prp, ok := event.(*github.PullRequestEvent)
 	if ok {
-		action = prp.Action
-		repo = prp.Repository.FullName
-		number = int(prp.PullRequest.Number)
-		pr, _ = gh.PullRequestFromHook(&prp)
+		action = prp.GetAction()
+		repo = prp.GetRepo().GetFullName()
+		number = prp.GetPullRequest().GetNumber()
+		pr, _ = gh.ConvertPullRequest(
+			prp.GetRepo().GetOwner().GetNodeID(),
+			prp.GetRepo().GetNodeID(),
+			prp.GetPullRequest(),
+			nil)
 	}
 
 	if action != "opened" && action != "review_requested" {
