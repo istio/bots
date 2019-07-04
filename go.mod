@@ -5,7 +5,6 @@ go 1.12
 require (
 	cloud.google.com/go v0.38.0
 	github.com/ghodss/yaml v1.0.0
-	github.com/go-playground/webhooks v5.10.0+incompatible
 	github.com/gogo/protobuf v1.2.0 // indirect
 	github.com/google/go-github/v26 v26.0.9
 	github.com/gorilla/mux v1.7.1

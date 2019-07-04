@@ -260,19 +260,14 @@ func runWithConfig(a *config.Args) error {
 		monitor,
 	}
 
-	ghHandler, err := githubwebhook.NewHandler(a.StartupOptions.GitHubWebhookSecret, filters...)
-	if err != nil {
-		return fmt.Errorf("unable to create GitHub webhook: %v", err)
-	}
-
 	if a.StartupOptions.HTTPSOnly {
 		// we only want https
 		router.Headers("X-Forwarded-Proto", "HTTP").HandlerFunc(handleHTTP)
 	}
 
 	// top-level handlers
-	router.Handle("/githubwebhook", ghHandler).Methods("POST")
-	router.Handle("/flakechaser", flakechaser.New(ght, store, cache, a.FlakeChaser)).Methods("GET")
+	router.Handle("/githubwebhook", githubwebhook.NewHandler(a.StartupOptions.GitHubWebhookSecret, filters...)).Methods("POST")
+	router.Handle("/flakechaser", flakechaser.NewHandler(ght, store, cache, a.FlakeChaser)).Methods("GET")
 	router.Handle("/zenhubwebhook", zenhubwebhook.NewHandler(store, cache)).Methods("POST")
 	router.Handle("/sync", syncer.NewHandler(context.Background(), ght, cache, zht, store, bs, a.Orgs)).Methods("GET")
 

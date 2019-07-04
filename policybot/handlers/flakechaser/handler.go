@@ -31,8 +31,8 @@ type handler struct {
 	chaser *flakechaser.Chaser
 }
 
-// New creates a flake chaser.
-func New(ght *gh.ThrottledClient, store storage.Store, cache *cache.Cache, config config.FlakeChaser) http.Handler {
+// NewHandler creates a flake chaser.
+func NewHandler(ght *gh.ThrottledClient, store storage.Store, cache *cache.Cache, config config.FlakeChaser) http.Handler {
 	return &handler{
 		chaser: flakechaser.New(ght, store, cache, config),
 	}

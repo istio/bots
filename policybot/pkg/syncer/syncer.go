@@ -124,9 +124,9 @@ func (s *Syncer) Sync(context context.Context, flags FilterFlags) error {
 
 	// get all the org & repo info
 	if err := s.fetchOrgs(ss.ctx, func(org *github.Organization) error {
-		orgs = append(orgs, gh.OrgFromAPI(org))
+		orgs = append(orgs, gh.ConvertOrg(org))
 		return s.fetchRepos(ss.ctx, func(repo *github.Repository) error {
-			repos = append(repos, gh.RepoFromAPI(repo))
+			repos = append(repos, gh.ConvertRepo(repo))
 			return nil
 		})
 	}); err != nil {
@@ -289,7 +289,7 @@ func (ss *syncState) handleLabels(org *storage.Org, repo *storage.Repo) error {
 	return ss.syncer.fetchLabels(ss.ctx, org, repo, func(labels []*github.Label) error {
 		storageLabels := make([]*storage.Label, 0, len(labels))
 		for _, label := range labels {
-			storageLabels = append(storageLabels, gh.LabelFromAPI(org.OrgID, repo.RepoID, label))
+			storageLabels = append(storageLabels, gh.ConvertLabel(org.OrgID, repo.RepoID, label))
 		}
 
 		return ss.syncer.store.WriteLabels(ss.ctx, storageLabels)
@@ -302,7 +302,9 @@ func (ss *syncState) handleRepoComments(org *storage.Org, repo *storage.Repo) er
 	return ss.syncer.fetchRepoComments(ss.ctx, org, repo, func(comments []*github.RepositoryComment) error {
 		storageComments := make([]*storage.RepoComment, 0, len(comments))
 		for _, comment := range comments {
-			storageComments = append(storageComments, gh.RepoCommentFromAPI(org.OrgID, repo.RepoID, comment))
+			t, users := gh.ConvertRepoComment(org.OrgID, repo.RepoID, comment)
+			storageComments = append(storageComments, t)
+			ss.syncUsers(users)
 		}
 
 		return ss.syncer.store.WriteRepoComments(ss.ctx, storageComments)
@@ -326,8 +328,9 @@ func (ss *syncState) handleIssues(org *storage.Org, repo *storage.Repo, startTim
 
 			if err := ss.syncer.fetchIssueComments(ss.ctx, org, repo, issue.GetNumber(), startTime, func(comments []*github.IssueComment) error {
 				for _, comment := range comments {
-					ss.addUser(comment.User)
-					storageIssueComments = append(storageIssueComments, gh.IssueCommentFromAPI(org.OrgID, repo.RepoID, issue.GetNodeID(), comment))
+					t, users := gh.ConvertIssueComment(org.OrgID, repo.RepoID, issue.GetNodeID(), comment)
+					storageIssueComments = append(storageIssueComments, t)
+					ss.syncUsers(users)
 				}
 
 				return nil
@@ -335,12 +338,9 @@ func (ss *syncState) handleIssues(org *storage.Org, repo *storage.Repo, startTim
 				return err
 			}
 
-			ss.addUser(issue.User)
-			for _, assignee := range issue.Assignees {
-				ss.addUser(assignee)
-			}
-
-			storageIssues = append(storageIssues, gh.IssueFromAPI(org.OrgID, repo.RepoID, issue))
+			t, users := gh.ConvertIssue(org.OrgID, repo.RepoID, issue)
+			storageIssues = append(storageIssues, t)
+			ss.syncUsers(users)
 		}
 
 		err := ss.syncer.store.WriteIssues(ss.ctx, storageIssues)
@@ -413,8 +413,9 @@ func (ss *syncState) handlePullRequests(org *storage.Org, repo *storage.Repo) er
 
 			if err := ss.syncer.fetchIssueComments(ss.ctx, org, repo, pr.GetNumber(), time.Time{}, func(comments []*github.IssueComment) error {
 				for _, comment := range comments {
-					ss.addUser(comment.User)
-					storagePRComments = append(storagePRComments, gh.PullRequestCommentFromAPI(org.OrgID, repo.RepoID, pr.GetNodeID(), comment))
+					t, users := gh.ConvertPullRequestComment(org.OrgID, repo.RepoID, pr.GetNodeID(), comment)
+					storagePRComments = append(storagePRComments, t)
+					ss.syncUsers(users)
 				}
 
 				return nil
@@ -424,8 +425,9 @@ func (ss *syncState) handlePullRequests(org *storage.Org, repo *storage.Repo) er
 
 			if err := ss.syncer.fetchReviews(ss.ctx, org, repo, pr.GetNumber(), func(reviews []*github.PullRequestReview) error {
 				for _, review := range reviews {
-					ss.addUser(review.GetUser())
-					storagePRReviews = append(storagePRReviews, gh.PullRequestReviewFromAPI(org.OrgID, repo.RepoID, pr.GetNodeID(), review))
+					t, users := gh.ConvertPullRequestReview(org.OrgID, repo.RepoID, pr.GetNodeID(), review)
+					storagePRReviews = append(storagePRReviews, t)
+					ss.syncUsers(users)
 				}
 
 				return nil
@@ -441,11 +443,9 @@ func (ss *syncState) handlePullRequests(org *storage.Org, repo *storage.Repo) er
 				return err
 			}
 
-			ss.addUser(pr.GetUser())
-			for _, reviewer := range pr.RequestedReviewers {
-				ss.addUser(reviewer)
-			}
-			storagePRs = append(storagePRs, gh.PullRequestFromAPI(org.OrgID, repo.RepoID, pr, prFiles))
+			t, users := gh.ConvertPullRequest(org.OrgID, repo.RepoID, pr, prFiles)
+			storagePRs = append(storagePRs, t)
+			ss.syncUsers(users)
 		}
 
 		err := ss.syncer.store.WritePullRequests(ss.ctx, storagePRs)
@@ -605,7 +605,13 @@ func (ss *syncState) handleOWNERS(org *storage.Org, repo *storage.Repo, maintain
 }
 
 func (ss *syncState) addUser(user *github.User) {
-	ss.users[user.GetLogin()] = gh.UserFromAPI(user)
+	ss.users[user.GetLogin()] = gh.ConvertUser(user)
+}
+
+func (ss *syncState) syncUsers(users []*storage.User) {
+	for _, user := range users {
+		ss.users[user.Login] = user
+	}
 }
 
 func (ss *syncState) getMaintainer(org *storage.Org, maintainers map[string]*storage.Maintainer, login string) (*storage.Maintainer, error) {
@@ -625,7 +631,7 @@ func (ss *syncState) getMaintainer(org *storage.Org, maintainers map[string]*sto
 			return nil, fmt.Errorf("unable to read information from GitHub on user %s: %v", login, err)
 		}
 
-		user = gh.UserFromAPI(u)
+		user = gh.ConvertUser(u)
 		ss.users[user.Login] = user
 	}
 

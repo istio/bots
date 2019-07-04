@@ -16,17 +16,12 @@ package filters
 
 import (
 	"context"
-
-	webhook "github.com/go-playground/webhooks/github"
 )
 
 // The interface to a GitHub webhook filter.
 //
 // Note that individual filters are invoked for any events incoming to the
-// bot. The events specified by this interface therefore don't constrain
-// what Handle is used for and are merely used to control which events will
-// be accepted as a whole by the webhook.
+// bot.
 type Filter interface {
-	Events() []webhook.Event
-	Handle(context context.Context, ghPayload interface{})
+	Handle(context context.Context, event interface{})
 }
