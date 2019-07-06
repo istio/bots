@@ -33,7 +33,7 @@ import (
 // Generates nagging messages in PRs based on regex matches on the title, body, and affected files
 type Labeler struct {
 	cache             *cache.Cache
-	ght               *gh.ThrottledClient
+	gc                *github.Client
 	orgs              []config.Org
 	autoLabels        []config.AutoLabel
 	singleLineRegexes map[string]*regexp.Regexp
@@ -43,10 +43,10 @@ type Labeler struct {
 
 var scope = log.RegisterScope("labeler", "Issue and PR auto-labeler", 0)
 
-func NewLabeler(ght *gh.ThrottledClient, cache *cache.Cache, orgs []config.Org, autoLabels []config.AutoLabel) (filters.Filter, error) {
+func NewLabeler(gc *github.Client, cache *cache.Cache, orgs []config.Org, autoLabels []config.AutoLabel) (filters.Filter, error) {
 	l := &Labeler{
 		cache:             cache,
-		ght:               ght,
+		gc:                gc,
 		orgs:              orgs,
 		autoLabels:        autoLabels,
 		singleLineRegexes: make(map[string]*regexp.Regexp),
@@ -188,7 +188,9 @@ func (l *Labeler) processIssue(context context.Context, issue *storage.Issue, fu
 	}
 
 	if len(toApply) > 0 {
-		if _, _, err := l.ght.Get(context).Issues.AddLabelsToIssue(context, orgName, repoName, int(issue.Number), toApply); err != nil {
+		if _, _, err := gh.ThrottledCall(func() (interface{}, *github.Response, error) {
+			return l.gc.Issues.AddLabelsToIssue(context, orgName, repoName, int(issue.Number), toApply)
+		}); err != nil {
 			scope.Errorf("Unable to set labels on issue %d in repo %s: %v", issue.Number, fullRepoName, err)
 			return
 		}
@@ -225,7 +227,9 @@ func (l *Labeler) processPullRequest(context context.Context, pr *storage.PullRe
 	}
 
 	if len(toApply) > 0 {
-		if _, _, err := l.ght.Get(context).Issues.AddLabelsToIssue(context, orgName, repoName, int(pr.Number), toApply); err != nil {
+		if _, _, err := gh.ThrottledCall(func() (interface{}, *github.Response, error) {
+			return l.gc.Issues.AddLabelsToIssue(context, orgName, repoName, int(pr.Number), toApply)
+		}); err != nil {
 			scope.Errorf("Unable to set labels on event %d in repo %s: %v", pr.Number, fullRepoName, err)
 			return
 		}

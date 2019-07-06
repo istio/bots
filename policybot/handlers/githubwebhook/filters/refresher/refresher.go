@@ -31,16 +31,16 @@ import (
 type Refresher struct {
 	repos map[string]bool
 	cache *cache.Cache
-	ght   *gh.ThrottledClient
+	gc    *github.Client
 }
 
 var scope = log.RegisterScope("refresher", "Dynamic database refresher", 0)
 
-func NewRefresher(cache *cache.Cache, ght *gh.ThrottledClient, orgs []config.Org) filters.Filter {
+func NewRefresher(cache *cache.Cache, gc *github.Client, orgs []config.Org) filters.Filter {
 	r := &Refresher{
 		repos: make(map[string]bool),
 		cache: cache,
-		ght:   ght,
+		gc:    gc,
 	}
 
 	for _, org := range orgs {
@@ -118,13 +118,16 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 		// get the set of files comprising this PR since the payload didn't supply them
 		var allFiles []string
 		for {
-			files, resp, err := r.ght.Get(context).PullRequests.ListFiles(context, p.GetRepo().GetOwner().GetLogin(), p.GetRepo().GetName(), p.GetNumber(), opt)
+			files, resp, err := gh.ThrottledCall(func() (interface{}, *github.Response, error) {
+				return r.gc.PullRequests.ListFiles(context, p.GetRepo().GetOwner().GetLogin(), p.GetRepo().GetName(), p.GetNumber(), opt)
+			})
+
 			if err != nil {
 				scope.Errorf("Unable to list all files for pull request %d in repo %s: %v\n", p.Number, p.GetRepo().GetFullName(), err)
 				return
 			}
 
-			for _, f := range files {
+			for _, f := range files.([]*github.CommitFile) {
 				allFiles = append(allFiles, f.GetFilename())
 			}
 

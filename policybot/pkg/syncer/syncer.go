@@ -37,8 +37,8 @@ import (
 // Syncer is responsible for synchronizing state from GitHub and ZenHub into our local store
 type Syncer struct {
 	cache *cache.Cache
-	ght   *gh.ThrottledClient
-	zht   *zh.ThrottledClient
+	gc    *github.Client
+	zc    *zh.Client
 	store storage.Store
 	bs    blobstorage.Store
 	orgs  []config.Org
@@ -68,12 +68,12 @@ type syncState struct {
 
 var scope = log.RegisterScope("syncer", "The GitHub data syncer", 0)
 
-func New(ght *gh.ThrottledClient, cache *cache.Cache,
-	zht *zh.ThrottledClient, store storage.Store, bs blobstorage.Store, orgs []config.Org) *Syncer {
+func New(gc *github.Client, cache *cache.Cache,
+	zc *zh.Client, store storage.Store, bs blobstorage.Store, orgs []config.Org) *Syncer {
 	return &Syncer{
-		ght:   ght,
+		gc:    gc,
 		cache: cache,
-		zht:   zht,
+		zc:    zc,
 		store: store,
 		orgs:  orgs,
 		bs:    bs,
@@ -314,9 +314,13 @@ func (ss *syncState) handleRepoComments(org *storage.Org, repo *storage.Repo) er
 func (ss *syncState) handleIssues(org *storage.Org, repo *storage.Repo, startTime time.Time) error {
 	scope.Debugf("Getting issues from repo %s/%s", org.Login, repo.Name)
 
+	total := 0
 	return ss.syncer.fetchIssues(ss.ctx, org, repo, startTime, func(issues []*github.Issue) error {
 		var storageIssues []*storage.Issue
 		var storageIssueComments []*storage.IssueComment
+
+		total += len(issues)
+		scope.Infof("Received %d issues", total)
 
 		for _, issue := range issues {
 			// if this issue is already known to us and is up to date, skip further processing
@@ -367,7 +371,10 @@ func (ss *syncState) handleZenHub(org *storage.Org, repo *storage.Repo) error {
 	// now get the ZenHub data for all issues
 	var pipelines []*storage.IssuePipeline
 	for _, issue := range issues {
-		pipeline, err := ss.syncer.zht.Get(ss.ctx).GetIssueData(int(repo.RepoNumber), int(issue.Number))
+		issueData, err := zh.ThrottledCall(func() (interface{}, error) {
+			return ss.syncer.zc.GetIssueData(int(repo.RepoNumber), int(issue.Number))
+		})
+
 		if err != nil {
 			if err == zh.ErrNotFound {
 				// not found, so nothing to do...
@@ -381,7 +388,7 @@ func (ss *syncState) handleZenHub(org *storage.Org, repo *storage.Repo) error {
 			OrgID:       org.OrgID,
 			RepoID:      repo.RepoID,
 			IssueNumber: issue.Number,
-			Pipeline:    pipeline.Pipeline.Name,
+			Pipeline:    issueData.(*zh.IssueData).Pipeline.Name,
 		})
 
 		if len(pipelines)%100 == 0 {
@@ -398,10 +405,14 @@ func (ss *syncState) handleZenHub(org *storage.Org, repo *storage.Repo) error {
 func (ss *syncState) handlePullRequests(org *storage.Org, repo *storage.Repo) error {
 	scope.Debugf("Getting pull requests from repo %s/%s", org.Login, repo.Name)
 
+	total := 0
 	return ss.syncer.fetchPullRequests(ss.ctx, org, repo, func(prs []*github.PullRequest) error {
 		var storagePRs []*storage.PullRequest
 		var storagePRReviews []*storage.PullRequestReview
 		var storagePRComments []*storage.PullRequestComment
+
+		total += len(prs)
+		scope.Infof("Received %d pull requests", total)
 
 		for _, pr := range prs {
 			// if this pr is already known to us and is up to date, skip further processing
@@ -466,9 +477,12 @@ func (ss *syncState) handleMaintainers(org *storage.Org, repos []*storage.Repo) 
 	maintainers := make(map[string]*storage.Maintainer)
 
 	for _, repo := range repos {
-		fc, _, _, err := ss.syncer.ght.Get(ss.ctx).Repositories.GetContents(ss.ctx, org.Login, repo.Name, "CODEOWNERS", nil)
+		fc, _, _, err := gh.ThrottledCallTwoResult(func() (interface{}, interface{}, *github.Response, error) {
+			return ss.syncer.gc.Repositories.GetContents(ss.ctx, org.Login, repo.Name, "CODEOWNERS", nil)
+		})
+
 		if err == nil {
-			err = ss.handleCODEOWNERS(org, repo, maintainers, fc)
+			err = ss.handleCODEOWNERS(org, repo, maintainers, fc.(*github.RepositoryContent))
 		} else {
 			err = ss.handleOWNERS(org, repo, maintainers)
 		}
@@ -545,18 +559,24 @@ func (ss *syncState) handleOWNERS(org *storage.Org, repo *storage.Repo, maintain
 	}
 
 	// TODO: we need to get the SHA for the latest commit on the master branch, not just any branch
-	rc, _, err := ss.syncer.ght.Get(ss.ctx).Repositories.ListCommits(ss.ctx, org.Login, repo.Name, opt)
+	rc, _, err := gh.ThrottledCall(func() (interface{}, *github.Response, error) {
+		return ss.syncer.gc.Repositories.ListCommits(ss.ctx, org.Login, repo.Name, opt)
+	})
+
 	if err != nil {
 		return fmt.Errorf("unable to get latest commit in repo %s/%s: %v", org.Login, repo.Name, err)
 	}
 
-	tree, _, err := ss.syncer.ght.Get(ss.ctx).Git.GetTree(ss.ctx, org.Login, repo.Name, rc[0].GetSHA(), true)
+	tree, _, err := gh.ThrottledCall(func() (interface{}, *github.Response, error) {
+		return ss.syncer.gc.Git.GetTree(ss.ctx, org.Login, repo.Name, rc.([]*github.Commit)[0].GetSHA(), true)
+	})
+
 	if err != nil {
 		return fmt.Errorf("unable to get tree in repo %s/%s: %v", org.Login, repo.Name, err)
 	}
 
 	files := make(map[string]ownersFile)
-	for _, entry := range tree.Entries {
+	for _, entry := range tree.(*github.Tree).Entries {
 		components := strings.Split(entry.GetPath(), "/")
 		if components[len(components)-1] == "OWNERS" && components[0] != "vendor" { // HACK: skip Go's vendor directory
 
@@ -626,12 +646,15 @@ func (ss *syncState) getMaintainer(org *storage.Org, maintainers map[string]*sto
 
 	if user == nil {
 		// couldn't find user info, ask GitHub directly
-		u, _, err := ss.syncer.ght.Get(ss.ctx).Users.Get(ss.ctx, login)
+		u, _, err := gh.ThrottledCall(func() (interface{}, *github.Response, error) {
+			return ss.syncer.gc.Users.Get(ss.ctx, login)
+		})
+
 		if err != nil {
 			return nil, fmt.Errorf("unable to read information from GitHub on user %s: %v", login, err)
 		}
 
-		user = gh.ConvertUser(u)
+		user = gh.ConvertUser(u.(*github.User))
 		ss.users[user.Login] = user
 	}
 

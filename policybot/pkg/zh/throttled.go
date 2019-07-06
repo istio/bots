@@ -15,34 +15,35 @@
 package zh
 
 import (
-	"context"
+	"time"
 
-	"golang.org/x/time/rate"
+	"github.com/google/go-github/v26/github"
+
+	"istio.io/pkg/log"
 )
 
-const (
-	maxZenHubRequestsPerMinute = 100.0                           // per-minute max, to stay under rate limit
-	maxZenHubRequestsPerSecond = maxZenHubRequestsPerMinute / 60 // per-second max, to stay under abuse detection limit
-	maxZenHubBurst             = 10                              // max burst size, to stay under abuse detection limit
-)
+// ThrottledCall invokes the given callback and watches for error returns indicating a GitHub rate limit errors.
+// If a rate limit error is detected, the call is tried again based on the reset time
+// specified in the error.
+func ThrottledCall(cb func() (interface{}, error)) (interface{}, error) {
+	for {
+		result, err := cb()
+		if err == nil {
+			return result, nil
+		}
 
-// ZenHubThrottle is used to throttle our use of the ZenHub API in order to
-// prevent hitting rate limits or abuse limits.
-type ThrottledClient struct {
-	client  *Client
-	limiter *rate.Limiter
-}
+		rle, ok := err.(*github.RateLimitError)
+		if !ok {
+			return result, err
+		}
 
-func NewThrottledClient(zenhubToken string) *ThrottledClient {
-	return &ThrottledClient{
-		client:  NewClient(zenhubToken),
-		limiter: rate.NewLimiter(maxZenHubRequestsPerSecond, maxZenHubBurst),
+		sleep(rle)
 	}
 }
 
-// Get the ZenHub client in a throttled fashion, so we don't exceed ZenHub's usage limits. This will block
-// until it is safe to make the call to GitHub.
-func (zht *ThrottledClient) Get(context context.Context) *Client {
-	_ = zht.limiter.Wait(context)
-	return zht.client
+func sleep(rle *github.RateLimitError) {
+	// wait for the reset time
+	// TODO: would be nice to wait in a cancellable way, per a context
+	log.Debugf("Waiting for ZenHub rate limit reset at %s", rle.Rate.Reset.String())
+	time.Sleep(time.Until(rle.Rate.Reset.Time))
 }

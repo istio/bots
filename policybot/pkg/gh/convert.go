@@ -28,7 +28,7 @@ func ConvertIssue(orgID string, repoID string, issue *api.Issue) (*storage.Issue
 		labels[i] = label.GetNodeID()
 	}
 
-	discoveredUsers := make([]*storage.User, len(issue.Assignees))
+	discoveredUsers := make([]*storage.User, 0, len(issue.Assignees))
 
 	assignees := make([]string, len(issue.Assignees))
 	for i, user := range issue.Assignees {
@@ -138,7 +138,7 @@ func ConvertPullRequest(orgID string, repoID string, pr *api.PullRequest, files 
 		labels[i] = label.GetNodeID()
 	}
 
-	discoveredUsers := make([]*storage.User, len(pr.Assignees)+len(pr.RequestedReviewers))
+	discoveredUsers := make([]*storage.User, 0, len(pr.Assignees)+len(pr.RequestedReviewers))
 
 	assignees := make([]string, len(pr.Assignees))
 	for i, user := range pr.Assignees {

@@ -1,4 +1,4 @@
-// Copyright 2019 Istio Authors
+// Copyrigc 2019 Istio Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,8 +22,10 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/go-github/v26/github"
 	"github.com/gorilla/mux"
 	"github.com/spf13/cobra"
+	"golang.org/x/oauth2"
 	"google.golang.org/grpc/grpclog"
 
 	"istio.io/bots/policybot/dashboard"
@@ -48,7 +50,6 @@ import (
 	"istio.io/bots/policybot/handlers/zenhubwebhook"
 	"istio.io/bots/policybot/pkg/blobstorage/gcs"
 	"istio.io/bots/policybot/pkg/config"
-	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage/cache"
 	"istio.io/bots/policybot/pkg/storage/spanner"
 	"istio.io/bots/policybot/pkg/util"
@@ -200,8 +201,12 @@ func runWithConfig(a *config.Args) error {
 		return fmt.Errorf("unable to decode GCP credentials: %v", err)
 	}
 
-	ght := gh.NewThrottledClient(context.Background(), a.StartupOptions.GitHubToken)
-	zht := zh.NewThrottledClient(a.StartupOptions.ZenHubToken)
+	gc := github.NewClient(
+		oauth2.NewClient(
+			context.Background(),
+			oauth2.StaticTokenSource(&oauth2.Token{AccessToken: a.StartupOptions.GitHubToken})))
+
+	zc := zh.NewClient(a.StartupOptions.ZenHubToken)
 	_ = util.NewMailer(a.StartupOptions.SendGridAPIKey, a.EmailFrom, a.EmailOriginAddress)
 
 	store, err := spanner.NewStore(context.Background(), a.SpannerDatabase, creds)
@@ -218,12 +223,12 @@ func runWithConfig(a *config.Args) error {
 
 	cache := cache.New(store, a.CacheTTL)
 
-	nag, err := nagger.NewNagger(ght, cache, a.Orgs, a.Nags)
+	nag, err := nagger.NewNagger(gc, cache, a.Orgs, a.Nags)
 	if err != nil {
 		return fmt.Errorf("unable to create nagger: %v", err)
 	}
 
-	labeler, err := labeler.NewLabeler(ght, cache, a.Orgs, a.AutoLabels)
+	labeler, err := labeler.NewLabeler(gc, cache, a.Orgs, a.AutoLabels)
 	if err != nil {
 		return fmt.Errorf("unable to create labeler: %v", err)
 	}
@@ -247,14 +252,14 @@ func runWithConfig(a *config.Args) error {
 		listener: listener,
 	}
 
-	monitor, err := cfgmonitor.NewMonitor(ght, a.StartupOptions.ConfigRepo, a.StartupOptions.ConfigFile, s.Close)
+	monitor, err := cfgmonitor.NewMonitor(gc, a.StartupOptions.ConfigRepo, a.StartupOptions.ConfigFile, s.Close)
 	if err != nil {
 		return fmt.Errorf("unable to create config monitor: %v", err)
 	}
 
 	// github webhook filters (keep refresher first in the list such that other filter see an up-to-date view in storage)
 	filters := []filters.Filter{
-		refresher.NewRefresher(cache, ght, a.Orgs),
+		refresher.NewRefresher(cache, gc, a.Orgs),
 		nag,
 		labeler,
 		monitor,
@@ -267,9 +272,9 @@ func runWithConfig(a *config.Args) error {
 
 	// top-level handlers
 	router.Handle("/githubwebhook", githubwebhook.NewHandler(a.StartupOptions.GitHubWebhookSecret, filters...)).Methods("POST")
-	router.Handle("/flakechaser", flakechaser.NewHandler(ght, store, cache, a.FlakeChaser)).Methods("GET")
+	router.Handle("/flakechaser", flakechaser.NewHandler(gc, store, cache, a.FlakeChaser)).Methods("GET")
 	router.Handle("/zenhubwebhook", zenhubwebhook.NewHandler(store, cache)).Methods("POST")
-	router.Handle("/sync", syncer.NewHandler(context.Background(), ght, cache, zht, store, bs, a.Orgs)).Methods("GET")
+	router.Handle("/sync", syncer.NewHandler(context.Background(), gc, cache, zc, store, bs, a.Orgs)).Methods("GET")
 
 	// UI topics
 	dashboard := dashboard.New(router, a.StartupOptions.GitHubOAuthClientID, a.StartupOptions.GitHubOAuthClientSecret)
