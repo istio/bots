@@ -31,7 +31,7 @@ var scope = log.RegisterScope("flakechaser", "The GitHub flaky test chaser.", 0)
 
 // Chaser scans the test flakiness issues and neg issuer assignee when no updates occur for a while.
 type Chaser struct {
-	ght   *gh.ThrottledClient
+	gc    *github.Client
 	cache *cache.Cache
 	store storage.Store
 	repos map[string]bool
@@ -46,13 +46,13 @@ type Chaser struct {
 }
 
 // New creates a flake chaser.
-func New(ght *gh.ThrottledClient, store storage.Store, cache *cache.Cache, config config.FlakeChaser) *Chaser {
+func New(gc *github.Client, store storage.Store, cache *cache.Cache, config config.FlakeChaser) *Chaser {
 	enabledRepo := map[string]bool{}
 	for _, repo := range config.Repos {
 		enabledRepo[repo] = true
 	}
 	return &Chaser{
-		ght:          ght,
+		gc:           gc,
 		store:        store,
 		cache:        cache,
 		repos:        enabledRepo,
@@ -96,8 +96,12 @@ func (c *Chaser) Chase(context context.Context) {
 		if c.dryRun {
 			continue
 		}
-		_, _, err = c.ght.Get(context).Issues.CreateComment(
-			context, org.Login, repo.Name, int(issue.Number), comment)
+
+		_, _, err = gh.ThrottledCall(func() (interface{}, *github.Response, error) {
+			return c.gc.Issues.CreateComment(
+				context, org.Login, repo.Name, int(issue.Number), comment)
+		})
+
 		if err != nil {
 			scope.Errorf("Failed to create flakes nagging comments: %v", err)
 		}

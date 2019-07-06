@@ -19,12 +19,13 @@ import (
 	"encoding/base64"
 	"fmt"
 
+	"github.com/google/go-github/v26/github"
 	"github.com/spf13/cobra"
+	"golang.org/x/oauth2"
 	"google.golang.org/grpc/grpclog"
 
 	"istio.io/bots/policybot/pkg/blobstorage/gcs"
 	"istio.io/bots/policybot/pkg/config"
-	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage/cache"
 	"istio.io/bots/policybot/pkg/storage/spanner"
 	"istio.io/bots/policybot/pkg/syncer"
@@ -94,8 +95,12 @@ func runSyncer(a *config.Args, filters string) error {
 		return fmt.Errorf("unable to decode GCP credentials: %v", err)
 	}
 
-	ght := gh.NewThrottledClient(context.Background(), a.StartupOptions.GitHubToken)
-	zht := zh.NewThrottledClient(a.StartupOptions.ZenHubToken)
+	gc := github.NewClient(
+		oauth2.NewClient(
+			context.Background(),
+			oauth2.StaticTokenSource(&oauth2.Token{AccessToken: a.StartupOptions.GitHubToken})))
+
+	zc := zh.NewClient(a.StartupOptions.ZenHubToken)
 
 	store, err := spanner.NewStore(context.Background(), a.SpannerDatabase, creds)
 	if err != nil {
@@ -111,6 +116,6 @@ func runSyncer(a *config.Args, filters string) error {
 
 	cache := cache.New(store, a.CacheTTL)
 
-	h := syncer.New(ght, cache, zht, store, bs, a.Orgs)
+	h := syncer.New(gc, cache, zc, store, bs, a.Orgs)
 	return h.Sync(context.Background(), flags)
 }

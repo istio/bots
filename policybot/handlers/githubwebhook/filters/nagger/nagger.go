@@ -33,7 +33,7 @@ import (
 // Generates nagging messages in PRs based on regex matches on the title, body, and affected files
 type Nagger struct {
 	cache             *cache.Cache
-	ght               *gh.ThrottledClient
+	gc                *github.Client
 	orgs              []config.Org
 	nags              []config.Nag
 	multiLineRegexes  map[string]*regexp.Regexp
@@ -45,10 +45,10 @@ const nagSignature = "\n\n_Courtesy of your friendly test nag_."
 
 var scope = log.RegisterScope("nagger", "The GitHub test nagger", 0)
 
-func NewNagger(ght *gh.ThrottledClient, cache *cache.Cache, orgs []config.Org, nags []config.Nag) (filters.Filter, error) {
+func NewNagger(gc *github.Client, cache *cache.Cache, orgs []config.Org, nags []config.Nag) (filters.Filter, error) {
 	n := &Nagger{
 		cache:             cache,
-		ght:               ght,
+		gc:                gc,
 		orgs:              orgs,
 		nags:              nags,
 		multiLineRegexes:  make(map[string]*regexp.Regexp),
@@ -209,7 +209,9 @@ func (n *Nagger) processPR(context context.Context, prb pullRequestBundle, orgNa
 func (n *Nagger) removeNagComment(context context.Context, prb pullRequestBundle) {
 	existing, id := n.getNagComment(context, prb)
 	if existing != "" {
-		if _, err := n.ght.Get(context).Issues.DeleteComment(context, prb.orgName, prb.repoName, id); err != nil {
+		if _, err := gh.ThrottledCallNoResult(func() (*github.Response, error) {
+			return n.gc.Issues.DeleteComment(context, prb.orgName, prb.repoName, id)
+		}); err != nil {
 			scope.Errorf("Unable to delete nag comment in PR %d from repo %s: %v", prb.Number, prb.fullRepoName, err)
 		}
 	}
@@ -223,13 +225,16 @@ func (n *Nagger) getNagComment(context context.Context, prb pullRequestBundle) (
 	}
 
 	for {
-		comments, resp, err := n.ght.Get(context).Issues.ListComments(context, prb.orgName, prb.repoName, int(prb.Number), opt)
+		comments, resp, err := gh.ThrottledCall(func() (interface{}, *github.Response, error) {
+			return n.gc.Issues.ListComments(context, prb.orgName, prb.repoName, int(prb.Number), opt)
+		})
+
 		if err != nil {
 			scope.Errorf("Unable to list comments for pull request %d in repo %s: %v\n", prb.Number, prb.fullRepoName, err)
 			return "", -1
 		}
 
-		for _, comment := range comments {
+		for _, comment := range comments.([]*github.IssueComment) {
 			body := comment.GetBody()
 			if strings.Contains(body, nagSignature) {
 				return body, comment.GetID()
@@ -258,12 +263,17 @@ func (n *Nagger) postNagComment(context context.Context, prb pullRequestBundle, 
 		return
 	} else if existing != "" {
 		// try to delete the previous nag
-		if _, err := n.ght.Get(context).Issues.DeleteComment(context, prb.orgName, prb.repoName, id); err != nil {
+		if _, err := gh.ThrottledCallNoResult(func() (*github.Response, error) {
+			return n.gc.Issues.DeleteComment(context, prb.orgName, prb.repoName, id)
+		}); err != nil {
 			scope.Errorf("Unable to delete nag comment in PR %d from repo %s: %v", prb.Number, prb.fullRepoName, err)
 		}
 	}
 
-	_, _, err := n.ght.Get(context).Issues.CreateComment(context, prb.orgName, prb.repoName, int(prb.Number), pc)
+	_, _, err := gh.ThrottledCall(func() (interface{}, *github.Response, error) {
+		return n.gc.Issues.CreateComment(context, prb.orgName, prb.repoName, int(prb.Number), pc)
+	})
+
 	if err != nil {
 		scope.Errorf("Unable to attach nagging comment to PR %d from repo %s: %v", prb.Number, prb.fullRepoName, err)
 	}
