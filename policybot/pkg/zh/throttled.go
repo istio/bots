@@ -22,12 +22,24 @@ import (
 	"istio.io/pkg/log"
 )
 
+// ZenHubThrottle is used to throttle our use of the ZenHub API in order to
+// prevent hitting rate limits or abuse limits.
+type ThrottledClient struct {
+	client *Client
+}
+
+func NewThrottledClient(zenhubToken string) *ThrottledClient {
+	return &ThrottledClient{
+		client: NewClient(zenhubToken),
+	}
+}
+
 // ThrottledCall invokes the given callback and watches for error returns indicating a GitHub rate limit errors.
 // If a rate limit error is detected, the call is tried again based on the reset time
 // specified in the error.
-func ThrottledCall(cb func() (interface{}, error)) (interface{}, error) {
+func (tc *ThrottledClient) ThrottledCall(cb func(*Client) (interface{}, error)) (interface{}, error) {
 	for {
-		result, err := cb()
+		result, err := cb(tc.client)
 		if err == nil {
 			return result, nil
 		}
@@ -44,6 +56,6 @@ func ThrottledCall(cb func() (interface{}, error)) (interface{}, error) {
 func sleep(rle *github.RateLimitError) {
 	// wait for the reset time
 	// TODO: would be nice to wait in a cancellable way, per a context
-	log.Debugf("Waiting for ZenHub rate limit reset at %s", rle.Rate.Reset.String())
+	log.Debugf("Waiting for ZenHub rate limit reset at %s", rle.Rate.Reset.UTC().String())
 	time.Sleep(time.Until(rle.Rate.Reset.Time))
 }

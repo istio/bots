@@ -15,86 +15,84 @@
 package gh
 
 import (
-	api "github.com/google/go-github/v26/github"
+	"github.com/google/go-github/v26/github"
 
 	"istio.io/bots/policybot/pkg/storage"
 )
 
 // Maps from a GitHub issue to a storage issue. Also returns the set of
 // users discovered in the input.
-func ConvertIssue(orgID string, repoID string, issue *api.Issue) (*storage.Issue, []*storage.User) {
+func ConvertIssue(orgLogin string, repoName string, issue *github.Issue) (*storage.Issue, []*storage.User) {
 	labels := make([]string, len(issue.Labels))
 	for i, label := range issue.Labels {
-		labels[i] = label.GetNodeID()
+		labels[i] = label.GetName()
 	}
 
 	discoveredUsers := make([]*storage.User, 0, len(issue.Assignees))
 
 	assignees := make([]string, len(issue.Assignees))
 	for i, user := range issue.Assignees {
-		assignees[i] = user.GetNodeID()
+		assignees[i] = user.GetLogin()
 		discoveredUsers = append(discoveredUsers, ConvertUser(user))
 	}
 
 	return &storage.Issue{
-		OrgID:       orgID,
-		RepoID:      repoID,
-		IssueID:     issue.GetNodeID(),
-		Number:      int64(issue.GetNumber()),
+		OrgLogin:    orgLogin,
+		RepoName:    repoName,
+		IssueNumber: int64(issue.GetNumber()),
 		Title:       issue.GetTitle(),
 		Body:        issue.GetBody(),
-		LabelIDs:    labels,
+		Labels:      labels,
 		CreatedAt:   issue.GetCreatedAt(),
 		UpdatedAt:   issue.GetUpdatedAt(),
 		ClosedAt:    issue.GetClosedAt(),
 		State:       issue.GetState(),
-		AuthorID:    issue.GetUser().GetNodeID(),
-		AssigneeIDs: assignees,
+		Author:      issue.GetUser().GetLogin(),
+		Assignees:   assignees,
 	}, discoveredUsers
 }
 
 // Maps from a GitHub issue comment to a storage issue comment. Also returns the set of
 // users discovered in the input.
-func ConvertIssueComment(orgID string, repoID string, issueID string, issueComment *api.IssueComment) (*storage.IssueComment, []*storage.User) {
+func ConvertIssueComment(orgLogin string, repoName string, issueNumber int, issueComment *github.IssueComment) (*storage.IssueComment, []*storage.User) {
 	discoveredUsers := []*storage.User{
 		ConvertUser(issueComment.GetUser()),
 	}
 
 	return &storage.IssueComment{
-		OrgID:          orgID,
-		RepoID:         repoID,
-		IssueID:        issueID,
-		IssueCommentID: issueComment.GetNodeID(),
+		OrgLogin:       orgLogin,
+		RepoName:       repoName,
+		IssueNumber:    int64(issueNumber),
+		IssueCommentID: issueComment.GetID(),
 		Body:           issueComment.GetBody(),
 		CreatedAt:      issueComment.GetCreatedAt(),
 		UpdatedAt:      issueComment.GetUpdatedAt(),
-		AuthorID:       issueComment.GetUser().GetNodeID(),
+		Author:         issueComment.GetUser().GetLogin(),
 	}, discoveredUsers
 }
 
 // Maps from a GitHub repo comment to a storage repo comment. Also returns the set of
 // users discovered in the input.
-func ConvertRepoComment(orgID string, repoID string, comment *api.RepositoryComment) (*storage.RepoComment, []*storage.User) {
+func ConvertRepoComment(orgLogin string, repoName string, comment *github.RepositoryComment) (*storage.RepoComment, []*storage.User) {
 	discoveredUsers := []*storage.User{
 		ConvertUser(comment.GetUser()),
 	}
 
 	return &storage.RepoComment{
-		OrgID:     orgID,
-		RepoID:    repoID,
-		CommentID: comment.GetNodeID(),
+		OrgLogin:  orgLogin,
+		RepoName:  repoName,
+		CommentID: comment.GetID(),
 		Body:      comment.GetBody(),
 		CreatedAt: comment.GetCreatedAt(),
 		UpdatedAt: comment.GetUpdatedAt(),
-		AuthorID:  comment.GetUser().GetNodeID(),
+		Author:    comment.GetUser().GetLogin(),
 	}, discoveredUsers
 }
 
 // Maps from a GitHub user to a storage user.
-func ConvertUser(u *api.User) *storage.User {
+func ConvertUser(u *github.User) *storage.User {
 	return &storage.User{
-		UserID:    u.GetNodeID(),
-		Login:     u.GetLogin(),
+		UserLogin: u.GetLogin(),
 		Name:      u.GetName(),
 		Company:   u.GetCompany(),
 		AvatarURL: u.GetAvatarURL(),
@@ -102,109 +100,112 @@ func ConvertUser(u *api.User) *storage.User {
 }
 
 // Maps from a GitHub org to a storage org.
-func ConvertOrg(o *api.Organization) *storage.Org {
+func ConvertOrg(o *github.Organization) *storage.Org {
 	return &storage.Org{
-		OrgID: o.GetNodeID(),
-		Login: o.GetLogin(),
+		OrgLogin:    o.GetLogin(),
+		Company:     o.GetCompany(),
+		Description: o.GetDescription(),
+		AvatarURL:   o.GetAvatarURL(),
 	}
 }
 
 // Maps from a GitHub repo to a storage repo. Also returns the set of
-func ConvertRepo(r *api.Repository) *storage.Repo {
+func ConvertRepo(r *github.Repository) *storage.Repo {
 	return &storage.Repo{
-		OrgID:       r.Organization.GetNodeID(),
-		RepoID:      r.GetNodeID(),
-		Name:        r.GetName(),
+		OrgLogin:    r.Organization.GetLogin(),
+		RepoName:    r.GetName(),
 		Description: r.GetDescription(),
 		RepoNumber:  r.GetID(),
 	}
 }
 
 // Maps from a GitHub label to a storage label.
-func ConvertLabel(orgID string, repoID string, l *api.Label) *storage.Label {
+func ConvertLabel(orgLogin string, repoName string, l *github.Label) *storage.Label {
 	return &storage.Label{
-		OrgID:       orgID,
-		RepoID:      repoID,
-		Name:        l.GetName(),
+		OrgLogin:    orgLogin,
+		RepoName:    repoName,
+		LabelName:   l.GetName(),
 		Description: l.GetDescription(),
+		Color:       l.GetColor(),
 	}
 }
 
 // Maps from a GitHub pr to a storage pr. Also returns the set of
 // users discovered in the input.
-func ConvertPullRequest(orgID string, repoID string, pr *api.PullRequest, files []string) (*storage.PullRequest, []*storage.User) {
+func ConvertPullRequest(orgLogin string, repoName string, pr *github.PullRequest, files []string) (*storage.PullRequest, []*storage.User) {
 	labels := make([]string, len(pr.Labels))
 	for i, label := range pr.Labels {
-		labels[i] = label.GetNodeID()
+		labels[i] = label.GetName()
 	}
 
 	discoveredUsers := make([]*storage.User, 0, len(pr.Assignees)+len(pr.RequestedReviewers))
 
 	assignees := make([]string, len(pr.Assignees))
 	for i, user := range pr.Assignees {
-		assignees[i] = user.GetNodeID()
+		assignees[i] = user.GetLogin()
 		discoveredUsers = append(discoveredUsers, ConvertUser(user))
 	}
 
 	reviewers := make([]string, len(pr.RequestedReviewers))
 	for i, user := range pr.RequestedReviewers {
-		reviewers[i] = user.GetNodeID()
+		reviewers[i] = user.GetLogin()
 		discoveredUsers = append(discoveredUsers, ConvertUser(user))
 	}
 
 	return &storage.PullRequest{
-		OrgID:                orgID,
-		RepoID:               repoID,
-		PullRequestID:        pr.GetNodeID(),
-		UpdatedAt:            pr.GetUpdatedAt(),
-		CreatedAt:            pr.GetCreatedAt(),
-		ClosedAt:             pr.GetClosedAt(),
-		MergedAt:             pr.GetMergedAt(),
-		Files:                files,
-		LabelIDs:             labels,
-		AssigneeIDs:          assignees,
-		RequestedReviewerIDs: reviewers,
-		State:                pr.GetState(),
-		Title:                pr.GetTitle(),
-		Body:                 pr.GetBody(),
-		AuthorID:             pr.GetUser().GetNodeID(),
+		OrgLogin:           orgLogin,
+		RepoName:           repoName,
+		PullRequestNumber:  int64(pr.GetNumber()),
+		UpdatedAt:          pr.GetUpdatedAt(),
+		CreatedAt:          pr.GetCreatedAt(),
+		ClosedAt:           pr.GetClosedAt(),
+		MergedAt:           pr.GetMergedAt(),
+		Files:              files,
+		Labels:             labels,
+		Assignees:          assignees,
+		RequestedReviewers: reviewers,
+		State:              pr.GetState(),
+		Title:              pr.GetTitle(),
+		Body:               pr.GetBody(),
+		Author:             pr.GetUser().GetLogin(),
 	}, discoveredUsers
 }
 
 // Maps from a GitHub pr comment to a storage pr comment. Also returns the set of
 // users discovered in the input.
-func ConvertPullRequestComment(orgID string, repoID string, prID string, comment *api.IssueComment) (*storage.PullRequestComment, []*storage.User) {
+func ConvertPullRequestReviewComment(orgLogin string, repoName string, prNumber int,
+	comment *github.PullRequestComment) (*storage.PullRequestReviewComment, []*storage.User) {
 	discoveredUsers := []*storage.User{
 		ConvertUser(comment.GetUser()),
 	}
 
-	return &storage.PullRequestComment{
-		OrgID:                orgID,
-		RepoID:               repoID,
-		PullRequestID:        prID,
-		PullRequestCommentID: comment.GetNodeID(),
-		Body:                 comment.GetBody(),
-		CreatedAt:            comment.GetCreatedAt(),
-		UpdatedAt:            comment.GetUpdatedAt(),
-		AuthorID:             comment.GetUser().GetNodeID(),
+	return &storage.PullRequestReviewComment{
+		OrgLogin:                   orgLogin,
+		RepoName:                   repoName,
+		PullRequestNumber:          int64(prNumber),
+		PullRequestReviewCommentID: comment.GetID(),
+		Body:                       comment.GetBody(),
+		CreatedAt:                  comment.GetCreatedAt(),
+		UpdatedAt:                  comment.GetUpdatedAt(),
+		Author:                     comment.GetUser().GetLogin(),
 	}, discoveredUsers
 }
 
 // Maps from a GitHub pr review to a storage pr review. Also returns the set of
 // users discovered in the input.
-func ConvertPullRequestReview(orgID string, repoID string, pullRequestID string, prr *api.PullRequestReview) (*storage.PullRequestReview, []*storage.User) {
+func ConvertPullRequestReview(orgLogin string, repoName string, prNumber int, prr *github.PullRequestReview) (*storage.PullRequestReview, []*storage.User) {
 	discoveredUsers := []*storage.User{
 		ConvertUser(prr.GetUser()),
 	}
 
 	return &storage.PullRequestReview{
-		OrgID:               orgID,
-		RepoID:              repoID,
-		PullRequestID:       pullRequestID,
-		PullRequestReviewID: prr.GetNodeID(),
+		OrgLogin:            orgLogin,
+		RepoName:            repoName,
+		PullRequestNumber:   int64(prNumber),
+		PullRequestReviewID: prr.GetID(),
 		Body:                prr.GetBody(),
 		SubmittedAt:         prr.GetSubmittedAt(),
-		AuthorID:            prr.GetUser().GetNodeID(),
+		Author:              prr.GetUser().GetLogin(),
 		State:               prr.GetState(),
 	}, discoveredUsers
 }

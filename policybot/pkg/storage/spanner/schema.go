@@ -26,152 +26,100 @@ import (
 
 // All the DB tables we use
 const (
-	orgTable                = "Orgs"
-	repoTable               = "Repos"
-	repoCommentTable        = "RepoComments"
-	userTable               = "Users"
-	labelTable              = "Labels"
-	issueTable              = "Issues"
-	issueCommentTable       = "IssueComments"
-	issuePipelineTable      = "IssuePipelines"
-	pullRequestTable        = "PullRequests"
-	pullRequestCommentTable = "PullRequestComments"
-	pullRequestReviewTable  = "PullRequestReviews"
-	memberTable             = "Members"
-	botActivityTable        = "BotActivity"
-	maintainerTable         = "Maintainers"
-)
-
-// All the DB indices we use
-const (
-	orgLoginIndex    = "OrgsLogin"
-	repoNameIndex    = "ReposName"
-	issueNumberIndex = "IssuesNumber"
-	userLoginIndex   = "UsersLogin"
-)
-
-// Shape of the rows in the indices
-type (
-	orgLoginRow struct {
-		OrgID string
-		Login string
-	}
-
-	repoNameRow struct {
-		OrgID  string
-		RepoID string
-		Name   string
-	}
-
-	issueNumberRow struct {
-		OrgID   string
-		RepoID  string
-		IssueID string
-		Number  int64
-	}
-
-	userLoginRow struct {
-		UserID string
-		Login  string
-	}
+	orgTable                           = "Orgs"
+	repoTable                          = "Repos"
+	repoCommentTable                   = "RepoComments"
+	userTable                          = "Users"
+	labelTable                         = "Labels"
+	issueTable                         = "Issues"
+	issueCommentTable                  = "IssueComments"
+	issuePipelineTable                 = "IssuePipelines"
+	pullRequestTable                   = "PullRequests"
+	pullRequestReviewCommentTable      = "PullRequestReviewComments"
+	pullRequestReviewTable             = "PullRequestReviews"
+	memberTable                        = "Members"
+	botActivityTable                   = "BotActivity"
+	maintainerTable                    = "Maintainers"
+	issueEventTable                    = "IssueEvents"
+	issueCommentEventTable             = "IssueCommentEvents"
+	pullRequestEventTable              = "PullRequestEvents"
+	pullRequestReviewCommentEventTable = "PullRequestReviewCommentEvents"
+	pullRequestReviewEventTable        = "PullRequestReviewEvents"
+	repoCommentEventTable              = "RepoCommentEvents"
 )
 
 // Holds the column names for each table or index in the database (filled in at startup)
 var (
-	orgColumns                []string
-	orgLoginColumns           []string
-	repoColumns               []string
-	repoNameColumns           []string
-	userColumns               []string
-	userLoginColumns          []string
-	labelColumns              []string
-	issueColumns              []string
-	issueNumberColumns        []string
-	issueCommentColumns       []string
-	issuePipelineColumns      []string
-	pullRequestColumns        []string
-	pullRequestCommentColumns []string
-	pullRequestReviewColumns  []string
-	botActivityColumns        []string
-	maintainerColumns         []string
+	orgColumns                      []string
+	repoColumns                     []string
+	userColumns                     []string
+	labelColumns                    []string
+	issueColumns                    []string
+	issueCommentColumns             []string
+	issuePipelineColumns            []string
+	pullRequestColumns              []string
+	pullRequestReviewCommentColumns []string
+	pullRequestReviewColumns        []string
+	botActivityColumns              []string
+	maintainerColumns               []string
 )
 
 // Bunch of functions to from keys for the tables and indices in the DB
 
-func orgKey(orgID string) spanner.Key {
-	return spanner.Key{orgID}
+func orgKey(orgLogin string) spanner.Key {
+	return spanner.Key{orgLogin}
 }
 
-func orgLoginKey(login string) spanner.Key {
-	return spanner.Key{login}
+func repoKey(orgLogin string, repoName string) spanner.Key {
+	return spanner.Key{orgLogin, repoName}
 }
 
-func repoKey(orgID string, repoID string) spanner.Key {
-	return spanner.Key{orgID, repoID}
+func userKey(userLogin string) spanner.Key {
+	return spanner.Key{userLogin}
 }
 
-func repoNameKey(orgID string, name string) spanner.Key {
-	return spanner.Key{orgID, name}
+func labelKey(orgLogin string, repoName string, labelName string) spanner.Key {
+	return spanner.Key{orgLogin, repoName, labelName}
 }
 
-func userKey(userID string) spanner.Key {
-	return spanner.Key{userID}
+func issueKey(orgLogin string, repoName string, issueNumber int64) spanner.Key {
+	return spanner.Key{orgLogin, repoName, issueNumber}
 }
 
-func userLoginKey(login string) spanner.Key {
-	return spanner.Key{login}
+func issueCommentKey(orgLogin string, repoName string, issueNumber int64, commentID int64) spanner.Key {
+	return spanner.Key{orgLogin, repoName, issueNumber, commentID}
 }
 
-func labelKey(orgID string, repoID string, labelID string) spanner.Key {
-	return spanner.Key{orgID, repoID, labelID}
+func issuePipelineKey(orgLogin string, repoName string, issueNumber int64) spanner.Key {
+	return spanner.Key{orgLogin, repoName, issueNumber}
 }
 
-func issueKey(orgID string, repoID string, issueID string) spanner.Key {
-	return spanner.Key{orgID, repoID, issueID}
+func pullRequestKey(orgLogin string, repoName string, prNumber int64) spanner.Key {
+	return spanner.Key{orgLogin, repoName, prNumber}
 }
 
-func issueNumberKey(repoID string, number int) spanner.Key {
-	return spanner.Key{repoID, int64(number)}
+func pullRequestReviewCommentKey(orgLogin string, repoName string, prNumber int64, commentID int64) spanner.Key {
+	return spanner.Key{orgLogin, repoName, prNumber, commentID}
 }
 
-func issueCommentKey(orgID string, repoID string, issueID string, commentID string) spanner.Key {
-	return spanner.Key{orgID, repoID, issueID, commentID}
+func pullRequestReviewKey(orgLogin string, repoName string, prNumber int64, reviewID int64) spanner.Key {
+	return spanner.Key{orgLogin, repoName, prNumber, reviewID}
 }
 
-func issuePipelineKey(orgID string, repoID string, number int) spanner.Key {
-	return spanner.Key{orgID, repoID, number}
+func botActivityKey(orgLogin string, repoName string) spanner.Key {
+	return spanner.Key{orgLogin, repoName}
 }
 
-func pullRequestKey(orgID string, repoID string, prID string) spanner.Key {
-	return spanner.Key{orgID, repoID, prID}
-}
-
-func pullRequestCommentKey(orgID string, repoID string, prID string, commentID string) spanner.Key {
-	return spanner.Key{orgID, repoID, prID, commentID}
-}
-
-func pullRequestReviewKey(orgID string, repoID string, prID string, reviewID string) spanner.Key {
-	return spanner.Key{orgID, repoID, prID, reviewID}
-}
-
-func botActivityKey(orgID string, repoID string) spanner.Key {
-	return spanner.Key{orgID, repoID}
-}
-
-func maintainerKey(orgID string, userID string) spanner.Key {
-	return spanner.Key{orgID, userID}
+func maintainerKey(orgLogin string, userLogin string) spanner.Key {
+	return spanner.Key{orgLogin, userLogin}
 }
 
 func init() {
 	orgColumns = getFields(storage.Org{})
-	orgLoginColumns = getFields(orgLoginRow{})
 	repoColumns = getFields(storage.Repo{})
-	repoNameColumns = getFields(repoNameRow{})
 	userColumns = getFields(storage.User{})
-	userLoginColumns = getFields(userLoginRow{})
 	labelColumns = getFields(storage.Label{})
 	issueColumns = getFields(storage.Issue{})
-	issueNumberColumns = getFields(issueNumberRow{})
 	issueCommentColumns = getFields(storage.IssueComment{})
 	issuePipelineColumns = getFields(storage.IssuePipeline{})
 	pullRequestColumns = getFields(storage.PullRequest{})

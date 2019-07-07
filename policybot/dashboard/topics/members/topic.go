@@ -108,7 +108,7 @@ func (t *topic) handleListMembersHTML(w http.ResponseWriter, r *http.Request) {
 func (t *topic) handleListMembersJSON(w http.ResponseWriter, r *http.Request) {
 	orgLogin := r.URL.Query().Get("org")
 	if orgLogin == "" {
-		orgLogin = "istio" // TODO: remove istio dependency
+		orgLogin = t.options.DefaultOrg
 	}
 
 	m, err := t.getMembers(r.Context(), orgLogin)
@@ -121,7 +121,7 @@ func (t *topic) handleListMembersJSON(w http.ResponseWriter, r *http.Request) {
 }
 
 func (t *topic) getMembers(context context.Context, orgLogin string) ([]memberInfo, error) {
-	org, err := t.cache.ReadOrgByLogin(context, orgLogin)
+	org, err := t.cache.ReadOrg(context, orgLogin)
 	if err != nil {
 		return nil, util.HTTPErrorf(http.StatusInternalServerError, "unable to get information on organization %s: %v", orgLogin, err)
 	} else if org == nil {
@@ -129,14 +129,14 @@ func (t *topic) getMembers(context context.Context, orgLogin string) ([]memberIn
 	}
 
 	var members []memberInfo
-	if err = t.store.QueryMembersByOrg(context, org.OrgID, func(m *storage.Member) error {
-		u, err := t.cache.ReadUser(context, m.UserID)
+	if err = t.store.QueryMembersByOrg(context, org.OrgLogin, func(m *storage.Member) error {
+		u, err := t.cache.ReadUser(context, m.UserLogin)
 		if err != nil {
 			return util.HTTPErrorf(http.StatusInternalServerError, "unable to read user information from storage: %v", err)
 		}
 
 		members = append(members, memberInfo{
-			Login:     u.Login,
+			Login:     u.UserLogin,
 			Name:      u.Name,
 			Company:   u.Company,
 			AvatarURL: u.AvatarURL,

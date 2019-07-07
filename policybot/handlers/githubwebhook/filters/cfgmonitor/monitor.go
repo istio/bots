@@ -27,7 +27,6 @@ import (
 
 // Monitors for changes in the bot's config file.
 type Monitor struct {
-	gc     *github.Client
 	org    string
 	repo   string
 	branch string
@@ -37,7 +36,7 @@ type Monitor struct {
 
 var scope = log.RegisterScope("monitor", "Listens for changes in policybot config", 0)
 
-func NewMonitor(gc *github.Client, repo string, file string, notify func()) (filters.Filter, error) {
+func NewMonitor(repo string, file string, notify func()) (filters.Filter, error) {
 	if repo == "" {
 		// disable everything if we don't have a repo
 		return &Monitor{}, nil
@@ -49,7 +48,6 @@ func NewMonitor(gc *github.Client, repo string, file string, notify func()) (fil
 	}
 
 	ct := &Monitor{
-		gc:     gc,
 		org:    splits[0],
 		repo:   splits[1],
 		branch: splits[2],

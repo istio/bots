@@ -16,6 +16,7 @@ package refresher
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/go-github/v26/github"
 
@@ -31,15 +32,17 @@ import (
 type Refresher struct {
 	repos map[string]bool
 	cache *cache.Cache
-	gc    *github.Client
+	store storage.Store
+	gc    *gh.ThrottledClient
 }
 
 var scope = log.RegisterScope("refresher", "Dynamic database refresher", 0)
 
-func NewRefresher(cache *cache.Cache, gc *github.Client, orgs []config.Org) filters.Filter {
+func NewRefresher(cache *cache.Cache, store storage.Store, gc *gh.ThrottledClient, orgs []config.Org) filters.Filter {
 	r := &Refresher{
 		repos: make(map[string]bool),
 		cache: cache,
+		store: store,
 		gc:    gc,
 	}
 
@@ -64,13 +67,30 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 		}
 
 		issue, discoveredUsers := gh.ConvertIssue(
-			p.GetIssue().GetRepository().GetOwner().GetNodeID(),
-			p.GetIssue().GetRepository().GetNodeID(),
+			p.GetIssue().GetRepository().GetOwner().GetLogin(),
+			p.GetIssue().GetRepository().GetName(),
 			p.GetIssue())
 		issues := []*storage.Issue{issue}
 		if err := r.cache.WriteIssues(context, issues); err != nil {
 			scope.Errorf(err.Error())
+			return
 		}
+
+		event := &storage.IssueEvent{
+			OrgLogin:    issue.OrgLogin,
+			RepoName:    issue.RepoName,
+			IssueNumber: issue.IssueNumber,
+			CreatedAt:   p.GetCreatedAt(),
+			Actor:       p.GetActor().GetLogin(),
+			Action:      p.GetEvent(),
+		}
+
+		events := []*storage.IssueEvent{event}
+		if err := r.store.WriteIssueEvents(context, events); err != nil {
+			scope.Error(err.Error())
+			return
+		}
+
 		r.syncUsers(context, discoveredUsers)
 
 	case *github.IssueCommentEvent:
@@ -82,25 +102,29 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 		}
 
 		issueComment, discoveredUsers := gh.ConvertIssueComment(
-			p.GetIssue().GetRepository().GetOwner().GetNodeID(),
-			p.GetIssue().GetRepository().GetNodeID(),
-			p.GetIssue().GetNodeID(),
+			p.GetRepo().GetOwner().GetLogin(),
+			p.GetRepo().GetName(),
+			p.GetIssue().GetNumber(),
 			p.GetComment())
 		issueComments := []*storage.IssueComment{issueComment}
-		if err := r.cache.WriteIssueComments(context, issueComments); err != nil {
+		if err := r.cache.WriteIssueComments(context, issueComments); err == nil {
+			event := &storage.IssueCommentEvent{
+				OrgLogin:       issueComment.OrgLogin,
+				RepoName:       issueComment.RepoName,
+				IssueNumber:    issueComment.IssueNumber,
+				IssueCommentID: p.GetComment().GetID(),
+				CreatedAt:      time.Now(),
+				Actor:          p.GetSender().GetLogin(),
+				Action:         p.GetAction(),
+			}
 
-			// try again, this time as a PR comment
-			var prComment *storage.PullRequestComment
-			prComment, discoveredUsers = gh.ConvertPullRequestComment(
-				p.GetIssue().GetRepository().GetOwner().GetNodeID(),
-				p.GetIssue().GetRepository().GetNodeID(),
-				p.GetIssue().GetNodeID(),
-				p.GetComment())
-			prComments := []*storage.PullRequestComment{prComment}
-			if err := r.cache.WritePullRequestComments(context, prComments); err != nil {
-				scope.Errorf(err.Error())
+			events := []*storage.IssueCommentEvent{event}
+			if err := r.store.WriteIssueCommentEvents(context, events); err != nil {
+				scope.Error(err.Error())
+				return
 			}
 		}
+
 		r.syncUsers(context, discoveredUsers)
 
 	case *github.PullRequestEvent:
@@ -118,8 +142,8 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 		// get the set of files comprising this PR since the payload didn't supply them
 		var allFiles []string
 		for {
-			files, resp, err := gh.ThrottledCall(func() (interface{}, *github.Response, error) {
-				return r.gc.PullRequests.ListFiles(context, p.GetRepo().GetOwner().GetLogin(), p.GetRepo().GetName(), p.GetNumber(), opt)
+			files, resp, err := r.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+				return client.PullRequests.ListFiles(context, p.GetRepo().GetOwner().GetLogin(), p.GetRepo().GetName(), p.GetNumber(), opt)
 			})
 
 			if err != nil {
@@ -139,18 +163,34 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 		}
 
 		pr, discoveredUsers := gh.ConvertPullRequest(
-			p.GetRepo().GetOwner().GetNodeID(),
-			p.GetRepo().GetNodeID(),
+			p.GetOrganization().GetLogin(),
+			p.GetRepo().GetName(),
 			p.GetPullRequest(),
 			allFiles)
 		prs := []*storage.PullRequest{pr}
 		if err := r.cache.WritePullRequests(context, prs); err != nil {
 			scope.Errorf(err.Error())
 		}
+
+		event := &storage.PullRequestEvent{
+			OrgLogin:          pr.OrgLogin,
+			RepoName:          pr.RepoName,
+			PullRequestNumber: pr.PullRequestNumber,
+			CreatedAt:         time.Now(),
+			Actor:             p.GetSender().GetLogin(),
+			Action:            p.GetAction(),
+		}
+
+		events := []*storage.PullRequestEvent{event}
+		if err := r.store.WritePullRequestEvents(context, events); err != nil {
+			scope.Error(err.Error())
+			return
+		}
+
 		r.syncUsers(context, discoveredUsers)
 
 	case *github.PullRequestReviewEvent:
-		scope.Infof("Received PullRequestReviewPayload: %s, %d, %s", p.GetRepo().GetFullName(), p.GetPullRequest().GetNumber(), p.GetAction())
+		scope.Infof("Received PullRequestReviewEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetPullRequest().GetNumber(), p.GetAction())
 
 		if !r.repos[p.GetRepo().GetFullName()] {
 			scope.Infof("Ignoring PR review for PR %d from repo %s since it's not in a monitored repo", p.PullRequest.Number, p.GetRepo().GetFullName())
@@ -158,14 +198,67 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 		}
 
 		review, discoveredUsers := gh.ConvertPullRequestReview(
-			p.GetRepo().GetOwner().GetNodeID(),
-			p.GetRepo().GetNodeID(),
-			p.GetPullRequest().GetNodeID(),
+			p.GetOrganization().GetLogin(),
+			p.GetRepo().GetName(),
+			p.GetPullRequest().GetNumber(),
 			p.GetReview())
 		reviews := []*storage.PullRequestReview{review}
 		if err := r.cache.WritePullRequestReviews(context, reviews); err != nil {
 			scope.Errorf(err.Error())
 		}
+
+		event := &storage.PullRequestReviewEvent{
+			OrgLogin:            review.OrgLogin,
+			RepoName:            review.RepoName,
+			PullRequestNumber:   review.PullRequestNumber,
+			PullRequestReviewID: p.GetReview().GetID(),
+			CreatedAt:           time.Now(),
+			Actor:               p.GetSender().GetLogin(),
+			Action:              p.GetAction(),
+		}
+
+		events := []*storage.PullRequestReviewEvent{event}
+		if err := r.store.WritePullRequestReviewEvents(context, events); err != nil {
+			scope.Error(err.Error())
+			return
+		}
+
+		r.syncUsers(context, discoveredUsers)
+
+	case github.PullRequestReviewCommentEvent:
+		scope.Infof("Received PullRequestReviewCommentEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetPullRequest().GetNumber(), p.GetAction())
+
+		if !r.repos[p.GetRepo().GetFullName()] {
+			scope.Infof("Ignoring PR review comment for PR %d from repo %s since it's not in a monitored repo", p.PullRequest.Number, p.GetRepo().GetFullName())
+			return
+		}
+
+		comment, discoveredUsers := gh.ConvertPullRequestReviewComment(
+			p.GetRepo().GetOwner().GetLogin(),
+			p.GetRepo().GetName(),
+			p.GetPullRequest().GetNumber(),
+			p.GetComment())
+		comments := []*storage.PullRequestReviewComment{comment}
+		if err := r.cache.WritePullRequestReviewComments(context, comments); err != nil {
+			scope.Errorf(err.Error())
+		}
+
+		event := &storage.PullRequestReviewCommentEvent{
+			OrgLogin:                   comment.OrgLogin,
+			RepoName:                   comment.RepoName,
+			PullRequestNumber:          comment.PullRequestNumber,
+			PullRequestReviewCommentID: p.GetComment().GetID(),
+			CreatedAt:                  time.Now(),
+			Actor:                      p.GetSender().GetLogin(),
+			Action:                     p.GetAction(),
+		}
+
+		events := []*storage.PullRequestReviewCommentEvent{event}
+		if err := r.store.WritePullRequestReviewCommentEvents(context, events); err != nil {
+			scope.Error(err.Error())
+			return
+		}
+
 		r.syncUsers(context, discoveredUsers)
 
 	case *github.CommitCommentEvent:
@@ -177,13 +270,29 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 		}
 
 		comment, discoveredUsers := gh.ConvertRepoComment(
-			p.GetRepo().GetOwner().GetNodeID(),
-			p.GetRepo().GetNodeID(),
+			p.GetRepo().GetOwner().GetLogin(),
+			p.GetRepo().GetName(),
 			p.GetComment())
 		comments := []*storage.RepoComment{comment}
 		if err := r.cache.WriteRepoComments(context, comments); err != nil {
 			scope.Errorf(err.Error())
 		}
+
+		event := &storage.RepoCommentEvent{
+			OrgLogin:      comment.OrgLogin,
+			RepoName:      comment.RepoName,
+			RepoCommentID: p.GetComment().GetID(),
+			CreatedAt:     time.Now(),
+			Actor:         p.GetSender().GetLogin(),
+			Action:        p.GetAction(),
+		}
+
+		events := []*storage.RepoCommentEvent{event}
+		if err := r.store.WriteRepoCommentEvents(context, events); err != nil {
+			scope.Error(err.Error())
+			return
+		}
+
 		r.syncUsers(context, discoveredUsers)
 
 	default:

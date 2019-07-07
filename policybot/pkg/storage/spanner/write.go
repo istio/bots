@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.orgLogin/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -127,13 +127,13 @@ func (s store) WritePullRequests(context context.Context, prs []*storage.PullReq
 	return err
 }
 
-func (s store) WritePullRequestComments(context context.Context, prComments []*storage.PullRequestComment) error {
-	scope.Debugf("Writing %d pr comments", len(prComments))
+func (s store) WritePullRequestReviewComments(context context.Context, prComments []*storage.PullRequestReviewComment) error {
+	scope.Debugf("Writing %d pr review comments", len(prComments))
 
 	mutations := make([]*spanner.Mutation, len(prComments))
 	for i := 0; i < len(prComments); i++ {
 		var err error
-		if mutations[i], err = spanner.InsertOrUpdateStruct(pullRequestCommentTable, prComments[i]); err != nil {
+		if mutations[i], err = spanner.InsertOrUpdateStruct(pullRequestReviewCommentTable, prComments[i]); err != nil {
 			return err
 		}
 	}
@@ -244,6 +244,96 @@ func (s store) WriteBotActivities(context context.Context, activities []*storage
 	for i := 0; i < len(activities); i++ {
 		var err error
 		if mutations[i], err = spanner.InsertOrUpdateStruct(botActivityTable, activities[i]); err != nil {
+			return err
+		}
+	}
+
+	_, err := s.client.Apply(context, mutations)
+	return err
+}
+
+func (s store) WriteIssueEvents(context context.Context, events []*storage.IssueEvent) error {
+	scope.Debugf("Writing %d issue events", len(events))
+
+	mutations := make([]*spanner.Mutation, len(events))
+	for i := 0; i < len(events); i++ {
+		var err error
+		if mutations[i], err = spanner.InsertOrUpdateStruct(issueEventTable, events[i]); err != nil {
+			return err
+		}
+	}
+
+	_, err := s.client.Apply(context, mutations)
+	return err
+}
+
+func (s store) WriteIssueCommentEvents(context context.Context, events []*storage.IssueCommentEvent) error {
+	scope.Debugf("Writing %d issue comment events", len(events))
+
+	mutations := make([]*spanner.Mutation, len(events))
+	for i := 0; i < len(events); i++ {
+		var err error
+		if mutations[i], err = spanner.InsertOrUpdateStruct(issueCommentEventTable, events[i]); err != nil {
+			return err
+		}
+	}
+
+	_, err := s.client.Apply(context, mutations)
+	return err
+}
+
+func (s store) WritePullRequestEvents(context context.Context, events []*storage.PullRequestEvent) error {
+	scope.Debugf("Writing %d pull request events", len(events))
+
+	mutations := make([]*spanner.Mutation, len(events))
+	for i := 0; i < len(events); i++ {
+		var err error
+		if mutations[i], err = spanner.InsertOrUpdateStruct(pullRequestEventTable, events[i]); err != nil {
+			return err
+		}
+	}
+
+	_, err := s.client.Apply(context, mutations)
+	return err
+}
+
+func (s store) WritePullRequestReviewCommentEvents(context context.Context, events []*storage.PullRequestReviewCommentEvent) error {
+	scope.Debugf("Writing %d pull request review comment events", len(events))
+
+	mutations := make([]*spanner.Mutation, len(events))
+	for i := 0; i < len(events); i++ {
+		var err error
+		if mutations[i], err = spanner.InsertOrUpdateStruct(pullRequestReviewCommentEventTable, events[i]); err != nil {
+			return err
+		}
+	}
+
+	_, err := s.client.Apply(context, mutations)
+	return err
+}
+
+func (s store) WritePullRequestReviewEvents(context context.Context, events []*storage.PullRequestReviewEvent) error {
+	scope.Debugf("Writing %d pull request review events", len(events))
+
+	mutations := make([]*spanner.Mutation, len(events))
+	for i := 0; i < len(events); i++ {
+		var err error
+		if mutations[i], err = spanner.InsertOrUpdateStruct(pullRequestReviewEventTable, events[i]); err != nil {
+			return err
+		}
+	}
+
+	_, err := s.client.Apply(context, mutations)
+	return err
+}
+
+func (s store) WriteRepoCommentEvents(context context.Context, events []*storage.RepoCommentEvent) error {
+	scope.Debugf("Writing %d repo comment events", len(events))
+
+	mutations := make([]*spanner.Mutation, len(events))
+	for i := 0; i < len(events); i++ {
+		var err error
+		if mutations[i], err = spanner.InsertOrUpdateStruct(repoCommentEventTable, events[i]); err != nil {
 			return err
 		}
 	}
