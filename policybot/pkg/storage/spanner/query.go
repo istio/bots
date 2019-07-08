@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.orgLogin/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -25,8 +25,8 @@ import (
 	"istio.io/bots/policybot/pkg/storage"
 )
 
-func (s store) QueryMembersByOrg(context context.Context, orgID string, cb func(*storage.Member) error) error {
-	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM Members WHERE OrgID = '%s'", orgID)})
+func (s store) QueryMembersByOrg(context context.Context, orgLogin string, cb func(*storage.Member) error) error {
+	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM Members WHERE OrgLogin = '%s'", orgLogin)})
 	err := iter.Do(func(row *spanner.Row) error {
 		member := &storage.Member{}
 		if err := row.ToStruct(member); err != nil {
@@ -39,8 +39,8 @@ func (s store) QueryMembersByOrg(context context.Context, orgID string, cb func(
 	return err
 }
 
-func (s store) QueryMaintainersByOrg(context context.Context, orgID string, cb func(*storage.Maintainer) error) error {
-	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM Maintainers WHERE OrgID = '%s'", orgID)})
+func (s store) QueryMaintainersByOrg(context context.Context, orgLogin string, cb func(*storage.Maintainer) error) error {
+	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM Maintainers WHERE OrgLogin = '%s'", orgLogin)})
 	err := iter.Do(func(row *spanner.Row) error {
 		maintainer := &storage.Maintainer{}
 		if err := row.ToStruct(maintainer); err != nil {
@@ -53,8 +53,9 @@ func (s store) QueryMaintainersByOrg(context context.Context, orgID string, cb f
 	return err
 }
 
-func (s store) QueryIssuesByRepo(context context.Context, orgID string, repoID string, cb func(*storage.Issue) error) error {
-	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM Issues WHERE OrgID = '%s' AND RepoID = '%s';", orgID, repoID)})
+func (s store) QueryIssuesByRepo(context context.Context, orgLogin string, repoName string, cb func(*storage.Issue) error) error {
+	iter := s.client.Single().Query(context,
+		spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM Issues WHERE OrgLogin = '%s' AND RepoName = '%s';", orgLogin, repoName)})
 	err := iter.Do(func(row *spanner.Row) error {
 		issue := &storage.Issue{}
 		if err := row.ToStruct(issue); err != nil {
@@ -68,7 +69,7 @@ func (s store) QueryIssuesByRepo(context context.Context, orgID string, repoID s
 }
 
 func (s store) QueryTestResultByName(context context.Context, testName string, cb func(*storage.TestResult) error) error {
-	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM TestResults WHERE TestName = '%s'", testName)})
+	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM TestResults WHERE TestName = '%s';", testName)})
 	err := iter.Do(func(row *spanner.Row) error {
 		testResult := &storage.TestResult{}
 		if err := row.ToStruct(testResult); err != nil {
@@ -81,8 +82,18 @@ func (s store) QueryTestResultByName(context context.Context, testName string, c
 	return err
 }
 
-func (s store) QueryTestResultByPrNumber(context context.Context, prNum int64, cb func(*storage.TestResult) error) error {
-	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM TestResults WHERE PrNum = '%v'", prNum)})
+func (s store) QueryTestResultByPrNumber(context context.Context, orgLogin string, repoName string, prNum int64, cb func(*storage.TestResult) error) error {
+	sql := `SELECT * from TestResults
+	WHERE OrgLogin = @orgLogin AND 
+	RepoName = @repoName AND 
+	PrNum = @prNum;`
+	stmt := spanner.NewStatement(sql)
+	stmt.Params["orgLogin"] = orgLogin
+	stmt.Params["repoName"] = repoName
+	stmt.Params["prNum"] = prNum
+	scope.Infof("QueryTestResults SQL\n%v", stmt.SQL)
+
+	iter := s.client.Single().Query(context, stmt)
 	err := iter.Do(func(row *spanner.Row) error {
 		testResult := &storage.TestResult{}
 		if err := row.ToStruct(testResult); err != nil {
@@ -162,32 +173,32 @@ func (s store) QueryMaintainerInfo(context context.Context, maintainer *storage.
 		Repos: make(map[string]*storage.RepoActivityInfo),
 	}
 
-	// prep all the repo infos
+	// prep all the repoName infos
 	soughtPaths := make(map[string]map[string]bool)
 	for _, mp := range maintainer.Paths {
 		slashIndex := strings.Index(mp, "/")
-		repoID := mp[0:slashIndex]
+		repoName := mp[0:slashIndex]
 		path := mp[slashIndex+1:]
 
-		repoInfo, ok := info.Repos[repoID]
+		repoInfo, ok := info.Repos[repoName]
 		if !ok {
 			repoInfo = &storage.RepoActivityInfo{
-				RepoID:                         repoID,
+				RepoName:                       repoName,
 				LastPullRequestCommittedByPath: make(map[string]storage.TimedEntry),
 			}
-			info.Repos[repoID] = repoInfo
-			soughtPaths[repoID] = make(map[string]bool)
+			info.Repos[repoName] = repoInfo
+			soughtPaths[repoName] = make(map[string]bool)
 		}
 		repoInfo.LastPullRequestCommittedByPath[path] = storage.TimedEntry{}
 
-		// track all the specific paths we care about for the repo
-		soughtPaths[repoID][path] = true
+		// track all the specific paths we care about for the repoName
+		soughtPaths[repoName][path] = true
 	}
 
-	for repoID, repoInfo := range info.Repos {
+	for repoName, repoInfo := range info.Repos {
 		iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
-			"SELECT * FROM PullRequests WHERE OrgID = '%s' AND RepoID = '%s' AND AuthorID = '%s'",
-			maintainer.OrgID, repoID, maintainer.UserID)})
+			"SELECT * FROM PullRequests WHERE OrgLogin = '%s' AND RepoName = '%s' AND Author = '%s'",
+			maintainer.OrgLogin, repoName, maintainer.UserLogin)})
 
 		err := iter.Do(func(row *spanner.Row) error {
 
@@ -197,21 +208,21 @@ func (s store) QueryMaintainerInfo(context context.Context, maintainer *storage.
 			}
 
 			// if the pr affects any files in any of the maintainer's paths, update the timed entry for the path
-			for sp := range soughtPaths[repoID] {
+			for sp := range soughtPaths[repoName] {
 				for _, file := range pr.Files {
 					if strings.HasPrefix(file, sp) {
 						repoInfo.LastPullRequestCommittedByPath[sp] = storage.TimedEntry{
 							Time: pr.MergedAt,
-							ID:   pr.PullRequestID,
+							ID:   pr.PullRequestNumber,
 						}
-						delete(soughtPaths[repoID], sp)
+						delete(soughtPaths[repoName], sp)
 						break
 					}
 				}
 			}
 
-			if len(soughtPaths[repoID]) == 0 {
-				// all the path for this repo have been handled, move on
+			if len(soughtPaths[repoName]) == 0 {
+				// all the paths for this repo have been handled, move on
 				//				fmt.Printf("All sought paths have been found\n")
 				return iterator.Done
 			}

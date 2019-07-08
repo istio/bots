@@ -18,9 +18,9 @@ import (
 	"context"
 	"net/http"
 
-	"istio.io/bots/policybot/pkg/blobstorage"
-	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
+
+	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
 	"istio.io/bots/policybot/pkg/syncer"
@@ -31,10 +31,10 @@ type handler struct {
 	syncer *syncer.Syncer
 }
 
-func NewHandler(ctx context.Context, ght *gh.ThrottledClient, cache *cache.Cache,
-	zht *zh.ThrottledClient, store storage.Store, bs blobstorage.Store, orgs []config.Org) http.Handler {
+func NewHandler(ctx context.Context, gc *gh.ThrottledClient, cache *cache.Cache,
+	zc *zh.ThrottledClient, store storage.Store, orgs []config.Org) http.Handler {
 	return &handler{
-		syncer: syncer.New(ght, cache, zht, store, bs, orgs),
+		syncer: syncer.New(gc, cache, zc, store, orgs),
 	}
 }
 

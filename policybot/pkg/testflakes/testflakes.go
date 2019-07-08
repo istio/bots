@@ -39,8 +39,8 @@ import (
  */
 type FlakyResult struct {
 	TestName   string
-	OrgID      string
-	RepoID     string
+	OrgLogin   string
+	RepoName   string
 	PrNum      int64
 	IsFlaky    bool
 	LastPass   string
@@ -128,13 +128,14 @@ func (f *FlakeTester) CheckResults(resultMap map[string]map[string]map[bool][]*s
 				flakyResult.IsFlaky = true
 			}
 			failFirst := store.TestResult{
-				OrgID: "",
+				OrgLogin: "",
+				RepoName: "",
 			}
 			if shaMap[false] != nil {
 				failedTests := shaMap[false]
 				failFirst = *failedTests[0]
-				flakyResult.OrgID = failFirst.OrgID
-				flakyResult.RepoID = failFirst.RepoID
+				flakyResult.OrgLogin = failFirst.OrgLogin
+				flakyResult.RepoName = failFirst.RepoName
 				for _, fail := range failedTests {
 					if flakyResult.PrNum == 0 {
 						flakyResult.PrNum = fail.PrNum
@@ -152,10 +153,10 @@ func (f *FlakeTester) CheckResults(resultMap map[string]map[string]map[bool][]*s
 			}
 			if shaMap[true] != nil {
 				passedTests := shaMap[true]
-				if strings.Compare(failFirst.OrgID, "") == 0 {
+				if strings.Compare(failFirst.OrgLogin, "") == 0 {
 					passFirst := passedTests[0]
-					flakyResult.RepoID = passFirst.RepoID
-					flakyResult.OrgID = passFirst.OrgID
+					flakyResult.RepoName = passFirst.RepoName
+					flakyResult.OrgLogin = passFirst.OrgLogin
 				}
 				for _, pass := range passedTests {
 					if flakyResult.PrNum == 0 {
@@ -187,22 +188,26 @@ func (f *FlakeTester) Chase(context context.Context, flakeResults []*FlakyResult
 		comment := &github.PullRequestComment{
 			Body: &message,
 		}
-		repo, err := f.cache.ReadRepo(context, flake.OrgID, flake.RepoID)
+
+		repo, err := f.cache.ReadRepo(context, flake.OrgLogin, flake.RepoName)
 		if err != nil {
 			scope.Errorf("Failed to look up the repo: %v", err)
 			continue
 		}
-		org, err := f.cache.ReadOrg(context, flake.OrgID)
+		org, err := f.cache.ReadOrg(context, flake.OrgLogin)
 		if err != nil {
-			scope.Errorf("Failed to read the org: %v", err)
+			scope.Errorf("Failed to read the repo: %v", err)
 			continue
 		}
 
-		url := fmt.Sprintf("https://github.com/%v/%v/pull/%v", org.Login, repo.Name, flake.PrNum)
+		url := fmt.Sprintf("https://github.com/%v/%v/pull/%v", org.OrgLogin, repo.RepoName, flake.PrNum)
 		scope.Infof("About to nag test flaky pr with %v", url)
 
-		_, _, err = f.ght.Get(context).PullRequests.CreateComment(
-			context, org.Login, repo.Name, int(flake.PrNum), comment)
+		_, _, err = f.ght.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+			return client.PullRequests.CreateComment(
+				context, org.OrgLogin, repo.RepoName, int(flake.PrNum), comment)
+		})
+
 		if err != nil {
 			scope.Errorf("Failed to create flakes nagging comments: %v", err)
 		}

@@ -29,6 +29,9 @@ type Topic interface {
 	// The name of this topic, used with URLs
 	Name() string
 
+	// Nested topics
+	Subtopics() []Topic
+
 	// Installs the routes
 	Configure(htmlRouter *mux.Router, apiRouter *mux.Router, rc RenderContext, opt *Options)
 }

@@ -33,7 +33,7 @@ type RenderContext interface {
 }
 
 type renderContext struct {
-	topic            Topic
+	topic            *RegisteredTopic
 	primaryTemplates *template.Template
 	errorTemplates   *template.Template
 }
@@ -41,12 +41,13 @@ type renderContext struct {
 type templateInfo struct {
 	Title       string
 	Description string
+	URL         string
 	Content     string
 }
 
 var scope = log.RegisterScope("dashboard", "The UI dashboard.", 0)
 
-func newRenderContext(topic Topic, primaryTemplates *template.Template, errorTemplates *template.Template) RenderContext {
+func newRenderContext(topic *RegisteredTopic, primaryTemplates *template.Template, errorTemplates *template.Template) RenderContext {
 	return renderContext{
 		topic:            topic,
 		primaryTemplates: primaryTemplates,
@@ -58,9 +59,10 @@ func (rc renderContext) RenderHTML(w http.ResponseWriter, htmlFragment string) {
 	b := &bytes.Buffer{}
 
 	info := templateInfo{
-		Title:       rc.topic.Title(),
-		Description: rc.topic.Description(),
+		Title:       rc.topic.Title,
+		Description: rc.topic.Description,
 		Content:     htmlFragment,
+		URL:         rc.topic.URL,
 	}
 
 	if err := rc.primaryTemplates.Execute(b, info); err != nil {

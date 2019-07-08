@@ -19,16 +19,14 @@ import (
 	"fmt"
 	"strings"
 
-	webhook "github.com/go-playground/webhooks/github"
+	"github.com/google/go-github/v26/github"
 
 	"istio.io/bots/policybot/handlers/githubwebhook/filters"
-	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/pkg/log"
 )
 
 // Monitors for changes in the bot's config file.
 type Monitor struct {
-	ght    *gh.ThrottledClient
 	org    string
 	repo   string
 	branch string
@@ -38,7 +36,7 @@ type Monitor struct {
 
 var scope = log.RegisterScope("monitor", "Listens for changes in policybot config", 0)
 
-func NewMonitor(ght *gh.ThrottledClient, repo string, file string, notify func()) (filters.Filter, error) {
+func NewMonitor(repo string, file string, notify func()) (filters.Filter, error) {
 	if repo == "" {
 		// disable everything if we don't have a repo
 		return &Monitor{}, nil
@@ -50,7 +48,6 @@ func NewMonitor(ght *gh.ThrottledClient, repo string, file string, notify func()
 	}
 
 	ct := &Monitor{
-		ght:    ght,
 		org:    splits[0],
 		repo:   splits[1],
 		branch: splits[2],
@@ -60,21 +57,15 @@ func NewMonitor(ght *gh.ThrottledClient, repo string, file string, notify func()
 	return ct, nil
 }
 
-func (m *Monitor) Events() []webhook.Event {
-	return []webhook.Event{
-		webhook.PushEvent,
-	}
-}
-
 // monitor for changes to policybot's config file
-func (m *Monitor) Handle(context context.Context, githubObject interface{}) {
-	pp, ok := githubObject.(webhook.PushPayload)
+func (m *Monitor) Handle(context context.Context, event interface{}) {
+	pp, ok := event.(github.PushEvent)
 	if !ok {
 		// not what we're looking for
 		return
 	}
 
-	if pp.Repository.Owner.Login != m.org || pp.Repository.Name != m.repo {
+	if pp.GetRepo().GetOwner().GetLogin() != m.org || pp.GetRepo().GetName() != m.repo {
 		// not the org/repo we care about
 		return
 	}

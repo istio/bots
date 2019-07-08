@@ -88,6 +88,10 @@ func (t *topic) Name() string {
 	return "maintainers"
 }
 
+func (t *topic) Subtopics() []dashboard.Topic {
+	return nil
+}
+
 func (t *topic) Configure(htmlRouter *mux.Router, apiRouter *mux.Router, context dashboard.RenderContext, opt *dashboard.Options) {
 	t.context = context
 	t.options = opt
@@ -137,7 +141,7 @@ func (t *topic) handleListingMaintainersHTML(w http.ResponseWriter, r *http.Requ
 		o = t.options.DefaultOrg
 	}
 
-	org, err := t.cache.ReadOrgByLogin(r.Context(), o)
+	org, err := t.cache.ReadOrg(r.Context(), o)
 	if err != nil {
 		t.context.RenderHTMLError(w, util.HTTPErrorf(http.StatusInternalServerError, "unable to get information on organization %s: %v", o, err))
 		return
@@ -150,17 +154,17 @@ func (t *topic) handleListingMaintainersHTML(w http.ResponseWriter, r *http.Requ
 }
 
 func (t *topic) handleListingMaintainersJSON(w http.ResponseWriter, r *http.Request) {
-	o := r.URL.Query().Get("org")
-	if o == "" {
-		o = t.options.DefaultOrg
+	orgLogin := r.URL.Query().Get("org")
+	if orgLogin == "" {
+		orgLogin = t.options.DefaultOrg
 	}
 
-	org, err := t.cache.ReadOrgByLogin(r.Context(), o)
+	org, err := t.cache.ReadOrg(r.Context(), orgLogin)
 	if err != nil {
-		util.RenderError(w, util.HTTPErrorf(http.StatusInternalServerError, "unable to get information on organization %s: %v", o, err))
+		util.RenderError(w, util.HTTPErrorf(http.StatusInternalServerError, "unable to get information on organization %s: %v", orgLogin, err))
 		return
 	} else if org == nil {
-		util.RenderError(w, util.HTTPErrorf(http.StatusNotFound, "no information available on organization %s", o))
+		util.RenderError(w, util.HTTPErrorf(http.StatusNotFound, "no information available on organization %s", orgLogin))
 		return
 	}
 
@@ -173,8 +177,8 @@ func (t *topic) handleListingMaintainersJSON(w http.ResponseWriter, r *http.Requ
 	}
 	defer c.Close()
 
-	if err = t.store.QueryMaintainersByOrg(r.Context(), org.OrgID, func(m *storage.Maintainer) error {
-		user, err := t.cache.ReadUser(r.Context(), m.UserID)
+	if err = t.store.QueryMaintainersByOrg(r.Context(), orgLogin, func(m *storage.Maintainer) error {
+		user, err := t.cache.ReadUser(r.Context(), m.UserLogin)
 		if err != nil {
 			return util.HTTPErrorf(http.StatusInternalServerError, "unable to read from storage: %v", err)
 		}
@@ -192,21 +196,21 @@ func (t *topic) handleListingMaintainersJSON(w http.ResponseWriter, r *http.Requ
 }
 
 func (t *topic) getSingleMaintainerInfo(context context.Context, orgLogin string, userLogin string) (*maintainerInfo, error) {
-	org, err := t.cache.ReadOrgByLogin(context, orgLogin)
+	org, err := t.cache.ReadOrg(context, orgLogin)
 	if err != nil {
 		return nil, util.HTTPErrorf(http.StatusInternalServerError, "unable to get information on organization %s: %v", orgLogin, err)
 	} else if org == nil {
 		return nil, util.HTTPErrorf(http.StatusNotFound, "no information available on organization %s", orgLogin)
 	}
 
-	user, err := t.cache.ReadUserByLogin(context, userLogin)
+	user, err := t.cache.ReadUser(context, userLogin)
 	if err != nil {
 		return nil, util.HTTPErrorf(http.StatusInternalServerError, "unable to get information on maintainer %s: %v", userLogin, err)
 	} else if user == nil {
 		return nil, util.HTTPErrorf(http.StatusNotFound, "no information available on maintainer %s", userLogin)
 	}
 
-	maintainer, err := t.cache.ReadMaintainer(context, org.OrgID, user.UserID)
+	maintainer, err := t.cache.ReadMaintainer(context, org.OrgLogin, user.UserLogin)
 	if err != nil {
 		return nil, util.HTTPErrorf(http.StatusInternalServerError, "unable to get information on maintainer %s: %v", userLogin, err)
 	} else if maintainer == nil {
@@ -222,18 +226,18 @@ func (t *topic) getSingleMaintainerInfo(context context.Context, orgLogin string
 }
 
 func (t *topic) getMaintainerInfo(context context.Context, org *storage.Org, user *storage.User, maintainer *storage.Maintainer) (*maintainerInfo, error) {
-	if result, ok := t.maintainerInfos.Get(user.UserID); ok {
+	if result, ok := t.maintainerInfos.Get(user.UserLogin); ok {
 		return result.(*maintainerInfo), nil
 	}
 
 	info, err := t.store.QueryMaintainerInfo(context, maintainer)
 	if err != nil {
-		return nil, util.HTTPErrorf(http.StatusInternalServerError, "unable to get information about maintainer %s: %v", user.Login, err)
+		return nil, util.HTTPErrorf(http.StatusInternalServerError, "unable to get information about maintainer %s: %v", user.UserLogin, err)
 	}
 
 	var ri []repoInfo
 	for _, repo := range info.Repos {
-		r, err := t.cache.ReadRepo(context, org.OrgID, repo.RepoID)
+		r, err := t.cache.ReadRepo(context, org.OrgLogin, repo.RepoName)
 		if err != nil {
 			return nil, fmt.Errorf("unable to get repo information from storage: %v", err)
 		}
@@ -247,7 +251,7 @@ func (t *topic) getMaintainerInfo(context context.Context, org *storage.Org, use
 		}
 
 		ri = append(ri, repoInfo{
-			Name:                   r.Name,
+			Name:                   r.RepoName,
 			LastIssueCommented:     repo.LastIssueCommented.Time,
 			LastPullRequestActions: pra,
 		})
@@ -255,11 +259,11 @@ func (t *topic) getMaintainerInfo(context context.Context, org *storage.Org, use
 
 	name := user.Name
 	if name == "" {
-		name = user.Login
+		name = user.UserLogin
 	}
 
 	mi := &maintainerInfo{
-		Login:     user.Login,
+		Login:     user.UserLogin,
 		Name:      name,
 		Company:   user.Company,
 		AvatarURL: user.AvatarURL,
@@ -268,6 +272,6 @@ func (t *topic) getMaintainerInfo(context context.Context, org *storage.Org, use
 		LastSeen:  "03/12/2018", // TODO: get real value
 	}
 
-	t.maintainerInfos.Set(user.UserID, mi)
+	t.maintainerInfos.Set(user.UserLogin, mi)
 	return mi, nil
 }

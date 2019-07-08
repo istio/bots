@@ -21,135 +21,134 @@ import (
 // This file defines the shapes we csn read/write to/from the DB.
 
 type Issue struct {
-	OrgID       string
-	RepoID      string
-	IssueID     string
-	Number      int64
+	OrgLogin    string
+	RepoName    string
+	IssueNumber int64
 	Title       string
 	Body        string
-	LabelIDs    []string
+	Labels      []string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	ClosedAt    time.Time
 	State       string
-	AuthorID    string
-	AssigneeIDs []string
+	Author      string
+	Assignees   []string
 }
 
 type IssueComment struct {
-	OrgID          string
-	RepoID         string
-	IssueID        string
-	IssueCommentID string
-	AuthorID       string
+	OrgLogin       string
+	RepoName       string
+	IssueNumber    int64
+	IssueCommentID int64
+	Author         string
 	Body           string
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 }
 
 type User struct {
-	UserID    string
-	Login     string
+	UserLogin string
 	Name      string
 	Company   string
 	AvatarURL string
 }
 
 type Label struct {
-	OrgID       string
-	RepoID      string
-	LabelID     string
-	Name        string
+	OrgLogin    string
+	RepoName    string
+	LabelName   string
 	Description string
 	Color       string
 }
 
 type Org struct {
-	OrgID string
-	Login string
+	OrgLogin    string
+	Company     string
+	AvatarURL   string
+	Description string
 }
 
 type Repo struct {
-	OrgID       string
-	RepoID      string
-	Name        string
+	OrgLogin    string
+	RepoName    string
 	Description string
 	RepoNumber  int64
 }
 
 type PullRequest struct {
-	OrgID                string
-	RepoID               string
-	PullRequestID        string
-	CreatedAt            time.Time
-	UpdatedAt            time.Time
-	ClosedAt             time.Time
-	MergedAt             time.Time
-	Title                string
-	Body                 string
-	LabelIDs             []string
-	AssigneeIDs          []string
-	RequestedReviewerIDs []string
-	Files                []string
-	AuthorID             string
-	State                string
-	Number               int64
+	OrgLogin           string
+	RepoName           string
+	PullRequestNumber  int64
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+	ClosedAt           time.Time
+	MergedAt           time.Time
+	Title              string
+	Body               string
+	Labels             []string
+	Assignees          []string
+	RequestedReviewers []string
+	Files              []string
+	Author             string
+	State              string
 }
 
-type PullRequestComment struct {
-	OrgID                string
-	RepoID               string
-	PullRequestID        string
-	PullRequestCommentID string
-	AuthorID             string
-	Body                 string
-	CreatedAt            time.Time
-	UpdatedAt            time.Time
+type PullRequestReviewComment struct {
+	OrgLogin                   string
+	RepoName                   string
+	PullRequestNumber          int64
+	PullRequestReviewCommentID int64
+	Author                     string
+	Body                       string
+	CreatedAt                  time.Time
+	UpdatedAt                  time.Time
 }
 
 type PullRequestReview struct {
-	OrgID               string
-	RepoID              string
-	PullRequestID       string
-	PullRequestReviewID string
-	AuthorID            string
+	OrgLogin            string
+	RepoName            string
+	PullRequestNumber   int64
+	PullRequestReviewID int64
+	Author              string
 	Body                string
 	SubmittedAt         time.Time
 	State               string
 }
 
 type Member struct {
-	OrgID  string
-	UserID string
+	OrgLogin  string
+	UserLogin string
 }
 
 type BotActivity struct {
-	OrgID              string
-	RepoID             string
-	LastIssueSyncStart time.Time
+	OrgLogin                              string
+	RepoName                              string
+	LastIssueSyncStart                    time.Time
+	LastIssueCommentSyncStart             time.Time
+	LastPullRequestReviewCommentSyncStart time.Time
 }
 
 type Maintainer struct {
-	OrgID    string
-	UserID   string
-	Paths    []string // where each path is of the form RepoID/path_in_repo
-	Emeritus bool
+	OrgLogin  string
+	UserLogin string
+	Paths     []string // where each path is of the form RepoID/path_in_repo
+	Emeritus  bool
 }
 
 type IssuePipeline struct {
-	OrgID       string
-	RepoID      string
+	OrgLogin    string
+	RepoName    string
 	IssueNumber int64
 	Pipeline    string
 }
 
 type TimedEntry struct {
 	Time time.Time
-	ID   string // an object ID (pr, issue, issue comment)
+	ID   int64 // an object ID
 }
 
 type RepoActivityInfo struct {
-	RepoID                         string                // ID of the repo
+	RepoName                       string                // ID of the repo
 	LastPullRequestCommittedByPath map[string]TimedEntry // last update a maintainer has done to one of their maintained paths
 	LastIssueCommented             TimedEntry            // last issue commented on by the maintainer
 	LastIssueClosed                TimedEntry            // last issue closed by the maintainer
@@ -157,12 +156,12 @@ type RepoActivityInfo struct {
 }
 
 type MaintainerInfo struct {
-	Repos map[string]*RepoActivityInfo // about the maintainer's activity in different repos (index is repo id)
+	Repos map[string]*RepoActivityInfo // about the maintainer's activity in different repos (index is repo name)
 }
 
 type TestResult struct {
-	OrgID       string
-	RepoID      string
+	OrgLogin    string
+	RepoName    string
 	TestName    string
 	TestPassed  bool
 	CloneFailed bool
@@ -178,11 +177,68 @@ type TestResult struct {
 }
 
 type RepoComment struct {
-	OrgID     string
-	RepoID    string
-	CommentID string
+	OrgLogin  string
+	RepoName  string
+	CommentID int64
 	Body      string
-	AuthorID  string
+	Author    string
 	CreatedAt time.Time
 	UpdatedAt time.Time
+}
+
+type RepoCommentEvent struct {
+	OrgLogin      string
+	RepoName      string
+	RepoCommentID int64
+	CreatedAt     time.Time
+	Actor         string
+	Action        string
+}
+
+type PullRequestReviewEvent struct {
+	OrgLogin            string
+	RepoName            string
+	PullRequestNumber   int64
+	PullRequestReviewID int64
+	CreatedAt           time.Time
+	Actor               string
+	Action              string
+}
+
+type PullRequestEvent struct {
+	OrgLogin          string
+	RepoName          string
+	PullRequestNumber int64
+	CreatedAt         time.Time
+	Actor             string
+	Action            string
+}
+
+type PullRequestReviewCommentEvent struct {
+	OrgLogin                   string
+	RepoName                   string
+	PullRequestNumber          int64
+	PullRequestReviewCommentID int64
+	CreatedAt                  time.Time
+	Actor                      string
+	Action                     string
+}
+
+type IssueCommentEvent struct {
+	OrgLogin       string
+	RepoName       string
+	IssueNumber    int64
+	IssueCommentID int64
+	CreatedAt      time.Time
+	Actor          string
+	Action         string
+}
+
+type IssueEvent struct {
+	OrgLogin    string
+	RepoName    string
+	IssueNumber int64
+	CreatedAt   time.Time
+	Actor       string
+	Action      string
 }

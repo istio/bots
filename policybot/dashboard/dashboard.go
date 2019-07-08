@@ -20,12 +20,11 @@ import (
 	"strings"
 	"text/template"
 
-	"istio.io/bots/policybot/pkg/util"
-
 	"github.com/gorilla/mux"
 
 	"istio.io/bots/policybot/dashboard/templates/layout"
 	"istio.io/bots/policybot/dashboard/templates/widgets"
+	"istio.io/bots/policybot/pkg/util"
 )
 
 // Dashboard captures all the user-interface state necessary to expose the full UI to clients.
@@ -33,8 +32,10 @@ type Dashboard struct {
 	primaryTemplates  *template.Template
 	notFoundTemplates *template.Template
 	errorTemplates    *template.Template
-	topics            []RegisteredTopic
-	router            *mux.Router
+	topics            []*RegisteredTopic
+	htmlRouter        *mux.Router
+	apiRouter         *mux.Router
+	options           Options
 }
 
 // RegisteredTopic represents a top-level UI topic that's been registered for use.
@@ -42,6 +43,7 @@ type RegisteredTopic struct {
 	Title       string
 	Description string
 	URL         string
+	Subtopics   []*RegisteredTopic
 }
 
 func New(router *mux.Router, clientID string, clientSecret string) *Dashboard {
@@ -49,16 +51,21 @@ func New(router *mux.Router, clientID string, clientSecret string) *Dashboard {
 		primaryTemplates:  template.Must(template.New("base").Parse(layout.BaseTemplate)),
 		notFoundTemplates: template.Must(template.New("base").Parse(layout.BaseTemplate)),
 		errorTemplates:    template.Must(template.New("base").Parse(layout.BaseTemplate)),
-		router:            router,
+		htmlRouter:        router,
+		apiRouter:         router.PathPrefix("/api").Subrouter(),
+		options:           Options{"istio"}, // TODO: get rid of Istio default
 	}
 
 	// primary templates
 	d.primaryTemplates.Funcs(template.FuncMap{
 		"getTopics": d.Topics,
+		"dict":      dict,
+		"printf":    printf,
 	})
 	_ = template.Must(d.primaryTemplates.Parse(layout.PrimaryTemplate))
 	_ = template.Must(d.primaryTemplates.Parse(widgets.HeaderTemplate))
 	_ = template.Must(d.primaryTemplates.Parse(widgets.SidebarTemplate))
+	_ = template.Must(d.primaryTemplates.Parse(widgets.SidebarLevelTemplate))
 
 	// 'not found' template
 	_ = template.Must(d.notFoundTemplates.Parse(layout.NotFoundTemplate))
@@ -89,21 +96,35 @@ func New(router *mux.Router, clientID string, clientSecret string) *Dashboard {
 }
 
 func (d *Dashboard) RegisterTopic(t Topic) {
-	htmlRouter := d.router.PathPrefix("/" + t.Name()).Subrouter()
-	apiRouter := d.router.PathPrefix("/" + t.Name() + "api").Subrouter()
+	d.topics = append(d.topics, d.registerTopic(t, d.htmlRouter, d.apiRouter, ""))
+}
 
-	t.Configure(htmlRouter, apiRouter, newRenderContext(t, d.primaryTemplates, d.errorTemplates), &Options{"istio"}) // TODO: eliminate istio default
+func (d *Dashboard) registerTopic(t Topic, htmlRouter *mux.Router, apiRouter *mux.Router, basePath string) *RegisteredTopic {
+	htmlRouter = htmlRouter.PathPrefix("/" + t.Name()).Subrouter()
+	apiRouter = apiRouter.PathPrefix("/" + t.Name()).Subrouter()
 
-	d.topics = append(d.topics,
-		RegisteredTopic{
-			Title:       t.Title(),
-			Description: t.Description(),
-			URL:         "/" + t.Name(),
-		})
+	rt := &RegisteredTopic{
+		Title:       t.Title(),
+		Description: t.Description(),
+		URL:         basePath + "/" + t.Name(),
+		Subtopics:   d.handleSubtopics(t.Subtopics(), htmlRouter, apiRouter, basePath+"/"+t.Name()),
+	}
+
+	t.Configure(htmlRouter, apiRouter, newRenderContext(rt, d.primaryTemplates, d.errorTemplates), &Options{"istio"}) // TODO: eliminate istio default
+
+	return rt
+}
+
+func (d *Dashboard) handleSubtopics(subtopics []Topic, htmlRouter *mux.Router, apiRouter *mux.Router, basePath string) []*RegisteredTopic {
+	var rt []*RegisteredTopic
+	for _, s := range subtopics {
+		rt = append(rt, d.registerTopic(s, htmlRouter, apiRouter, basePath))
+	}
+	return rt
 }
 
 func (d *Dashboard) RegisterPageNotFound() {
-	d.router.StrictSlash(true).
+	d.htmlRouter.StrictSlash(true).
 		PathPrefix("/").
 		Methods("GET").
 		HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -125,12 +146,12 @@ func (d *Dashboard) RegisterPageNotFound() {
 		})
 }
 
-func (d *Dashboard) Topics() []RegisteredTopic {
+func (d *Dashboard) Topics() []*RegisteredTopic {
 	return d.topics
 }
 
 func (d *Dashboard) registerStaticDir(fsPath string, sitePath string) {
-	d.router.
+	d.htmlRouter.
 		PathPrefix(sitePath).
 		Methods("GET").
 		HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -139,7 +160,7 @@ func (d *Dashboard) registerStaticDir(fsPath string, sitePath string) {
 }
 
 func (d *Dashboard) registerStaticFile(fsPath string, sitePath string) {
-	d.router.
+	d.htmlRouter.
 		Path(sitePath).
 		Methods("GET").
 		HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -148,4 +169,8 @@ func (d *Dashboard) registerStaticFile(fsPath string, sitePath string) {
 			}
 			http.ServeFile(w, r, fsPath)
 		})
+}
+
+func (rt *RegisteredTopic) IsAncestor(ti templateInfo) bool {
+	return strings.HasPrefix(ti.URL, rt.URL)
 }

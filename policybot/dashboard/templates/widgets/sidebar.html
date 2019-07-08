@@ -6,14 +6,9 @@
 	            Istio Eng Dashboard
         	</div>
 
+			{{ $topics := getTopics }}
             <div class="body default" aria-labelledby="header0">
-				<ul role="tree" aria-expanded="true">
-					{{ range getTopics }}
-						<li role="none">
-							<a role="treeitem" title="{{.Description}}" href="{{.URL}}">{{.Title}}</a>
-						</li>
-					{{ end }}
-				</ul>
+				{{ template "sidebar_level" (dict "topics" $topics "current" . "collapse" false "top" true "labelledby" "header0" ) }}
 			</div>
         </div>
     </div>

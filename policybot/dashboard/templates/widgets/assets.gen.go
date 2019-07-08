@@ -2,6 +2,7 @@
 // sources:
 // header.html
 // sidebar.html
+// sidebar_level.html
 // timeseries.html
 // timeseries_init.html
 // DO NOT EDIT!
@@ -111,14 +112,9 @@ var _sidebarHtml = []byte(`{{ define "sidebar" }}
 	            Istio Eng Dashboard
         	</div>
 
+			{{ $topics := getTopics }}
             <div class="body default" aria-labelledby="header0">
-				<ul role="tree" aria-expanded="true">
-					{{ range getTopics }}
-						<li role="none">
-							<a role="treeitem" title="{{.Description}}" href="{{.URL}}">{{.Title}}</a>
-						</li>
-					{{ end }}
-				</ul>
+				{{ template "sidebar_level" (dict "topics" $topics "current" . "collapse" false "top" true "labelledby" "header0" ) }}
 			</div>
         </div>
     </div>
@@ -137,6 +133,59 @@ func sidebarHtml() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "sidebar.html", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var _sidebar_levelHtml = []byte(`{{ define "sidebar_level" }}
+{{ $topics := .topics }}
+{{ $current := .current }}
+{{ $collapse := .collapse }}
+{{ $top := .top }}
+{{ $labelledby := .labelledby }}
+
+{{ $leafSection := true }}
+{{ range $topics }}
+    {{ if gt (len .Subtopics) 0 }}
+        {{ $leafSection = false }}
+    {{ end }}
+{{ end }}
+
+<ul role="{{ if $top }}tree{{ else }}group{{ end }}" aria-expanded="{{ if $collapse }}false{{ else }}true{{ end }}"{{ if $leafSection }} class="leaf-section"{{ end }} {{ if $labelledby}}aria-labelledby="{{ $labelledby }}"{{ end }}>
+    {{ range $topics }}
+        {{ if gt (len .Subtopics) 0 }}
+            <li role="treeitem" aria-label="{{ .Title }}">
+                {{ $collapse := not (.IsAncestor $current) }}
+
+                <button{{ if not $collapse }} class="show"{{ end }} aria-hidden="true"></button><a {{ if eq $current.URL .URL }}class="current"{{ end }} title="{{ .Description }}" href="{{ .URL }}">{{ .Title}}</a>
+
+                {{ template "sidebar_level" (dict "topics" .Subtopics "current" $current "collapse" $collapse "top" false "labelledby" "" ) }}
+            </li>
+        {{ else }}
+            <li role="none">
+                {{ if eq $current.URL .URL }}
+                    <span role="treeitem" class="current" title="{{ .Description }}">{{ .Title }}</span>
+                {{ else }}
+                    <a role="treeitem" title="{{ .Description }}" href="{{ .URL }}">{{ .Title }}</a>
+                {{ end }}
+            </li>
+        {{ end }}
+    {{ end }}
+</ul>
+{{ end }}
+`)
+
+func sidebar_levelHtmlBytes() ([]byte, error) {
+	return _sidebar_levelHtml, nil
+}
+
+func sidebar_levelHtml() (*asset, error) {
+	bytes, err := sidebar_levelHtmlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "sidebar_level.html", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -256,6 +305,7 @@ func AssetNames() []string {
 var _bindata = map[string]func() (*asset, error){
 	"header.html": headerHtml,
 	"sidebar.html": sidebarHtml,
+	"sidebar_level.html": sidebar_levelHtml,
 	"timeseries.html": timeseriesHtml,
 	"timeseries_init.html": timeseries_initHtml,
 }
@@ -302,6 +352,7 @@ type bintree struct {
 var _bintree = &bintree{nil, map[string]*bintree{
 	"header.html": &bintree{headerHtml, map[string]*bintree{}},
 	"sidebar.html": &bintree{sidebarHtml, map[string]*bintree{}},
+	"sidebar_level.html": &bintree{sidebar_levelHtml, map[string]*bintree{}},
 	"timeseries.html": &bintree{timeseriesHtml, map[string]*bintree{}},
 	"timeseries_init.html": &bintree{timeseries_initHtml, map[string]*bintree{}},
 }}

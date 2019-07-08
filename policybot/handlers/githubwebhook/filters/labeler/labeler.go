@@ -18,9 +18,8 @@ import (
 	"context"
 	"fmt"
 	"regexp"
-	"strings"
 
-	webhook "github.com/go-playground/webhooks/github"
+	"github.com/google/go-github/v26/github"
 
 	"istio.io/bots/policybot/handlers/githubwebhook/filters"
 	"istio.io/bots/policybot/pkg/config"
@@ -33,7 +32,7 @@ import (
 // Generates nagging messages in PRs based on regex matches on the title, body, and affected files
 type Labeler struct {
 	cache             *cache.Cache
-	ght               *gh.ThrottledClient
+	gc                *gh.ThrottledClient
 	orgs              []config.Org
 	autoLabels        []config.AutoLabel
 	singleLineRegexes map[string]*regexp.Regexp
@@ -43,10 +42,10 @@ type Labeler struct {
 
 var scope = log.RegisterScope("labeler", "Issue and PR auto-labeler", 0)
 
-func NewLabeler(ght *gh.ThrottledClient, cache *cache.Cache, orgs []config.Org, autoLabels []config.AutoLabel) (filters.Filter, error) {
+func NewLabeler(gc *gh.ThrottledClient, cache *cache.Cache, orgs []config.Org, autoLabels []config.AutoLabel) (filters.Filter, error) {
 	l := &Labeler{
 		cache:             cache,
-		ght:               ght,
+		gc:                gc,
 		orgs:              orgs,
 		autoLabels:        autoLabels,
 		singleLineRegexes: make(map[string]*regexp.Regexp),
@@ -106,35 +105,35 @@ func (l *Labeler) processAutoLabelRegexes(al config.AutoLabel) error {
 	return nil
 }
 
-func (l *Labeler) Events() []webhook.Event {
-	return []webhook.Event{
-		webhook.IssuesEvent,
-		webhook.PullRequestEvent,
-	}
-}
-
 // process an event arriving from GitHub
-func (l *Labeler) Handle(context context.Context, githubObject interface{}) {
+func (l *Labeler) Handle(context context.Context, event interface{}) {
 	action := ""
 	repo := ""
 	number := 0
 	var issue *storage.Issue
 	var pr *storage.PullRequest
 
-	ip, ok := githubObject.(webhook.IssuesPayload)
+	ip, ok := event.(*github.IssueEvent)
 	if ok {
-		action = ip.Action
-		repo = ip.Repository.FullName
-		number = int(ip.Issue.Number)
-		issue, _ = gh.IssueFromHook(&ip)
+		action = ip.GetEvent()
+		repo = ip.GetIssue().GetRepository().GetFullName()
+		number = ip.GetIssue().GetNumber()
+		issue, _ = gh.ConvertIssue(
+			ip.GetIssue().GetRepository().GetOwner().GetLogin(),
+			ip.GetIssue().GetRepository().GetName(),
+			ip.GetIssue())
 	}
 
-	prp, ok := githubObject.(webhook.PullRequestPayload)
+	prp, ok := event.(*github.PullRequestEvent)
 	if ok {
-		action = prp.Action
-		repo = prp.Repository.FullName
-		number = int(prp.PullRequest.Number)
-		pr, _ = gh.PullRequestFromHook(&prp)
+		action = prp.GetAction()
+		repo = prp.GetRepo().GetFullName()
+		number = prp.GetPullRequest().GetNumber()
+		pr, _ = gh.ConvertPullRequest(
+			prp.GetRepo().GetOwner().GetLogin(),
+			prp.GetRepo().GetName(),
+			prp.GetPullRequest(),
+			nil)
 	}
 
 	if action != "opened" && action != "review_requested" {
@@ -151,25 +150,24 @@ func (l *Labeler) Handle(context context.Context, githubObject interface{}) {
 
 	scope.Infof("Processing event %d from repo %s", number, repo)
 
-	split := strings.Split(repo, "/")
-
 	if issue != nil {
-		l.processIssue(context, issue, repo, split[0], split[1], autoLabels)
+		l.processIssue(context, issue, autoLabels)
 	} else {
-		l.processPullRequest(context, pr, repo, split[0], split[1], autoLabels)
+		l.processPullRequest(context, pr, autoLabels)
 	}
 }
 
-func (l *Labeler) processIssue(context context.Context, issue *storage.Issue, fullRepoName, orgName, repoName string, orgALs []config.AutoLabel) {
+func (l *Labeler) processIssue(context context.Context, issue *storage.Issue, orgALs []config.AutoLabel) {
 	// get all the issue's labels
 	var labels []*storage.Label
-	for _, labelID := range issue.LabelIDs {
-		label, err := l.cache.ReadLabel(context, issue.OrgID, issue.RepoID, labelID)
+	for _, labelName := range issue.Labels {
+		label, err := l.cache.ReadLabel(context, issue.OrgLogin, issue.RepoName, labelName)
 		if err != nil {
-			scope.Errorf("Unable to get labels for issue %d in repo %s: %v", issue.Number, fullRepoName, err)
+			scope.Errorf("Unable to get labels for issue %d in repo %s/%s: %v", issue.IssueNumber, issue.OrgLogin, issue.RepoName, err)
 			return
+		} else if label != nil {
+			labels = append(labels, label)
 		}
-		labels = append(labels, label)
 	}
 
 	// find any matching global auto labels
@@ -188,25 +186,28 @@ func (l *Labeler) processIssue(context context.Context, issue *storage.Issue, fu
 	}
 
 	if len(toApply) > 0 {
-		if _, _, err := l.ght.Get(context).Issues.AddLabelsToIssue(context, orgName, repoName, int(issue.Number), toApply); err != nil {
-			scope.Errorf("Unable to set labels on issue %d in repo %s: %v", issue.Number, fullRepoName, err)
+		if _, _, err := l.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+			return client.Issues.AddLabelsToIssue(context, issue.OrgLogin, issue.RepoName, int(issue.IssueNumber), toApply)
+		}); err != nil {
+			scope.Errorf("Unable to set labels on issue %d in repo %s/%s: %v", issue.IssueNumber, issue.OrgLogin, issue.RepoName, err)
 			return
 		}
 	}
 
-	scope.Infof("Applied %d label(s) to issue %d from repo %s", len(toApply), issue.Number, fullRepoName)
+	scope.Infof("Applied %d label(s) to issue %d from repo %s/%s", len(toApply), issue.IssueNumber, issue.OrgLogin, issue.RepoName)
 }
 
-func (l *Labeler) processPullRequest(context context.Context, pr *storage.PullRequest, fullRepoName, orgName, repoName string, orgALs []config.AutoLabel) {
+func (l *Labeler) processPullRequest(context context.Context, pr *storage.PullRequest, orgALs []config.AutoLabel) {
 	// get all the pr's labels
 	var labels []*storage.Label
-	for _, labelID := range pr.LabelIDs {
-		label, err := l.cache.ReadLabel(context, pr.OrgID, pr.RepoID, labelID)
+	for _, labelName := range pr.Labels {
+		label, err := l.cache.ReadLabel(context, pr.OrgLogin, pr.RepoName, labelName)
 		if err != nil {
-			scope.Errorf("Unable to get labels for pr %d in repo %s: %v", pr.Number, fullRepoName, err)
+			scope.Errorf("Unable to get labels for pr %d in repo %s/%s: %v", pr.PullRequestNumber, pr.OrgLogin, pr.RepoName, err)
 			return
+		} else if label != nil {
+			labels = append(labels, label)
 		}
-		labels = append(labels, label)
 	}
 
 	// find any matching global auto labels
@@ -225,13 +226,15 @@ func (l *Labeler) processPullRequest(context context.Context, pr *storage.PullRe
 	}
 
 	if len(toApply) > 0 {
-		if _, _, err := l.ght.Get(context).Issues.AddLabelsToIssue(context, orgName, repoName, int(pr.Number), toApply); err != nil {
-			scope.Errorf("Unable to set labels on event %d in repo %s: %v", pr.Number, fullRepoName, err)
+		if _, _, err := l.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+			return client.Issues.AddLabelsToIssue(context, pr.OrgLogin, pr.RepoName, int(pr.PullRequestNumber), toApply)
+		}); err != nil {
+			scope.Errorf("Unable to set labels on event %d in repo %s/%s: %v", pr.PullRequestNumber, pr.OrgLogin, pr.RepoName, err)
 			return
 		}
 	}
 
-	scope.Infof("Applied %d label(s) to pr %d from repo %s", len(toApply), pr.Number, fullRepoName)
+	scope.Infof("Applied %d label(s) to pr %d from repo %s/%s", len(toApply), pr.PullRequestNumber, pr.OrgLogin, pr.RepoName)
 }
 
 func (l *Labeler) matchAutoLabel(al config.AutoLabel, title string, body string, labels []*storage.Label) bool {
@@ -242,7 +245,7 @@ func (l *Labeler) matchAutoLabel(al config.AutoLabel, title string, body string,
 
 	// if any labels match, we're done
 	for _, label := range labels {
-		if l.labelMatch(al, label.Name) {
+		if l.labelMatch(al, label.LabelName) {
 			return false
 		}
 	}

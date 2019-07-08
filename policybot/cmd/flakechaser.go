@@ -19,12 +19,13 @@ import (
 	"encoding/base64"
 	"fmt"
 
+	"istio.io/bots/policybot/pkg/gh"
+
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/grpclog"
 
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/flakechaser"
-	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage/cache"
 	"istio.io/bots/policybot/pkg/storage/spanner"
 	"istio.io/pkg/env"
@@ -81,7 +82,7 @@ func runFlakeChaser(a *config.Args) error {
 		return fmt.Errorf("unable to decode GCP credentials: %v", err)
 	}
 
-	ght := gh.NewThrottledClient(context.Background(), a.StartupOptions.GitHubToken)
+	gc := gh.NewThrottledClient(context.Background(), a.StartupOptions.GitHubToken)
 
 	store, err := spanner.NewStore(context.Background(), a.SpannerDatabase, creds)
 	if err != nil {
@@ -91,7 +92,7 @@ func runFlakeChaser(a *config.Args) error {
 
 	cache := cache.New(store, a.CacheTTL)
 
-	h := flakechaser.New(ght, store, cache, a.FlakeChaser)
+	h := flakechaser.New(gc, store, cache, a.FlakeChaser)
 	h.Chase(context.Background())
 	return nil
 }

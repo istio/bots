@@ -59,6 +59,10 @@ func (t *topic) Name() string {
 	return "perf"
 }
 
+func (t *topic) Subtopics() []dashboard.Topic {
+	return nil
+}
+
 func (t *topic) Configure(htmlRouter *mux.Router, apiRouter *mux.Router, context dashboard.RenderContext, opt *dashboard.Options) {
 	htmlRouter.StrictSlash(true).
 		Path("/").

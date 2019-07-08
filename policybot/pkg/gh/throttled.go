@@ -16,24 +16,18 @@ package gh
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/go-github/v26/github"
 	"golang.org/x/oauth2"
-	"golang.org/x/time/rate"
-)
 
-const (
-	// TODO: need to enforce this
-	// maxGitHubRequestsPerHour   = 5000.0     // per-hour max, to stay under rate limit
-	maxGitHubRequestsPerSecond = 1.1 // per-second max, to stay under abuse detection limit
-	maxGitHubBurst             = 10  // max burst size, to stay under abuse detection limit
+	"istio.io/pkg/log"
 )
 
 // ThrottledClient is used to throttle our use of the GitHub API in order to
-// prevent hitting rate limits or abuse limits.
+// prevent hitting rate limits.
 type ThrottledClient struct {
-	client  *github.Client
-	limiter *rate.Limiter
+	client *github.Client
 }
 
 func NewThrottledClient(context context.Context, githubToken string) *ThrottledClient {
@@ -42,14 +36,72 @@ func NewThrottledClient(context context.Context, githubToken string) *ThrottledC
 	)
 
 	return &ThrottledClient{
-		client:  github.NewClient(oauth2.NewClient(context, src)),
-		limiter: rate.NewLimiter(maxGitHubRequestsPerSecond, maxGitHubBurst),
+		client: github.NewClient(oauth2.NewClient(context, src)),
 	}
 }
 
-// Get the GitHub client in a throttled fashion, so we don't exceed GitHub's usage limits. This will block
-// until it is safe to make the call to GitHub.
-func (ght *ThrottledClient) Get(context context.Context) *github.Client {
-	_ = ght.limiter.Wait(context)
-	return ght.client
+// ThrottledCall invokes the given callback and watches for error returns indicating a GitHub rate limit errors.
+// If a rate limit error is detected, the call is tried again based on the reset time
+// specified in the error.
+func (tc ThrottledClient) ThrottledCall(cb func(client *github.Client) (interface{}, *github.Response, error)) (interface{}, *github.Response, error) {
+	for {
+		result, resp, err := cb(tc.client)
+		if err == nil {
+			return result, resp, nil
+		}
+
+		_, ok := err.(*github.RateLimitError)
+		if !ok {
+			return result, resp, err
+		}
+
+		sleep(resp)
+	}
+}
+
+// ThrottledCallNoResult invokes the given callback and watches for error returns indicating a GitHub rate limit errors.
+// If a rate limit error is detected, the call is tried again based on the reset time
+// specified in the error.
+func (tc *ThrottledClient) ThrottledCallNoResult(cb func(*github.Client) (*github.Response, error)) (*github.Response, error) {
+	for {
+		resp, err := cb(tc.client)
+		if err == nil {
+			return resp, nil
+		}
+
+		_, ok := err.(*github.RateLimitError)
+		if !ok {
+			return resp, err
+		}
+
+		sleep(resp)
+	}
+}
+
+// ThrottledCallTwoResult invokes the given callback and watches for error returns indicating a GitHub rate limit errors.
+// If a rate limit error is detected, the call is tried again based on the reset time
+// specified in the error.
+func (tc *ThrottledClient) ThrottledCallTwoResult(cb func(*github.Client) (interface{}, interface{}, *github.Response, error)) (interface{},
+	interface{}, *github.Response, error) {
+
+	for {
+		result1, result2, resp, err := cb(tc.client)
+		if err == nil {
+			return result1, result2, resp, nil
+		}
+
+		_, ok := err.(*github.RateLimitError)
+		if !ok {
+			return result1, result2, resp, err
+		}
+
+		sleep(resp)
+	}
+}
+
+func sleep(resp *github.Response) {
+	// wait for the reset time
+	// TODO: would be nice to wait in a cancellable way, per a context
+	log.Debugf("Waiting for GitHub rate limit reset at %s", resp.Rate.Reset.UTC().String())
+	time.Sleep(time.Until(resp.Rate.Reset.Time))
 }

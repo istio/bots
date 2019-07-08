@@ -31,7 +31,7 @@ var scope = log.RegisterScope("flakechaser", "The GitHub flaky test chaser.", 0)
 
 // Chaser scans the test flakiness issues and neg issuer assignee when no updates occur for a while.
 type Chaser struct {
-	ght   *gh.ThrottledClient
+	gc    *gh.ThrottledClient
 	cache *cache.Cache
 	store storage.Store
 	repos map[string]bool
@@ -46,13 +46,13 @@ type Chaser struct {
 }
 
 // New creates a flake chaser.
-func New(ght *gh.ThrottledClient, store storage.Store, cache *cache.Cache, config config.FlakeChaser) *Chaser {
+func New(gc *gh.ThrottledClient, store storage.Store, cache *cache.Cache, config config.FlakeChaser) *Chaser {
 	enabledRepo := map[string]bool{}
 	for _, repo := range config.Repos {
 		enabledRepo[repo] = true
 	}
 	return &Chaser{
-		ght:          ght,
+		gc:           gc,
 		store:        store,
 		cache:        cache,
 		repos:        enabledRepo,
@@ -76,28 +76,32 @@ func (c *Chaser) Chase(context context.Context) {
 		comment := &github.IssueComment{
 			Body: &c.message,
 		}
-		repo, err := c.cache.ReadRepo(context, issue.OrgID, issue.RepoID)
+		repo, err := c.cache.ReadRepo(context, issue.OrgLogin, issue.RepoName)
 		if err != nil {
 			scope.Errorf("Failed to look up the repo: %v", err)
 			continue
 		}
-		org, err := c.cache.ReadOrg(context, issue.OrgID)
+		org, err := c.cache.ReadOrg(context, issue.OrgLogin)
 		if err != nil {
 			scope.Errorf("Failed to read the repo: %v", err)
 			continue
 		}
-		repoURI := fmt.Sprintf("%v/%v", org.Login, repo.Name)
+		repoURI := fmt.Sprintf("%v/%v", org.OrgLogin, repo.RepoName)
 		if _, ok := c.repos[repoURI]; !ok {
 			scope.Infof("Uninterested repo %v, skipping...", repoURI)
 			continue
 		}
-		url := fmt.Sprintf("https://github.com/%v/%v/issues/%v", org.Login, repo.Name, issue.Number)
+		url := fmt.Sprintf("https://github.com/%v/%v/issues/%v", org.OrgLogin, repo.RepoName, issue.IssueNumber)
 		scope.Infof("About to nag test flaky issue with %v", url)
 		if c.dryRun {
 			continue
 		}
-		_, _, err = c.ght.Get(context).Issues.CreateComment(
-			context, org.Login, repo.Name, int(issue.Number), comment)
+
+		_, _, err = c.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+			return client.Issues.CreateComment(
+				context, org.OrgLogin, repo.RepoName, int(issue.IssueNumber), comment)
+		})
+
 		if err != nil {
 			scope.Errorf("Failed to create flakes nagging comments: %v", err)
 		}

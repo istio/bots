@@ -27,11 +27,11 @@ import (
 )
 
 type topic struct {
-	topics []dashboard.RegisteredTopic
+	topics []*dashboard.RegisteredTopic
 	home   *template.Template
 }
 
-func NewTopic(topics []dashboard.RegisteredTopic) dashboard.Topic {
+func NewTopic(topics []*dashboard.RegisteredTopic) dashboard.Topic {
 	return &topic{
 		topics: topics,
 		home:   template.Must(template.New("home").Parse(string(MustAsset("page.html")))),
@@ -48,6 +48,10 @@ func (t *topic) Description() string {
 
 func (t *topic) Name() string {
 	return ""
+}
+
+func (t *topic) Subtopics() []dashboard.Topic {
+	return nil
 }
 
 func (t *topic) Configure(htmlRouter *mux.Router, apiRouter *mux.Router, context dashboard.RenderContext, opt *dashboard.Options) {

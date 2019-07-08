@@ -232,6 +232,8 @@ func (prt *PrResultTester) getInformationFromCloneFile(pref string, eachRun *sto
 	}
 	record := records[0]
 	refs := record.Refs
+	orgLogin := refs.Org
+	repoName := refs.Repo
 	pulls := refs.Pulls
 	pull := pulls[0]
 	sha := pull.Sha
@@ -241,6 +243,8 @@ func (prt *PrResultTester) getInformationFromCloneFile(pref string, eachRun *sto
 	eachRun.Sha = sha
 	eachRun.BaseSha = baseSha
 	eachRun.CloneFailed = failed
+	eachRun.OrgLogin = orgLogin
+	eachRun.RepoName = repoName
 
 	return eachRun, nil
 }
@@ -249,15 +253,13 @@ func (prt *PrResultTester) getInformationFromCloneFile(pref string, eachRun *sto
 // Client: client used to get buckets and objects from google cloud storage.
 // TestSlice: a slice of Tests objects containing all tests and the path to folder for each test run for the test under such pr.
 // Return a map of test suite name -- pr number -- run number -- ForEachRun objects.
-func (prt *PrResultTester) getShaAndPassStatus(testSlice map[string][]string, orgID string, repoID string) ([]*store.TestResult, error) {
+func (prt *PrResultTester) getShaAndPassStatus(testSlice map[string][]string) ([]*store.TestResult, error) {
 	var allTestRuns = []*store.TestResult{}
 
 	for testName, runPaths := range testSlice {
 		for _, runPath := range runPaths {
 
 			var eachRun = &store.TestResult{}
-			eachRun.OrgID = orgID
-			eachRun.RepoID = repoID
 			eachRun.TestName = testName
 			eachRun.RunPath = runPath
 			eachRun.Done = false
@@ -298,12 +300,12 @@ func (prt *PrResultTester) getShaAndPassStatus(testSlice map[string][]string, or
 }
 
 // Read in gcs the folder of the given pr number and write the result of each test runs into a slice of TestFlake struct.
-func (prt *PrResultTester) CheckTestResultsForPr(prNum int64, orgLogin string, orgID string, repoName string, repoID string) ([]*store.TestResult, error) {
+func (prt *PrResultTester) CheckTestResultsForPr(orgLogin string, repoName string, prNum int64) ([]*store.TestResult, error) {
 	testSlice, err := prt.getTests(orgLogin, repoName, prNum)
 	if err != nil {
 		return nil, err
 	}
-	fullResult, err := prt.getShaAndPassStatus(testSlice, orgID, repoID)
+	fullResult, err := prt.getShaAndPassStatus(testSlice)
 
 	if err != nil {
 		return nil, err

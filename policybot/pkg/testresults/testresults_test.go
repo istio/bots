@@ -36,8 +36,8 @@ func TestResults(t *testing.T) {
 	time2, _ := time.Parse(layout, "11/16/2018 07:15:44")
 	t2 := time2.Local()
 	var correctInfo = &storage.TestResult{
-		OrgID:       "MDEyOk9yZ2FuaXphdGlvbjIzNTM0NjQ0",
-		RepoID:      "MDEwOlJlcG9zaXRvcnk3NDE3NTgwNQ==",
+		OrgLogin:    "istio",
+		RepoName:    "istio",
 		TestName:    "release-test",
 		PrNum:       110,
 		RunNum:      155,
@@ -50,8 +50,6 @@ func TestResults(t *testing.T) {
 		BaseSha:     "d995c19aefe6b5ff0748b783e8b69c59963bc8ae",
 		RunPath:     "pr-logs/pull/istio_istio/110/release-test/155/",
 	}
-	orgID := "MDEyOk9yZ2FuaXphdGlvbjIzNTM0NjQ0"
-	repoID := "MDEwOlJlcG9zaXRvcnk3NDE3NTgwNQ=="
 	var prNum int64 = 110
 
 	client, err := store.NewClient(context)
@@ -64,7 +62,7 @@ func TestResults(t *testing.T) {
 		fmt.Println(err)
 		return
 	}
-	testResults, _ := prResultTest.CheckTestResultsForPr(prNum, "istio", orgID, "istio", repoID)
+	testResults, _ := prResultTest.CheckTestResultsForPr("istio", "istio", prNum)
 	test := testResults[0]
 	if !reflect.DeepEqual(test, correctInfo) {
 		t.Fail()
