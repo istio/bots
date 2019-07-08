@@ -105,6 +105,8 @@ autolabels:
 orgs:
   - name: istio
     repos:
+      - name: istio
+      - name: istio.io
       - name: tools
       - name: api
       - name: bottestrepo
@@ -115,5 +117,3 @@ orgs:
       - name: bots
       - name: proxy
       - name: common-files
-      - name: istio.io
-      - name: istio

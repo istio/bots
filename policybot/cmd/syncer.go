@@ -62,8 +62,8 @@ func syncerCmd() *cobra.Command {
 		},
 	}
 
-	syncerCmd.PersistentFlags().StringVarP(&ca.StartupOptions.ConfigRepo, "configRepo", "", ca.StartupOptions.ConfigRepo, configRepo)
-	syncerCmd.PersistentFlags().StringVarP(&ca.StartupOptions.ConfigFile, "configFile", "", ca.StartupOptions.ConfigFile, configFile)
+	syncerCmd.PersistentFlags().StringVarP(&ca.StartupOptions.ConfigRepo, "config_repo", "", ca.StartupOptions.ConfigRepo, configRepo)
+	syncerCmd.PersistentFlags().StringVarP(&ca.StartupOptions.ConfigFile, "config_file", "", ca.StartupOptions.ConfigFile, configFile)
 	syncerCmd.PersistentFlags().StringVarP(&ca.StartupOptions.GitHubToken, "github_token", "", ca.StartupOptions.GitHubToken, githubToken)
 	syncerCmd.PersistentFlags().StringVarP(&ca.StartupOptions.ZenHubToken, "zenhub_token", "", ca.StartupOptions.ZenHubToken, zenhubToken)
 	syncerCmd.PersistentFlags().StringVarP(&ca.StartupOptions.GCPCredentials, "gcp_creds", "", ca.StartupOptions.GCPCredentials, gcpCreds)

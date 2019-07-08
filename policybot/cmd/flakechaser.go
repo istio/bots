@@ -60,8 +60,8 @@ func flakeChaserCmd() *cobra.Command {
 		},
 	}
 
-	chaserCmd.PersistentFlags().StringVarP(&ca.StartupOptions.ConfigRepo, "configRepo", "", ca.StartupOptions.ConfigRepo, configRepo)
-	chaserCmd.PersistentFlags().StringVarP(&ca.StartupOptions.ConfigFile, "configFile", "", ca.StartupOptions.ConfigFile, configFile)
+	chaserCmd.PersistentFlags().StringVarP(&ca.StartupOptions.ConfigRepo, "config_repo", "", ca.StartupOptions.ConfigRepo, configRepo)
+	chaserCmd.PersistentFlags().StringVarP(&ca.StartupOptions.ConfigFile, "config_file", "", ca.StartupOptions.ConfigFile, configFile)
 	chaserCmd.PersistentFlags().StringVarP(&ca.StartupOptions.GitHubToken, "github_token", "", ca.StartupOptions.GitHubToken, githubToken)
 	chaserCmd.PersistentFlags().StringVarP(&ca.StartupOptions.GCPCredentials, "gcp_creds", "", ca.StartupOptions.GCPCredentials, gcpCreds)
 

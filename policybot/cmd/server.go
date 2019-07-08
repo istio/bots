@@ -117,9 +117,9 @@ func serverCmd() *cobra.Command {
 	}
 
 	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.ConfigRepo,
-		"configRepo", "", ca.StartupOptions.ConfigRepo, configRepo)
+		"config_repo", "", ca.StartupOptions.ConfigRepo, configRepo)
 	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.ConfigFile,
-		"configFile", "", ca.StartupOptions.ConfigFile, configFile)
+		"config_file", "", ca.StartupOptions.ConfigFile, configFile)
 	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.GitHubWebhookSecret,
 		"github_webhook_secret", "", ca.StartupOptions.GitHubWebhookSecret, githubWebhookSecret)
 	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.GitHubToken,
