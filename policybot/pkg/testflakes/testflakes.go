@@ -171,34 +171,23 @@ func (f *FlakeTester) CheckResults(resultMap map[string]map[string]map[bool][]*s
 }
 
 // Chase function add issue comment about the flake results
-func (f *FlakeTester) Chase(context context.Context, flakeResults []*FlakyResult, message string) {
-	scope.Infof("Found %v potential flakes", len(flakeResults))
+func (f *FlakeTester) ReportFlake(context context.Context, flakeResults []*FlakyResult, message string) {
 	for _, flake := range flakeResults {
 		comment := &github.PullRequestComment{
 			Body: &message,
 		}
 
-		repo, err := f.cache.ReadRepo(context, flake.OrgLogin, flake.RepoName)
-		if err != nil {
-			scope.Errorf("Failed to look up the repo: %v", err)
-			continue
-		}
-		org, err := f.cache.ReadOrg(context, flake.OrgLogin)
-		if err != nil {
-			scope.Errorf("Failed to read the repo: %v", err)
-			continue
-		}
-
-		url := fmt.Sprintf("https://github.com/%v/%v/pull/%v", org.OrgLogin, repo.RepoName, flake.PrNum)
+		url := fmt.Sprintf("https://github.com/%v/%v/pull/%v", flake.OrgLogin, flake.RepoName, flake.PrNum)
 		scope.Infof("About to nag test flaky pr with %v", url)
 
-		_, _, err = f.ght.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+		_, _, err := f.ght.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.PullRequests.CreateComment(
-				context, org.OrgLogin, repo.RepoName, int(flake.PrNum), comment)
+				context, flake.OrgLogin, flake.RepoName, int(flake.PrNum), comment)
 		})
 
 		if err != nil {
 			scope.Errorf("Failed to create flakes nagging comments: %v", err)
 		}
+		scope.Infof("Found potential flakes for pull request number %v test %s, in org %s and repo %s", flake.PrNum, flake.TestName, flake.OrgLogin, flake.RepoName)
 	}
 }

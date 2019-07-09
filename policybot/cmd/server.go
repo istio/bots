@@ -44,7 +44,7 @@ import (
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/labeler"
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/nagger"
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/refresher"
-	"istio.io/bots/policybot/handlers/githubwebhook/filters/resulttester"
+	"istio.io/bots/policybot/handlers/githubwebhook/filters/resultgatherer"
 	"istio.io/bots/policybot/handlers/syncer"
 	"istio.io/bots/policybot/handlers/zenhubwebhook"
 	"istio.io/bots/policybot/pkg/blobstorage/gcs"
@@ -88,6 +88,7 @@ func serverCmd() *cobra.Command {
 		env.RegisterStringVar("GITHUB_OAUTH_CLIENT_SECRET", ca.StartupOptions.GitHubOAuthClientSecret, githubOAuthClientSecret).Get()
 	ca.StartupOptions.GitHubOAuthClientID =
 		env.RegisterStringVar("GITHUB_OAUTH_CLIENT_ID", ca.StartupOptions.GitHubOAuthClientID, githubOAuthClientID).Get()
+	env.RegisterBoolVar("HTTPS_ONLY", ca.StartupOptions.HTTPSOnly, httpsOnly).Get()
 
 	loggingOptions := log.DefaultOptions()
 	introspectionOptions := ctrlz.DefaultOptions()
@@ -258,7 +259,7 @@ func runWithConfig(a *config.Args) error {
 		nag,
 		labeler,
 		monitor,
-		resulttester.NewResultTester(store, cache, a.Orgs, a.BucketName),
+		resultgatherer.NewResultGatherer(store, cache, a.Orgs, a.BucketName),
 	}
 
 	if a.StartupOptions.HTTPSOnly {

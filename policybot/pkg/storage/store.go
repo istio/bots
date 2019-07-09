@@ -66,8 +66,9 @@ type Store interface {
 	QueryMaintainerInfo(context context.Context, maintainer *Maintainer) (*MaintainerInfo, error)
 	QueryIssuesByRepo(context context.Context, orgLogin string, repoName string, cb func(*Issue) error) error
 	QueryTestResultByPrNumber(context context.Context, orgLogin string, repoName string, pullRequestNumber int64, cb func(*TestResult) error) error
-	QueryTestResultByUndone(context context.Context, cb func(*TestResult) error) error
-	QueryAllTestResults(context context.Context, cb func(*TestResult) error) error
+	QueryTestResultByUndone(context context.Context, orgLogin string, repoName string, cb func(*TestResult) error) error
+	QueryAllTestResults(context context.Context, orgLogin string, repoName string, cb func(*TestResult) error) error
+	QueryTestResultByTestName(context context.Context, orgLogin string, repoName string, testName string, cb func(*TestResult) error) error
 
 	// TODO: needs to be org-specific and/or repo-specific
 	QueryTestFlakeIssues(context context.Context, inactiveDays, createdDays int) ([]*Issue, error)

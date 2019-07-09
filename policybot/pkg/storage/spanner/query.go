@@ -68,8 +68,16 @@ func (s store) QueryIssuesByRepo(context context.Context, orgLogin string, repoN
 	return err
 }
 
-func (s store) QueryTestResultByName(context context.Context, testName string, cb func(*storage.TestResult) error) error {
-	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM TestResults WHERE TestName = '%s';", testName)})
+func (s store) QueryTestResultByTestName(context context.Context, orgLogin string, repoName string, testName string, cb func(*storage.TestResult) error) error {
+	sql := `SELECT * from TestResults
+	WHERE OrgLogin = @orgLogin AND 
+	RepoName = @repoName AND 
+	TestName = @testName;`
+	stmt := spanner.NewStatement(sql)
+	stmt.Params["orgLogin"] = orgLogin
+	stmt.Params["repoName"] = repoName
+	stmt.Params["testName"] = testName
+	iter := s.client.Single().Query(context, stmt)
 	err := iter.Do(func(row *spanner.Row) error {
 		testResult := &storage.TestResult{}
 		if err := row.ToStruct(testResult); err != nil {
@@ -107,8 +115,15 @@ func (s store) QueryTestResultByPrNumber(
 	return err
 }
 
-func (s store) QueryTestResultByUndone(context context.Context, cb func(*storage.TestResult) error) error {
-	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM TestResults WHERE Done = false")})
+func (s store) QueryTestResultByUndone(context context.Context, orgLogin string, repoName string, cb func(*storage.TestResult) error) error {
+	sql := `SELECT * from TestResults
+	WHERE OrgLogin = @orgLogin AND 
+	RepoName = @repoName AND 
+	Done = false;`
+	stmt := spanner.NewStatement(sql)
+	stmt.Params["orgLogin"] = orgLogin
+	stmt.Params["repoName"] = repoName
+	iter := s.client.Single().Query(context, stmt)
 	err := iter.Do(func(row *spanner.Row) error {
 		testResult := &storage.TestResult{}
 		if err := row.ToStruct(testResult); err != nil {
@@ -121,9 +136,15 @@ func (s store) QueryTestResultByUndone(context context.Context, cb func(*storage
 	return err
 }
 
-// Real all rows from table in Spanner and invokes a call back on the row.
-func (s store) QueryAllTestResults(context context.Context, cb func(*storage.TestResult) error) error {
-	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM TestResults")})
+// Read all rows from table in Spanner and invokes a call back on the row.
+func (s store) QueryAllTestResults(context context.Context, orgLogin string, repoName string, cb func(*storage.TestResult) error) error {
+	sql := `SELECT * from TestResults
+	WHERE OrgLogin = @orgLogin AND 
+	RepoName = @repoName AND `
+	stmt := spanner.NewStatement(sql)
+	stmt.Params["orgLogin"] = orgLogin
+	stmt.Params["repoName"] = repoName
+	iter := s.client.Single().Query(context, stmt)
 	err := iter.Do(func(row *spanner.Row) error {
 		testResult := &storage.TestResult{}
 		if err := row.ToStruct(testResult); err != nil {
