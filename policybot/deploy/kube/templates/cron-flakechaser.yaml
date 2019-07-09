@@ -1,0 +1,25 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: policybot-flakechaser
+  labels:
+    app: policybot-flakechaser
+spec:
+  schedule: "0 0 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: policybot
+              image: "{{ .Values.image }}"
+              imagePullPolicy: "{{ .Values.imagePullPolicy }}"
+              args:
+                - /policybot
+                - flakechaser
+                - --config_file
+                - ./policybot.yaml
+              envFrom:
+                - secretRef:
+                    name: policybot
+          restartPolicy: OnFailure

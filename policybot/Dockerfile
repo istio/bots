@@ -8,7 +8,5 @@ RUN apk update \
 
 COPY policybot /policybot
 COPY policybot.yaml /policybot.yaml
-COPY /generated /generated
+COPY generated /generated
 COPY dashboard/static /dashboard/static
-
-CMD ["/policybot", "server", "--configFile", "./policybot.yaml", "--https_only"]

@@ -6,5 +6,5 @@ keywords:
   - istio
   - policybot
 sources:
-  - http://github.com/istio/bot
+  - https://github.com/istio/bots
 engine: gotpl

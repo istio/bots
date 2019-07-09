@@ -1,18 +1,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: istio-policybot
+  name: policybot-server
   labels:
-    app: policybot
+    app: policybot-server
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: policybot
+      app: policybot-server
   template:
     metadata:
       labels:
-        app: policybot
+        app: policybot-server
       annotations:
         sidecar.istio.io/inject: "false"
     spec:
@@ -22,9 +22,12 @@ spec:
           imagePullPolicy: "{{ .Values.imagePullPolicy }}"
           ports:
           - containerPort: 8080
-          env:
-          - name: HTTPS_ONLY
-            value: "true"
+          args:
+            - /policybot
+            - server
+            - --config_file
+            - ./policybot.yaml
+            - --https_only
           envFrom:
           - secretRef:
               name: policybot

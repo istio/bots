@@ -103,14 +103,17 @@ treated as a local file path within the bot's container.
 
 The bot exposes a REST API at https://eng.istio.io:
 
-- /sync - triggers the bot to synchronize GitHub issues into Google Cloud Spanner. This is called periodically  by 
+- /syncer - triggers the bot to synchronize GitHub issues into Google Cloud Spanner. This is called periodically  by 
 a job scheduled in Google Cloud scheduler. You can filter what gets synced using a filter query string with a 
-command-separated list of things to sync [members, maintainers, issues, prs, labels, zenhub]
+comma-separated list of things to sync [members, maintainers, issues, prs, labels, zenhub, repocomments, events]
 
-- /githubwebhook - used to report events in GitHub. This is called by GitHub whenever anything interesting happens in
+- /flakechaser - triggers the bot to run its flake chasing logic, which nags outstanding test flake issues.
+
+- /githubwebhook - used to report events from GitHub. This is called by GitHub whenever anything interesting happens in
 the Istio repos.
 
-- /maintainersapi - used to query information about project maintainers
+- /zenhubwebhook - user to repo events from ZenHub. This is called by ZenHub whenever anything interesting happens to Istio issues
+tracked by ZenHub.
 
 ## Configuration file
 
