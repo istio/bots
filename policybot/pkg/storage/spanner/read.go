@@ -204,6 +204,22 @@ func (s store) ReadBotActivity(context context.Context, orgLogin string, repoNam
 	return &result, nil
 }
 
+func (s store) ReadTestResult(context context.Context, orgLogin string,
+	repoName string, testName string, pullRequestNumber int64, runNum int64) (*storage.TestResult, error) {
+	row, err := s.client.Single().ReadRow(context, testResultTable, testResultKey(orgLogin, repoName, testName, pullRequestNumber, runNum), testResultColumns)
+	if spanner.ErrCode(err) == codes.NotFound {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+	var result storage.TestResult
+	if err := row.ToStruct(&result); err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
+
 func (s store) ReadMaintainer(context context.Context, orgLogin string, userLogin string) (*storage.Maintainer, error) {
 	row, err := s.client.Single().ReadRow(context, maintainerTable, maintainerKey(orgLogin, userLogin), maintainerColumns)
 	if spanner.ErrCode(err) == codes.NotFound {

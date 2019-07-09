@@ -68,6 +68,95 @@ func (s store) QueryIssuesByRepo(context context.Context, orgLogin string, repoN
 	return err
 }
 
+func (s store) QueryTestResultByTestName(context context.Context, orgLogin string, repoName string, testName string, cb func(*storage.TestResult) error) error {
+	sql := `SELECT * from TestResults
+	WHERE OrgLogin = @orgLogin AND 
+	RepoName = @repoName AND 
+	TestName = @testName;`
+	stmt := spanner.NewStatement(sql)
+	stmt.Params["orgLogin"] = orgLogin
+	stmt.Params["repoName"] = repoName
+	stmt.Params["testName"] = testName
+	iter := s.client.Single().Query(context, stmt)
+	err := iter.Do(func(row *spanner.Row) error {
+		testResult := &storage.TestResult{}
+		if err := row.ToStruct(testResult); err != nil {
+			return err
+		}
+
+		return cb(testResult)
+	})
+
+	return err
+}
+
+func (s store) QueryTestResultByPrNumber(
+	context context.Context, orgLogin string, repoName string, pullRequestNumber int64, cb func(*storage.TestResult) error) error {
+	sql := `SELECT * from TestResults
+	WHERE OrgLogin = @orgLogin AND 
+	RepoName = @repoName AND 
+	PullRequestNumber = @pullRequestNumber;`
+	stmt := spanner.NewStatement(sql)
+	stmt.Params["orgLogin"] = orgLogin
+	stmt.Params["repoName"] = repoName
+	stmt.Params["pullRequestNumber"] = pullRequestNumber
+	scope.Infof("QueryTestResults SQL\n%v", stmt.SQL)
+
+	iter := s.client.Single().Query(context, stmt)
+	err := iter.Do(func(row *spanner.Row) error {
+		testResult := &storage.TestResult{}
+		if err := row.ToStruct(testResult); err != nil {
+			return err
+		}
+
+		return cb(testResult)
+	})
+
+	return err
+}
+
+func (s store) QueryTestResultByUndone(context context.Context, orgLogin string, repoName string, cb func(*storage.TestResult) error) error {
+	sql := `SELECT * from TestResults
+	WHERE OrgLogin = @orgLogin AND 
+	RepoName = @repoName AND 
+	Done = false;`
+	stmt := spanner.NewStatement(sql)
+	stmt.Params["orgLogin"] = orgLogin
+	stmt.Params["repoName"] = repoName
+	iter := s.client.Single().Query(context, stmt)
+	err := iter.Do(func(row *spanner.Row) error {
+		testResult := &storage.TestResult{}
+		if err := row.ToStruct(testResult); err != nil {
+			return err
+		}
+
+		return cb(testResult)
+	})
+
+	return err
+}
+
+// Read all rows from table in Spanner and invokes a call back on the row.
+func (s store) QueryAllTestResults(context context.Context, orgLogin string, repoName string, cb func(*storage.TestResult) error) error {
+	sql := `SELECT * from TestResults
+	WHERE OrgLogin = @orgLogin AND 
+	RepoName = @repoName AND `
+	stmt := spanner.NewStatement(sql)
+	stmt.Params["orgLogin"] = orgLogin
+	stmt.Params["repoName"] = repoName
+	iter := s.client.Single().Query(context, stmt)
+	err := iter.Do(func(row *spanner.Row) error {
+		testResult := &storage.TestResult{}
+		if err := row.ToStruct(testResult); err != nil {
+			return err
+		}
+
+		return cb(testResult)
+	})
+
+	return err
+}
+
 func (s store) QueryTestFlakeIssues(context context.Context, inactiveDays, createdDays int) ([]*storage.Issue, error) {
 	sql := `SELECT * from Issues
 	WHERE TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), UpdatedAt, DAY) > @inactiveDays AND 

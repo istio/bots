@@ -44,6 +44,7 @@ import (
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/labeler"
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/nagger"
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/refresher"
+	"istio.io/bots/policybot/handlers/githubwebhook/filters/resultgatherer"
 	"istio.io/bots/policybot/handlers/syncer"
 	"istio.io/bots/policybot/handlers/zenhubwebhook"
 	"istio.io/bots/policybot/pkg/blobstorage/gcs"
@@ -258,6 +259,7 @@ func runWithConfig(a *config.Args) error {
 		nag,
 		labeler,
 		monitor,
+		resultgatherer.NewResultGatherer(store, cache, a.Orgs, a.BucketName),
 	}
 
 	if a.StartupOptions.HTTPSOnly {

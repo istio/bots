@@ -147,6 +147,9 @@ type Args struct {
 	// Name to use as sender when sending emails
 	EmailFrom string `json:"email_from"`
 
+	// BucketName to use to directo to gcs bucket
+	BucketName string `json:"bucket_name"`
+
 	// Email address to use as originating address when sending emails
 	EmailOriginAddress string `json:"email_origin_address"`
 

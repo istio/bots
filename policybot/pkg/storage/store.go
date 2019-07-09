@@ -37,6 +37,7 @@ type Store interface {
 	WriteAllMembers(context context.Context, members []*Member) error
 	WriteAllMaintainers(context context.Context, maintainers []*Maintainer) error
 	WriteBotActivities(context context.Context, activities []*BotActivity) error
+	WriteTestResults(context context.Context, testResults []*TestResult) error
 	WriteIssueEvents(context context.Context, events []*IssueEvent) error
 	WriteIssueCommentEvents(context context.Context, events []*IssueCommentEvent) error
 	WritePullRequestEvents(context context.Context, events []*PullRequestEvent) error
@@ -58,11 +59,16 @@ type Store interface {
 	ReadPullRequestReview(context context.Context, orgLogin string, repoName string, prNumber int, prReviewID int) (*PullRequestReview, error)
 	ReadBotActivity(context context.Context, orgLogin string, repoName string) (*BotActivity, error)
 	ReadMaintainer(context context.Context, orgLogin string, userLogin string) (*Maintainer, error)
+	ReadTestResult(context context.Context, orgLogin string, repoName string, testName string, pullRequestNumber int64, runNumber int64) (*TestResult, error)
 
 	QueryMembersByOrg(context context.Context, orgLogin string, cb func(*Member) error) error
 	QueryMaintainersByOrg(context context.Context, orgLogin string, cb func(*Maintainer) error) error
 	QueryMaintainerInfo(context context.Context, maintainer *Maintainer) (*MaintainerInfo, error)
 	QueryIssuesByRepo(context context.Context, orgLogin string, repoName string, cb func(*Issue) error) error
+	QueryTestResultByPrNumber(context context.Context, orgLogin string, repoName string, pullRequestNumber int64, cb func(*TestResult) error) error
+	QueryTestResultByUndone(context context.Context, orgLogin string, repoName string, cb func(*TestResult) error) error
+	QueryAllTestResults(context context.Context, orgLogin string, repoName string, cb func(*TestResult) error) error
+	QueryTestResultByTestName(context context.Context, orgLogin string, repoName string, testName string, cb func(*TestResult) error) error
 
 	// TODO: needs to be org-specific and/or repo-specific
 	QueryTestFlakeIssues(context context.Context, inactiveDays, createdDays int) ([]*Issue, error)
