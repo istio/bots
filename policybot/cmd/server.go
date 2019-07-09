@@ -71,7 +71,6 @@ const (
 	githubOAuthClientSecret = "Client secret for GitHub OAuth2 flow"
 	githubOAuthClientID     = "Client ID for GitHub OAuth2 flow"
 	httpsOnly               = "Send https redirect if x-forwarded-header is not set"
-	bucketName              = "Bucket name for gcs storage blob"
 )
 
 func serverCmd() *cobra.Command {
@@ -89,9 +88,6 @@ func serverCmd() *cobra.Command {
 		env.RegisterStringVar("GITHUB_OAUTH_CLIENT_SECRET", ca.StartupOptions.GitHubOAuthClientSecret, githubOAuthClientSecret).Get()
 	ca.StartupOptions.GitHubOAuthClientID =
 		env.RegisterStringVar("GITHUB_OAUTH_CLIENT_ID", ca.StartupOptions.GitHubOAuthClientID, githubOAuthClientID).Get()
-	ca.StartupOptions.BucketName =
-		env.RegisterStringVar("BUCKET_NAME", ca.StartupOptions.BucketName, bucketName).Get()
-	env.RegisterBoolVar("HTTPS_ONLY", ca.StartupOptions.HTTPSOnly, httpsOnly).Get()
 
 	loggingOptions := log.DefaultOptions()
 	introspectionOptions := ctrlz.DefaultOptions()
@@ -140,8 +136,6 @@ func serverCmd() *cobra.Command {
 		"github_oauth_client_secret", "", ca.StartupOptions.GitHubOAuthClientSecret, githubOAuthClientSecret)
 	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.GitHubOAuthClientID,
 		"github_oauth_client_id", "", ca.StartupOptions.GitHubOAuthClientID, githubOAuthClientID)
-	serverCmd.PersistentFlags().StringVarP(&ca.StartupOptions.BucketName,
-		"bucket_name", "", ca.StartupOptions.BucketName, bucketName)
 	serverCmd.PersistentFlags().BoolVarP(&ca.StartupOptions.HTTPSOnly,
 		"https_only", "", ca.StartupOptions.HTTPSOnly, httpsOnly)
 
@@ -264,7 +258,7 @@ func runWithConfig(a *config.Args) error {
 		nag,
 		labeler,
 		monitor,
-		resulttester.NewResultTester(store, cache, a.Orgs, a.StartupOptions.BucketName),
+		resulttester.NewResultTester(store, cache, a.Orgs, a.BucketName),
 	}
 
 	if a.StartupOptions.HTTPSOnly {

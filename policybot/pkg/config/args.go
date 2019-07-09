@@ -33,7 +33,6 @@ type StartupOptions struct {
 	GitHubOAuthClientSecret string
 	GitHubOAuthClientID     string
 	HTTPSOnly               bool
-	BucketName              string
 }
 
 // Nag expresses some matching conditions against a PR, along with a message to inject into a PR
@@ -147,6 +146,9 @@ type Args struct {
 
 	// Name to use as sender when sending emails
 	EmailFrom string `json:"email_from"`
+
+	//BucketName to use to directo to gcs bucket
+	BucketName string `json:"bucket_name"`
 
 	// Email address to use as originating address when sending emails
 	EmailOriginAddress string `json:"email_origin_address"`

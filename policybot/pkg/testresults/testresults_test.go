@@ -36,19 +36,19 @@ func TestResults(t *testing.T) {
 	time2, _ := time.Parse(layout, "11/16/2018 07:15:44")
 	t2 := time2.Local()
 	var correctInfo = &storage.TestResult{
-		OrgLogin:    "istio",
-		RepoName:    "istio",
-		TestName:    "release-test",
-		PrNum:       110,
-		RunNum:      155,
-		StartTime:   t1,
-		FinishTime:  t2,
-		TestPassed:  true,
-		CloneFailed: false,
-		Sha:         "fee4aae74eb4debaf621d653abe8bfcf0ce6a4ea",
-		Result:      "SUCCESS",
-		BaseSha:     "d995c19aefe6b5ff0748b783e8b69c59963bc8ae",
-		RunPath:     "pr-logs/pull/istio_istio/110/release-test/155/",
+		OrgLogin:          "istio",
+		RepoName:          "istio",
+		TestName:          "release-test",
+		PullRequestNumber: 110,
+		RunNumber:         155,
+		StartTime:         t1,
+		FinishTime:        t2,
+		TestPassed:        true,
+		CloneFailed:       false,
+		Sha:               "fee4aae74eb4debaf621d653abe8bfcf0ce6a4ea",
+		Result:            "SUCCESS",
+		BaseSha:           "d995c19aefe6b5ff0748b783e8b69c59963bc8ae",
+		RunPath:           "pr-logs/pull/istio_istio/110/release-test/155/",
 	}
 	var prNum int64 = 110
 
@@ -57,12 +57,12 @@ func TestResults(t *testing.T) {
 		return
 	}
 
-	prResultTest, err := testresults.NewPrResultTester(context, client, "istio-flakey-test")
+	testResultGatherer, err := testresults.NewTestResultGatherer(client, "istio-flakey-test")
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	testResults, _ := prResultTest.CheckTestResultsForPr("istio", "istio", prNum)
+	testResults, _ := testResultGatherer.CheckTestResultsForPr(context, "istio", "istio", prNum)
 	test := testResults[0]
 	if !reflect.DeepEqual(test, correctInfo) {
 		t.Fail()

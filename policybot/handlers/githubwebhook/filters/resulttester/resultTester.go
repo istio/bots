@@ -30,10 +30,10 @@ import (
 
 // Updates the DB based on incoming GitHub webhook events.
 type ResultTester struct {
-	store          storage.Store
-	repos          map[string]bool
-	cache          *cache.Cache
-	prResultTester *testresults.PrResultTester
+	store              storage.Store
+	repos              map[string]bool
+	cache              *cache.Cache
+	testResultGatherer *testresults.TestResultGatherer
 }
 
 var scope = log.RegisterScope("ResultTester", "Result tester for each pr test run", 0)
@@ -46,16 +46,16 @@ func NewResultTester(store storage.Store,
 	if err != nil {
 		return nil
 	}
-	prResultTester, err := testresults.NewPrResultTester(ctx, client, bucketName)
+	testResultGatherer, err := testresults.NewTestResultGatherer(client, bucketName)
 	if err != nil {
 		scope.Errorf(err.Error())
 		return nil
 	}
 	r := &ResultTester{
-		store:          store,
-		repos:          make(map[string]bool),
-		cache:          cache,
-		prResultTester: prResultTester,
+		store:              store,
+		repos:              make(map[string]bool),
+		cache:              cache,
+		testResultGatherer: testResultGatherer,
 	}
 
 	for _, org := range orgs {
@@ -83,8 +83,7 @@ func (r *ResultTester) Handle(context context.Context, event interface{}) {
 		repoName := p.GetRepo().GetFullName()
 		orgLogin := p.GetOrganization().GetLogin()
 		prNum := p.GetNumber()
-
-		testResults, err := r.prResultTester.CheckTestResultsForPr(orgLogin, repoName, int64(prNum))
+		testResults, err := r.testResultGatherer.CheckTestResultsForPr(context, orgLogin, repoName, int64(prNum))
 		if err != nil {
 			scope.Errorf("Error: Unable to get test result for PR %d in repo %s: %v", prNum, repoName, err)
 			return
@@ -110,7 +109,7 @@ func (r *ResultTester) Handle(context context.Context, event interface{}) {
 		discoveredUsers := make([]*storage.User, 0, len(pullRequest.Assignees)+len(pullRequest.RequestedReviewers))
 		prNum := pullRequest.Number
 
-		testResults, err := r.prResultTester.CheckTestResultsForPr(orgLogin, repoName, int64(*prNum))
+		testResults, err := r.testResultGatherer.CheckTestResultsForPr(context, orgLogin, repoName, int64(*prNum))
 		if err != nil {
 			scope.Errorf("Error: Unable to get test result for PR %d in repo %s: %v", prNum, repoName, err)
 			return

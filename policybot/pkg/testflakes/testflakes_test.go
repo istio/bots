@@ -68,43 +68,43 @@ func TestFlakes(t *testing.T) {
 
 	ctx := context.Background()
 	testResult1 := &storage.TestResult{
-		TestName:   "test1",
-		Sha:        "sha1",
-		StartTime:  t1,
-		FinishTime: t2,
-		PrNum:      1,
-		RunNum:     1,
-		TestPassed: true,
+		TestName:          "test1",
+		Sha:               "sha1",
+		StartTime:         t1,
+		FinishTime:        t2,
+		PullRequestNumber: 1,
+		RunNumber:         1,
+		TestPassed:        true,
 	}
 
 	testResult2 := &storage.TestResult{
-		TestName:   "test1",
-		Sha:        "sha1",
-		StartTime:  t3,
-		FinishTime: t4,
-		PrNum:      1,
-		RunNum:     2,
-		TestPassed: false,
+		TestName:          "test1",
+		Sha:               "sha1",
+		StartTime:         t3,
+		FinishTime:        t4,
+		PullRequestNumber: 1,
+		RunNumber:         2,
+		TestPassed:        false,
 	}
 
 	testResult3 := &storage.TestResult{
-		TestName:   "test2",
-		Sha:        "sha2",
-		StartTime:  t5,
-		FinishTime: t6,
-		PrNum:      1,
-		RunNum:     3,
-		TestPassed: true,
+		TestName:          "test2",
+		Sha:               "sha2",
+		StartTime:         t5,
+		FinishTime:        t6,
+		PullRequestNumber: 1,
+		RunNumber:         3,
+		TestPassed:        true,
 	}
 
 	testResult4 := &storage.TestResult{
-		TestName:   "test2",
-		Sha:        "sha2",
-		StartTime:  t7,
-		FinishTime: t8,
-		PrNum:      1,
-		RunNum:     3,
-		TestPassed: true,
+		TestName:          "test2",
+		Sha:               "sha2",
+		StartTime:         t7,
+		FinishTime:        t8,
+		PullRequestNumber: 1,
+		RunNumber:         3,
+		TestPassed:        true,
 	}
 	testResults := []*storage.TestResult{testResult1, testResult2, testResult3, testResult4}
 

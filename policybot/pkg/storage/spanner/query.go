@@ -82,15 +82,16 @@ func (s store) QueryTestResultByName(context context.Context, testName string, c
 	return err
 }
 
-func (s store) QueryTestResultByPrNumber(context context.Context, orgLogin string, repoName string, prNum int64, cb func(*storage.TestResult) error) error {
+func (s store) QueryTestResultByPrNumber(
+	context context.Context, orgLogin string, repoName string, pullRequestNumber int64, cb func(*storage.TestResult) error) error {
 	sql := `SELECT * from TestResults
 	WHERE OrgLogin = @orgLogin AND 
 	RepoName = @repoName AND 
-	PrNum = @prNum;`
+	PullRequestNumber = @pullRequestNumber;`
 	stmt := spanner.NewStatement(sql)
 	stmt.Params["orgLogin"] = orgLogin
 	stmt.Params["repoName"] = repoName
-	stmt.Params["prNum"] = prNum
+	stmt.Params["pullRequestNumber"] = pullRequestNumber
 	scope.Infof("QueryTestResults SQL\n%v", stmt.SQL)
 
 	iter := s.client.Single().Query(context, stmt)
@@ -106,26 +107,21 @@ func (s store) QueryTestResultByPrNumber(context context.Context, orgLogin strin
 	return err
 }
 
-func (s store) QueryTestResultByUndone(context context.Context) ([]*storage.TestResult, error) {
+func (s store) QueryTestResultByUndone(context context.Context, cb func(*storage.TestResult) error) error {
 	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM TestResults WHERE Done = false")})
-	testResults := []*storage.TestResult{}
-	if err := iter.Do(func(row *spanner.Row) error {
+	err := iter.Do(func(row *spanner.Row) error {
 		testResult := &storage.TestResult{}
 		if err := row.ToStruct(testResult); err != nil {
 			return err
 		}
-		testResults = append(testResults, testResult)
-		return nil
-	}); err != nil {
-		return nil, err
-	}
 
-	return testResults, nil
+		return cb(testResult)
+	})
+
+	return err
 }
 
-/*
- * Real all rows from table in Spanner and store the results into a slice of TestResult objects.
- */
+// Real all rows from table in Spanner and invokes a call back on the row.
 func (s store) QueryAllTestResults(context context.Context, cb func(*storage.TestResult) error) error {
 	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM TestResults")})
 	err := iter.Do(func(row *spanner.Row) error {

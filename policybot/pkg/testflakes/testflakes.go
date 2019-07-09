@@ -12,12 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/*
- * Test Flakes read all rows from TestResults table in storage.
- * Convert them back to TestResults struct in types and bind tests based on PR
- * number. If a test both pass and fail for the same PR, it is very likely to be flaky.
- */
-
+// Test Flakes read all rows from TestResults table in storage.
+// Convert them back to TestResults struct in types and bind tests based on PR
+// number. If a test both pass and fail for the same PR, it is very likely to be flaky.
 package testflakes
 
 import (
@@ -33,10 +30,8 @@ import (
 	"istio.io/pkg/log"
 )
 
-/*
- * FlakyResult struct include the test name, whether or not the test seems to be flaky
- * and the most recent pass and fail instance for the test.
- */
+// FlakyResult struct include the test name, whether or not the test seems to be flaky
+// and the most recent pass and fail instance for the test.
 type FlakyResult struct {
 	TestName   string
 	OrgLogin   string
@@ -71,10 +66,8 @@ func NewFlakeTester(ctx context.Context, cache *cache.Cache, store store.Store, 
 	return f, nil
 }
 
-/*
- * Rearrange information from TestResult to extract test names and whether or not they
- * passed for each pull request and run.
- */
+// Rearrange information from TestResult to extract test names and whether or not they
+// passed for each pull request and run.
 func (f *FlakeTester) ProcessResults(testResults []*store.TestResult) map[string]map[string]map[bool][]*store.TestResult {
 	resultMap := map[string]map[string]map[bool][]*store.TestResult{}
 	for _, result := range testResults {
@@ -112,11 +105,9 @@ func (f *FlakeTester) ProcessResults(testResults []*store.TestResult) map[string
 	return resultMap
 }
 
-/*
- * Process the map returned from ProcessResults to check if one test has multiple TestPass values
- * coexisting at the same time. If for one Pull Request the test passed and failed for different runs
- * we mark the test to be flaky.
- */
+// Process the map returned from ProcessResults to check if one test has multiple TestPass values
+// coexisting at the same time. If for one Pull Request the test passed and failed for different runs
+// we mark the test to be flaky.
 func (f *FlakeTester) CheckResults(resultMap map[string]map[string]map[bool][]*store.TestResult) []*FlakyResult {
 	flakyResults := []*FlakyResult{}
 	for testName, testMap := range resultMap {
@@ -138,7 +129,7 @@ func (f *FlakeTester) CheckResults(resultMap map[string]map[string]map[bool][]*s
 				flakyResult.RepoName = failFirst.RepoName
 				for _, fail := range failedTests {
 					if flakyResult.PrNum == 0 {
-						flakyResult.PrNum = fail.PrNum
+						flakyResult.PrNum = fail.PullRequestNumber
 					}
 					if strings.Compare(flakyResult.LastFail, "") != 0 {
 						if flakyResult.failResult.FinishTime.Before(fail.FinishTime) {
@@ -160,7 +151,7 @@ func (f *FlakeTester) CheckResults(resultMap map[string]map[string]map[bool][]*s
 				}
 				for _, pass := range passedTests {
 					if flakyResult.PrNum == 0 {
-						flakyResult.PrNum = pass.PrNum
+						flakyResult.PrNum = pass.PullRequestNumber
 					}
 					if strings.Compare(flakyResult.LastPass, "") != 0 {
 						if flakyResult.passResult.FinishTime.Before(pass.FinishTime) {
@@ -179,9 +170,7 @@ func (f *FlakeTester) CheckResults(resultMap map[string]map[string]map[bool][]*s
 	return flakyResults
 }
 
-/*
- * Chase function add issue comment about the flake results
- */
+// Chase function add issue comment about the flake results
 func (f *FlakeTester) Chase(context context.Context, flakeResults []*FlakyResult, message string) {
 	scope.Infof("Found %v potential flakes", len(flakeResults))
 	for _, flake := range flakeResults {

@@ -204,9 +204,9 @@ func (s store) ReadBotActivity(context context.Context, orgLogin string, repoNam
 	return &result, nil
 }
 
-func (s store) ReadTestResultByName(context context.Context, orgLogin string,
-	repoName string, testName string, prNum int64, runNum int64, done bool) (*storage.TestResult, error) {
-	row, err := s.client.Single().ReadRow(context, testResultTable, testResultKey(orgLogin, repoName, testName, prNum, runNum, done), testResultColumns)
+func (s store) ReadTestResult(context context.Context, orgLogin string,
+	repoName string, testName string, pullRequestNumber int64, runNum int64) (*storage.TestResult, error) {
+	row, err := s.client.Single().ReadRow(context, testResultTable, testResultKey(orgLogin, repoName, testName, pullRequestNumber, runNum), testResultColumns)
 	if spanner.ErrCode(err) == codes.NotFound {
 		return nil, nil
 	} else if err != nil {

@@ -116,8 +116,8 @@ func maintainerKey(orgLogin string, userLogin string) spanner.Key {
 	return spanner.Key{orgLogin, userLogin}
 }
 
-func testResultKey(orgLogin string, repoName string, testName string, prNum int64, runNum int64, done bool) spanner.Key {
-	return spanner.Key{orgLogin, repoName, testName, prNum, runNum, done}
+func testResultKey(orgLogin string, repoName string, testName string, prNum int64, runNumber int64) spanner.Key {
+	return spanner.Key{orgLogin, repoName, testName, prNum, runNumber}
 }
 
 func init() {

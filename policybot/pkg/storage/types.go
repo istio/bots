@@ -160,20 +160,20 @@ type MaintainerInfo struct {
 }
 
 type TestResult struct {
-	OrgLogin    string
-	RepoName    string
-	TestName    string
-	TestPassed  bool
-	CloneFailed bool
-	Done        bool
-	PrNum       int64
-	RunNum      int64
-	StartTime   time.Time
-	FinishTime  time.Time
-	Sha         string
-	Result      string
-	BaseSha     string
-	RunPath     string
+	OrgLogin          string
+	RepoName          string
+	TestName          string
+	TestPassed        bool
+	CloneFailed       bool
+	Done              bool
+	PullRequestNumber int64
+	RunNumber         int64
+	StartTime         time.Time
+	FinishTime        time.Time
+	Sha               string
+	Result            string
+	BaseSha           string
+	RunPath           string
 }
 
 type RepoComment struct {

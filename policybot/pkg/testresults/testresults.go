@@ -30,7 +30,6 @@ import (
 	"google.golang.org/api/iterator"
 
 	store "istio.io/bots/policybot/pkg/storage"
-	"istio.io/pkg/log"
 )
 
 // Pull struct for the structure under refs/pulls in clone-records.json
@@ -72,29 +71,24 @@ type started struct {
 	Timestamp int64
 }
 
-type PrResultTester struct {
-	Client     *storage.Client
-	ctx        context.Context
+type TestResultGatherer struct {
+	client     *storage.Client
 	bucketName string
 }
 
-var scope = log.RegisterScope("TestResult", "Check error while reading from google cloud storage", 0)
-
-// Function to initionalize new PrFlakeTest object.
-// Use `prFlakeyTest, err := NewPrFlakeTest()` and `testFlakes := prFlakeyTest.checkTestFlakesForPr(<pr_number>)`
+// Function to initionalize new TestResultGatherer object.
+// Use `testResultGatherer, err := NewTestResultGatherer()` and `testFlakes := testResultGatherer.checkTestFlakesForPr(<pr_number>)`
 // to get test flakes information for a given pr.
-func NewPrResultTester(ctx context.Context, client *storage.Client, bucketName string) (*PrResultTester, error) {
-	return &PrResultTester{
-		Client:     client,
-		ctx:        ctx,
+func NewTestResultGatherer(client *storage.Client, bucketName string) (*TestResultGatherer, error) {
+	return &TestResultGatherer{
+		client:     client,
 		bucketName: bucketName,
 	}, nil
 }
 
-func (prt *PrResultTester) query(prefix string) ([]string, error) {
-	ctx := prt.ctx
-	client := prt.Client
-	bucket := client.Bucket(prt.bucketName)
+func (trg *TestResultGatherer) query(ctx context.Context, prefix string) ([]string, error) {
+	client := trg.client
+	bucket := client.Bucket(trg.bucketName)
 	query := &storage.Query{Prefix: prefix, Delimiter: "/"}
 	it := bucket.Objects(ctx, query)
 	paths := []string{}
@@ -116,10 +110,10 @@ func (prt *PrResultTester) query(prefix string) ([]string, error) {
 // Client: client used to get buckets and objects.
 // PrNum: the PR number inputted.
 // Return []Tests return a slice of Tests objects.
-func (prt *PrResultTester) getTests(orgLogin string, repoName string, prNumInt int64) (map[string][]string, error) {
+func (trg *TestResultGatherer) getTests(ctx context.Context, orgLogin string, repoName string, prNumInt int64) (map[string][]string, error) {
 	prNum := strconv.FormatInt(prNumInt, 10)
 	prefixForPr := "pr-logs/pull/" + orgLogin + "_" + repoName + "/" + prNum + "/"
-	testNames, err := prt.query(prefixForPr)
+	testNames, err := trg.query(ctx, prefixForPr)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +122,7 @@ func (prt *PrResultTester) getTests(orgLogin string, repoName string, prNumInt i
 	for _, testPref := range testNames {
 		testPrefSplit := strings.Split(testPref, "/")
 		testname := testPrefSplit[len(testPrefSplit)-2]
-		runs, err = prt.query(testPref)
+		runs, err = trg.query(ctx, testPref)
 		if err != nil {
 			return nil, err
 		}
@@ -147,12 +141,12 @@ func (prt *PrResultTester) getTests(orgLogin string, repoName string, prNumInt i
 	return testMap, nil
 }
 
-func (prt *PrResultTester) getInformationFromFinishedFile(pref string, eachRun *store.TestResult) (*store.TestResult, error) {
+func (trg *TestResultGatherer) getInformationFromFinishedFile(ctx context.Context, pref string, eachRun *store.TestResult) (*store.TestResult, error) {
 	// It is possible that the folder might not contain finished.json.
-	client := prt.Client
-	bucket := client.Bucket(prt.bucketName)
+	client := trg.client
+	bucket := client.Bucket(trg.bucketName)
 	newObj := bucket.Object(pref + "finished.json")
-	nrdr, err := newObj.NewReader(prt.ctx)
+	nrdr, err := newObj.NewReader(ctx)
 	var finish finished
 
 	if err != nil {
@@ -181,11 +175,11 @@ func (prt *PrResultTester) getInformationFromFinishedFile(pref string, eachRun *
 	return eachRun, nil
 }
 
-func (prt *PrResultTester) getInformationFromStartedFile(pref string, eachRun *store.TestResult) (*store.TestResult, error) {
-	client := prt.Client
-	bucket := client.Bucket(prt.bucketName)
+func (trg *TestResultGatherer) getInformationFromStartedFile(ctx context.Context, pref string, eachRun *store.TestResult) (*store.TestResult, error) {
+	client := trg.client
+	bucket := client.Bucket(trg.bucketName)
 	newObj := bucket.Object(pref + "started.json")
-	nrdr, err := newObj.NewReader(prt.ctx)
+	nrdr, err := newObj.NewReader(ctx)
 	if err != nil {
 		return eachRun, err
 	}
@@ -208,13 +202,11 @@ func (prt *PrResultTester) getInformationFromStartedFile(pref string, eachRun *s
 	return eachRun, nil
 }
 
-func (prt *PrResultTester) getInformationFromCloneFile(pref string, eachRun *store.TestResult) (*store.TestResult, error) {
-	client := prt.Client
-	bucket := client.Bucket(prt.bucketName)
+func (trg *TestResultGatherer) getInformationFromCloneFile(ctx context.Context, pref string, eachRun *store.TestResult) (*store.TestResult, error) {
+	client := trg.client
+	bucket := client.Bucket(trg.bucketName)
 	obj := bucket.Object(pref + "clone-records.json")
-	scope.Infof("read clone")
-	scope.Infof(pref + "clone-records.json")
-	rdr, err := obj.NewReader(prt.ctx)
+	rdr, err := obj.NewReader(ctx)
 	if err != nil {
 		return eachRun, err
 	}
@@ -253,7 +245,7 @@ func (prt *PrResultTester) getInformationFromCloneFile(pref string, eachRun *sto
 // Client: client used to get buckets and objects from google cloud storage.
 // TestSlice: a slice of Tests objects containing all tests and the path to folder for each test run for the test under such pr.
 // Return a map of test suite name -- pr number -- run number -- ForEachRun objects.
-func (prt *PrResultTester) getShaAndPassStatus(testSlice map[string][]string) ([]*store.TestResult, error) {
+func (trg *TestResultGatherer) getShaAndPassStatus(ctx context.Context, testSlice map[string][]string) ([]*store.TestResult, error) {
 	var allTestRuns = []*store.TestResult{}
 
 	for testName, runPaths := range testSlice {
@@ -265,17 +257,17 @@ func (prt *PrResultTester) getShaAndPassStatus(testSlice map[string][]string) ([
 			eachRun.Done = false
 
 			var err error
-			eachRun, err = prt.getInformationFromCloneFile(runPath, eachRun)
+			eachRun, err = trg.getInformationFromCloneFile(ctx, runPath, eachRun)
 			if err != nil {
 				return nil, err
 			}
 
-			eachRun, err = prt.getInformationFromStartedFile(runPath, eachRun)
+			eachRun, err = trg.getInformationFromStartedFile(ctx, runPath, eachRun)
 			if err != nil {
 				return nil, err
 			}
 
-			eachRun, err = prt.getInformationFromFinishedFile(runPath, eachRun)
+			eachRun, err = trg.getInformationFromFinishedFile(ctx, runPath, eachRun)
 			if err != nil {
 				return nil, err
 			}
@@ -286,12 +278,12 @@ func (prt *PrResultTester) getShaAndPassStatus(testSlice map[string][]string) ([
 			if err != nil {
 				return nil, err
 			}
-			eachRun.RunNum = runNo
+			eachRun.RunNumber = runNo
 			prNo, newError := strconv.ParseInt(prefSplit[len(prefSplit)-4], 10, 64)
 			if newError != nil {
 				return nil, newError
 			}
-			eachRun.PrNum = prNo
+			eachRun.PullRequestNumber = prNo
 			allTestRuns = append(allTestRuns, eachRun)
 
 		}
@@ -300,12 +292,12 @@ func (prt *PrResultTester) getShaAndPassStatus(testSlice map[string][]string) ([
 }
 
 // Read in gcs the folder of the given pr number and write the result of each test runs into a slice of TestFlake struct.
-func (prt *PrResultTester) CheckTestResultsForPr(orgLogin string, repoName string, prNum int64) ([]*store.TestResult, error) {
-	testSlice, err := prt.getTests(orgLogin, repoName, prNum)
+func (trg *TestResultGatherer) CheckTestResultsForPr(ctx context.Context, orgLogin string, repoName string, prNum int64) ([]*store.TestResult, error) {
+	testSlice, err := trg.getTests(ctx, orgLogin, repoName, prNum)
 	if err != nil {
 		return nil, err
 	}
-	fullResult, err := prt.getShaAndPassStatus(testSlice)
+	fullResult, err := trg.getShaAndPassStatus(ctx, testSlice)
 
 	if err != nil {
 		return nil, err

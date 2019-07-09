@@ -315,13 +315,13 @@ func (c *Cache) ReadIssuePipeline(context context.Context, orgLogin string, repo
 }
 
 func (c *Cache) ReadTestResult(context context.Context,
-	orgLogin string, repoName string, testName string, prNum int64, runNum int64, done bool) (*storage.TestResult, error) {
-	key := orgLogin + repoName + testName + strconv.FormatInt(prNum, 10) + strconv.FormatInt(runNum, 10) + strconv.FormatBool(done)
+	orgLogin string, repoName string, testName string, prNum int64, runNumber int64) (*storage.TestResult, error) {
+	key := orgLogin + repoName + testName + strconv.FormatInt(prNum, 10) + strconv.FormatInt(runNumber, 10)
 	if value, ok := c.testResultCache.Get(key); ok {
 		return value.(*storage.TestResult), nil
 	}
 
-	result, err := c.store.ReadTestResultByName(context, orgLogin, repoName, testName, prNum, runNum, done)
+	result, err := c.store.ReadTestResult(context, orgLogin, repoName, testName, prNum, runNumber)
 	if err == nil {
 		c.testResultCache.Set(key, result)
 	}
@@ -337,10 +337,9 @@ func (c *Cache) WriteTestResults(context context.Context, testResults []*storage
 			orgID := testResult.OrgLogin
 			repoID := testResult.RepoName
 			testName := testResult.TestName
-			prNum := testResult.PrNum
-			runNum := testResult.RunNum
-			done := testResult.Done
-			key := orgID + repoID + testName + strconv.FormatInt(prNum, 10) + strconv.FormatInt(runNum, 10) + strconv.FormatBool(done)
+			prNum := testResult.PullRequestNumber
+			runNum := testResult.RunNumber
+			key := orgID + repoID + testName + strconv.FormatInt(prNum, 10) + strconv.FormatInt(runNum, 10)
 
 			c.testResultCache.Set(key, testResult)
 		}

@@ -59,14 +59,14 @@ type Store interface {
 	ReadPullRequestReview(context context.Context, orgLogin string, repoName string, prNumber int, prReviewID int) (*PullRequestReview, error)
 	ReadBotActivity(context context.Context, orgLogin string, repoName string) (*BotActivity, error)
 	ReadMaintainer(context context.Context, orgLogin string, userLogin string) (*Maintainer, error)
-	ReadTestResultByName(context context.Context, orgLogin string, repoName string, testName string, prNum int64, runNum int64, done bool) (*TestResult, error)
+	ReadTestResult(context context.Context, orgLogin string, repoName string, testName string, pullRequestNumber int64, runNumber int64) (*TestResult, error)
 
 	QueryMembersByOrg(context context.Context, orgLogin string, cb func(*Member) error) error
 	QueryMaintainersByOrg(context context.Context, orgLogin string, cb func(*Maintainer) error) error
 	QueryMaintainerInfo(context context.Context, maintainer *Maintainer) (*MaintainerInfo, error)
 	QueryIssuesByRepo(context context.Context, orgLogin string, repoName string, cb func(*Issue) error) error
-	QueryTestResultByPrNumber(context context.Context, orgLogin string, repoName string, prNum int64, cb func(*TestResult) error) error
-	QueryTestResultByUndone(context context.Context) ([]*TestResult, error)
+	QueryTestResultByPrNumber(context context.Context, orgLogin string, repoName string, pullRequestNumber int64, cb func(*TestResult) error) error
+	QueryTestResultByUndone(context context.Context, cb func(*TestResult) error) error
 	QueryAllTestResults(context context.Context, cb func(*TestResult) error) error
 
 	// TODO: needs to be org-specific and/or repo-specific
