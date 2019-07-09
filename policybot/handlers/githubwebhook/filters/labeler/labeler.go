@@ -113,14 +113,14 @@ func (l *Labeler) Handle(context context.Context, event interface{}) {
 	var issue *storage.Issue
 	var pr *storage.PullRequest
 
-	ip, ok := event.(*github.IssueEvent)
+	ip, ok := event.(*github.IssuesEvent)
 	if ok {
-		action = ip.GetEvent()
-		repo = ip.GetIssue().GetRepository().GetFullName()
+		action = ip.GetAction()
+		repo = ip.GetRepo().GetFullName()
 		number = ip.GetIssue().GetNumber()
 		issue, _ = gh.ConvertIssue(
-			ip.GetIssue().GetRepository().GetOwner().GetLogin(),
-			ip.GetIssue().GetRepository().GetName(),
+			ip.GetRepo().GetOwner().GetLogin(),
+			ip.GetRepo().GetName(),
 			ip.GetIssue())
 	}
 
@@ -138,17 +138,18 @@ func (l *Labeler) Handle(context context.Context, event interface{}) {
 
 	if action != "opened" && action != "review_requested" {
 		// not what we care about
+		scope.Debugf("Not an action we care about: %s", action)
 		return
 	}
 
 	// see if the event is in a repo we're monitoring
 	autoLabels, ok := l.repos[repo]
 	if !ok {
-		scope.Infof("Ignoring event %d from repo %s since it's not in a monitored repo", number, repo)
+		scope.Infof("Ignoring issue/pr %d from repo %s since it's not in a monitored repo", number, repo)
 		return
 	}
 
-	scope.Infof("Processing event %d from repo %s", number, repo)
+	scope.Infof("Processing issue/pr %d from repo %s, %s", number, repo, action)
 
 	if issue != nil {
 		l.processIssue(context, issue, autoLabels)
@@ -163,7 +164,7 @@ func (l *Labeler) processIssue(context context.Context, issue *storage.Issue, or
 	for _, labelName := range issue.Labels {
 		label, err := l.cache.ReadLabel(context, issue.OrgLogin, issue.RepoName, labelName)
 		if err != nil {
-			scope.Errorf("Unable to get labels for issue %d in repo %s/%s: %v", issue.IssueNumber, issue.OrgLogin, issue.RepoName, err)
+			scope.Errorf("Unable to get labels for issue/pr %d in repo %s/%s: %v", issue.IssueNumber, issue.OrgLogin, issue.RepoName, err)
 			return
 		} else if label != nil {
 			labels = append(labels, label)
@@ -189,12 +190,12 @@ func (l *Labeler) processIssue(context context.Context, issue *storage.Issue, or
 		if _, _, err := l.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.Issues.AddLabelsToIssue(context, issue.OrgLogin, issue.RepoName, int(issue.IssueNumber), toApply)
 		}); err != nil {
-			scope.Errorf("Unable to set labels on issue %d in repo %s/%s: %v", issue.IssueNumber, issue.OrgLogin, issue.RepoName, err)
+			scope.Errorf("Unable to set labels on issue/pr %d in repo %s/%s: %v", issue.IssueNumber, issue.OrgLogin, issue.RepoName, err)
 			return
 		}
 	}
 
-	scope.Infof("Applied %d label(s) to issue %d from repo %s/%s", len(toApply), issue.IssueNumber, issue.OrgLogin, issue.RepoName)
+	scope.Infof("Applied %d label(s) to issue/pr %d from repo %s/%s", len(toApply), issue.IssueNumber, issue.OrgLogin, issue.RepoName)
 }
 
 func (l *Labeler) processPullRequest(context context.Context, pr *storage.PullRequest, orgALs []config.AutoLabel) {

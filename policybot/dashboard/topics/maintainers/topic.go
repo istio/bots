@@ -67,11 +67,18 @@ type maintainerInfo struct {
 	LastSeen  string     `json:"last_seen"`
 }
 
-func NewTopic(store storage.Store, cache *cache.Cache) dashboard.Topic {
+func NewTopic(store storage.Store, cache *cache.Cache, cacheTTL time.Duration) dashboard.Topic {
+	// purge the cache every 10 seconds
+	evictionInterval := 10 * time.Second
+	if cacheTTL < 20*time.Second {
+		// if the TTL is very low, provide a faster eviction interval
+		evictionInterval = cacheTTL / 2
+	}
+
 	return &topic{
 		store:           store,
 		cache:           cache,
-		maintainerInfos: rawcache.NewTTL(15*time.Minute, 15*time.Minute), // TODO: time values should come from config
+		maintainerInfos: rawcache.NewTTL(cacheTTL, evictionInterval),
 		single:          template.Must(template.New("single").Parse(string(MustAsset("single.html")))),
 	}
 }
@@ -99,7 +106,7 @@ func (t *topic) Configure(htmlRouter *mux.Router, apiRouter *mux.Router, context
 	htmlRouter.StrictSlash(true).
 		Path("/").
 		Methods("GET").
-		HandlerFunc(t.handleListingMaintainersHTML)
+		HandlerFunc(t.handleMaintainersListHTML)
 
 	htmlRouter.StrictSlash(true).
 		Path("/{login}").
@@ -109,7 +116,7 @@ func (t *topic) Configure(htmlRouter *mux.Router, apiRouter *mux.Router, context
 	apiRouter.StrictSlash(true).
 		Path("/").
 		Methods("GET").
-		HandlerFunc(t.handleListingMaintainersJSON)
+		HandlerFunc(t.handleMaintainerListJSON)
 }
 
 func (t *topic) handleSingleMaintainerHTML(w http.ResponseWriter, r *http.Request) {
@@ -135,25 +142,7 @@ func (t *topic) handleSingleMaintainerHTML(w http.ResponseWriter, r *http.Reques
 	t.context.RenderHTML(w, sb.String())
 }
 
-func (t *topic) handleListingMaintainersHTML(w http.ResponseWriter, r *http.Request) {
-	o := r.URL.Query().Get("org")
-	if o == "" {
-		o = t.options.DefaultOrg
-	}
-
-	org, err := t.cache.ReadOrg(r.Context(), o)
-	if err != nil {
-		t.context.RenderHTMLError(w, util.HTTPErrorf(http.StatusInternalServerError, "unable to get information on organization %s: %v", o, err))
-		return
-	} else if org == nil {
-		t.context.RenderHTMLError(w, util.HTTPErrorf(http.StatusNotFound, "no information available on organization %s", o))
-		return
-	}
-
-	t.context.RenderHTML(w, string(MustAsset("all.html")))
-}
-
-func (t *topic) handleListingMaintainersJSON(w http.ResponseWriter, r *http.Request) {
+func (t *topic) handleMaintainersListHTML(w http.ResponseWriter, r *http.Request) {
 	orgLogin := r.URL.Query().Get("org")
 	if orgLogin == "" {
 		orgLogin = t.options.DefaultOrg
@@ -161,11 +150,20 @@ func (t *topic) handleListingMaintainersJSON(w http.ResponseWriter, r *http.Requ
 
 	org, err := t.cache.ReadOrg(r.Context(), orgLogin)
 	if err != nil {
-		util.RenderError(w, util.HTTPErrorf(http.StatusInternalServerError, "unable to get information on organization %s: %v", orgLogin, err))
+		t.context.RenderHTMLError(w, util.HTTPErrorf(http.StatusInternalServerError, "unable to get information on organization %s: %v", orgLogin, err))
 		return
 	} else if org == nil {
-		util.RenderError(w, util.HTTPErrorf(http.StatusNotFound, "no information available on organization %s", orgLogin))
+		t.context.RenderHTMLError(w, util.HTTPErrorf(http.StatusNotFound, "no information available on organization %s", orgLogin))
 		return
+	}
+
+	t.context.RenderHTML(w, string(MustAsset("all.html")))
+}
+
+func (t *topic) handleMaintainerListJSON(w http.ResponseWriter, r *http.Request) {
+	orgLogin := r.URL.Query().Get("org")
+	if orgLogin == "" {
+		orgLogin = t.options.DefaultOrg
 	}
 
 	// turn the connection into a web socket
@@ -178,12 +176,7 @@ func (t *topic) handleListingMaintainersJSON(w http.ResponseWriter, r *http.Requ
 	defer c.Close()
 
 	if err = t.store.QueryMaintainersByOrg(r.Context(), orgLogin, func(m *storage.Maintainer) error {
-		user, err := t.cache.ReadUser(r.Context(), m.UserLogin)
-		if err != nil {
-			return util.HTTPErrorf(http.StatusInternalServerError, "unable to read from storage: %v", err)
-		}
-
-		info, err := t.getMaintainerInfo(r.Context(), org, user, m)
+		info, err := t.getMaintainerInfo(r.Context(), m)
 		if err != nil {
 			return err
 		}
@@ -196,28 +189,14 @@ func (t *topic) handleListingMaintainersJSON(w http.ResponseWriter, r *http.Requ
 }
 
 func (t *topic) getSingleMaintainerInfo(context context.Context, orgLogin string, userLogin string) (*maintainerInfo, error) {
-	org, err := t.cache.ReadOrg(context, orgLogin)
-	if err != nil {
-		return nil, util.HTTPErrorf(http.StatusInternalServerError, "unable to get information on organization %s: %v", orgLogin, err)
-	} else if org == nil {
-		return nil, util.HTTPErrorf(http.StatusNotFound, "no information available on organization %s", orgLogin)
-	}
-
-	user, err := t.cache.ReadUser(context, userLogin)
-	if err != nil {
-		return nil, util.HTTPErrorf(http.StatusInternalServerError, "unable to get information on maintainer %s: %v", userLogin, err)
-	} else if user == nil {
-		return nil, util.HTTPErrorf(http.StatusNotFound, "no information available on maintainer %s", userLogin)
-	}
-
-	maintainer, err := t.cache.ReadMaintainer(context, org.OrgLogin, user.UserLogin)
+	maintainer, err := t.cache.ReadMaintainer(context, orgLogin, userLogin)
 	if err != nil {
 		return nil, util.HTTPErrorf(http.StatusInternalServerError, "unable to get information on maintainer %s: %v", userLogin, err)
 	} else if maintainer == nil {
 		return nil, util.HTTPErrorf(http.StatusNotFound, "no information available on maintainer %s", userLogin)
 	}
 
-	info, err := t.getMaintainerInfo(context, org, user, maintainer)
+	info, err := t.getMaintainerInfo(context, maintainer)
 	if err != nil {
 		return nil, err
 	}
@@ -225,14 +204,26 @@ func (t *topic) getSingleMaintainerInfo(context context.Context, orgLogin string
 	return info, err
 }
 
-func (t *topic) getMaintainerInfo(context context.Context, org *storage.Org, user *storage.User, maintainer *storage.Maintainer) (*maintainerInfo, error) {
-	if result, ok := t.maintainerInfos.Get(user.UserLogin); ok {
+func (t *topic) getMaintainerInfo(context context.Context, maintainer *storage.Maintainer) (*maintainerInfo, error) {
+	if result, ok := t.maintainerInfos.Get(maintainer.OrgLogin + maintainer.UserLogin); ok {
 		return result.(*maintainerInfo), nil
+	}
+
+	org, err := t.cache.ReadOrg(context, maintainer.OrgLogin)
+	if err != nil {
+		return nil, util.HTTPErrorf(http.StatusInternalServerError, "unable to get information on organization %s: %v", maintainer.OrgLogin, err)
+	} else if org == nil {
+		return nil, util.HTTPErrorf(http.StatusNotFound, "no information available on organization %s", maintainer.OrgLogin)
+	}
+
+	user, err := t.cache.ReadUser(context, maintainer.UserLogin)
+	if err != nil {
+		return nil, util.HTTPErrorf(http.StatusInternalServerError, "unable to read from storage: %v", err)
 	}
 
 	info, err := t.store.QueryMaintainerInfo(context, maintainer)
 	if err != nil {
-		return nil, util.HTTPErrorf(http.StatusInternalServerError, "unable to get information about maintainer %s: %v", user.UserLogin, err)
+		return nil, util.HTTPErrorf(http.StatusInternalServerError, "unable to get information about maintainer %s: %v", maintainer.UserLogin, err)
 	}
 
 	var ri []repoInfo
@@ -272,6 +263,6 @@ func (t *topic) getMaintainerInfo(context context.Context, org *storage.Org, use
 		LastSeen:  "03/12/2018", // TODO: get real value
 	}
 
-	t.maintainerInfos.Set(user.UserLogin, mi)
+	t.maintainerInfos.Set(org.OrgLogin+user.UserLogin, mi)
 	return mi, nil
 }

@@ -77,15 +77,15 @@ func (t *topic) Configure(htmlRouter *mux.Router, apiRouter *mux.Router, context
 	htmlRouter.StrictSlash(true).
 		Path("/").
 		Methods("GET").
-		HandlerFunc(t.handleListMembersHTML)
+		HandlerFunc(t.handleMemberListHTML)
 
 	apiRouter.StrictSlash(true).
 		Path("/").
 		Methods("GET").
-		HandlerFunc(t.handleListMembersJSON)
+		HandlerFunc(t.handleMemberListJSON)
 }
 
-func (t *topic) handleListMembersHTML(w http.ResponseWriter, r *http.Request) {
+func (t *topic) handleMemberListHTML(w http.ResponseWriter, r *http.Request) {
 	orgLogin := r.URL.Query().Get("org")
 	if orgLogin == "" {
 		orgLogin = t.options.DefaultOrg
@@ -105,7 +105,7 @@ func (t *topic) handleListMembersHTML(w http.ResponseWriter, r *http.Request) {
 	t.context.RenderHTML(w, sb.String())
 }
 
-func (t *topic) handleListMembersJSON(w http.ResponseWriter, r *http.Request) {
+func (t *topic) handleMemberListJSON(w http.ResponseWriter, r *http.Request) {
 	orgLogin := r.URL.Query().Get("org")
 	if orgLogin == "" {
 		orgLogin = t.options.DefaultOrg

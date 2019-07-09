@@ -44,7 +44,6 @@ import (
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/labeler"
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/nagger"
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/refresher"
-	"istio.io/bots/policybot/handlers/githubwebhook/filters/resultgatherer"
 	"istio.io/bots/policybot/handlers/syncer"
 	"istio.io/bots/policybot/handlers/zenhubwebhook"
 	"istio.io/bots/policybot/pkg/blobstorage/gcs"
@@ -259,7 +258,7 @@ func runWithConfig(a *config.Args) error {
 		nag,
 		labeler,
 		monitor,
-		resultgatherer.NewResultGatherer(store, cache, a.Orgs, a.BucketName),
+		//		resultgatherer.NewResultGatherer(store, cache, a.Orgs, a.BucketName),
 	}
 
 	if a.StartupOptions.HTTPSOnly {
@@ -271,11 +270,11 @@ func runWithConfig(a *config.Args) error {
 	router.Handle("/githubwebhook", githubwebhook.NewHandler(a.StartupOptions.GitHubWebhookSecret, filters...)).Methods("POST")
 	router.Handle("/flakechaser", flakechaser.NewHandler(gc, store, cache, a.FlakeChaser)).Methods("GET")
 	router.Handle("/zenhubwebhook", zenhubwebhook.NewHandler(store, cache)).Methods("POST")
-	router.Handle("/sync", syncer.NewHandler(context.Background(), gc, cache, zc, store, a.Orgs)).Methods("GET")
+	router.Handle("/syncer", syncer.NewHandler(context.Background(), gc, cache, zc, store, a.Orgs)).Methods("GET")
 
 	// UI topics
 	dashboard := dashboard.New(router, a.StartupOptions.GitHubOAuthClientID, a.StartupOptions.GitHubOAuthClientSecret)
-	dashboard.RegisterTopic(maintainers.NewTopic(store, cache))
+	dashboard.RegisterTopic(maintainers.NewTopic(store, cache, a.CacheTTL))
 	dashboard.RegisterTopic(members.NewTopic(store, cache))
 	dashboard.RegisterTopic(issues.NewTopic(store, cache))
 	dashboard.RegisterTopic(pullrequests.NewTopic(store, cache))
