@@ -127,18 +127,18 @@ func (n *Nagger) Handle(context context.Context, event interface{}) {
 	// see if the PR is in a repo we're monitoring
 	nags, ok := n.repos[prp.GetRepo().GetFullName()]
 	if !ok {
-		scope.Infof("Ignoring PR %d from repo %s since it's not in a monitored repo", prp.Number, prp.GetRepo().GetFullName())
+		scope.Infof("Ignoring PR %d from repo %s since it's not in a monitored repo", prp.GetNumber(), prp.GetRepo().GetFullName())
 		return
 	}
 
 	// NOTE: this assumes the PR state has already been stored by the refresher filter
 	pr, err := n.cache.ReadPullRequest(context, prp.GetRepo().GetOwner().GetLogin(), prp.GetRepo().GetName(), prp.GetPullRequest().GetNumber())
 	if err != nil {
-		scope.Errorf("Unable to retrieve data from storage for PR %d from repo %s: %v", prp.Number, prp.GetRepo().GetFullName(), err)
+		scope.Errorf("Unable to retrieve data from storage for PR %d from repo %s: %v", prp.GetNumber(), prp.GetRepo().GetFullName(), err)
 		return
 	}
 
-	scope.Infof("Processing PR %d from repo %s", prp.Number, prp.GetRepo().GetFullName())
+	scope.Infof("Processing PR %d from repo %s", prp.GetNumber(), prp.GetRepo().GetFullName())
 
 	n.processPR(context, pr, nags)
 }

@@ -131,7 +131,7 @@ type BotActivity struct {
 type Maintainer struct {
 	OrgLogin  string
 	UserLogin string
-	Paths     []string // where each path is of the form RepoID/path_in_repo
+	Paths     []string // where each path is of the form RepoName/path_in_repo
 	Emeritus  bool
 }
 

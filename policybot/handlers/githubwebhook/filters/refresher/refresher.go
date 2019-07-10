@@ -58,17 +58,17 @@ func NewRefresher(cache *cache.Cache, store storage.Store, gc *gh.ThrottledClien
 // accept an event arriving from GitHub
 func (r *Refresher) Handle(context context.Context, event interface{}) {
 	switch p := event.(type) {
-	case *github.IssueEvent:
-		scope.Infof("Received IssueEvent: %s, %d, %s", p.GetIssue().GetRepository().GetFullName(), p.GetIssue().GetNumber(), p.GetEvent())
+	case *github.IssuesEvent:
+		scope.Infof("Received IssuesEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetIssue().GetNumber(), p.GetAction())
 
-		if !r.repos[p.GetIssue().GetRepository().GetFullName()] {
-			scope.Infof("Ignoring issue %d from repo %s since it's not in a monitored repo", p.GetIssue().GetNumber(), p.GetIssue().GetRepository().GetFullName())
+		if !r.repos[p.GetRepo().GetFullName()] {
+			scope.Infof("Ignoring issue %d from repo %s since it's not in a monitored repo", p.GetIssue().GetNumber(), p.GetRepo().GetFullName())
 			return
 		}
 
 		issue, discoveredUsers := gh.ConvertIssue(
-			p.GetIssue().GetRepository().GetOwner().GetLogin(),
-			p.GetIssue().GetRepository().GetName(),
+			p.GetRepo().GetOwner().GetLogin(),
+			p.GetRepo().GetName(),
 			p.GetIssue())
 		issues := []*storage.Issue{issue}
 		if err := r.cache.WriteIssues(context, issues); err != nil {
@@ -80,9 +80,9 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 			OrgLogin:    issue.OrgLogin,
 			RepoName:    issue.RepoName,
 			IssueNumber: issue.IssueNumber,
-			CreatedAt:   p.GetCreatedAt(),
-			Actor:       p.GetActor().GetLogin(),
-			Action:      p.GetEvent(),
+			CreatedAt:   time.Now(),
+			Actor:       p.GetSender().GetLogin(),
+			Action:      p.GetAction(),
 		}
 
 		events := []*storage.IssueEvent{event}
@@ -131,7 +131,7 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 		scope.Infof("Received PullRequestEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetNumber(), p.GetAction())
 
 		if !r.repos[p.GetRepo().GetFullName()] {
-			scope.Infof("Ignoring PR %d from repo %s since it's not in a monitored repo", p.PullRequest.Number, p.GetRepo().GetFullName())
+			scope.Infof("Ignoring PR %d from repo %s since it's not in a monitored repo", p.GetNumber(), p.GetRepo().GetFullName())
 			return
 		}
 
@@ -147,7 +147,7 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 			})
 
 			if err != nil {
-				scope.Errorf("Unable to list all files for pull request %d in repo %s: %v\n", p.Number, p.GetRepo().GetFullName(), err)
+				scope.Errorf("Unable to list all files for pull request %d in repo %s: %v\n", p.GetNumber(), p.GetRepo().GetFullName(), err)
 				return
 			}
 
@@ -193,7 +193,7 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 		scope.Infof("Received PullRequestReviewEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetPullRequest().GetNumber(), p.GetAction())
 
 		if !r.repos[p.GetRepo().GetFullName()] {
-			scope.Infof("Ignoring PR review for PR %d from repo %s since it's not in a monitored repo", p.PullRequest.Number, p.GetRepo().GetFullName())
+			scope.Infof("Ignoring PR review for PR %d from repo %s since it's not in a monitored repo", p.GetPullRequest().GetNumber(), p.GetRepo().GetFullName())
 			return
 		}
 
@@ -225,11 +225,12 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 
 		r.syncUsers(context, discoveredUsers)
 
-	case github.PullRequestReviewCommentEvent:
+	case *github.PullRequestReviewCommentEvent:
 		scope.Infof("Received PullRequestReviewCommentEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetPullRequest().GetNumber(), p.GetAction())
 
 		if !r.repos[p.GetRepo().GetFullName()] {
-			scope.Infof("Ignoring PR review comment for PR %d from repo %s since it's not in a monitored repo", p.PullRequest.Number, p.GetRepo().GetFullName())
+			scope.Infof("Ignoring PR review comment for PR %d from repo %s since it's not in a monitored repo",
+				p.GetPullRequest().GetNumber(), p.GetRepo().GetFullName())
 			return
 		}
 
