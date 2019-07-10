@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.orgLogin/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -70,8 +70,8 @@ func (s store) QueryIssuesByRepo(context context.Context, orgLogin string, repoN
 
 func (s store) QueryTestResultByTestName(context context.Context, orgLogin string, repoName string, testName string, cb func(*storage.TestResult) error) error {
 	sql := `SELECT * from TestResults
-	WHERE OrgLogin = @orgLogin AND 
-	RepoName = @repoName AND 
+	WHERE OrgLogin = @orgLogin AND
+	RepoName = @repoName AND
 	TestName = @testName;`
 	stmt := spanner.NewStatement(sql)
 	stmt.Params["orgLogin"] = orgLogin
@@ -93,8 +93,8 @@ func (s store) QueryTestResultByTestName(context context.Context, orgLogin strin
 func (s store) QueryTestResultByPrNumber(
 	context context.Context, orgLogin string, repoName string, pullRequestNumber int64, cb func(*storage.TestResult) error) error {
 	sql := `SELECT * from TestResults
-	WHERE OrgLogin = @orgLogin AND 
-	RepoName = @repoName AND 
+	WHERE OrgLogin = @orgLogin AND
+	RepoName = @repoName AND
 	PullRequestNumber = @pullRequestNumber;`
 	stmt := spanner.NewStatement(sql)
 	stmt.Params["orgLogin"] = orgLogin
@@ -117,8 +117,8 @@ func (s store) QueryTestResultByPrNumber(
 
 func (s store) QueryTestResultByUndone(context context.Context, orgLogin string, repoName string, cb func(*storage.TestResult) error) error {
 	sql := `SELECT * from TestResults
-	WHERE OrgLogin = @orgLogin AND 
-	RepoName = @repoName AND 
+	WHERE OrgLogin = @orgLogin AND
+	RepoName = @repoName AND
 	Done = false;`
 	stmt := spanner.NewStatement(sql)
 	stmt.Params["orgLogin"] = orgLogin
@@ -139,7 +139,7 @@ func (s store) QueryTestResultByUndone(context context.Context, orgLogin string,
 // Read all rows from table in Spanner and invokes a call back on the row.
 func (s store) QueryAllTestResults(context context.Context, orgLogin string, repoName string, cb func(*storage.TestResult) error) error {
 	sql := `SELECT * from TestResults
-	WHERE OrgLogin = @orgLogin AND 
+	WHERE OrgLogin = @orgLogin AND
 	RepoName = @repoName AND `
 	stmt := spanner.NewStatement(sql)
 	stmt.Params["orgLogin"] = orgLogin
@@ -159,10 +159,10 @@ func (s store) QueryAllTestResults(context context.Context, orgLogin string, rep
 
 func (s store) QueryTestFlakeIssues(context context.Context, inactiveDays, createdDays int) ([]*storage.Issue, error) {
 	sql := `SELECT * from Issues
-	WHERE TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), UpdatedAt, DAY) > @inactiveDays AND 
+	WHERE TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), UpdatedAt, DAY) > @inactiveDays AND
 				TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), CreatedAt, DAY) < @createdDays AND
 				State = 'open' AND
-				( REGEXP_CONTAINS(title, 'flak[ey]') OR 
+				( REGEXP_CONTAINS(title, 'flak[ey]') OR
   				  REGEXP_CONTAINS(body, 'flake[ey]')
 				);`
 	stmt := spanner.NewStatement(sql)
