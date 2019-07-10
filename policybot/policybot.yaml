@@ -104,6 +104,11 @@ autolabels:
 
 orgs:
   - name: istio
+    labels_to_create:
+      - name: flag/needs-release-note
+        color: e02642
+        description: Indicates the PR contains changes worthy of mentioning in cusrtomer-facing release notes.
+
     repos:
       - name: istio
       - name: istio.io

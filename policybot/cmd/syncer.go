@@ -46,7 +46,7 @@ func syncerCmd() *cobra.Command {
 
 	syncerCmd := &cobra.Command{
 		Use:   "syncer",
-		Short: "Manually run the GitHub/ZenHub state syncer",
+		Short: "Run the GitHub/ZenHub state syncer",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := log.Configure(loggingOptions); err != nil {
