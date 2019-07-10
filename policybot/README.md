@@ -37,11 +37,6 @@ The existing handlers include:
  
 - zenhubwebhook. Handles ZenHub web hook events
 
-- syncer. Initiates a synchronization of GitHub data to Google Cloud Spanner, where the data can then be used
-for analysis. The syncer needs to be invoked on a periodic basis to refresh the data.
-
-- flakechaser. Performs schedule analysis on test-flake related bugs and nags the PR to prompt for a resolution.
-
 - topics. A number of handlers which each deliver the HTML and JSON to support the dashboard UI.
 
 The githubwebhook handler supports a chain of filters which each get called for incoming

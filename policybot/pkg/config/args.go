@@ -88,6 +88,12 @@ type FlakeChaser struct {
 	Repos []string
 }
 
+type Label struct {
+	Name        string
+	Description string
+	Color       string
+}
+
 type AutoLabel struct {
 	// Name of the auto label
 	Name string
@@ -109,6 +115,9 @@ type AutoLabel struct {
 type Repo struct {
 	// Name of the repo
 	Name string `json:"name"`
+
+	// Labels to create this repos
+	LabelsToCreate []Label `json:"labels_to_create"`
 }
 
 // Configuration for an individual GitHub organization.
@@ -120,8 +129,13 @@ type Org struct {
 	Repos []Repo `json:"repos"`
 
 	// Nags to apply within this organization
-	Nags       []Nag       `json:"nags"`
+	Nags []Nag `json:"nags"`
+
+	// Automatic labels to apply within this organization
 	AutoLabels []AutoLabel `json:"autolabels"`
+
+	// Labels to create in all repos being controlled in this organization
+	LabelsToCreate []Label `json:"labels_to_create"`
 }
 
 // Args represents the set of options that control the behavior of the bot.
@@ -138,7 +152,7 @@ type Args struct {
 	// Global nagging state
 	Nags []Nag `json:"nags"`
 
-	// Global flaky test bots to nag issuer owner.
+	// Global flaky test bots to nag issue owner.
 	FlakeChaser FlakeChaser `json:"flakechaser"`
 
 	// Global auto-labeling
@@ -155,6 +169,9 @@ type Args struct {
 
 	// The amount of time cache state is kept around before being discarded
 	CacheTTL time.Duration `json:"cache_ttl"`
+
+	// Labels to create in all repos being controlled
+	LabelsToCreate []Label `json:"labels_to_create"`
 }
 
 func DefaultArgs() *Args {

@@ -38,6 +38,7 @@ func GetRootCmd(args []string) *cobra.Command {
 	rootCmd.AddCommand(serverCmd())
 	rootCmd.AddCommand(syncerCmd())
 	rootCmd.AddCommand(flakeChaserCmd())
+	rootCmd.AddCommand(labelMakerCmd())
 	rootCmd.AddCommand(version.CobraCommand())
 
 	return rootCmd

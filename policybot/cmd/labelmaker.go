@@ -16,35 +16,30 @@ package cmd
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
-
-	"istio.io/bots/policybot/pkg/gh"
 
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/grpclog"
 
 	"istio.io/bots/policybot/pkg/config"
-	"istio.io/bots/policybot/pkg/flakechaser"
-	"istio.io/bots/policybot/pkg/storage/cache"
-	"istio.io/bots/policybot/pkg/storage/spanner"
+	"istio.io/bots/policybot/pkg/gh"
+	"istio.io/bots/policybot/pkg/labelmaker"
 	"istio.io/pkg/env"
 	"istio.io/pkg/log"
 )
 
-func flakeChaserCmd() *cobra.Command {
+func labelMakerCmd() *cobra.Command {
 	ca := config.DefaultArgs()
 
 	ca.StartupOptions.GitHubToken = env.RegisterStringVar("GITHUB_TOKEN", ca.StartupOptions.GitHubToken, githubToken).Get()
-	ca.StartupOptions.GCPCredentials = env.RegisterStringVar("GCP_CREDS", ca.StartupOptions.GCPCredentials, gcpCreds).Get()
 	ca.StartupOptions.ConfigRepo = env.RegisterStringVar("CONFIG_REPO", ca.StartupOptions.ConfigRepo, configRepo).Get()
 	ca.StartupOptions.ConfigFile = env.RegisterStringVar("CONFIG_FILE", ca.StartupOptions.ConfigFile, configFile).Get()
 
 	loggingOptions := log.DefaultOptions()
 
-	chaserCmd := &cobra.Command{
-		Use:   "flakechaser",
-		Short: "Run the test flake chaser",
+	makerCmd := &cobra.Command{
+		Use:   "labelmaker",
+		Short: "Run the label maker",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := log.Configure(loggingOptions); err != nil {
@@ -56,43 +51,27 @@ func flakeChaserCmd() *cobra.Command {
 			grpclog.SetLoggerV2(grpclog.NewLoggerV2(dummy, dummy, dummy))
 
 			cmd.SilenceUsage = true
-			return runFlakeChaser(ca)
+			return runLabelMaker(ca)
 		},
 	}
 
-	chaserCmd.PersistentFlags().StringVarP(&ca.StartupOptions.ConfigRepo, "config_repo", "", ca.StartupOptions.ConfigRepo, configRepo)
-	chaserCmd.PersistentFlags().StringVarP(&ca.StartupOptions.ConfigFile, "config_file", "", ca.StartupOptions.ConfigFile, configFile)
-	chaserCmd.PersistentFlags().StringVarP(&ca.StartupOptions.GitHubToken, "github_token", "", ca.StartupOptions.GitHubToken, githubToken)
-	chaserCmd.PersistentFlags().StringVarP(&ca.StartupOptions.GCPCredentials, "gcp_creds", "", ca.StartupOptions.GCPCredentials, gcpCreds)
+	makerCmd.PersistentFlags().StringVarP(&ca.StartupOptions.ConfigRepo, "config_repo", "", ca.StartupOptions.ConfigRepo, configRepo)
+	makerCmd.PersistentFlags().StringVarP(&ca.StartupOptions.ConfigFile, "config_file", "", ca.StartupOptions.ConfigFile, configFile)
+	makerCmd.PersistentFlags().StringVarP(&ca.StartupOptions.GitHubToken, "github_token", "", ca.StartupOptions.GitHubToken, githubToken)
 
-	loggingOptions.AttachCobraFlags(chaserCmd)
+	loggingOptions.AttachCobraFlags(makerCmd)
 
-	return chaserCmd
+	return makerCmd
 }
 
-// Runs the flake chase.
-func runFlakeChaser(a *config.Args) error {
+func runLabelMaker(a *config.Args) error {
 	// load the config file
 	if err := a.Fetch(); err != nil {
 		return fmt.Errorf("unable to load configuration file: %v", err)
 	}
 
-	creds, err := base64.StdEncoding.DecodeString(a.StartupOptions.GCPCredentials)
-	if err != nil {
-		return fmt.Errorf("unable to decode GCP credentials: %v", err)
-	}
-
 	gc := gh.NewThrottledClient(context.Background(), a.StartupOptions.GitHubToken)
 
-	store, err := spanner.NewStore(context.Background(), a.SpannerDatabase, creds)
-	if err != nil {
-		return fmt.Errorf("unable to create storage layer: %v", err)
-	}
-	defer store.Close()
-
-	cache := cache.New(store, a.CacheTTL)
-
-	h := flakechaser.New(gc, store, cache, a.FlakeChaser)
-	h.Chase(context.Background())
-	return nil
+	h := labelmaker.New(gc, a)
+	return h.MakeEm(context.Background())
 }
