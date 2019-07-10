@@ -21,7 +21,10 @@ import (
 
 	"istio.io/bots/policybot/handlers/githubwebhook/filters"
 	"istio.io/bots/policybot/pkg/util"
+	"istio.io/pkg/log"
 )
+
+var scope = log.RegisterScope("githubwebhook", "GitHub webhook handler", 0)
 
 // Decodes and dispatches GitHub webhook calls
 type handler struct {
@@ -42,6 +45,8 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		util.RenderError(w, err)
 		return
 	}
+
+	scope.Debugf("Received GitHub event: %v", github.WebHookType(r))
 
 	event, err := github.ParseWebHook(github.WebHookType(r), payload)
 	if err != nil {

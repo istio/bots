@@ -113,43 +113,50 @@ func (l *Labeler) Handle(context context.Context, event interface{}) {
 	var issue *storage.Issue
 	var pr *storage.PullRequest
 
-	ip, ok := event.(*github.IssuesEvent)
-	if ok {
-		action = ip.GetAction()
-		repo = ip.GetRepo().GetFullName()
-		number = ip.GetIssue().GetNumber()
+	switch p := event.(type) {
+	case *github.IssuesEvent:
+		scope.Infof("Received IssuesEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetIssue().GetNumber(), p.GetAction())
+
+		action = p.GetAction()
+		repo = p.GetRepo().GetFullName()
+		number = p.GetIssue().GetNumber()
 		issue, _ = gh.ConvertIssue(
-			ip.GetRepo().GetOwner().GetLogin(),
-			ip.GetRepo().GetName(),
-			ip.GetIssue())
-	}
+			p.GetRepo().GetOwner().GetLogin(),
+			p.GetRepo().GetName(),
+			p.GetIssue())
 
-	prp, ok := event.(*github.PullRequestEvent)
-	if ok {
-		action = prp.GetAction()
-		repo = prp.GetRepo().GetFullName()
-		number = prp.GetPullRequest().GetNumber()
+	case *github.PullRequestEvent:
+		scope.Infof("Received PullRequestEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetPullRequest().GetNumber(), p.GetAction())
+
+		action = p.GetAction()
+		repo = p.GetRepo().GetFullName()
+		number = p.GetPullRequest().GetNumber()
 		pr, _ = gh.ConvertPullRequest(
-			prp.GetRepo().GetOwner().GetLogin(),
-			prp.GetRepo().GetName(),
-			prp.GetPullRequest(),
+			p.GetRepo().GetOwner().GetLogin(),
+			p.GetRepo().GetName(),
+			p.GetPullRequest(),
 			nil)
+
+	default:
+		// not what we're looking for
+		scope.Debugf("Unknown event received: %T %+v", p, p)
+		return
 	}
 
-	if action != "opened" && action != "review_requested" {
+	if action != "opened" {
 		// not what we care about
-		scope.Debugf("Not an action we care about: %s", action)
+		scope.Infof("Ignoring event for issue/PR %d from repo %s since it doesn't have a supported action: %s", number, repo, action)
 		return
 	}
 
 	// see if the event is in a repo we're monitoring
 	autoLabels, ok := l.repos[repo]
 	if !ok {
-		scope.Infof("Ignoring issue/pr %d from repo %s since it's not in a monitored repo", number, repo)
+		scope.Infof("Ignoring event for issue/PR %d from repo %s since it's not in a monitored repo", number, repo)
 		return
 	}
 
-	scope.Infof("Processing issue/pr %d from repo %s, %s", number, repo, action)
+	scope.Infof("Processing event for issue/PR %d from repo %s, %s", number, repo, action)
 
 	if issue != nil {
 		l.processIssue(context, issue, autoLabels)
@@ -190,12 +197,12 @@ func (l *Labeler) processIssue(context context.Context, issue *storage.Issue, or
 		if _, _, err := l.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.Issues.AddLabelsToIssue(context, issue.OrgLogin, issue.RepoName, int(issue.IssueNumber), toApply)
 		}); err != nil {
-			scope.Errorf("Unable to set labels on issue/pr %d in repo %s/%s: %v", issue.IssueNumber, issue.OrgLogin, issue.RepoName, err)
+			scope.Errorf("Unable to set labels on issue/PR %d in repo %s/%s: %v", issue.IssueNumber, issue.OrgLogin, issue.RepoName, err)
 			return
 		}
 	}
 
-	scope.Infof("Applied %d label(s) to issue/pr %d from repo %s/%s", len(toApply), issue.IssueNumber, issue.OrgLogin, issue.RepoName)
+	scope.Infof("Applied %d label(s) to issue/PR %d from repo %s/%s", len(toApply), issue.IssueNumber, issue.OrgLogin, issue.RepoName)
 }
 
 func (l *Labeler) processPullRequest(context context.Context, pr *storage.PullRequest, orgALs []config.AutoLabel) {
@@ -230,12 +237,12 @@ func (l *Labeler) processPullRequest(context context.Context, pr *storage.PullRe
 		if _, _, err := l.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.Issues.AddLabelsToIssue(context, pr.OrgLogin, pr.RepoName, int(pr.PullRequestNumber), toApply)
 		}); err != nil {
-			scope.Errorf("Unable to set labels on event %d in repo %s/%s: %v", pr.PullRequestNumber, pr.OrgLogin, pr.RepoName, err)
+			scope.Errorf("Unable to set labels on PR %d in repo %s/%s: %v", pr.PullRequestNumber, pr.OrgLogin, pr.RepoName, err)
 			return
 		}
 	}
 
-	scope.Infof("Applied %d label(s) to pr %d from repo %s/%s", len(toApply), pr.PullRequestNumber, pr.OrgLogin, pr.RepoName)
+	scope.Infof("Applied %d label(s) to PR %d from repo %s/%s", len(toApply), pr.PullRequestNumber, pr.OrgLogin, pr.RepoName)
 }
 
 func (l *Labeler) matchAutoLabel(al config.AutoLabel, title string, body string, labels []*storage.Label) bool {
