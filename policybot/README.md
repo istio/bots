@@ -99,21 +99,19 @@ treated as a local file path within the bot's container.
 
 - PORT / --port. The TCP port to listen to for incoming traffic.
 
+- HTTPS_ONLY / --https_only. Causes all HTTP traffic to be redirected to HTTPS instead.
+
 ## REST API
 
 The bot exposes a REST API at https://eng.istio.io:
 
-- /syncer - triggers the bot to synchronize GitHub issues into Google Cloud Spanner. This is called periodically  by 
-a job scheduled in Google Cloud scheduler. You can filter what gets synced using a filter query string with a 
-comma-separated list of things to sync [members, maintainers, issues, prs, labels, zenhub, repocomments, events]
-
-- /flakechaser - triggers the bot to run its flake chasing logic, which nags outstanding test flake issues.
-
 - /githubwebhook - used to report events from GitHub. This is called by GitHub whenever anything interesting happens in
 the Istio repos.
 
-- /zenhubwebhook - user to repo events from ZenHub. This is called by ZenHub whenever anything interesting happens to Istio issues
+- /zenhubwebhook - used to report events from ZenHub. This is called by ZenHub whenever anything interesting happens to Istio issues
 tracked by ZenHub.
+
+- /api/* - topic-specific API available to query information that the bot generates.
 
 ## Configuration file
 

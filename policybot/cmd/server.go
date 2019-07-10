@@ -37,14 +37,12 @@ import (
 	"istio.io/bots/policybot/dashboard/topics/members"
 	"istio.io/bots/policybot/dashboard/topics/perf"
 	"istio.io/bots/policybot/dashboard/topics/pullrequests"
-	"istio.io/bots/policybot/handlers/flakechaser"
 	"istio.io/bots/policybot/handlers/githubwebhook"
 	"istio.io/bots/policybot/handlers/githubwebhook/filters"
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/cfgmonitor"
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/labeler"
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/nagger"
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/refresher"
-	"istio.io/bots/policybot/handlers/syncer"
 	"istio.io/bots/policybot/handlers/zenhubwebhook"
 	"istio.io/bots/policybot/pkg/blobstorage/gcs"
 	"istio.io/bots/policybot/pkg/config"
@@ -52,7 +50,6 @@ import (
 	"istio.io/bots/policybot/pkg/storage/cache"
 	"istio.io/bots/policybot/pkg/storage/spanner"
 	"istio.io/bots/policybot/pkg/util"
-	"istio.io/bots/policybot/pkg/zh"
 	"istio.io/pkg/ctrlz"
 	"istio.io/pkg/env"
 	"istio.io/pkg/log"
@@ -201,7 +198,6 @@ func runWithConfig(a *config.Args) error {
 	}
 
 	gc := gh.NewThrottledClient(context.Background(), a.StartupOptions.GitHubToken)
-	zc := zh.NewThrottledClient(a.StartupOptions.ZenHubToken)
 	_ = util.NewMailer(a.StartupOptions.SendGridAPIKey, a.EmailFrom, a.EmailOriginAddress)
 
 	store, err := spanner.NewStore(context.Background(), a.SpannerDatabase, creds)
@@ -268,9 +264,7 @@ func runWithConfig(a *config.Args) error {
 
 	// top-level handlers
 	router.Handle("/githubwebhook", githubwebhook.NewHandler(a.StartupOptions.GitHubWebhookSecret, filters...)).Methods("POST")
-	router.Handle("/flakechaser", flakechaser.NewHandler(gc, store, cache, a.FlakeChaser)).Methods("GET")
 	router.Handle("/zenhubwebhook", zenhubwebhook.NewHandler(store, cache)).Methods("POST")
-	router.Handle("/syncer", syncer.NewHandler(context.Background(), gc, cache, zc, store, a.Orgs)).Methods("GET")
 
 	// UI topics
 	dashboard := dashboard.New(router, a.StartupOptions.GitHubOAuthClientID, a.StartupOptions.GitHubOAuthClientSecret)
