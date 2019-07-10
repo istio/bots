@@ -121,13 +121,22 @@ func (n *Nagger) Handle(context context.Context, event interface{}) {
 	prp, ok := event.(*github.PullRequestEvent)
 	if !ok {
 		// not what we're looking for
+		scope.Debugf("Unknown event received: %T %+v", event, event)
+		return
+	}
+
+	scope.Infof("Received PullRequestEvent: %s, %d, %s", prp.GetRepo().GetFullName(), prp.GetPullRequest().GetNumber(), prp.GetAction())
+
+	action := prp.GetAction()
+	if action != "opened" && action != "edited" {
+		scope.Infof("Ignoring event for PR %d from repo %s since it doesn't have a supported action: %s", prp.GetNumber(), prp.GetRepo().GetFullName(), action)
 		return
 	}
 
 	// see if the PR is in a repo we're monitoring
 	nags, ok := n.repos[prp.GetRepo().GetFullName()]
 	if !ok {
-		scope.Infof("Ignoring PR %d from repo %s since it's not in a monitored repo", prp.GetNumber(), prp.GetRepo().GetFullName())
+		scope.Infof("Ignoring event for PR %d from repo %s since it's not in a monitored repo", prp.GetNumber(), prp.GetRepo().GetFullName())
 		return
 	}
 
