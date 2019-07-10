@@ -36,7 +36,7 @@ type ResultGatherer struct {
 	testResultGatherer *gatherer.TestResultGatherer
 }
 
-var scope = log.RegisterScope("ResultGatherer", "Result tester for each pr test run", 0)
+var scope = log.RegisterScope("ResultGatherer", "Result gatherer for each pr test run", 0)
 
 func NewResultGatherer(store storage.Store,
 	cache *cache.Cache, orgs []config.Org, bucketName string) filters.Filter {
@@ -98,7 +98,7 @@ func (r *ResultGatherer) Handle(context context.Context, event interface{}) {
 	case *github.CheckRunEvent:
 		scope.Infof("Received CheckRunEvent: %s", p.GetRepo().GetName())
 		if !r.repos[p.GetRepo().GetName()] {
-			scope.Infof("Ignoring ChechRun event from repo %s since it's not in a monitored repo", p.GetRepo().GetFullName())
+			scope.Infof("Ignoring CheckRun event from repo %s since it's not in a monitored repo", p.GetRepo().GetFullName())
 			return
 		}
 
