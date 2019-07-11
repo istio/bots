@@ -16,6 +16,7 @@ package zh
 
 import (
 	"errors"
+	"io"
 	"net/http"
 	"strconv"
 	"time"
@@ -47,8 +48,8 @@ const (
 	headerRateReset     = "X-RateLimit-Reset"
 )
 
-func (c *Client) sendRequest(method, urlPath string) (*http.Response, error) {
-	req, err := http.NewRequest(method, baseURL+urlPath, nil)
+func (c *Client) sendRequest(method, urlPath string, body io.Reader) (*http.Response, error) {
+	req, err := http.NewRequest(method, baseURL+urlPath, body)
 	if err != nil {
 		return nil, err
 	}
