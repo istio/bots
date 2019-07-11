@@ -135,47 +135,52 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 			return
 		}
 
-		opt := &github.ListOptions{
-			PerPage: 100,
-		}
-
-		// get the set of files comprising this PR since the payload didn't supply them
-		var allFiles []string
-		for {
-			files, resp, err := r.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
-				return client.PullRequests.ListFiles(context, p.GetRepo().GetOwner().GetLogin(), p.GetRepo().GetName(), p.GetNumber(), opt)
-			})
-
-			if err != nil {
-				scope.Errorf("Unable to list all files for pull request %d in repo %s: %v\n", p.GetNumber(), p.GetRepo().GetFullName(), err)
-				return
+		action := p.GetAction()
+		if action == "opened" || action == "edited" {
+			opt := &github.ListOptions{
+				PerPage: 100,
 			}
 
-			for _, f := range files.([]*github.CommitFile) {
-				allFiles = append(allFiles, f.GetFilename())
+			// get the set of files comprising this PR since the payload didn't supply them
+			var allFiles []string
+			for {
+				files, resp, err := r.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+					return client.PullRequests.ListFiles(context, p.GetRepo().GetOwner().GetLogin(), p.GetRepo().GetName(), p.GetNumber(), opt)
+				})
+
+				if err != nil {
+					scope.Errorf("Unable to list all files for pull request %d in repo %s: %v\n", p.GetNumber(), p.GetRepo().GetFullName(), err)
+					return
+				}
+
+				for _, f := range files.([]*github.CommitFile) {
+					allFiles = append(allFiles, f.GetFilename())
+				}
+
+				if resp.NextPage == 0 {
+					break
+				}
+
+				opt.Page = resp.NextPage
 			}
 
-			if resp.NextPage == 0 {
-				break
+			pr, discoveredUsers := gh.ConvertPullRequest(
+				p.GetOrganization().GetLogin(),
+				p.GetRepo().GetName(),
+				p.GetPullRequest(),
+				allFiles)
+			prs := []*storage.PullRequest{pr}
+			if err := r.cache.WritePullRequests(context, prs); err != nil {
+				scope.Errorf(err.Error())
 			}
 
-			opt.Page = resp.NextPage
-		}
-
-		pr, discoveredUsers := gh.ConvertPullRequest(
-			p.GetOrganization().GetLogin(),
-			p.GetRepo().GetName(),
-			p.GetPullRequest(),
-			allFiles)
-		prs := []*storage.PullRequest{pr}
-		if err := r.cache.WritePullRequests(context, prs); err != nil {
-			scope.Errorf(err.Error())
+			r.syncUsers(context, discoveredUsers)
 		}
 
 		event := &storage.PullRequestEvent{
-			OrgLogin:          pr.OrgLogin,
-			RepoName:          pr.RepoName,
-			PullRequestNumber: pr.PullRequestNumber,
+			OrgLogin:          p.GetOrganization().GetLogin(),
+			RepoName:          p.GetRepo().GetName(),
+			PullRequestNumber: int64(p.GetPullRequest().GetNumber()),
 			CreatedAt:         time.Now(),
 			Actor:             p.GetSender().GetLogin(),
 			Action:            p.GetAction(),
@@ -186,8 +191,6 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 			scope.Error(err.Error())
 			return
 		}
-
-		r.syncUsers(context, discoveredUsers)
 
 	case *github.PullRequestReviewEvent:
 		scope.Infof("Received PullRequestReviewEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetPullRequest().GetNumber(), p.GetAction())
