@@ -73,5 +73,5 @@ func runLabelMaker(a *config.Args) error {
 	gc := gh.NewThrottledClient(context.Background(), a.StartupOptions.GitHubToken)
 
 	h := labelmaker.New(gc, a)
-	return h.MakeEm(context.Background())
+	return h.MakeConfiguredLabels(context.Background())
 }

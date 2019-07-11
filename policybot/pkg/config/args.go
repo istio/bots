@@ -116,7 +116,7 @@ type Repo struct {
 	// Name of the repo
 	Name string `json:"name"`
 
-	// Labels to create this repos
+	// Labels to create for this repo
 	LabelsToCreate []Label `json:"labels_to_create"`
 }
 

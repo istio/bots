@@ -40,7 +40,7 @@ func New(gc *gh.ThrottledClient, args *config.Args) *LabelMaker {
 	}
 }
 
-func (lm *LabelMaker) MakeEm(context context.Context) error {
+func (lm *LabelMaker) MakeConfiguredLabels(context context.Context) error {
 	for _, org := range lm.args.Orgs {
 		for _, repo := range org.Repos {
 			// global
@@ -59,7 +59,7 @@ func (lm *LabelMaker) MakeEm(context context.Context) error {
 				}
 			}
 
-			// repo lavel
+			// repo-level
 			for _, label := range repo.LabelsToCreate {
 				err := lm.makeLabel(context, org.Name, repo.Name, label)
 				if err != nil {
