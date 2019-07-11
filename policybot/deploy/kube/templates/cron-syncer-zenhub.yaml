@@ -19,7 +19,8 @@ spec:
                 - syncer
                 - --config_file
                 - ./policybot.yaml
-                - --filter zenhub
+                - --filter
+                - zenhub
               envFrom:
                 - secretRef:
                     name: policybot

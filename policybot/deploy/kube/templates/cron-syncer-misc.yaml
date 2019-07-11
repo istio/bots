@@ -19,7 +19,8 @@ spec:
                 - syncer
                 - --config_file
                 - ./policybot.yaml
-                - --filter maintainers,members,labels
+                - --filter
+                - maintainers,members,labels
               envFrom:
                 - secretRef:
                     name: policybot
