@@ -15,9 +15,12 @@
 package zh
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -31,7 +34,9 @@ type PlusOne struct {
 }
 
 type Pipeline struct {
-	Name string `json:"name"`
+	Name        string `json:"name"`
+	PipelineID  string `json:"pipeline_id"`
+	WorkspaceID string `json:"workspace_id"`
 }
 
 type IssueData struct {
@@ -41,9 +46,14 @@ type IssueData struct {
 	IsEpic   bool      `json:"is_epic"`
 }
 
+type movePipeline struct {
+	PipelineID string `json:"pipeline_id"`
+	Position   string `json:"position"`
+}
+
 // Query ZenHub
 func (c *Client) GetIssueData(repo, issue int) (*IssueData, error) {
-	resp, err := c.sendRequest("GET", fmt.Sprintf("/p1/repositories/%d/issues/%d", repo, issue))
+	resp, err := c.sendRequest("GET", fmt.Sprintf("/p1/repositories/%d/issues/%d", repo, issue), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -61,4 +71,24 @@ func (c *Client) GetIssueData(repo, issue int) (*IssueData, error) {
 	}
 
 	return data, nil
+}
+
+func (c *Client) SetIssuePipeline(repo int, issue int, pipelineID string, position int) error {
+	mp := &movePipeline{
+		PipelineID: pipelineID,
+		Position:   strconv.Itoa(position),
+	}
+
+	b, _ := json.Marshal(mp)
+
+	resp, err := c.sendRequest("POST", fmt.Sprintf("/p1/repositories/%d/issues/%d/moves", repo, issue), bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unable to deliver request: http status %v", resp.StatusCode)
+	}
+
+	return nil
 }
