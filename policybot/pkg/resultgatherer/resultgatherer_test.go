@@ -56,7 +56,7 @@ func TestResultGatherer(t *testing.T) {
 		return
 	}
 
-	testResultGatherer, err := resultgatherer.NewTestResultGatherer(client, "istio-flakey-test")
+	testResultGatherer := resultgatherer.TestResultGatherer{client, "istio-flakey-test", "pr-logs/pull/", ""}
 	if err != nil {
 		fmt.Println(err)
 		return

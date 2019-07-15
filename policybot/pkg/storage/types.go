@@ -16,6 +16,8 @@ package storage
 
 import (
 	"time"
+
+	"istio.io/bots/policybot/pkg/config"
 )
 
 // This file defines the shapes we csn read/write to/from the DB. Before
@@ -75,6 +77,7 @@ type Org struct {
 	Company     string
 	AvatarURL   string
 	Description string
+	Config      config.Org `spanner:"-"`
 }
 
 type Repo struct {
@@ -82,6 +85,7 @@ type Repo struct {
 	RepoName    string
 	Description string
 	RepoNumber  int64
+	Config      config.Repo `spanner:"-"`
 }
 
 type PullRequest struct {
@@ -192,6 +196,8 @@ type TestResult struct {
 	Result            string
 	BaseSha           string
 	RunPath           string
+	HasArtifacts      bool
+	Signatures        []string
 }
 
 type RepoComment struct {

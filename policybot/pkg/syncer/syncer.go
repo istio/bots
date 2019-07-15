@@ -30,8 +30,10 @@ import (
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 
+	gcs "cloud.google.com/go/storage"
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
+	"istio.io/bots/policybot/pkg/resultgatherer"
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/zh"
 	"istio.io/pkg/log"
@@ -58,6 +60,7 @@ const (
 	ZenHub                   = 1 << 5
 	RepoComments             = 1 << 6
 	Events                   = 1 << 7
+	TestResults              = 1 << 8
 )
 
 // The state in Syncer is immutable once created. syncState on the other hand represents
@@ -90,7 +93,7 @@ func New(gc *gh.ThrottledClient, gcpCreds []byte, gcpProject string,
 func ConvFilterFlags(filter string) (FilterFlags, error) {
 	if filter == "" {
 		// defaults to everything
-		return Issues | Prs | Maintainers | Members | Labels | ZenHub | RepoComments | Events, nil
+		return Issues | Prs | Maintainers | Members | Labels | ZenHub | RepoComments | Events | TestResults, nil
 	}
 
 	var result FilterFlags
@@ -112,6 +115,8 @@ func ConvFilterFlags(filter string) (FilterFlags, error) {
 			result |= RepoComments
 		case "events":
 			result |= Events
+		case "testresults":
+			result |= TestResults
 		default:
 			return 0, fmt.Errorf("unknown filter flag %s", f)
 		}
@@ -132,10 +137,14 @@ func (s *Syncer) Sync(context context.Context, flags FilterFlags) error {
 	var repos []*storage.Repo
 
 	// get all the org & repo info
-	if err := s.fetchOrgs(ss.ctx, func(org *github.Organization) error {
-		orgs = append(orgs, gh.ConvertOrg(org))
-		return s.fetchRepos(ss.ctx, func(repo *github.Repository) error {
-			repos = append(repos, gh.ConvertRepo(repo))
+	if err := s.fetchOrgs(ss.ctx, func(org *github.Organization, configOrg config.Org) error {
+		storageOrg := gh.ConvertOrg(org)
+		storageOrg.Config = configOrg
+		orgs = append(orgs, storageOrg)
+		return s.fetchRepos(ss.ctx, func(repo *github.Repository, configRepo config.Repo) error {
+			storageRepo := gh.ConvertRepo(repo)
+			storageRepo.Config = configRepo
+			repos = append(repos, storageRepo)
 			return nil
 		})
 	}); err != nil {
@@ -166,6 +175,12 @@ func (s *Syncer) Sync(context context.Context, flags FilterFlags) error {
 
 		if flags&Maintainers != 0 {
 			if err := ss.handleMaintainers(org, orgRepos); err != nil {
+				return err
+			}
+		}
+
+		if flags&TestResults != 0 {
+			if err := ss.handleTestResults(org, orgRepos); err != nil {
 				return err
 			}
 		}
@@ -729,6 +744,38 @@ func (ss *syncState) handlePullRequestReviewComments(repo *storage.Repo, start t
 
 		return ss.syncer.store.WritePullRequestReviewComments(ss.ctx, storagePRComments)
 	})
+}
+
+func (ss *syncState) handleTestResults(org *storage.Org, repos []*storage.Repo) error {
+	scope.Debugf("Getting test results for org %s", org.OrgLogin)
+	client, err := gcs.NewClient(ss.ctx)
+	if err != nil {
+		return err
+	}
+	g := resultgatherer.TestResultGatherer{Client: client, BucketName: org.Config.BucketName,
+		PreSubmitPrefix: org.Config.PreSubmitTestPath, PostSubmitPrefix: org.Config.PostSubmitTestPath}
+	// TODO: this should be paralellized for speed
+	for _, repo := range repos {
+		prPaths, err := g.GetAllPullRequests(ss.ctx, org.OrgLogin, repo.RepoName)
+		if err != nil {
+			return err
+		}
+		for _, prPath := range prPaths {
+			prParts := strings.Split(prPath, "/")
+			prNum, err := strconv.ParseInt(prParts[len(prParts)-2], 10, 64)
+			if err != nil {
+				return err
+			}
+			results, err := g.CheckTestResultsForPr(ss.ctx, org.OrgLogin, repo.RepoName, prNum)
+			if err != nil {
+				return err
+			}
+			ss.syncer.store.WriteTestResults(ss.ctx, results)
+
+		}
+	}
+
+	return nil
 }
 
 func (ss *syncState) handleMaintainers(org *storage.Org, repos []*storage.Repo) error {
