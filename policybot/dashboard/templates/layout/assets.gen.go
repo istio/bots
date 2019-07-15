@@ -96,7 +96,8 @@ var _baseHtml = []byte(`<!DOCTYPE html>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" defer></script>
 
         <!-- our own stuff -->
-        <script src="/js/all.min.js" data-manual defer></script>
+        <script src="/js/all.min.js" defer></script>
+        <script src="/js/fitty.min.js" defer></script>
 
         {{ template "main" . }}
     </body>
@@ -195,6 +196,12 @@ var _primaryHtml = []byte(`{{ define "main" }}
     </div>
 
 	<div class="article-container">
+        {{ if .Control }}
+            <nav aria-label="Breadcrumb">
+                {{ .Control }}
+            </nav>
+        {{ end }}
+
         <article aria-labelledby="title">
             <div class="title-area">
                 <div>

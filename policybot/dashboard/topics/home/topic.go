@@ -63,7 +63,7 @@ func (t *topic) Configure(htmlRouter *mux.Router, apiRouter *mux.Router, context
 			if err := t.home.Execute(sb, t.topics); err != nil {
 				context.RenderHTMLError(w, err)
 			} else {
-				context.RenderHTML(w, sb.String())
+				context.RenderHTML(w, "", sb.String(), "")
 			}
 		})
 }

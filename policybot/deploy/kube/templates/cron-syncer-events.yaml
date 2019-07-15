@@ -1,0 +1,27 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: policybot-syncer-events
+  labels:
+    app: policybot-syncer-events
+spec:
+  schedule: "0 23 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: policybot
+              image: "{{ .Values.image }}"
+              imagePullPolicy: "{{ .Values.imagePullPolicy }}"
+              args:
+                - /policybot
+                - syncer
+                - --config_file
+                - ./policybot.yaml
+                - --filter
+                - events
+              envFrom:
+                - secretRef:
+                    name: policybot
+          restartPolicy: OnFailure

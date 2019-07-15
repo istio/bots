@@ -24,7 +24,6 @@ import (
 
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
-	"istio.io/bots/policybot/pkg/storage/cache"
 	"istio.io/bots/policybot/pkg/storage/spanner"
 	"istio.io/bots/policybot/pkg/syncer"
 	"istio.io/bots/policybot/pkg/zh"
@@ -102,8 +101,10 @@ func runSyncer(a *config.Args, filters string) error {
 	}
 	defer store.Close()
 
-	cache := cache.New(store, a.CacheTTL)
+	h, err := syncer.New(gc, creds, a.GCPProject, zc, store, a.Orgs)
+	if err != nil {
+		return fmt.Errorf("unable to create syncer: %v", err)
+	}
 
-	h := syncer.New(gc, cache, zc, store, a.Orgs)
 	return h.Sync(context.Background(), flags)
 }

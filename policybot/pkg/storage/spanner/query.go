@@ -190,7 +190,7 @@ func (s store) QueryMaintainerInfo(context context.Context, maintainer *storage.
 		Repos: make(map[string]*storage.RepoActivityInfo),
 	}
 
-	// prep all the repoName infos
+	// prep all the repo infos
 	soughtPaths := make(map[string]map[string]bool)
 	for _, mp := range maintainer.Paths {
 		slashIndex := strings.Index(mp, "/")
@@ -200,21 +200,26 @@ func (s store) QueryMaintainerInfo(context context.Context, maintainer *storage.
 		repoInfo, ok := info.Repos[repoName]
 		if !ok {
 			repoInfo = &storage.RepoActivityInfo{
-				RepoName:                       repoName,
-				LastPullRequestCommittedByPath: make(map[string]storage.TimedEntry),
+				Paths: make(map[string]storage.RepoPathActivityInfo),
 			}
 			info.Repos[repoName] = repoInfo
 			soughtPaths[repoName] = make(map[string]bool)
 		}
-		repoInfo.LastPullRequestCommittedByPath[path] = storage.TimedEntry{}
+		repoInfo.Paths[path] = storage.RepoPathActivityInfo{}
 
-		// track all the specific paths we care about for the repoName
+		// track all the specific paths we care about for the repo
 		soughtPaths[repoName][path] = true
 	}
 
+	// find the last time the maintainer updated files in the maintained paths
 	for repoName, repoInfo := range info.Repos {
 		iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
-			"SELECT * FROM PullRequests WHERE OrgLogin = '%s' AND RepoName = '%s' AND Author = '%s'",
+			`SELECT * FROM PullRequests
+			WHERE
+				OrgLogin = '%s'
+				AND RepoName = '%s'
+				AND Author = '%s'
+			ORDER BY MergedAt DESC`,
 			maintainer.OrgLogin, repoName, maintainer.UserLogin)})
 
 		err := iter.Do(func(row *spanner.Row) error {
@@ -228,10 +233,17 @@ func (s store) QueryMaintainerInfo(context context.Context, maintainer *storage.
 			for sp := range soughtPaths[repoName] {
 				for _, file := range pr.Files {
 					if strings.HasPrefix(file, sp) {
-						repoInfo.LastPullRequestCommittedByPath[sp] = storage.TimedEntry{
-							Time: pr.MergedAt,
-							ID:   pr.PullRequestNumber,
+						pai := repoInfo.Paths[sp]
+						pai.LastPullRequestSubmitted = storage.TimedEntry{
+							Time:   pr.MergedAt,
+							Number: pr.PullRequestNumber,
 						}
+						repoInfo.Paths[sp] = pai
+
+						if pr.MergedAt.After(info.LastMaintenanceActivity) {
+							info.LastMaintenanceActivity = pr.MergedAt
+						}
+
 						delete(soughtPaths[repoName], sp)
 						break
 					}
@@ -240,7 +252,6 @@ func (s store) QueryMaintainerInfo(context context.Context, maintainer *storage.
 
 			if len(soughtPaths[repoName]) == 0 {
 				// all the paths for this repo have been handled, move on
-				//				fmt.Printf("All sought paths have been found\n")
 				return iterator.Done
 			}
 
@@ -250,6 +261,257 @@ func (s store) QueryMaintainerInfo(context context.Context, maintainer *storage.
 		if err == iterator.Done {
 			err = nil
 		}
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// TODO: way too slow. The enclosed queries are getting the last time the maintainer has reviewed or commented
+	// on a PR that affects files in the maintainer's paths. Sadly, this takes forever. We either need to encapsulate
+	// this into an offline process that saves the results back to the DB, or we need a better query if this is going to be
+	// served live to users. Or maybe we should do both.
+	if false {
+		// reset the soughtPaths map
+		for _, mp := range maintainer.Paths {
+			slashIndex := strings.Index(mp, "/")
+			repoName := mp[0:slashIndex]
+			path := mp[slashIndex+1:]
+			soughtPaths[repoName][path] = true
+		}
+
+		// find the last time the maintainer reviewed a PR that updated files in the maintained paths
+		for repoName, repoInfo := range info.Repos {
+			iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
+				`SELECT * FROM PullRequestReviewEvents
+			WHERE
+				OrgLogin = '%s'
+				AND RepoName = '%s'
+				AND Actor = '%s'`,
+				maintainer.OrgLogin, repoName, maintainer.UserLogin)})
+
+			err := iter.Do(func(row *spanner.Row) error {
+
+				var e storage.PullRequestReviewEvent
+				if err := row.ToStruct(&e); err != nil {
+					return err
+				}
+
+				pr, err := s.ReadPullRequest(context, maintainer.OrgLogin, repoName, int(e.PullRequestNumber))
+				if err != nil {
+					return err
+				}
+
+				// if the pr affects any files in any of the maintainer's paths, update the timed entry for the path
+				for sp := range soughtPaths[repoName] {
+					for _, file := range pr.Files {
+						if strings.HasPrefix(file, sp) {
+							pai := repoInfo.Paths[sp]
+							pai.LastPullRequestReviewed = storage.TimedEntry{
+								Time:   e.CreatedAt,
+								Number: pr.PullRequestNumber,
+							}
+							repoInfo.Paths[sp] = pai
+
+							if e.CreatedAt.After(info.LastMaintenanceActivity) {
+								info.LastMaintenanceActivity = e.CreatedAt
+							}
+
+							delete(soughtPaths[repoName], sp)
+							break
+						}
+					}
+				}
+
+				if len(soughtPaths[repoName]) == 0 {
+					// all the paths for this repo have been handled, move on
+					return iterator.Done
+				}
+
+				return nil
+			})
+
+			if err == iterator.Done {
+				err = nil
+			}
+
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		// reset the soughtPaths map
+		for _, mp := range maintainer.Paths {
+			slashIndex := strings.Index(mp, "/")
+			repoName := mp[0:slashIndex]
+			path := mp[slashIndex+1:]
+			soughtPaths[repoName][path] = true
+		}
+
+		// find the last time the maintainer commented on a PR that updated files in the maintained paths
+		for repoName, repoInfo := range info.Repos {
+			iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
+				`SELECT * FROM PullRequestReviewCommentEvents
+			WHERE
+				OrgLogin = '%s'
+				AND RepoName = '%s'
+				AND Actor = '%s'`,
+				maintainer.OrgLogin, repoName, maintainer.UserLogin)})
+
+			err := iter.Do(func(row *spanner.Row) error {
+
+				var e storage.PullRequestReviewCommentEvent
+				if err := row.ToStruct(&e); err != nil {
+					return err
+				}
+
+				pr, err := s.ReadPullRequest(context, maintainer.OrgLogin, repoName, int(e.PullRequestNumber))
+				if err != nil {
+					return err
+				}
+
+				// if the pr affects any files in any of the maintainer's paths, update the timed entry for the path
+				for sp := range soughtPaths[repoName] {
+					for _, file := range pr.Files {
+						if strings.HasPrefix(file, sp) {
+							pai := repoInfo.Paths[sp]
+							pai.LastPullRequestReviewed = storage.TimedEntry{
+								Time:   e.CreatedAt,
+								Number: pr.PullRequestNumber,
+							}
+							repoInfo.Paths[sp] = pai
+
+							if e.CreatedAt.After(info.LastMaintenanceActivity) {
+								info.LastMaintenanceActivity = e.CreatedAt
+							}
+
+							delete(soughtPaths[repoName], sp)
+							break
+						}
+					}
+				}
+
+				if len(soughtPaths[repoName]) == 0 {
+					// all the paths for this repo have been handled, move on
+					return iterator.Done
+				}
+
+				return nil
+			})
+
+			if err == iterator.Done {
+				err = nil
+			}
+
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	// now figure out issue activity for all repos
+	for repoName, repoInfo := range info.Repos {
+		iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
+			`SELECT * FROM IssueCommentEvents
+			WHERE
+				OrgLogin = '%s' 
+				AND RepoName = '%s' 
+				AND Actor = '%s' 
+				AND (Action = 'created'
+					OR Action = 'edited')
+			ORDER BY CreatedAt DESC
+			LIMIT 1;`,
+			maintainer.OrgLogin, repoName, maintainer.UserLogin)})
+		err := iter.Do(func(row *spanner.Row) error {
+			var e storage.IssueCommentEvent
+			if err := row.ToStruct(&e); err != nil {
+				return err
+			}
+
+			repoInfo.LastIssueCommented = storage.TimedEntry{
+				Time:   e.CreatedAt,
+				Number: e.IssueNumber,
+			}
+
+			if e.CreatedAt.After(info.LastMaintenanceActivity) {
+				info.LastMaintenanceActivity = e.CreatedAt
+			}
+
+			return nil
+		})
+
+		if err != nil {
+			return nil, err
+		}
+
+		iter = s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
+			`SELECT * FROM IssueEvents
+			WHERE 
+				OrgLogin = '%s'
+				AND RepoName = '%s'
+				AND Actor = '%s'
+				AND (Action = 'labeled' 
+					OR Action = 'unlabaled' 
+					OR Action = 'milestoned' 
+					OR Action = 'unmilestoned' 
+					OR Action = 'assigned'
+					OR Action = 'unassigned')
+			ORDER BY CreatedAt DESC
+			LIMIT 1;`,
+			maintainer.OrgLogin,
+			repoName,
+			maintainer.UserLogin)})
+		err = iter.Do(func(row *spanner.Row) error {
+			var e storage.IssueEvent
+			if err := row.ToStruct(&e); err != nil {
+				return err
+			}
+
+			repoInfo.LastIssueTriaged = storage.TimedEntry{
+				Time:   e.CreatedAt,
+				Number: e.IssueNumber,
+			}
+
+			if e.CreatedAt.After(info.LastMaintenanceActivity) {
+				info.LastMaintenanceActivity = e.CreatedAt
+			}
+
+			return nil
+		})
+
+		if err != nil {
+			return nil, err
+		}
+
+		iter = s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
+			`SELECT * FROM IssueEvents
+			WHERE
+				OrgLogin = '%s'
+				AND RepoName = '%s'
+				AND Actor = '%s'
+				AND Action = 'closed'
+			ORDER BY CreatedAt DESC
+			LIMIT 1;`,
+			maintainer.OrgLogin,
+			repoName,
+			maintainer.UserLogin)})
+		err = iter.Do(func(row *spanner.Row) error {
+			var e storage.IssueEvent
+			if err := row.ToStruct(&e); err != nil {
+				return err
+			}
+
+			repoInfo.LastIssueClosed = storage.TimedEntry{
+				Time:   e.CreatedAt,
+				Number: e.IssueNumber,
+			}
+
+			if e.CreatedAt.After(info.LastMaintenanceActivity) {
+				info.LastMaintenanceActivity = e.CreatedAt
+			}
+
+			return nil
+		})
 
 		if err != nil {
 			return nil, err

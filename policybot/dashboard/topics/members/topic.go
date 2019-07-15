@@ -102,7 +102,7 @@ func (t *topic) handleMemberListHTML(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	t.context.RenderHTML(w, sb.String())
+	t.context.RenderHTML(w, "", sb.String(), "")
 }
 
 func (t *topic) handleMemberListJSON(w http.ResponseWriter, r *http.Request) {

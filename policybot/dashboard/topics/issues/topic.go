@@ -61,7 +61,7 @@ func (t *topic) Configure(htmlRouter *mux.Router, apiRouter *mux.Router, context
 		Path("/").
 		Methods("GET").
 		HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			context.RenderHTML(w, page)
+			context.RenderHTML(w, "", page, "")
 		})
 
 	apiRouter.StrictSlash(true).

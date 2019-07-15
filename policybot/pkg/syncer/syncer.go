@@ -16,6 +16,7 @@ package syncer
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -23,20 +24,22 @@ import (
 	"strings"
 	"time"
 
+	"cloud.google.com/go/bigquery"
 	"github.com/ghodss/yaml"
 	"github.com/google/go-github/v26/github"
+	"google.golang.org/api/iterator"
+	"google.golang.org/api/option"
 
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage"
-	"istio.io/bots/policybot/pkg/storage/cache"
 	"istio.io/bots/policybot/pkg/zh"
 	"istio.io/pkg/log"
 )
 
 // Syncer is responsible for synchronizing state from GitHub and ZenHub into our local store
 type Syncer struct {
-	cache *cache.Cache
+	bq    *bigquery.Client
 	gc    *gh.ThrottledClient
 	zc    *zh.ThrottledClient
 	store storage.Store
@@ -66,17 +69,22 @@ type syncState struct {
 	ctx    context.Context
 }
 
-var scope = log.RegisterScope("syncer", "The GitHub data syncer", 0)
+var scope = log.RegisterScope("syncer", "The GitHub/ZenHub data syncer", 0)
 
-func New(gc *gh.ThrottledClient, cache *cache.Cache,
-	zc *zh.ThrottledClient, store storage.Store, orgs []config.Org) *Syncer {
+func New(gc *gh.ThrottledClient, gcpCreds []byte, gcpProject string,
+	zc *zh.ThrottledClient, store storage.Store, orgs []config.Org) (*Syncer, error) {
+	bq, err := bigquery.NewClient(context.Background(), gcpProject, option.WithCredentialsJSON(gcpCreds))
+	if err != nil {
+		return nil, fmt.Errorf("unable to create BigQuery client: %v", err)
+	}
+
 	return &Syncer{
 		gc:    gc,
-		cache: cache,
+		bq:    bq,
 		zc:    zc,
 		store: store,
 		orgs:  orgs,
-	}
+	}, nil
 }
 
 func ConvFilterFlags(filter string) (FilterFlags, error) {
@@ -172,20 +180,29 @@ func (s *Syncer) Sync(context context.Context, flags FilterFlags) error {
 
 func (ss *syncState) pushUsers() error {
 	users := make([]*storage.User, 0, len(ss.users))
-	for _, user := range ss.users {
-
-		if user.Name == "" {
+	for login, user := range ss.users {
+		if user == nil || user.Name == "" {
 			// Turns out most listing operations return only incomplete users. If we find
 			// a user without a name, we try to fetch the full user info from GitHub.
 
-			if u, _, err := ss.syncer.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
-				return client.Users.Get(ss.ctx, user.UserLogin)
-			}); err == nil {
-				user = gh.ConvertUser(u.(*github.User))
+			if u, err := ss.syncer.store.ReadUser(ss.ctx, login); err != nil {
+				return fmt.Errorf("unable to read info for user %s from storage: %v", login, err)
+			} else if u == nil || u.Name == "" {
+				if ghUser, _, err := ss.syncer.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+					return client.Users.Get(ss.ctx, login)
+				}); err == nil {
+					users = append(users, gh.ConvertUser(ghUser.(*github.User)))
+				} else {
+					scope.Warnf("couldn't get information for user %s: %v", login, err)
+					if user == nil || u != nil {
+						continue
+					}
+					// go with what we know
+					users = append(users, user)
+				}
 			}
 		}
 
-		users = append(users, user)
 	}
 
 	if err := ss.syncer.store.WriteUsers(ss.ctx, users); err != nil {
@@ -330,172 +347,189 @@ func (ss *syncState) handleLabels(repo *storage.Repo) error {
 func (ss *syncState) handleEvents(repo *storage.Repo) error {
 	scope.Debugf("Getting events from repo %s/%s", repo.OrgLogin, repo.RepoName)
 
-	total := 0
-	err := ss.syncer.fetchRepoEvents(ss.ctx, repo, func(events []*github.Event) error {
-		var issueEvents []*storage.IssueEvent
-		var issueCommentEvents []*storage.IssueCommentEvent
-		var prEvents []*storage.PullRequestEvent
-		var prCommentEvents []*storage.PullRequestReviewCommentEvent
-		var prReviewEvents []*storage.PullRequestReviewEvent
-
-		total += len(events)
-		scope.Infof("Received %d events", total)
-
-		for _, event := range events {
-			switch *event.Type {
-			case "IssueEvent":
-				payload, err := event.ParsePayload()
-				if err != nil {
-					scope.Errorf("unable to parse payload for issue event: %v", err)
-					continue
-				}
-
-				p := payload.(*github.IssueEvent)
-				issueEvents = append(issueEvents, &storage.IssueEvent{
-					OrgLogin:    repo.OrgLogin,
-					RepoName:    repo.RepoName,
-					IssueNumber: int64(p.GetIssue().GetNumber()),
-					CreatedAt:   event.GetCreatedAt(),
-					Actor:       event.GetActor().GetLogin(),
-					Action:      p.GetEvent(),
-				})
-
-			case "IssueCommentEvent":
-				payload, err := event.ParsePayload()
-				if err != nil {
-					scope.Errorf("unable to parse payload for issue comment event: %v", err)
-					continue
-				}
-
-				p := payload.(*github.IssueCommentEvent)
-
-				issueCommentEvents = append(issueCommentEvents, &storage.IssueCommentEvent{
-					OrgLogin:       repo.OrgLogin,
-					RepoName:       repo.RepoName,
-					IssueNumber:    int64(p.GetIssue().GetNumber()),
-					IssueCommentID: p.GetComment().GetID(),
-					CreatedAt:      event.GetCreatedAt(),
-					Actor:          event.GetActor().GetLogin(),
-					Action:         p.GetAction(),
-				})
-
-			case "PullRequestEvent":
-				payload, err := event.ParsePayload()
-				if err != nil {
-					scope.Errorf("unable to parse payload for pull request event: %v", err)
-					continue
-				}
-
-				p := payload.(*github.PullRequestEvent)
-				prEvents = append(prEvents, &storage.PullRequestEvent{
-					OrgLogin:          repo.OrgLogin,
-					RepoName:          repo.RepoName,
-					PullRequestNumber: int64(p.GetPullRequest().GetNumber()),
-					CreatedAt:         event.GetCreatedAt(),
-					Actor:             event.GetActor().GetLogin(),
-					Action:            p.GetAction(),
-				})
-
-			case "PullRequestCommentEvent":
-				payload, err := event.ParsePayload()
-				if err != nil {
-					scope.Errorf("unable to parse payload for pull request review comment event: %v", err)
-					continue
-				}
-
-				p := payload.(*github.PullRequestReviewCommentEvent)
-				prCommentEvents = append(prCommentEvents, &storage.PullRequestReviewCommentEvent{
-					OrgLogin:                   repo.OrgLogin,
-					RepoName:                   repo.RepoName,
-					PullRequestNumber:          int64(p.GetPullRequest().GetNumber()),
-					PullRequestReviewCommentID: p.GetComment().GetID(),
-					CreatedAt:                  event.GetCreatedAt(),
-					Actor:                      event.GetActor().GetLogin(),
-					Action:                     p.GetAction(),
-				})
-
-			case "PullRequestReviewEvent":
-				payload, err := event.ParsePayload()
-				if err != nil {
-					scope.Errorf("unable to parse payload for pull request review event: %v", err)
-					continue
-				}
-
-				p := payload.(*github.PullRequestReviewEvent)
-				prReviewEvents = append(prReviewEvents, &storage.PullRequestReviewEvent{
-					OrgLogin:            repo.OrgLogin,
-					RepoName:            repo.RepoName,
-					PullRequestNumber:   int64(p.GetPullRequest().GetNumber()),
-					PullRequestReviewID: p.GetReview().GetID(),
-					CreatedAt:           event.GetCreatedAt(),
-					Actor:               event.GetActor().GetLogin(),
-					Action:              p.GetAction(),
-				})
-			}
-		}
-
-		if len(issueEvents) > 0 {
-			if err := ss.syncer.store.WriteIssueEvents(ss.ctx, issueEvents); err != nil {
-				return fmt.Errorf("unable to write issue events to storage: %v", err)
-			}
-		}
-
-		if len(issueCommentEvents) > 0 {
-			if err := ss.syncer.store.WriteIssueCommentEvents(ss.ctx, issueCommentEvents); err != nil {
-				return fmt.Errorf("unable to write issue comment events to storage: %v", err)
-			}
-		}
-
-		if len(prEvents) > 0 {
-			if err := ss.syncer.store.WritePullRequestEvents(ss.ctx, prEvents); err != nil {
-				return fmt.Errorf("unable to write pull request events to storage: %v", err)
-			}
-		}
-
-		if len(prCommentEvents) > 0 {
-			if err := ss.syncer.store.WritePullRequestReviewCommentEvents(ss.ctx, prCommentEvents); err != nil {
-				return fmt.Errorf("unable to write pull request review comment events to storage: %v", err)
-			}
-		}
-
-		if len(prReviewEvents) > 0 {
-			if err := ss.syncer.store.WritePullRequestReviewEvents(ss.ctx, prReviewEvents); err != nil {
-				return fmt.Errorf("unable to write pull request review events to storage: %v", err)
-			}
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return err
+	type eventRecord struct {
+		Type      string
+		OrgLogin  string
+		RepoName  string
+		Actor     string
+		CreatedAt time.Time
+		Payload   string
 	}
 
-	return ss.syncer.fetchIssueEvents(ss.ctx, repo, func(events []*github.IssueEvent) error {
-		var issueEvents []*storage.IssueEvent
+	now := time.Now()
 
-		total += len(events)
-		scope.Infof("Received %d events", total)
+	q := ss.syncer.bq.Query(fmt.Sprintf(`
+		SELECT * FROM (
+		  SELECT type as Type, payload as Payload, org.login as OrgLogin, repo.name as RepoName, actor.login as Actor, created_at as CreatedAt,
+			JSON_EXTRACT(payload, '$.action') as event
+		  FROM (TABLE_DATE_RANGE([githubarchive:day.], 
+			TIMESTAMP('2016-12-01'), 
+			TIMESTAMP('%4d-%2d-%2d')
+		  )) 
+		  WHERE (type = 'IssuesEvent'
+					OR type = 'IssueCommentEvent'
+					OR type = 'PullRequestEvent'
+					OR type = 'PullRequestReviewEvent' 
+					OR type = 'PullRequestReviewCommentEvent')
+				AND repo.name = '%s/%s' 
+		);`, now.Year(), now.Month(), now.Day(), repo.OrgLogin, repo.RepoName))
 
-		for _, event := range events {
+	q.UseLegacySQL = true
+
+	it, err := q.Read(ss.ctx)
+	if err != nil {
+		return fmt.Errorf("unable to read events from GitHub archive: %v", err)
+	}
+
+	var issueEvents []*storage.IssueEvent
+	var issueCommentEvents []*storage.IssueCommentEvent
+	var prEvents []*storage.PullRequestEvent
+	var prCommentEvents []*storage.PullRequestReviewCommentEvent
+	var prReviewEvents []*storage.PullRequestReviewEvent
+
+	count := 0
+	done := false
+	for {
+		var r eventRecord
+		err := it.Next(&r)
+		if err == iterator.Done {
+			done = true
+			r.Type = ""
+		} else if err != nil {
+			return fmt.Errorf("unable to iterate BigQuery result: %v", err)
+		}
+
+		ss.addLogins(r.Actor)
+
+		switch r.Type {
+		case "IssuesEvent":
+			var e github.IssuesEvent
+			err = json.Unmarshal([]byte(r.Payload), &e)
+			if err != nil {
+				return fmt.Errorf("unable to unmarshal event payload: %v", err)
+			}
+
 			issueEvents = append(issueEvents, &storage.IssueEvent{
-				OrgLogin:    repo.OrgLogin,
-				RepoName:    repo.RepoName,
-				IssueNumber: int64(event.GetIssue().GetNumber()),
-				CreatedAt:   event.GetCreatedAt(),
-				Actor:       event.GetActor().GetLogin(),
-				Action:      event.GetEvent(),
+				OrgLogin:    r.OrgLogin,
+				RepoName:    r.RepoName[strings.Index(r.RepoName, "/")+1:],
+				CreatedAt:   r.CreatedAt,
+				Actor:       r.Actor,
+				Action:      e.GetAction(),
+				IssueNumber: int64(e.GetIssue().GetNumber()),
+			})
+
+		case "IssueCommentEvent":
+			var e github.IssueCommentEvent
+			err = json.Unmarshal([]byte(r.Payload), &e)
+			if err != nil {
+				return fmt.Errorf("unable to unmarshal event payload: %v", err)
+			}
+
+			issueCommentEvents = append(issueCommentEvents, &storage.IssueCommentEvent{
+				OrgLogin:       r.OrgLogin,
+				RepoName:       r.RepoName[strings.Index(r.RepoName, "/")+1:],
+				CreatedAt:      r.CreatedAt,
+				Actor:          r.Actor,
+				Action:         e.GetAction(),
+				IssueNumber:    int64(e.GetIssue().GetNumber()),
+				IssueCommentID: e.GetComment().GetID(),
+			})
+
+		case "PullRequestEvent":
+			var e github.PullRequestEvent
+			err = json.Unmarshal([]byte(r.Payload), &e)
+			if err != nil {
+				return fmt.Errorf("unable to unmarshal event payload: %v", err)
+			}
+
+			prEvents = append(prEvents, &storage.PullRequestEvent{
+				OrgLogin:          r.OrgLogin,
+				RepoName:          r.RepoName[strings.Index(r.RepoName, "/")+1:],
+				CreatedAt:         r.CreatedAt,
+				Actor:             r.Actor,
+				Action:            e.GetAction(),
+				PullRequestNumber: int64(e.GetPullRequest().GetNumber()),
+			})
+
+		case "PullRequestReviewCommentEvent":
+			var e github.PullRequestReviewCommentEvent
+			err = json.Unmarshal([]byte(r.Payload), &e)
+			if err != nil {
+				return fmt.Errorf("unable to unmarshal event payload: %v", err)
+			}
+
+			prCommentEvents = append(prCommentEvents, &storage.PullRequestReviewCommentEvent{
+				OrgLogin:                   r.OrgLogin,
+				RepoName:                   r.RepoName[strings.Index(r.RepoName, "/")+1:],
+				CreatedAt:                  r.CreatedAt,
+				Actor:                      r.Actor,
+				Action:                     e.GetAction(),
+				PullRequestNumber:          int64(e.GetPullRequest().GetNumber()),
+				PullRequestReviewCommentID: e.GetComment().GetID(),
+			})
+
+		case "PullRequestReviewEvent":
+			var e github.PullRequestReviewEvent
+			err = json.Unmarshal([]byte(r.Payload), &e)
+			if err != nil {
+				return fmt.Errorf("unable to unmarshal event payload: %v", err)
+			}
+
+			prReviewEvents = append(prReviewEvents, &storage.PullRequestReviewEvent{
+				OrgLogin:            r.OrgLogin,
+				RepoName:            r.RepoName[strings.Index(r.RepoName, "/")+1:],
+				CreatedAt:           r.CreatedAt,
+				Actor:               r.Actor,
+				Action:              e.GetAction(),
+				PullRequestNumber:   int64(e.GetPullRequest().GetNumber()),
+				PullRequestReviewID: e.GetReview().GetID(),
 			})
 		}
 
-		if len(issueEvents) > 0 {
-			if err := ss.syncer.store.WriteIssueEvents(ss.ctx, issueEvents); err != nil {
-				return fmt.Errorf("unable to write issue events to storage: %v", err)
+		count++
+		if count%1000 == 0 || done {
+			scope.Infof("Received %d events", count)
+
+			if len(issueEvents) > 0 {
+				if err := ss.syncer.store.WriteIssueEvents(ss.ctx, issueEvents); err != nil {
+					return fmt.Errorf("unable to write issue events to storage: %v", err)
+				}
+				issueEvents = issueEvents[:0]
+			}
+
+			if len(issueCommentEvents) > 0 {
+				if err := ss.syncer.store.WriteIssueCommentEvents(ss.ctx, issueCommentEvents); err != nil {
+					return fmt.Errorf("unable to write issue comment events to storage: %v", err)
+				}
+				issueCommentEvents = issueCommentEvents[:0]
+			}
+
+			if len(prEvents) > 0 {
+				if err := ss.syncer.store.WritePullRequestEvents(ss.ctx, prEvents); err != nil {
+					return fmt.Errorf("unable to write pull request events to storage: %v", err)
+				}
+				prEvents = prEvents[:0]
+			}
+
+			if len(prCommentEvents) > 0 {
+				if err := ss.syncer.store.WritePullRequestReviewCommentEvents(ss.ctx, prCommentEvents); err != nil {
+					return fmt.Errorf("unable to write pull request review comment events to storage: %v", err)
+				}
+				prCommentEvents = prCommentEvents[:0]
+			}
+
+			if len(prReviewEvents) > 0 {
+				if err := ss.syncer.store.WritePullRequestReviewEvents(ss.ctx, prReviewEvents); err != nil {
+					return fmt.Errorf("unable to write pull request review events to storage: %v", err)
+				}
+				prReviewEvents = prReviewEvents[:0]
+			}
+
+			if done {
+				return nil
 			}
 		}
-
-		return nil
-	})
+	}
 }
 
 func (ss *syncState) handleRepoComments(repo *storage.Repo) error {
@@ -614,7 +648,7 @@ func (ss *syncState) handlePullRequests(repo *storage.Repo) error {
 
 		for _, pr := range prs {
 			// if this pr is already known to us and is up to date, skip further processing
-			if existing, _ := ss.syncer.cache.ReadPullRequest(ss.ctx, repo.OrgLogin, repo.RepoName, pr.GetNumber()); existing != nil {
+			if existing, _ := ss.syncer.store.ReadPullRequest(ss.ctx, repo.OrgLogin, repo.RepoName, pr.GetNumber()); existing != nil {
 				if existing.UpdatedAt == pr.GetUpdatedAt() {
 					continue
 				}
@@ -728,6 +762,7 @@ func (ss *syncState) handleCODEOWNERS(org *storage.Org, repo *storage.Repo, main
 
 		for _, login := range logins {
 			login = strings.TrimPrefix(login, "@")
+			login = strings.TrimSuffix(login, ",")
 
 			// add the path to this maintainer's list
 			path := strings.TrimPrefix(fields[0], "/")
@@ -835,39 +870,35 @@ func (ss *syncState) addUsers(users ...*storage.User) {
 	}
 }
 
+func (ss *syncState) addLogins(logins ...string) {
+	for _, login := range logins {
+		if _, ok := ss.users[login]; !ok {
+			ss.users[login] = nil
+		}
+	}
+}
+
 func (ss *syncState) getMaintainer(org *storage.Org, maintainers map[string]*storage.Maintainer, login string) (*storage.Maintainer, error) {
-	user, ok := ss.users[login]
-	if !ok {
-		var err error
-		user, err = ss.syncer.cache.ReadUser(ss.ctx, login)
-		if err != nil {
-			return nil, fmt.Errorf("unable to read information from storage for user %s: %v", login, err)
-		}
+	maintainer, ok := maintainers[login]
+	if ok {
+		// already created a struct
+		return maintainer, nil
 	}
 
-	if user == nil {
-		// couldn't find user info, ask GitHub directly
-		u, _, err := ss.syncer.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
-			return client.Users.Get(ss.ctx, login)
-		})
+	ss.addLogins(login)
 
-		if err != nil {
-			return nil, fmt.Errorf("unable to read information from GitHub on user %s: %v", login, err)
-		}
-
-		user = gh.ConvertUser(u.(*github.User))
-		ss.users[user.UserLogin] = user
-	}
-
-	maintainer, ok := maintainers[user.UserLogin]
-	if !ok {
+	maintainer, err := ss.syncer.store.ReadMaintainer(ss.ctx, org.OrgLogin, login)
+	if err != nil {
+		return nil, err
+	} else if maintainer == nil {
 		// unknown maintainer, so create a record
 		maintainer = &storage.Maintainer{
 			OrgLogin:  org.OrgLogin,
-			UserLogin: user.UserLogin,
+			UserLogin: login,
 		}
-		maintainers[user.UserLogin] = maintainer
 	}
+
+	maintainers[login] = maintainer
 
 	return maintainer, nil
 }

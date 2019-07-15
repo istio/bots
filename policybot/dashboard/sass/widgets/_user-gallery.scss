@@ -1,5 +1,5 @@
 .user-gallery {
-    margin: 3rem;
+    margin: 2rem 1rem;
 
     .user {
         margin: 1rem;
@@ -12,6 +12,35 @@
         border-radius: 3px;
         overflow: hidden;
         cursor: pointer;
+
+        .emeritus {
+            position: absolute;
+            display: block;
+            top: 22px;
+            left: -90px;
+            width: 260px;
+            overflow: hidden;
+            height: 26px;
+            z-index: $promotion-z;
+            color: white;
+            background: forestgreen;
+            transform: rotate(-45deg);
+            text-align: center;
+
+            &:hover {
+                text-decoration: none;
+                color: lightgreen;
+            }
+        }
+
+        a {
+            text-decoration: none;
+            color: $textColor;
+
+            &:hover {
+                color: $textColor;
+            }
+        }
 
         .avatar {
         }

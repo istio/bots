@@ -306,7 +306,31 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 	}
 }
 
-func (r *Refresher) syncUsers(context context.Context, users []*storage.User) {
+func (r *Refresher) syncUsers(context context.Context, discoveredUsers []*storage.User) {
+	// The user info provided with events is incomplete.
+	// So for any discovered users, we look to see if we already know about the
+	// user in our DB. If we do, then we're done. Otherwise, we look up the full
+	// user info from GH and write that user to our DB
+
+	users := make([]*storage.User, 0, len(discoveredUsers))
+	for _, discoveredUser := range discoveredUsers {
+		if u, err := r.cache.ReadUser(context, discoveredUser.UserLogin); err != nil {
+			scope.Errorf("Unable to read info for user %s from storage: %v", discoveredUser.UserLogin, err)
+			return
+		} else if u == nil {
+			if ghUser, _, err := r.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+				return client.Users.Get(context, discoveredUser.UserLogin)
+			}); err == nil {
+				users = append(users, gh.ConvertUser(ghUser.(*github.User)))
+			} else {
+				scope.Warnf("couldn't get information for user %s: %v", discoveredUser.UserLogin, err)
+
+				// go with what we know
+				users = append(users, discoveredUser)
+			}
+		}
+	}
+
 	if err := r.cache.WriteUsers(context, users); err != nil {
 		scope.Errorf("Unable to write users: %v", err)
 	}
