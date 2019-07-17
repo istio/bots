@@ -159,6 +159,16 @@ func TestRowToStruct(t *testing.T) {
 				NewCol      *time.Time
 			}{now, &nonNullTime},
 		},
+		{
+			"lessColumns",
+			newRow(
+				t,
+				[]string{"ExistingCol", "NewCol"},
+				[]interface{}{"test", spanner.NullString{Valid: true, StringVal: nonNullString}}),
+			struct {
+				ExistingCol string
+			}{"test"},
+		},
 	}
 
 	for _, test := range tests {
