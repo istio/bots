@@ -96,3 +96,85 @@ func rowToStruct(row *spanner.Row, s interface{}) error {
 	}
 	return nil
 }
+
+// insertStruct returns a Spanner Mutation object representing a row
+// insert or update for a struct. This converts pointer types in the struct
+// to the Spanner nullable types where necessary.
+func insertStruct(table string, s interface{}) (*spanner.Mutation, error) {
+	cols, vals, err := exportStruct(s)
+	if err != nil {
+		return nil, err
+	}
+	return spanner.Insert(table, cols, vals), nil
+}
+
+// insertOrUpdateStruct returns a Spanner Mutation object representing a row
+// insert or update for a struct. This converts pointer types in the struct
+// to the Spanner nullable types where necessary.
+func insertOrUpdateStruct(table string, s interface{}) (*spanner.Mutation, error) {
+	cols, vals, err := exportStruct(s)
+	if err != nil {
+		return nil, err
+	}
+	return spanner.InsertOrUpdate(table, cols, vals), nil
+}
+
+// exportStruct converts a struct into column and value slices, converting
+// pointer types into Spanner nullable types where necessary.
+func exportStruct(s interface{}) ([]string, []interface{}, error) {
+	structType := reflect.TypeOf(s)
+	structVal := reflect.ValueOf(s)
+	if structType.Kind() == reflect.Ptr {
+		structType = structType.Elem()
+		structVal = structVal.Elem()
+	}
+	if structType.Kind() != reflect.Struct {
+		return nil, nil, fmt.Errorf("exportStruct: type %v must be a struct or pointer to a struct", structType)
+	}
+
+	cols := make([]string, 0, structType.NumField())
+	vals := make([]interface{}, 0, structType.NumField())
+	for i := 0; i < structType.NumField(); i++ {
+		fieldInfo := structType.Field(i)
+		if fieldInfo.PkgPath != "" { // field is unexported
+			continue
+		}
+		cols = append(cols, fieldInfo.Name)
+		switch f := structVal.Field(i).Interface().(type) {
+		case *string:
+			ns := spanner.NullString{}
+			if ns.Valid = f != nil; ns.Valid {
+				ns.StringVal = *f
+			}
+			vals = append(vals, ns)
+		case *int64:
+			ni := spanner.NullInt64{}
+			if ni.Valid = f != nil; ni.Valid {
+				ni.Int64 = *f
+			}
+			vals = append(vals, ni)
+		case *bool:
+			nb := spanner.NullBool{}
+			if nb.Valid = f != nil; nb.Valid {
+				nb.Bool = *f
+			}
+			vals = append(vals, nb)
+		case *float64:
+			nf := spanner.NullFloat64{}
+			if nf.Valid = f != nil; nf.Valid {
+				nf.Float64 = *f
+			}
+			vals = append(vals, nf)
+		case *time.Time:
+			nt := spanner.NullTime{}
+			if nt.Valid = f != nil; nt.Valid {
+				nt.Time = *f
+			}
+			vals = append(vals, nt)
+		default:
+			// Use the default behavior for non-nullable or non-primitive columns.
+			vals = append(vals, structVal.Field(i).Interface())
+		}
+	}
+	return cols, vals, nil
+}

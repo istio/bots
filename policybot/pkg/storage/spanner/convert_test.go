@@ -60,6 +60,18 @@ func TestRowToStruct(t *testing.T) {
 			}{"test", &nonNullString},
 		},
 		{
+			// Tests that a non-nullable column can be extracted into a string pointer.
+			"nonNullableStringToPointer",
+			newRow(
+				t,
+				[]string{"ExistingCol", "NewCol"},
+				[]interface{}{"test", nonNullString}),
+			struct {
+				ExistingCol string
+				NewCol      *string
+			}{"test", &nonNullString},
+		},
+		{
 			"nullInt64",
 			newRow(
 				t,
@@ -170,4 +182,149 @@ func newRow(t *testing.T, names []string, vals []interface{}) *spanner.Row {
 		return nil
 	}
 	return row
+}
+
+func TestInsertAndInsertOrUpdateStruct(t *testing.T) {
+	tests := []struct {
+		name     string
+		in       interface{}
+		expected interface{}
+	}{
+		{
+			"nullString",
+			struct {
+				ExistingCol string
+				NewCol      *string
+			}{"test", nil},
+			struct {
+				ExistingCol string
+				NewCol      spanner.NullString
+			}{"test", spanner.NullString{Valid: false}},
+		},
+		{
+			"nonNullString",
+			struct {
+				ExistingCol string
+				NewCol      *string
+			}{"test", &nonNullString},
+			struct {
+				ExistingCol string
+				NewCol      spanner.NullString
+			}{"test", spanner.NullString{Valid: true, StringVal: nonNullString}},
+		},
+		{
+			"nullInt64",
+			struct {
+				ExistingCol int64
+				NewCol      *int64
+			}{1234, nil},
+			struct {
+				ExistingCol int64
+				NewCol      spanner.NullInt64
+			}{1234, spanner.NullInt64{Valid: false}},
+		},
+		{
+			"nonNullInt64",
+			struct {
+				ExistingCol int64
+				NewCol      *int64
+			}{1234, &nonNullInt64},
+			struct {
+				ExistingCol int64
+				NewCol      spanner.NullInt64
+			}{1234, spanner.NullInt64{Valid: true, Int64: nonNullInt64}},
+		},
+		{
+			"nullBool",
+			struct {
+				ExistingCol bool
+				NewCol      *bool
+			}{true, nil},
+			struct {
+				ExistingCol bool
+				NewCol      spanner.NullBool
+			}{true, spanner.NullBool{Valid: false}},
+		},
+		{
+			"nonNullBool",
+			struct {
+				ExistingCol bool
+				NewCol      *bool
+			}{true, &nonNullBool},
+			struct {
+				ExistingCol bool
+				NewCol      spanner.NullBool
+			}{true, spanner.NullBool{Valid: true, Bool: nonNullBool}},
+		},
+		{
+			"nullFloat64",
+			struct {
+				ExistingCol float64
+				NewCol      *float64
+			}{1234.5, nil},
+			struct {
+				ExistingCol float64
+				NewCol      spanner.NullFloat64
+			}{1234.5, spanner.NullFloat64{Valid: false}},
+		},
+		{
+			"nonNullFloat64",
+			struct {
+				ExistingCol float64
+				NewCol      *float64
+			}{1234.5, &nonNullFloat64},
+			struct {
+				ExistingCol float64
+				NewCol      spanner.NullFloat64
+			}{1234.5, spanner.NullFloat64{Valid: true, Float64: nonNullFloat64}},
+		},
+		{
+			"nullTime",
+			struct {
+				ExistingCol time.Time
+				NewCol      *time.Time
+			}{now, nil},
+			struct {
+				ExistingCol time.Time
+				NewCol      spanner.NullTime
+			}{now, spanner.NullTime{Valid: false}},
+		},
+		{
+			"nonNullTime",
+			struct {
+				ExistingCol time.Time
+				NewCol      *time.Time
+			}{now, &nonNullTime},
+			struct {
+				ExistingCol time.Time
+				NewCol      spanner.NullTime
+			}{now, spanner.NullTime{Valid: true, Time: nonNullTime}},
+		},
+	}
+
+	for _, test := range tests {
+		actual, err := insertStruct("table", test.in)
+		if err != nil {
+			t.Errorf("%s: error converting struct to insert mutation: %v", test.name, err)
+		}
+		expected, err := spanner.InsertStruct("table", test.expected)
+		if err != nil {
+			t.Errorf("%s: error converting expected struct to insert mutation: %v", test.name, err)
+		}
+		if !reflect.DeepEqual(actual, expected) {
+			t.Errorf("%s: converting struct to insert mutation yielded unexpected result", test.name)
+		}
+
+		actual, err = insertOrUpdateStruct("table", test.in)
+		if err != nil {
+			t.Errorf("%s: error converting struct to insert or update mutation: %v", test.name, err)
+		}
+		expected, err = spanner.InsertOrUpdateStruct("table", test.expected)
+		if err != nil {
+			t.Errorf("%s: error converting expected struct to insert or update mutation: %v", test.name, err)
+		}
+		if !reflect.DeepEqual(actual, expected) {
+			t.Errorf("%s: converting struct to insert or update mutation yielded unexpected result", test.name)
+		}
+	}
 }
