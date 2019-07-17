@@ -62,36 +62,38 @@ func rowToStruct(row *spanner.Row, s interface{}) error {
 		case *string:
 			ns := spanner.NullString{}
 			if err := readColumn(row, &ns, fieldInfo, structType); err != nil {
-				return err
+				return fmt.Errorf("rowToStruct: error reading column %s: %v", fieldInfo.Name, err)
 			}
 			setValue(structVal.Field(i), ns.Valid, &ns.StringVal)
 		case *int64:
 			ni := spanner.NullInt64{}
 			if err := readColumn(row, &ni, fieldInfo, structType); err != nil {
-				return err
+				return fmt.Errorf("rowToStruct: error reading column %s: %v", fieldInfo.Name, err)
 			}
 			setValue(structVal.Field(i), ni.Valid, &ni.Int64)
 		case *bool:
 			nb := spanner.NullBool{}
 			if err := readColumn(row, &nb, fieldInfo, structType); err != nil {
-				return err
+				return fmt.Errorf("rowToStruct: error reading column %s: %v", fieldInfo.Name, err)
 			}
 			setValue(structVal.Field(i), nb.Valid, &nb.Bool)
 		case *float64:
 			nf := spanner.NullFloat64{}
 			if err := readColumn(row, &nf, fieldInfo, structType); err != nil {
-				return err
+				return fmt.Errorf("rowToStruct: error reading column %s: %v", fieldInfo.Name, err)
 			}
 			setValue(structVal.Field(i), nf.Valid, &nf.Float64)
 		case *time.Time:
 			nt := spanner.NullTime{}
 			if err := readColumn(row, &nt, fieldInfo, structType); err != nil {
-				return err
+				return fmt.Errorf("rowToStruct: error reading column %s: %v", fieldInfo.Name, err)
 			}
 			setValue(structVal.Field(i), nt.Valid, &nt.Time)
 		default:
 			// Use the default behavior for non-nullable or non-primitive columns.
-			row.ColumnByName(fieldInfo.Name, structVal.Field(i).Addr().Interface())
+			if err := row.ColumnByName(fieldInfo.Name, structVal.Field(i).Addr().Interface()); err != nil {
+				return fmt.Errorf("rowToStruct: error reading column %s: %v", fieldInfo.Name, err)
+			}
 		}
 	}
 	return nil
