@@ -18,7 +18,16 @@ import (
 	"time"
 )
 
-// This file defines the shapes we csn read/write to/from the DB.
+// This file defines the shapes we csn read/write to/from the DB. Before
+// adding a new column, it must pre-exist in Spanner. The order of steps
+// is as follows:
+//
+//     1. Add the column to Spanner (which must be nullable).
+//     2. Add the field with a pointer type to the storage struct, to
+//        allow nil value.
+//     3. Run syncer to populate the column.
+//     4. Convert the column to be not nullable.
+//     5. Change the pointer type to non pointer type in the struct.
 
 type Issue struct {
 	OrgLogin    string

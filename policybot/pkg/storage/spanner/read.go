@@ -32,7 +32,7 @@ func (s store) ReadOrg(context context.Context, orgLogin string) (*storage.Org, 
 	}
 
 	var result storage.Org
-	if err := row.ToStruct(&result); err != nil {
+	if err := rowToStruct(row, &result); err != nil {
 		return nil, err
 	}
 
@@ -48,7 +48,7 @@ func (s store) ReadRepo(context context.Context, orgLogin string, repoName strin
 	}
 
 	var result storage.Repo
-	if err := row.ToStruct(&result); err != nil {
+	if err := rowToStruct(row, &result); err != nil {
 		return nil, err
 	}
 
@@ -64,7 +64,7 @@ func (s store) ReadIssue(context context.Context, orgLogin string, repoName stri
 	}
 
 	var result storage.Issue
-	if err := row.ToStruct(&result); err != nil {
+	if err := rowToStruct(row, &result); err != nil {
 		return nil, err
 	}
 
@@ -81,7 +81,7 @@ func (s store) ReadIssueComment(context context.Context, orgLogin string, repoNa
 	}
 
 	var result storage.IssueComment
-	if err := row.ToStruct(&result); err != nil {
+	if err := rowToStruct(row, &result); err != nil {
 		return nil, err
 	}
 
@@ -97,7 +97,7 @@ func (s store) ReadIssuePipeline(context context.Context, orgLogin string, repoN
 	}
 
 	var result storage.IssuePipeline
-	if err := row.ToStruct(&result); err != nil {
+	if err := rowToStruct(row, &result); err != nil {
 		return nil, err
 	}
 
@@ -113,7 +113,7 @@ func (s store) ReadPullRequest(context context.Context, orgLogin string, repoNam
 	}
 
 	var result storage.PullRequest
-	if err := row.ToStruct(&result); err != nil {
+	if err := rowToStruct(row, &result); err != nil {
 		return nil, err
 	}
 
@@ -131,7 +131,7 @@ func (s store) ReadPullRequestReviewComment(context context.Context, orgLogin st
 	}
 
 	var result storage.PullRequestReviewComment
-	if err := row.ToStruct(&result); err != nil {
+	if err := rowToStruct(row, &result); err != nil {
 		return nil, err
 	}
 
@@ -149,7 +149,7 @@ func (s store) ReadPullRequestReview(context context.Context, orgLogin string, r
 	}
 
 	var result storage.PullRequestReview
-	if err := row.ToStruct(&result); err != nil {
+	if err := rowToStruct(row, &result); err != nil {
 		return nil, err
 	}
 
@@ -165,7 +165,7 @@ func (s store) ReadLabel(context context.Context, orgLogin string, repoName stri
 	}
 
 	var result storage.Label
-	if err := row.ToStruct(&result); err != nil {
+	if err := rowToStruct(row, &result); err != nil {
 		return nil, err
 	}
 
@@ -181,7 +181,7 @@ func (s store) ReadUser(context context.Context, userLogin string) (*storage.Use
 	}
 
 	var result storage.User
-	if err := row.ToStruct(&result); err != nil {
+	if err := rowToStruct(row, &result); err != nil {
 		return nil, err
 	}
 
@@ -197,7 +197,7 @@ func (s store) ReadBotActivity(context context.Context, orgLogin string, repoNam
 	}
 
 	var result storage.BotActivity
-	if err := row.ToStruct(&result); err != nil {
+	if err := rowToStruct(row, &result); err != nil {
 		return nil, err
 	}
 
@@ -213,7 +213,7 @@ func (s store) ReadTestResult(context context.Context, orgLogin string,
 		return nil, err
 	}
 	var result storage.TestResult
-	if err := row.ToStruct(&result); err != nil {
+	if err := rowToStruct(row, &result); err != nil {
 		return nil, err
 	}
 
@@ -229,7 +229,7 @@ func (s store) ReadMaintainer(context context.Context, orgLogin string, userLogi
 	}
 
 	var result storage.Maintainer
-	if err := row.ToStruct(&result); err != nil {
+	if err := rowToStruct(row, &result); err != nil {
 		return nil, err
 	}
 

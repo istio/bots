@@ -29,7 +29,7 @@ func (s store) QueryMembersByOrg(context context.Context, orgLogin string, cb fu
 	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM Members WHERE OrgLogin = '%s'", orgLogin)})
 	err := iter.Do(func(row *spanner.Row) error {
 		member := &storage.Member{}
-		if err := row.ToStruct(member); err != nil {
+		if err := rowToStruct(row, member); err != nil {
 			return err
 		}
 
@@ -43,7 +43,7 @@ func (s store) QueryMaintainersByOrg(context context.Context, orgLogin string, c
 	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM Maintainers WHERE OrgLogin = '%s'", orgLogin)})
 	err := iter.Do(func(row *spanner.Row) error {
 		maintainer := &storage.Maintainer{}
-		if err := row.ToStruct(maintainer); err != nil {
+		if err := rowToStruct(row, maintainer); err != nil {
 			return err
 		}
 
@@ -58,7 +58,7 @@ func (s store) QueryIssuesByRepo(context context.Context, orgLogin string, repoN
 		spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM Issues WHERE OrgLogin = '%s' AND RepoName = '%s';", orgLogin, repoName)})
 	err := iter.Do(func(row *spanner.Row) error {
 		issue := &storage.Issue{}
-		if err := row.ToStruct(issue); err != nil {
+		if err := rowToStruct(row, issue); err != nil {
 			return err
 		}
 
@@ -80,7 +80,7 @@ func (s store) QueryTestResultByTestName(context context.Context, orgLogin strin
 	iter := s.client.Single().Query(context, stmt)
 	err := iter.Do(func(row *spanner.Row) error {
 		testResult := &storage.TestResult{}
-		if err := row.ToStruct(testResult); err != nil {
+		if err := rowToStruct(row, testResult); err != nil {
 			return err
 		}
 

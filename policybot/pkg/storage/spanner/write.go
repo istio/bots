@@ -28,7 +28,7 @@ func (s store) WriteOrgs(context context.Context, orgs []*storage.Org) error {
 	mutations := make([]*spanner.Mutation, len(orgs))
 	for i := 0; i < len(orgs); i++ {
 		var err error
-		if mutations[i], err = spanner.InsertOrUpdateStruct(orgTable, orgs[i]); err != nil {
+		if mutations[i], err = insertOrUpdateStruct(orgTable, orgs[i]); err != nil {
 			return err
 		}
 	}
@@ -43,7 +43,7 @@ func (s store) WriteRepos(context context.Context, repos []*storage.Repo) error 
 	mutations := make([]*spanner.Mutation, len(repos))
 	for i := 0; i < len(repos); i++ {
 		var err error
-		if mutations[i], err = spanner.InsertOrUpdateStruct(repoTable, repos[i]); err != nil {
+		if mutations[i], err = insertOrUpdateStruct(repoTable, repos[i]); err != nil {
 			return err
 		}
 	}
@@ -58,7 +58,7 @@ func (s store) WriteRepoComments(context context.Context, comments []*storage.Re
 	mutations := make([]*spanner.Mutation, len(comments))
 	for i := 0; i < len(comments); i++ {
 		var err error
-		if mutations[i], err = spanner.InsertOrUpdateStruct(repoCommentTable, comments[i]); err != nil {
+		if mutations[i], err = insertOrUpdateStruct(repoCommentTable, comments[i]); err != nil {
 			return err
 		}
 	}
@@ -73,7 +73,7 @@ func (s store) WriteIssues(context context.Context, issues []*storage.Issue) err
 	mutations := make([]*spanner.Mutation, len(issues))
 	for i := 0; i < len(issues); i++ {
 		var err error
-		if mutations[i], err = spanner.InsertOrUpdateStruct(issueTable, issues[i]); err != nil {
+		if mutations[i], err = insertOrUpdateStruct(issueTable, issues[i]); err != nil {
 			return err
 		}
 	}
@@ -88,7 +88,7 @@ func (s store) WriteIssueComments(context context.Context, issueComments []*stor
 	mutations := make([]*spanner.Mutation, len(issueComments))
 	for i := 0; i < len(issueComments); i++ {
 		var err error
-		if mutations[i], err = spanner.InsertOrUpdateStruct(issueCommentTable, issueComments[i]); err != nil {
+		if mutations[i], err = insertOrUpdateStruct(issueCommentTable, issueComments[i]); err != nil {
 			return err
 		}
 	}
@@ -103,7 +103,7 @@ func (s store) WriteIssuePipelines(context context.Context, issuePipelines []*st
 	mutations := make([]*spanner.Mutation, len(issuePipelines))
 	for i := 0; i < len(issuePipelines); i++ {
 		var err error
-		if mutations[i], err = spanner.InsertOrUpdateStruct(issuePipelineTable, issuePipelines[i]); err != nil {
+		if mutations[i], err = insertOrUpdateStruct(issuePipelineTable, issuePipelines[i]); err != nil {
 			return err
 		}
 	}
@@ -118,7 +118,7 @@ func (s store) WritePullRequests(context context.Context, prs []*storage.PullReq
 	mutations := make([]*spanner.Mutation, len(prs))
 	for i := 0; i < len(prs); i++ {
 		var err error
-		if mutations[i], err = spanner.InsertOrUpdateStruct(pullRequestTable, prs[i]); err != nil {
+		if mutations[i], err = insertOrUpdateStruct(pullRequestTable, prs[i]); err != nil {
 			return err
 		}
 	}
@@ -133,7 +133,7 @@ func (s store) WritePullRequestReviewComments(context context.Context, prComment
 	mutations := make([]*spanner.Mutation, len(prComments))
 	for i := 0; i < len(prComments); i++ {
 		var err error
-		if mutations[i], err = spanner.InsertOrUpdateStruct(pullRequestReviewCommentTable, prComments[i]); err != nil {
+		if mutations[i], err = insertOrUpdateStruct(pullRequestReviewCommentTable, prComments[i]); err != nil {
 			return err
 		}
 	}
@@ -148,7 +148,7 @@ func (s store) WritePullRequestReviews(context context.Context, prReviews []*sto
 	mutations := make([]*spanner.Mutation, len(prReviews))
 	for i := 0; i < len(prReviews); i++ {
 		var err error
-		if mutations[i], err = spanner.InsertOrUpdateStruct(pullRequestReviewTable, prReviews[i]); err != nil {
+		if mutations[i], err = insertOrUpdateStruct(pullRequestReviewTable, prReviews[i]); err != nil {
 			return err
 		}
 	}
@@ -163,7 +163,7 @@ func (s store) WriteUsers(context context.Context, users []*storage.User) error 
 	mutations := make([]*spanner.Mutation, len(users))
 	for i := 0; i < len(users); i++ {
 		var err error
-		if mutations[i], err = spanner.InsertOrUpdateStruct(userTable, users[i]); err != nil {
+		if mutations[i], err = insertOrUpdateStruct(userTable, users[i]); err != nil {
 			return err
 		}
 	}
@@ -178,7 +178,7 @@ func (s store) WriteLabels(context context.Context, labels []*storage.Label) err
 	mutations := make([]*spanner.Mutation, len(labels))
 	for i := 0; i < len(labels); i++ {
 		var err error
-		if mutations[i], err = spanner.InsertOrUpdateStruct(labelTable, labels[i]); err != nil {
+		if mutations[i], err = insertOrUpdateStruct(labelTable, labels[i]); err != nil {
 			return err
 		}
 	}
@@ -193,7 +193,7 @@ func (s store) WriteAllMembers(ctx1 context.Context, members []*storage.Member) 
 	mutations := make([]*spanner.Mutation, len(members))
 	for i, member := range members {
 		var err error
-		if mutations[i], err = spanner.InsertStruct(memberTable, member); err != nil {
+		if mutations[i], err = insertStruct(memberTable, member); err != nil {
 			return err
 		}
 	}
@@ -218,7 +218,7 @@ func (s store) WriteAllMaintainers(ctx1 context.Context, maintainers []*storage.
 	mutations := make([]*spanner.Mutation, len(maintainers))
 	for i, maintainer := range maintainers {
 		var err error
-		if mutations[i], err = spanner.InsertStruct(maintainerTable, maintainer); err != nil {
+		if mutations[i], err = insertStruct(maintainerTable, maintainer); err != nil {
 			return err
 		}
 	}
@@ -243,7 +243,7 @@ func (s store) WriteBotActivities(context context.Context, activities []*storage
 	mutations := make([]*spanner.Mutation, len(activities))
 	for i := 0; i < len(activities); i++ {
 		var err error
-		if mutations[i], err = spanner.InsertOrUpdateStruct(botActivityTable, activities[i]); err != nil {
+		if mutations[i], err = insertOrUpdateStruct(botActivityTable, activities[i]); err != nil {
 			return err
 		}
 	}
@@ -258,7 +258,7 @@ func (s store) WriteTestResults(context context.Context, testResults []*storage.
 	mutations := make([]*spanner.Mutation, len(testResults))
 	for i := 0; i < len(testResults); i++ {
 		var err error
-		if mutations[i], err = spanner.InsertOrUpdateStruct(testResultTable, testResults[i]); err != nil {
+		if mutations[i], err = insertOrUpdateStruct(testResultTable, testResults[i]); err != nil {
 			return err
 		}
 	}
@@ -273,7 +273,7 @@ func (s store) WriteIssueEvents(context context.Context, events []*storage.Issue
 	mutations := make([]*spanner.Mutation, len(events))
 	for i := 0; i < len(events); i++ {
 		var err error
-		if mutations[i], err = spanner.InsertOrUpdateStruct(issueEventTable, events[i]); err != nil {
+		if mutations[i], err = insertOrUpdateStruct(issueEventTable, events[i]); err != nil {
 			return err
 		}
 	}
@@ -288,7 +288,7 @@ func (s store) WriteIssueCommentEvents(context context.Context, events []*storag
 	mutations := make([]*spanner.Mutation, len(events))
 	for i := 0; i < len(events); i++ {
 		var err error
-		if mutations[i], err = spanner.InsertOrUpdateStruct(issueCommentEventTable, events[i]); err != nil {
+		if mutations[i], err = insertOrUpdateStruct(issueCommentEventTable, events[i]); err != nil {
 			return err
 		}
 	}
@@ -303,7 +303,7 @@ func (s store) WritePullRequestEvents(context context.Context, events []*storage
 	mutations := make([]*spanner.Mutation, len(events))
 	for i := 0; i < len(events); i++ {
 		var err error
-		if mutations[i], err = spanner.InsertOrUpdateStruct(pullRequestEventTable, events[i]); err != nil {
+		if mutations[i], err = insertOrUpdateStruct(pullRequestEventTable, events[i]); err != nil {
 			return err
 		}
 	}
@@ -318,7 +318,7 @@ func (s store) WritePullRequestReviewCommentEvents(context context.Context, even
 	mutations := make([]*spanner.Mutation, len(events))
 	for i := 0; i < len(events); i++ {
 		var err error
-		if mutations[i], err = spanner.InsertOrUpdateStruct(pullRequestReviewCommentEventTable, events[i]); err != nil {
+		if mutations[i], err = insertOrUpdateStruct(pullRequestReviewCommentEventTable, events[i]); err != nil {
 			return err
 		}
 	}
@@ -333,7 +333,7 @@ func (s store) WritePullRequestReviewEvents(context context.Context, events []*s
 	mutations := make([]*spanner.Mutation, len(events))
 	for i := 0; i < len(events); i++ {
 		var err error
-		if mutations[i], err = spanner.InsertOrUpdateStruct(pullRequestReviewEventTable, events[i]); err != nil {
+		if mutations[i], err = insertOrUpdateStruct(pullRequestReviewEventTable, events[i]); err != nil {
 			return err
 		}
 	}
@@ -348,7 +348,7 @@ func (s store) WriteRepoCommentEvents(context context.Context, events []*storage
 	mutations := make([]*spanner.Mutation, len(events))
 	for i := 0; i < len(events); i++ {
 		var err error
-		if mutations[i], err = spanner.InsertOrUpdateStruct(repoCommentEventTable, events[i]); err != nil {
+		if mutations[i], err = insertOrUpdateStruct(repoCommentEventTable, events[i]); err != nil {
 			return err
 		}
 	}

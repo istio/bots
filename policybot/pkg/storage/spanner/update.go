@@ -37,7 +37,7 @@ func (s store) UpdateBotActivity(ctx1 context.Context, orgLogin string, repoName
 			result.RepoName = repoName
 		} else if err != nil {
 			return err
-		} else if err = row.ToStruct(&result); err != nil {
+		} else if err = rowToStruct(row, &result); err != nil {
 			return err
 		}
 
@@ -46,7 +46,7 @@ func (s store) UpdateBotActivity(ctx1 context.Context, orgLogin string, repoName
 			return err
 		}
 
-		mutation, err := spanner.InsertOrUpdateStruct(botActivityTable, &result)
+		mutation, err := insertOrUpdateStruct(botActivityTable, &result)
 		if err != nil {
 			return err
 		}
