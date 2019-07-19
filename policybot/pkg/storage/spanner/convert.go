@@ -17,8 +17,8 @@ package spanner
 import (
 	"fmt"
 	"reflect"
-	"time"
 	"strings"
+	"time"
 
 	"cloud.google.com/go/spanner"
 )
