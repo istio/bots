@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	cslib "cloud.google.com/go/storage"
 	"istio.io/bots/policybot/pkg/blobstorage/gcs"
 	"istio.io/bots/policybot/pkg/resultgatherer"
 	"istio.io/bots/policybot/pkg/storage"
@@ -51,10 +52,11 @@ func TestResultGatherer(t *testing.T) {
 	}
 	var prNum int64 = 110
 
-	client, err := gcs.NewStore(context, nil)
+	cs, err := cslib.NewClient(context)
 	if err != nil {
 		return
 	}
+	client := gcs.NewStore(cs)
 
 	testResultGatherer, err := resultgatherer.NewTestResultGatherer(client, "istio-flakey-test")
 	if err != nil {
