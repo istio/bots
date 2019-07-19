@@ -21,8 +21,7 @@ import (
 	"testing"
 	"time"
 
-	store "cloud.google.com/go/storage"
-
+	"istio.io/bots/policybot/pkg/blobstorage/gcs"
 	"istio.io/bots/policybot/pkg/resultgatherer"
 	"istio.io/bots/policybot/pkg/storage"
 )
@@ -52,7 +51,7 @@ func TestResultGatherer(t *testing.T) {
 	}
 	var prNum int64 = 110
 
-	client, err := store.NewClient(context)
+	client, err := gcs.NewStore(context, nil)
 	if err != nil {
 		return
 	}

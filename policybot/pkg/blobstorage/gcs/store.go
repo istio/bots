@@ -17,8 +17,10 @@ package gcs
 import (
 	"context"
 	"fmt"
+	"io"
 
 	"cloud.google.com/go/storage"
+	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 
 	"istio.io/bots/policybot/pkg/blobstorage"
@@ -29,7 +31,11 @@ type store struct {
 }
 
 func NewStore(ctx context.Context, gcpCreds []byte) (blobstorage.Store, error) {
-	client, err := storage.NewClient(ctx, option.WithCredentialsJSON(gcpCreds))
+	var opts []option.ClientOption
+	if gcpCreds != nil {
+		opts = append(opts, option.WithCredentialsJSON(gcpCreds))
+	}
+	client, err := storage.NewClient(ctx, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create GCS client: %v", err)
 	}
@@ -39,10 +45,36 @@ func NewStore(ctx context.Context, gcpCreds []byte) (blobstorage.Store, error) {
 	}, nil
 }
 
+func (s *store) Bucket(name string) blobstorage.Bucket {
+	return &bucket{bucket: s.client.Bucket(name)}
+}
+
 func (s *store) Close() error {
 	return s.client.Close()
 }
 
-func (s *store) ReadBlob(path string) ([]byte, error) {
-	return nil, nil
+type bucket struct {
+	bucket *storage.BucketHandle
+}
+
+func (b *bucket) Reader(ctx context.Context, path string) (io.ReadCloser, error) {
+	return b.bucket.Object(path).NewReader(ctx)
+}
+
+func (b *bucket) ListPrefixes(ctx context.Context, prefix string) ([]string, error) {
+	query := &storage.Query{Prefix: prefix, Delimiter: "/"}
+	it := b.bucket.Objects(ctx, query)
+	paths := []string{}
+	for {
+		attrs, err := it.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		paths = append(paths, attrs.Prefix)
+
+	}
+	return paths, nil
 }

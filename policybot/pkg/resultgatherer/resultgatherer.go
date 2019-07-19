@@ -26,9 +26,7 @@ import (
 	"strings"
 	"time"
 
-	"cloud.google.com/go/storage"
-	"google.golang.org/api/iterator"
-
+	"istio.io/bots/policybot/pkg/blobstorage"
 	store "istio.io/bots/policybot/pkg/storage"
 )
 
@@ -72,38 +70,18 @@ type started struct {
 }
 
 type TestResultGatherer struct {
-	client     *storage.Client
+	client     blobstorage.Store
 	bucketName string
 }
 
 // Function to initionalize new TestResultGatherer object.
 // Use `testResultGatherer, err := NewTestResultGatherer()` and `testFlakes := testResultGatherer.checkTestFlakesForPr(<pr_number>)`
 // to get test flakes information for a given pr.
-func NewTestResultGatherer(client *storage.Client, bucketName string) (*TestResultGatherer, error) {
+func NewTestResultGatherer(client blobstorage.Store, bucketName string) (*TestResultGatherer, error) {
 	return &TestResultGatherer{
 		client:     client,
 		bucketName: bucketName,
 	}, nil
-}
-
-func (trg *TestResultGatherer) query(ctx context.Context, prefix string) ([]string, error) {
-	client := trg.client
-	bucket := client.Bucket(trg.bucketName)
-	query := &storage.Query{Prefix: prefix, Delimiter: "/"}
-	it := bucket.Objects(ctx, query)
-	paths := []string{}
-	for {
-		attrs, err := it.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-		paths = append(paths, attrs.Prefix)
-
-	}
-	return paths, nil
 }
 
 // GetTest function get all directories under the given pr in blob storage for each test suite name.
@@ -113,7 +91,8 @@ func (trg *TestResultGatherer) query(ctx context.Context, prefix string) ([]stri
 func (trg *TestResultGatherer) getTests(ctx context.Context, orgLogin string, repoName string, prNumInt int64) (map[string][]string, error) {
 	prNum := strconv.FormatInt(prNumInt, 10)
 	prefixForPr := "pr-logs/pull/" + orgLogin + "_" + repoName + "/" + prNum + "/"
-	testNames, err := trg.query(ctx, prefixForPr)
+	bucket := trg.client.Bucket(trg.bucketName)
+	testNames, err := bucket.ListPrefixes(ctx, prefixForPr)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +101,7 @@ func (trg *TestResultGatherer) getTests(ctx context.Context, orgLogin string, re
 	for _, testPref := range testNames {
 		testPrefSplit := strings.Split(testPref, "/")
 		testname := testPrefSplit[len(testPrefSplit)-2]
-		runs, err = trg.query(ctx, testPref)
+		runs, err = bucket.ListPrefixes(ctx, testPref)
 		if err != nil {
 			return nil, err
 		}
@@ -145,8 +124,7 @@ func (trg *TestResultGatherer) getInformationFromFinishedFile(ctx context.Contex
 	// It is possible that the folder might not contain finished.json.
 	client := trg.client
 	bucket := client.Bucket(trg.bucketName)
-	newObj := bucket.Object(pref + "finished.json")
-	nrdr, err := newObj.NewReader(ctx)
+	nrdr, err := bucket.Reader(ctx, pref+"finished.json")
 	var finish finished
 
 	if err != nil {
@@ -178,8 +156,7 @@ func (trg *TestResultGatherer) getInformationFromFinishedFile(ctx context.Contex
 func (trg *TestResultGatherer) getInformationFromStartedFile(ctx context.Context, pref string, eachRun *store.TestResult) (*store.TestResult, error) {
 	client := trg.client
 	bucket := client.Bucket(trg.bucketName)
-	newObj := bucket.Object(pref + "started.json")
-	nrdr, err := newObj.NewReader(ctx)
+	nrdr, err := bucket.Reader(ctx, pref+"started.json")
 	if err != nil {
 		return eachRun, err
 	}
@@ -205,8 +182,7 @@ func (trg *TestResultGatherer) getInformationFromStartedFile(ctx context.Context
 func (trg *TestResultGatherer) getInformationFromCloneFile(ctx context.Context, pref string, eachRun *store.TestResult) (*store.TestResult, error) {
 	client := trg.client
 	bucket := client.Bucket(trg.bucketName)
-	obj := bucket.Object(pref + "clone-records.json")
-	rdr, err := obj.NewReader(ctx)
+	rdr, err := bucket.Reader(ctx, pref+"clone-records.json")
 	if err != nil {
 		return eachRun, err
 	}
