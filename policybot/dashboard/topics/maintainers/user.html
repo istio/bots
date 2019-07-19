@@ -1,0 +1,94 @@
+<a href="{{ .User.UserLogin }}">
+    <div class="user">
+        <div class="name">
+            <div class="fit">
+                {{ if .User.Name }}
+                    {{ .User.Name }}
+                {{ else }}
+                    {{ .User.UserLogin }}
+                {{ end }}
+            </div>
+        </div>
+
+        <div class="avatar">
+            <img src="{{ .User.AvatarURL }}">
+        </div>
+
+        {{ if not .Maintainer.Emeritus }}
+            <div class="num-repos">
+                {{ if eq (len .MaintainerInfo.Repos) 1 }}
+                    Maintainer in 1 repo
+                {{ else }}
+                    Maintainer in {{ len .MaintainerInfo.Repos }} repos
+                {{ end }}
+            </div>
+
+            <div class="last-seen">
+                Last active on <span class="utc">{{ .MaintainerInfo.LastMaintenanceActivity }}</span>
+            </div>
+        {{ end }}
+
+        {{ if .Maintainer.Emeritus }}
+           <div class="emeritus">
+               Emeritus
+           </div>
+        {{ end }}
+    </div>
+</a>
+
+{{ if not .Maintainer.Emeritus }}
+    <div class="popover">
+        <div class="title">
+            {{ if .User.Name }}
+                {{ .User.Name }}
+            {{ else }}
+                {{ .User.UserLogin }}
+            {{ end }}
+        </div>
+
+        <div class="body">
+            {{ if ne .User.UserLogin .User.Name }}
+                GitHub handle is {{ .User.UserLogin }}<br/>
+            {{ end }}
+            {{ if .User.Company }}
+                Affiliated with {{ .User.Company }}<br/>
+            {{ end }}
+
+            {{ if .Maintainer.Emeritus }}
+                Emeritus<br/>
+            {{ else }}
+                {{ $timeZero := .TimeZero }}
+                {{ range $repoName, $repoInfo := .MaintainerInfo.Repos }}
+                    <p>
+                        Repo {{ $repoName }}<br/>
+
+                        {{ $lastIssueActivity := $repoInfo.LastIssueCommented.Time }}
+                        {{ if $lastIssueActivity.Before $repoInfo.LastIssueClosed.Time }}
+                            {{ $lastIssueActivity = $repoInfo.LastIssueClosed.Time }}
+                        {{ end }}
+                        {{ if $lastIssueActivity.Before $repoInfo.LastIssueTriaged.Time }}
+                            {{ $lastIssueActivity = $repoInfo.LastIssueTriaged.Time }}
+                        {{ end }}
+
+                        {{ $lastPRActivity := $timeZero }}
+                        {{ range $repoInfo.Paths }}
+                            {{ if $lastPRActivity.Before .LastPullRequestSubmitted.Time }}
+                                {{ $lastPRActivity = .LastPullRequestSubmitted.Time }}
+                            {{ end }}
+
+                            {{ if $lastPRActivity.Before .LastPullRequestReviewed.Time }}
+                                {{ $lastPRActivity = .LastPullRequestReviewed.Time }}
+                            {{ end }}
+                        {{ end }}
+
+                        Latest issue activity: <span class="utc">{{ $lastIssueActivity }}</span><br/>
+                        Latest PR activity: <span class="utc">{{ $lastPRActivity }}</span><br/>
+                    </p>
+                {{ end }}
+            {{ end }}
+        </div>
+
+        <div class="arrow" x-arrow>
+        </div>
+    </div>
+{{ end }}

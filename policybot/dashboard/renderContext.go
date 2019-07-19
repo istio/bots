@@ -27,8 +27,21 @@ import (
 
 // RenderContext exposes methods to let topics produce output
 type RenderContext interface {
-	RenderHTML(w http.ResponseWriter, htmlFragment string)
+	// Render an HTML page.
+	//
+	// The override title is optional and can be used to replace the canonical title (which is supplied by
+	// the topic)
+	//
+	// The content fragment represents the main chunk of topic-HTML to insert into the main page template.
+	//
+	// The optional control fragment represents a chunk of HTML to insert into the "control section" of the
+	// main page template and is where page-level commands & controls can be inserted.
+	RenderHTML(w http.ResponseWriter, overrideTitle string, contentFragment string, controlFragment string)
+
+	// Generate an HTML error page, displaying the given error
 	RenderHTMLError(w http.ResponseWriter, err error)
+
+	// Generate a chunk of JSON.
 	RenderJSON(w http.ResponseWriter, statusCode int, data interface{})
 }
 
@@ -43,6 +56,7 @@ type templateInfo struct {
 	Description string
 	URL         string
 	Content     string
+	Control     string
 }
 
 var scope = log.RegisterScope("dashboard", "The UI dashboard.", 0)
@@ -55,13 +69,19 @@ func newRenderContext(topic *RegisteredTopic, primaryTemplates *template.Templat
 	}
 }
 
-func (rc renderContext) RenderHTML(w http.ResponseWriter, htmlFragment string) {
+func (rc renderContext) RenderHTML(w http.ResponseWriter, overrideTitle string, contentFragment string, controlFragment string) {
 	b := &bytes.Buffer{}
 
+	title := overrideTitle
+	if overrideTitle == "" {
+		title = rc.topic.Title
+	}
+
 	info := templateInfo{
-		Title:       rc.topic.Title,
+		Title:       title,
 		Description: rc.topic.Description,
-		Content:     htmlFragment,
+		Content:     contentFragment,
+		Control:     controlFragment,
 		URL:         rc.topic.URL,
 	}
 

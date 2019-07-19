@@ -73,7 +73,7 @@ var _headerHtml = []byte(`{{ define "header" }}
 			</button>
 
             <div class="menu">
-                <button id="gearDropdownButton" class="menu-trigger" title='Options and Settings" }}'
+                <button id="gearDropdownButton" class="menu-trigger" title="Options and Settings"
                         aria-label="Options and Settings" aria-controls="gearDropdownContent">
 					<svg class="icon"><use xlink:href="/icons/icons.svg#gear"/></svg>
                 </button>

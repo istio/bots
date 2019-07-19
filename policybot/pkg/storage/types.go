@@ -152,20 +152,25 @@ type IssuePipeline struct {
 }
 
 type TimedEntry struct {
-	Time time.Time
-	ID   int64 // an object ID
+	Time   time.Time
+	Number int64 // an object number (issue or pr)
+}
+
+type RepoPathActivityInfo struct {
+	LastPullRequestSubmitted TimedEntry
+	LastPullRequestReviewed  TimedEntry
 }
 
 type RepoActivityInfo struct {
-	RepoName                       string                // ID of the repo
-	LastPullRequestCommittedByPath map[string]TimedEntry // last update a maintainer has done to one of their maintained paths
-	LastIssueCommented             TimedEntry            // last issue commented on by the maintainer
-	LastIssueClosed                TimedEntry            // last issue closed by the maintainer
-	LastIssueTriaged               TimedEntry            // last issue triaged by the maintainer
+	Paths              map[string]RepoPathActivityInfo // info about each maintained path in the repo
+	LastIssueCommented TimedEntry                      // last issue commented on by the maintainer
+	LastIssueClosed    TimedEntry                      // last issue closed by the maintainer
+	LastIssueTriaged   TimedEntry                      // last issue triaged by the maintainer
 }
 
 type MaintainerInfo struct {
-	Repos map[string]*RepoActivityInfo // about the maintainer's activity in different repos (index is repo name)
+	Repos                   map[string]*RepoActivityInfo // about the maintainer's activity in different repos (index is repo name)
+	LastMaintenanceActivity time.Time                    // when is the last time the maintainer did maintenance
 }
 
 type TestResult struct {

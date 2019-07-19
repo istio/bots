@@ -78,8 +78,6 @@ func (r *ResultGatherer) Handle(context context.Context, event interface{}) {
 			return
 		}
 
-		discoveredUsers := make([]*storage.User, 0, len(p.GetPullRequest().Assignees)+len(p.GetPullRequest().RequestedReviewers))
-
 		repoName := p.GetRepo().GetFullName()
 		orgLogin := p.GetOrganization().GetLogin()
 		prNum := p.GetNumber()
@@ -93,8 +91,6 @@ func (r *ResultGatherer) Handle(context context.Context, event interface{}) {
 			scope.Errorf(err.Error())
 		}
 
-		r.syncUsers(context, discoveredUsers)
-
 	case *github.CheckRunEvent:
 		scope.Infof("Received CheckRunEvent: %s", p.GetRepo().GetName())
 		if !r.repos[p.GetRepo().GetName()] {
@@ -106,7 +102,6 @@ func (r *ResultGatherer) Handle(context context.Context, event interface{}) {
 		repoName := p.GetRepo().GetName()
 
 		pullRequest := p.GetCheckRun().GetCheckSuite().PullRequests[0]
-		discoveredUsers := make([]*storage.User, 0, len(pullRequest.Assignees)+len(pullRequest.RequestedReviewers))
 		prNum := pullRequest.Number
 
 		testResults, err := r.testResultGatherer.CheckTestResultsForPr(context, orgLogin, repoName, int64(*prNum))
@@ -119,17 +114,9 @@ func (r *ResultGatherer) Handle(context context.Context, event interface{}) {
 			scope.Errorf(err.Error())
 		}
 
-		r.syncUsers(context, discoveredUsers)
-
 	default:
 		// not what we're looking for
 		scope.Debugf("Unknown payload received: %T %+v", p, p)
 		return
-	}
-}
-
-func (r *ResultGatherer) syncUsers(context context.Context, users []*storage.User) {
-	if err := r.cache.WriteUsers(context, users); err != nil {
-		scope.Errorf("Unable to write users: %v", err)
 	}
 }

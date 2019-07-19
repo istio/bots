@@ -1,4 +1,5 @@
 spanner_db: projects/istio-testing/instances/istio-policy-bot/databases/main
+gcp_project: istio-testing
 email_from: Istio Policy Bot
 email_origin_address: noreply@istio.io
 
@@ -109,8 +110,51 @@ orgs:
         color: e02642
         description: Indicates a PR contains changes worthy of mentioning in customer-facing release notes.
 
+      - name: do-not-merge
+        color: bfdadc
+        description: Block automatic merging of a PR.
+
+      - name: do-not-merge/work-in-progress
+        color: bfdadc
+        description: Block merging of a PR because it isn't ready yet.
+
+      - name: size/XS
+        color: 77bb00
+        description: Denotes a PR that changes 0-9 lines, ignoring generated files.
+
+      - name: size/S
+        color: 77bb00
+        description: Denotes a PR that changes 10-29 lines, ignoring generated files.
+
+      - name: size/M
+        color: 77bb00
+        description: Denotes a PR that changes 30-99 lines, ignoring generated files.
+
+      - name: size/L
+        color: 77bb00
+        description: Denotes a PR that changes 100-499 lines, ignoring generated files.
+
+      - name: size/XL
+        color: 77bb00
+        description: Denotes a PR that changes 500-999 lines, ignoring generated files.
+
+      - name: size/XXL
+        color: 77bb00
+        description: Denotes a PR that changes 1000+ lines, ignoring generated files.
+
+      - name: action/merge-to-master
+        color: ff0000
+        description: Set this label on a PR to auto-merge from a release branch to master
+
+      - name: action/merge-to-release-1.2-branch
+        color: ff0000
+        description: Set this label on a PR to auto-merge it to the release-1.2 branch
+
+      - name: action/merge-to-release-1.3-branch
+        color: ff0000
+        description: Set this label on a PR to auto-merge it to the release-1.3 branch
+
     repos:
-      - name: istio
       - name: istio.io
       - name: tools
       - name: api
@@ -122,3 +166,4 @@ orgs:
       - name: bots
       - name: proxy
       - name: common-files
+      - name: istio

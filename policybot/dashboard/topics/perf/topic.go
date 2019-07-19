@@ -74,7 +74,7 @@ func (t *topic) Configure(htmlRouter *mux.Router, apiRouter *mux.Router, context
 				return
 			}
 
-			context.RenderHTML(w, sb.String())
+			context.RenderHTML(w, "", sb.String(), "")
 		})
 
 	apiRouter.StrictSlash(true).

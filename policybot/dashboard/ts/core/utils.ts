@@ -128,3 +128,18 @@ function toggleAttribute(el: HTMLElement, name: string): void {
 function isPrintableCharacter(str: string): boolean {
     return str.length === 1 && (str.match(/\S/) != null);
 }
+
+// Updates any contained element with class "utc" to local browser time
+function convertUTCToLocalDate(el: HTMLElement): void {
+    el.querySelectorAll<HTMLElement>(".utc").forEach(o => {
+
+        // patch up the date to a browser-local form
+        const date = new Date(o.innerText);
+        if (date.getFullYear() === 2000) {
+            o.innerText = "<n/a>";
+        } else {
+            o.innerText = date.toLocaleDateString();
+        }
+    });
+}
+

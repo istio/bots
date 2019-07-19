@@ -75,17 +75,18 @@ func New(router *mux.Router, clientID string, clientSecret string) *Dashboard {
 	_ = template.Must(d.errorTemplates.Parse(layout.ErrorTemplate))
 	_ = template.Must(d.errorTemplates.Parse(widgets.HeaderTemplate))
 
+	// statically served files
+	d.registerStaticFile("dashboard/static/favicon.ico", "/favicon.ico")
+	d.registerStaticFile("dashboard/static/browserconfig.xml", "/browserconfig.xml")
+	d.registerStaticFile("dashboard/static/manifest.json", "/manifest.json")
+	d.registerStaticFile("dashboard/static/js/fitty.min.js", "/js/fitty.min.js")
+
 	// statically served directories
 	d.registerStaticDir("generated/css", "/css/")
 	d.registerStaticDir("generated/icons", "/icons/")
 	d.registerStaticDir("generated/js", "/js/")
 	d.registerStaticDir("dashboard/static/img", "/img/")
 	d.registerStaticDir("dashboard/static/favicons", "/favicons/")
-
-	// statically served files
-	d.registerStaticFile("dashboard/static/favicon.ico", "/favicon.ico")
-	d.registerStaticFile("dashboard/static/browserconfig.xml", "/browserconfig.xml")
-	d.registerStaticFile("dashboard/static/manifest.json", "/manifest.json")
 
 	// oauth support
 	oauthLogin, oauthCallback := newOAuthHandlers(clientID, clientSecret, newRenderContext(nil, d.primaryTemplates, d.errorTemplates))

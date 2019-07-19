@@ -7,6 +7,12 @@
     </div>
 
 	<div class="article-container">
+        {{ if .Control }}
+            <nav aria-label="Breadcrumb">
+                {{ .Control }}
+            </nav>
+        {{ end }}
+
         <article aria-labelledby="title">
             <div class="title-area">
                 <div>

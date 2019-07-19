@@ -172,6 +172,8 @@ type Args struct {
 
 	// Labels to create in all repos being controlled
 	LabelsToCreate []Label `json:"labels_to_create"`
+
+	GCPProject string `json:"gcp_project"`
 }
 
 func DefaultArgs() *Args {
@@ -206,6 +208,7 @@ func (a *Args) String() string {
 	_, _ = fmt.Fprintf(buf, "EmailFrom: %s\n", a.EmailFrom)
 	_, _ = fmt.Fprintf(buf, "EmailOriginAddress: %s\n", a.EmailOriginAddress)
 	_, _ = fmt.Fprintf(buf, "CacheTTL: %s\n", a.CacheTTL)
+	_, _ = fmt.Fprintf(buf, "GCPProject: %s\n", a.GCPProject)
 
 	return buf.String()
 }
