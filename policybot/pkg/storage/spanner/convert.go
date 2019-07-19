@@ -17,18 +17,24 @@ package spanner
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/spanner"
 )
 
-func readColumn(row *spanner.Row, f interface{}, sf reflect.StructField, t reflect.Type) error {
-	err := row.ColumnByName(sf.Name, f)
-	if err != nil {
-		return fmt.Errorf("rowToStruct: error deserializing into field %s in type %s: %v",
-			sf.Name, t.Name(), err)
+func readColumn(row *spanner.Row, columns []string, f interface{}, sf reflect.StructField, t reflect.Type) error {
+	for i, column := range columns {
+		if strings.EqualFold(column, sf.Name) {
+			err := row.Column(i, f)
+			if err != nil {
+				return fmt.Errorf("readColumn: error deserializing into field %s in type %s: %v",
+					sf.Name, t.Name(), err)
+			}
+			return nil
+		}
 	}
-	return nil
+	return fmt.Errorf("readColumn: could not find field %s in Spanner row with columns: %v", sf.Name, columns)
 }
 
 func setValue(f reflect.Value, valid bool, val interface{}) {
@@ -53,6 +59,7 @@ func rowToStruct(row *spanner.Row, s interface{}) error {
 	}
 	structType := ptrType.Elem()
 	structVal := reflect.ValueOf(s).Elem()
+	columns := row.ColumnNames()
 	for i := 0; i < structType.NumField(); i++ {
 		fieldInfo := structType.Field(i)
 		if fieldInfo.PkgPath != "" { // field is unexported
@@ -61,37 +68,37 @@ func rowToStruct(row *spanner.Row, s interface{}) error {
 		switch structVal.Field(i).Interface().(type) {
 		case *string:
 			ns := spanner.NullString{}
-			if err := readColumn(row, &ns, fieldInfo, structType); err != nil {
+			if err := readColumn(row, columns, &ns, fieldInfo, structType); err != nil {
 				return fmt.Errorf("rowToStruct: error reading column %s: %v", fieldInfo.Name, err)
 			}
 			setValue(structVal.Field(i), ns.Valid, &ns.StringVal)
 		case *int64:
 			ni := spanner.NullInt64{}
-			if err := readColumn(row, &ni, fieldInfo, structType); err != nil {
+			if err := readColumn(row, columns, &ni, fieldInfo, structType); err != nil {
 				return fmt.Errorf("rowToStruct: error reading column %s: %v", fieldInfo.Name, err)
 			}
 			setValue(structVal.Field(i), ni.Valid, &ni.Int64)
 		case *bool:
 			nb := spanner.NullBool{}
-			if err := readColumn(row, &nb, fieldInfo, structType); err != nil {
+			if err := readColumn(row, columns, &nb, fieldInfo, structType); err != nil {
 				return fmt.Errorf("rowToStruct: error reading column %s: %v", fieldInfo.Name, err)
 			}
 			setValue(structVal.Field(i), nb.Valid, &nb.Bool)
 		case *float64:
 			nf := spanner.NullFloat64{}
-			if err := readColumn(row, &nf, fieldInfo, structType); err != nil {
+			if err := readColumn(row, columns, &nf, fieldInfo, structType); err != nil {
 				return fmt.Errorf("rowToStruct: error reading column %s: %v", fieldInfo.Name, err)
 			}
 			setValue(structVal.Field(i), nf.Valid, &nf.Float64)
 		case *time.Time:
 			nt := spanner.NullTime{}
-			if err := readColumn(row, &nt, fieldInfo, structType); err != nil {
+			if err := readColumn(row, columns, &nt, fieldInfo, structType); err != nil {
 				return fmt.Errorf("rowToStruct: error reading column %s: %v", fieldInfo.Name, err)
 			}
 			setValue(structVal.Field(i), nt.Valid, &nt.Time)
 		default:
 			// Use the default behavior for non-nullable or non-primitive columns.
-			if err := row.ColumnByName(fieldInfo.Name, structVal.Field(i).Addr().Interface()); err != nil {
+			if err := readColumn(row, columns, structVal.Field(i).Addr().Interface(), fieldInfo, structType); err != nil {
 				return fmt.Errorf("rowToStruct: error reading column %s: %v", fieldInfo.Name, err)
 			}
 		}

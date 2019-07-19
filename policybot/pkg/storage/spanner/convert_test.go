@@ -169,6 +169,16 @@ func TestRowToStruct(t *testing.T) {
 				ExistingCol string
 			}{"test"},
 		},
+		{
+			"caseSensitivity",
+			newRow(
+				t,
+				[]string{"TestColumn"},
+				[]interface{}{"test"}),
+			struct {
+				Testcolumn string
+			}{"test"},
+		},
 	}
 
 	for _, test := range tests {
