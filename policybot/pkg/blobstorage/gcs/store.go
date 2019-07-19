@@ -16,12 +16,10 @@ package gcs
 
 import (
 	"context"
-	"fmt"
 	"io"
 
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/iterator"
-	"google.golang.org/api/option"
 
 	"istio.io/bots/policybot/pkg/blobstorage"
 )
@@ -30,19 +28,10 @@ type store struct {
 	client *storage.Client
 }
 
-func NewStore(ctx context.Context, gcpCreds []byte) (blobstorage.Store, error) {
-	var opts []option.ClientOption
-	if gcpCreds != nil {
-		opts = append(opts, option.WithCredentialsJSON(gcpCreds))
-	}
-	client, err := storage.NewClient(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create GCS client: %v", err)
-	}
-
+func NewStore(client *storage.Client) blobstorage.Store {
 	return &store{
 		client: client,
-	}, nil
+	}
 }
 
 func (s *store) Bucket(name string) blobstorage.Bucket {
