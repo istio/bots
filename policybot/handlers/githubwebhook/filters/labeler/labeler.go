@@ -120,7 +120,7 @@ func (l *Labeler) Handle(context context.Context, event interface{}) {
 		action = p.GetAction()
 		repo = p.GetRepo().GetFullName()
 		number = p.GetIssue().GetNumber()
-		issue, _ = gh.ConvertIssue(
+		issue = gh.ConvertIssue(
 			p.GetRepo().GetOwner().GetLogin(),
 			p.GetRepo().GetName(),
 			p.GetIssue())
@@ -131,7 +131,7 @@ func (l *Labeler) Handle(context context.Context, event interface{}) {
 		action = p.GetAction()
 		repo = p.GetRepo().GetFullName()
 		number = p.GetPullRequest().GetNumber()
-		pr, _ = gh.ConvertPullRequest(
+		pr = gh.ConvertPullRequest(
 			p.GetRepo().GetOwner().GetLogin(),
 			p.GetRepo().GetName(),
 			p.GetPullRequest(),

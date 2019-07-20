@@ -46,8 +46,8 @@ func (t *topic) Description() string {
 	return "Information on new and old issues."
 }
 
-func (t *topic) Name() string {
-	return "issues"
+func (t *topic) URLSuffix() string {
+	return "/issues"
 }
 
 func (t *topic) Subtopics() []dashboard.Topic {

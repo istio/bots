@@ -197,7 +197,7 @@ var _primaryHtml = []byte(`{{ define "main" }}
 
 	<div class="article-container">
         {{ if .Control }}
-            <nav aria-label="Breadcrumb">
+            <nav aria-label="Control">
                 {{ .Control }}
             </nav>
         {{ end }}

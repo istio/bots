@@ -46,8 +46,8 @@ func (t *topic) Description() string {
 	return "Understand Istio code coverage."
 }
 
-func (t *topic) Name() string {
-	return "coverage"
+func (t *topic) URLSuffix() string {
+	return "/coverage"
 }
 
 func (t *topic) Subtopics() []dashboard.Topic {

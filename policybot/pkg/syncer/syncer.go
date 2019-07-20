@@ -64,7 +64,7 @@ const (
 // the mutable state used during a single sync operation.
 type syncState struct {
 	syncer *Syncer
-	users  map[string]*storage.User
+	users  map[string]bool
 	flags  FilterFlags
 	ctx    context.Context
 }
@@ -123,7 +123,7 @@ func ConvFilterFlags(filter string) (FilterFlags, error) {
 func (s *Syncer) Sync(context context.Context, flags FilterFlags) error {
 	ss := &syncState{
 		syncer: s,
-		users:  make(map[string]*storage.User),
+		users:  make(map[string]bool),
 		flags:  flags,
 		ctx:    context,
 	}
@@ -180,29 +180,21 @@ func (s *Syncer) Sync(context context.Context, flags FilterFlags) error {
 
 func (ss *syncState) pushUsers() error {
 	users := make([]*storage.User, 0, len(ss.users))
-	for login, user := range ss.users {
-		if user == nil || user.Name == "" {
-			// Turns out most listing operations return only incomplete users. If we find
-			// a user without a name, we try to fetch the full user info from GitHub.
+	for login := range ss.users {
+		if u, err := ss.syncer.store.ReadUser(ss.ctx, login); err != nil {
+			return fmt.Errorf("unable to read info for user %s from storage: %v", login, err)
+		} else if u == nil || u.Name == "" {
+			if ghUser, _, err := ss.syncer.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+				return client.Users.Get(ss.ctx, login)
+			}); err == nil {
+				users = append(users, gh.ConvertUser(ghUser.(*github.User)))
+			} else {
+				scope.Warnf("couldn't get information for user %s: %v", login, err)
 
-			if u, err := ss.syncer.store.ReadUser(ss.ctx, login); err != nil {
-				return fmt.Errorf("unable to read info for user %s from storage: %v", login, err)
-			} else if u == nil || u.Name == "" {
-				if ghUser, _, err := ss.syncer.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
-					return client.Users.Get(ss.ctx, login)
-				}); err == nil {
-					users = append(users, gh.ConvertUser(ghUser.(*github.User)))
-				} else {
-					scope.Warnf("couldn't get information for user %s: %v", login, err)
-					if user == nil || u != nil {
-						continue
-					}
-					// go with what we know
-					users = append(users, user)
-				}
+				// go with what we know
+				users = append(users, &storage.User{UserLogin: login})
 			}
 		}
-
 	}
 
 	if err := ss.syncer.store.WriteUsers(ss.ctx, users); err != nil {
@@ -319,7 +311,7 @@ func (ss *syncState) handleMembers(org *storage.Org) error {
 	var storageMembers []*storage.Member
 	if err := ss.syncer.fetchMembers(ss.ctx, org, func(members []*github.User) error {
 		for _, member := range members {
-			ss.addUsers(gh.ConvertUser(member))
+			ss.addUsers(member.GetLogin())
 			storageMembers = append(storageMembers, &storage.Member{OrgLogin: org.OrgLogin, UserLogin: member.GetLogin()})
 		}
 
@@ -399,7 +391,7 @@ func (ss *syncState) handleEvents(repo *storage.Repo) error {
 			return fmt.Errorf("unable to iterate BigQuery result: %v", err)
 		}
 
-		ss.addLogins(r.Actor)
+		ss.addUsers(r.Actor)
 
 		switch r.Type {
 		case "IssuesEvent":
@@ -538,9 +530,9 @@ func (ss *syncState) handleRepoComments(repo *storage.Repo) error {
 	return ss.syncer.fetchRepoComments(ss.ctx, repo, func(comments []*github.RepositoryComment) error {
 		storageComments := make([]*storage.RepoComment, 0, len(comments))
 		for _, comment := range comments {
-			t, users := gh.ConvertRepoComment(repo.OrgLogin, repo.RepoName, comment)
+			t := gh.ConvertRepoComment(repo.OrgLogin, repo.RepoName, comment)
 			storageComments = append(storageComments, t)
-			ss.addUsers(users...)
+			ss.addUsers(t.Author)
 		}
 
 		return ss.syncer.store.WriteRepoComments(ss.ctx, storageComments)
@@ -558,9 +550,10 @@ func (ss *syncState) handleIssues(repo *storage.Repo, startTime time.Time) error
 		scope.Infof("Received %d issues", total)
 
 		for _, issue := range issues {
-			t, users := gh.ConvertIssue(repo.OrgLogin, repo.RepoName, issue)
+			t := gh.ConvertIssue(repo.OrgLogin, repo.RepoName, issue)
 			storageIssues = append(storageIssues, t)
-			ss.addUsers(users...)
+			ss.addUsers(t.Author)
+			ss.addUsers(t.Assignees...)
 		}
 
 		return ss.syncer.store.WriteIssues(ss.ctx, storageIssues)
@@ -580,9 +573,9 @@ func (ss *syncState) handleIssueComments(repo *storage.Repo, startTime time.Time
 		for _, comment := range comments {
 			issueURL := comment.GetIssueURL()
 			issueNumber, _ := strconv.Atoi(issueURL[strings.LastIndex(issueURL, "/")+1:])
-			t, users := gh.ConvertIssueComment(repo.OrgLogin, repo.RepoName, issueNumber, comment)
+			t := gh.ConvertIssueComment(repo.OrgLogin, repo.RepoName, issueNumber, comment)
 			storageIssueComments = append(storageIssueComments, t)
-			ss.addUsers(users...)
+			ss.addUsers(t.Author)
 		}
 
 		return ss.syncer.store.WriteIssueComments(ss.ctx, storageIssueComments)
@@ -656,9 +649,9 @@ func (ss *syncState) handlePullRequests(repo *storage.Repo) error {
 
 			if err := ss.syncer.fetchReviews(ss.ctx, repo, pr.GetNumber(), func(reviews []*github.PullRequestReview) error {
 				for _, review := range reviews {
-					t, users := gh.ConvertPullRequestReview(repo.OrgLogin, repo.RepoName, pr.GetNumber(), review)
+					t := gh.ConvertPullRequestReview(repo.OrgLogin, repo.RepoName, pr.GetNumber(), review)
 					storagePRReviews = append(storagePRReviews, t)
-					ss.addUsers(users...)
+					ss.addUsers(t.Author)
 				}
 
 				return nil
@@ -674,9 +667,11 @@ func (ss *syncState) handlePullRequests(repo *storage.Repo) error {
 				return err
 			}
 
-			t, users := gh.ConvertPullRequest(repo.OrgLogin, repo.RepoName, pr, prFiles)
+			t := gh.ConvertPullRequest(repo.OrgLogin, repo.RepoName, pr, prFiles)
 			storagePRs = append(storagePRs, t)
-			ss.addUsers(users...)
+			ss.addUsers(t.Author)
+			ss.addUsers(t.Assignees...)
+			ss.addUsers(t.RequestedReviewers...)
 		}
 
 		err := ss.syncer.store.WritePullRequests(ss.ctx, storagePRs)
@@ -701,9 +696,9 @@ func (ss *syncState) handlePullRequestReviewComments(repo *storage.Repo, start t
 		for _, comment := range comments {
 			prURL := comment.GetPullRequestURL()
 			prNumber, _ := strconv.Atoi(prURL[strings.LastIndex(prURL, "/")+1:])
-			t, users := gh.ConvertPullRequestReviewComment(repo.OrgLogin, repo.RepoName, prNumber, comment)
+			t := gh.ConvertPullRequestReviewComment(repo.OrgLogin, repo.RepoName, prNumber, comment)
 			storagePRComments = append(storagePRComments, t)
-			ss.addUsers(users...)
+			ss.addUsers(t.Author)
 		}
 
 		return ss.syncer.store.WritePullRequestReviewComments(ss.ctx, storagePRComments)
@@ -731,9 +726,43 @@ func (ss *syncState) handleMaintainers(org *storage.Org, repos []*storage.Repo) 
 		}
 	}
 
+	// get the correct case for the maintainer login names, since they are case insensitive in the CODEOWNERS/OWNERS files
 	storageMaintainers := make([]*storage.Maintainer, 0, len(maintainers))
 	for _, maintainer := range maintainers {
-		storageMaintainers = append(storageMaintainers, maintainer)
+		if u, err := ss.syncer.store.ReadUser(ss.ctx, maintainer.UserLogin); err != nil {
+			return fmt.Errorf("unable to read info for maintainer %s from storage: %v", maintainer.UserLogin, err)
+		} else if u == nil || u.Name == "" {
+			if ghUser, _, err := ss.syncer.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+				return client.Users.Get(ss.ctx, maintainer.UserLogin)
+			}); err == nil {
+				maintainer.UserLogin = ghUser.(*github.User).GetLogin()
+				storageMaintainers = append(storageMaintainers, maintainer)
+			} else {
+				scope.Warnf("Couldn't get information for maintainer %s: %v", maintainer.UserLogin, err)
+			}
+		} else {
+			storageMaintainers = append(storageMaintainers, maintainer)
+		}
+	}
+
+	// now compute the contribution info for each maintainer
+	for _, maintainer := range maintainers {
+		info, err := ss.syncer.store.QueryMaintainerInfo(ss.ctx, maintainer)
+		if err != nil {
+			scope.Warnf("Couldn't get contribution info for maintainer %s: %v", maintainer.UserLogin, err)
+			maintainer.CachedInfo = ""
+			continue
+		}
+
+		result, err := json.Marshal(info)
+		if err != nil {
+			scope.Warnf("Couldn't encode contribution info for maintainer %s: %v", maintainer.UserLogin, err)
+			maintainer.CachedInfo = ""
+			continue
+		}
+
+		scope.Debugf("Saving cached contribution info for maintainer %s", maintainer.UserLogin)
+		maintainer.CachedInfo = string(result)
 	}
 
 	return ss.syncer.store.WriteAllMaintainers(ss.ctx, storageMaintainers)
@@ -864,41 +893,33 @@ func (ss *syncState) handleOWNERS(org *storage.Org, repo *storage.Repo, maintain
 	return nil
 }
 
-func (ss *syncState) addUsers(users ...*storage.User) {
+func (ss *syncState) addUsers(users ...string) {
 	for _, user := range users {
-		ss.users[user.UserLogin] = user
+		ss.users[user] = true
 	}
 }
 
-func (ss *syncState) addLogins(logins ...string) {
-	for _, login := range logins {
-		if _, ok := ss.users[login]; !ok {
-			ss.users[login] = nil
-		}
-	}
-}
-
-func (ss *syncState) getMaintainer(org *storage.Org, maintainers map[string]*storage.Maintainer, login string) (*storage.Maintainer, error) {
-	maintainer, ok := maintainers[login]
+func (ss *syncState) getMaintainer(org *storage.Org, maintainers map[string]*storage.Maintainer, user string) (*storage.Maintainer, error) {
+	maintainer, ok := maintainers[strings.ToUpper(user)]
 	if ok {
 		// already created a struct
 		return maintainer, nil
 	}
 
-	ss.addLogins(login)
+	ss.addUsers(user)
 
-	maintainer, err := ss.syncer.store.ReadMaintainer(ss.ctx, org.OrgLogin, login)
+	maintainer, err := ss.syncer.store.ReadMaintainer(ss.ctx, org.OrgLogin, user)
 	if err != nil {
 		return nil, err
 	} else if maintainer == nil {
 		// unknown maintainer, so create a record
 		maintainer = &storage.Maintainer{
 			OrgLogin:  org.OrgLogin,
-			UserLogin: login,
+			UserLogin: user,
 		}
 	}
 
-	maintainers[login] = maintainer
+	maintainers[strings.ToUpper(user)] = maintainer
 
 	return maintainer, nil
 }

@@ -46,8 +46,8 @@ func (t *topic) Description() string {
 	return "Interact with pull requests and commits."
 }
 
-func (t *topic) Name() string {
-	return "commithub"
+func (t *topic) URLSuffix() string {
+	return "/commithub"
 }
 
 func (t *topic) Subtopics() []dashboard.Topic {

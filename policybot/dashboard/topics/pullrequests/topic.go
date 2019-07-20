@@ -46,8 +46,8 @@ func (t *topic) Description() string {
 	return "Information on new and old pull requests."
 }
 
-func (t *topic) Name() string {
-	return "prs"
+func (t *topic) URLSuffix() string {
+	return "/prs"
 }
 
 func (t *topic) Subtopics() []dashboard.Topic {
