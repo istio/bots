@@ -46,8 +46,8 @@ func (t *topic) Description() string {
 	return "Get information on product features and associated test plans."
 }
 
-func (t *topic) Name() string {
-	return "features"
+func (t *topic) URLSuffix() string {
+	return "/features"
 }
 
 func (t *topic) Subtopics() []dashboard.Topic {

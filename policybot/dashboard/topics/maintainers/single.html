@@ -90,24 +90,37 @@
                     </div>
                 </div>
 
-                <div class="paths">
+                <div class="paths" title="Shows the maintainer's activity in the paths the maintainer is responsible for within this repo">
                     <div class="property-table">
                         <div class="name header">
                             Paths Maintained
                         </div>
+                        <div class="value header inner">
+                            Last Submitted
+                        </div>
                         <div class="value header">
-                            Last PR Submitted Affecting Each Path
+                            Last Reviewed
                         </div>
 
                         {{ range $pathName, $pathInfo := .Paths }}
                             <div class="name">
                                 <a href="https://github.com/{{ $maintainer.OrgLogin }}/{{ $repoName }}/tree/master/{{ $pathName }}">/{{ $pathName }}</a>
                             </div>
-                            <div class="value">
+                            <div class="value inner">
                                 {{ if $pathInfo.LastPullRequestSubmitted.Number }}
                                     #<a href="https://github.com/{{ $maintainer.OrgLogin }}/{{ $repoName }}/issues/{{ $pathInfo.LastPullRequestSubmitted.Number }}">
                                         {{ $pathInfo.LastPullRequestSubmitted.Number }}</a>
                                     on <span class="utc">{{ $pathInfo.LastPullRequestSubmitted.Time }}</span>
+                                {{ else }}
+                                    &lt;never&gt;
+                                {{ end }}
+                            </div>
+
+                            <div class="value">
+                                {{ if $pathInfo.LastPullRequestReviewed.Number }}
+                                    #<a href="https://github.com/{{ $maintainer.OrgLogin }}/{{ $repoName }}/issues/{{ $pathInfo.LastPullRequestReviewed.Number }}">
+                                        {{ $pathInfo.LastPullRequestReviewed.Number }}</a>
+                                    on <span class="utc">{{ $pathInfo.LastPullRequestReviewed.Time }}</span>
                                 {{ else }}
                                     &lt;never&gt;
                                 {{ end }}

@@ -55,8 +55,8 @@ func (t *topic) Description() string {
 	return "Learn about Istio performance."
 }
 
-func (t *topic) Name() string {
-	return "perf"
+func (t *topic) URLSuffix() string {
+	return "/perf"
 }
 
 func (t *topic) Subtopics() []dashboard.Topic {

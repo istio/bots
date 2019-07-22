@@ -46,8 +46,8 @@ func (t *topic) Description() string {
 	return "Discover the wonderful world of test flakes."
 }
 
-func (t *topic) Name() string {
-	return "flakes"
+func (t *topic) URLSuffix() string {
+	return "/flakes"
 }
 
 func (t *topic) Subtopics() []dashboard.Topic {

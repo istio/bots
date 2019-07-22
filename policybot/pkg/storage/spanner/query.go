@@ -267,145 +267,139 @@ func (s store) QueryMaintainerInfo(context context.Context, maintainer *storage.
 		}
 	}
 
-	// TODO: way too slow. The enclosed queries are getting the last time the maintainer has reviewed or commented
-	// on a PR that affects files in the maintainer's paths. Sadly, this takes forever. We either need to encapsulate
-	// this into an offline process that saves the results back to the DB, or we need a better query if this is going to be
-	// served live to users. Or maybe we should do both.
-	if false {
-		// reset the soughtPaths map
-		for _, mp := range maintainer.Paths {
-			slashIndex := strings.Index(mp, "/")
-			repoName := mp[0:slashIndex]
-			path := mp[slashIndex+1:]
-			soughtPaths[repoName][path] = true
-		}
+	// reset the soughtPaths map
+	for _, mp := range maintainer.Paths {
+		slashIndex := strings.Index(mp, "/")
+		repoName := mp[0:slashIndex]
+		path := mp[slashIndex+1:]
+		soughtPaths[repoName][path] = true
+	}
 
-		// find the last time the maintainer reviewed a PR that updated files in the maintained paths
-		for repoName, repoInfo := range info.Repos {
-			iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
-				`SELECT * FROM PullRequestReviewEvents
+	// find the last time the maintainer reviewed a PR that updated files in the maintained paths
+	for repoName, repoInfo := range info.Repos {
+		iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
+			`SELECT * FROM PullRequestReviewEvents
 			WHERE
 				OrgLogin = '%s'
 				AND RepoName = '%s'
 				AND Actor = '%s'`,
-				maintainer.OrgLogin, repoName, maintainer.UserLogin)})
+			maintainer.OrgLogin, repoName, maintainer.UserLogin)})
 
-			err := iter.Do(func(row *spanner.Row) error {
+		err := iter.Do(func(row *spanner.Row) error {
 
-				var e storage.PullRequestReviewEvent
-				if err := row.ToStruct(&e); err != nil {
-					return err
-				}
+			var e storage.PullRequestReviewEvent
+			if err := row.ToStruct(&e); err != nil {
+				return err
+			}
 
-				pr, err := s.ReadPullRequest(context, maintainer.OrgLogin, repoName, int(e.PullRequestNumber))
-				if err != nil {
-					return err
-				}
+			pr, err := s.ReadPullRequest(context, maintainer.OrgLogin, repoName, int(e.PullRequestNumber))
+			if err != nil {
+				return err
+			}
 
-				// if the pr affects any files in any of the maintainer's paths, update the timed entry for the path
-				for sp := range soughtPaths[repoName] {
-					for _, file := range pr.Files {
-						if strings.HasPrefix(file, sp) {
-							pai := repoInfo.Paths[sp]
-							pai.LastPullRequestReviewed = storage.TimedEntry{
-								Time:   e.CreatedAt,
-								Number: pr.PullRequestNumber,
-							}
-							repoInfo.Paths[sp] = pai
-
-							if e.CreatedAt.After(info.LastMaintenanceActivity) {
-								info.LastMaintenanceActivity = e.CreatedAt
-							}
-
-							delete(soughtPaths[repoName], sp)
-							break
+			// if the pr affects any files in any of the maintainer's paths, update the timed entry for the path
+			for sp := range soughtPaths[repoName] {
+				for _, file := range pr.Files {
+					if strings.HasPrefix(file, sp) {
+						pai := repoInfo.Paths[sp]
+						pai.LastPullRequestReviewed = storage.TimedEntry{
+							Time:   e.CreatedAt,
+							Number: pr.PullRequestNumber,
 						}
+						repoInfo.Paths[sp] = pai
+
+						if e.CreatedAt.After(info.LastMaintenanceActivity) {
+							info.LastMaintenanceActivity = e.CreatedAt
+						}
+
+						delete(soughtPaths[repoName], sp)
+						break
 					}
 				}
-
-				if len(soughtPaths[repoName]) == 0 {
-					// all the paths for this repo have been handled, move on
-					return iterator.Done
-				}
-
-				return nil
-			})
-
-			if err == iterator.Done {
-				err = nil
 			}
 
-			if err != nil {
-				return nil, err
+			if len(soughtPaths[repoName]) == 0 {
+				// all the paths for this repo have been handled, move on
+				return iterator.Done
 			}
+
+			return nil
+		})
+
+		if err == iterator.Done {
+			err = nil
 		}
 
-		// reset the soughtPaths map
-		for _, mp := range maintainer.Paths {
-			slashIndex := strings.Index(mp, "/")
-			repoName := mp[0:slashIndex]
-			path := mp[slashIndex+1:]
-			soughtPaths[repoName][path] = true
+		if err != nil {
+			return nil, err
 		}
+	}
 
-		// find the last time the maintainer commented on a PR that updated files in the maintained paths
-		for repoName, repoInfo := range info.Repos {
-			iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
-				`SELECT * FROM PullRequestReviewCommentEvents
+	// reset the soughtPaths map
+	for _, mp := range maintainer.Paths {
+		slashIndex := strings.Index(mp, "/")
+		repoName := mp[0:slashIndex]
+		path := mp[slashIndex+1:]
+		soughtPaths[repoName][path] = true
+	}
+
+	// find the last time the maintainer commented on a PR that updated files in the maintained paths
+	for repoName, repoInfo := range info.Repos {
+		iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
+			`SELECT * FROM PullRequestReviewCommentEvents
 			WHERE
 				OrgLogin = '%s'
 				AND RepoName = '%s'
 				AND Actor = '%s'`,
-				maintainer.OrgLogin, repoName, maintainer.UserLogin)})
+			maintainer.OrgLogin, repoName, maintainer.UserLogin)})
 
-			err := iter.Do(func(row *spanner.Row) error {
+		err := iter.Do(func(row *spanner.Row) error {
 
-				var e storage.PullRequestReviewCommentEvent
-				if err := row.ToStruct(&e); err != nil {
-					return err
-				}
+			var e storage.PullRequestReviewCommentEvent
+			if err := row.ToStruct(&e); err != nil {
+				return err
+			}
 
-				pr, err := s.ReadPullRequest(context, maintainer.OrgLogin, repoName, int(e.PullRequestNumber))
-				if err != nil {
-					return err
-				}
+			pr, err := s.ReadPullRequest(context, maintainer.OrgLogin, repoName, int(e.PullRequestNumber))
+			if err != nil {
+				return err
+			}
 
-				// if the pr affects any files in any of the maintainer's paths, update the timed entry for the path
-				for sp := range soughtPaths[repoName] {
-					for _, file := range pr.Files {
-						if strings.HasPrefix(file, sp) {
-							pai := repoInfo.Paths[sp]
-							pai.LastPullRequestReviewed = storage.TimedEntry{
-								Time:   e.CreatedAt,
-								Number: pr.PullRequestNumber,
-							}
-							repoInfo.Paths[sp] = pai
-
-							if e.CreatedAt.After(info.LastMaintenanceActivity) {
-								info.LastMaintenanceActivity = e.CreatedAt
-							}
-
-							delete(soughtPaths[repoName], sp)
-							break
+			// if the pr affects any files in any of the maintainer's paths, update the timed entry for the path
+			for sp := range soughtPaths[repoName] {
+				for _, file := range pr.Files {
+					if strings.HasPrefix(file, sp) {
+						pai := repoInfo.Paths[sp]
+						pai.LastPullRequestReviewed = storage.TimedEntry{
+							Time:   e.CreatedAt,
+							Number: pr.PullRequestNumber,
 						}
+						repoInfo.Paths[sp] = pai
+
+						if e.CreatedAt.After(info.LastMaintenanceActivity) {
+							info.LastMaintenanceActivity = e.CreatedAt
+						}
+
+						delete(soughtPaths[repoName], sp)
+						break
 					}
 				}
-
-				if len(soughtPaths[repoName]) == 0 {
-					// all the paths for this repo have been handled, move on
-					return iterator.Done
-				}
-
-				return nil
-			})
-
-			if err == iterator.Done {
-				err = nil
 			}
 
-			if err != nil {
-				return nil, err
+			if len(soughtPaths[repoName]) == 0 {
+				// all the paths for this repo have been handled, move on
+				return iterator.Done
 			}
+
+			return nil
+		})
+
+		if err == iterator.Done {
+			err = nil
+		}
+
+		if err != nil {
+			return nil, err
 		}
 	}
 

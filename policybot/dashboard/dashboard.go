@@ -101,14 +101,16 @@ func (d *Dashboard) RegisterTopic(t Topic) {
 }
 
 func (d *Dashboard) registerTopic(t Topic, htmlRouter *mux.Router, apiRouter *mux.Router, basePath string) *RegisteredTopic {
-	htmlRouter = htmlRouter.PathPrefix("/" + t.Name()).Subrouter()
-	apiRouter = apiRouter.PathPrefix("/" + t.Name()).Subrouter()
+	if strings.HasPrefix(t.URLSuffix(), "/") {
+		htmlRouter = htmlRouter.PathPrefix(t.URLSuffix()).Subrouter()
+		apiRouter = apiRouter.PathPrefix(t.URLSuffix()).Subrouter()
+	}
 
 	rt := &RegisteredTopic{
 		Title:       t.Title(),
 		Description: t.Description(),
-		URL:         basePath + "/" + t.Name(),
-		Subtopics:   d.handleSubtopics(t.Subtopics(), htmlRouter, apiRouter, basePath+"/"+t.Name()),
+		URL:         basePath + t.URLSuffix(),
+		Subtopics:   d.handleSubtopics(t.Subtopics(), htmlRouter, apiRouter, basePath+t.URLSuffix()),
 	}
 
 	t.Configure(htmlRouter, apiRouter, newRenderContext(rt, d.primaryTemplates, d.errorTemplates), &Options{"istio"}) // TODO: eliminate istio default

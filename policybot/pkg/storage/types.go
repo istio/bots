@@ -138,10 +138,11 @@ type BotActivity struct {
 }
 
 type Maintainer struct {
-	OrgLogin  string
-	UserLogin string
-	Paths     []string // where each path is of the form RepoName/path_in_repo
-	Emeritus  bool
+	OrgLogin   string
+	UserLogin  string
+	Paths      []string // where each path is of the form RepoName/path_in_repo
+	Emeritus   bool
+	CachedInfo string // a JSON encoded MaintainerInfo
 }
 
 type IssuePipeline struct {

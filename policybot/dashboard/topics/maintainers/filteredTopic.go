@@ -12,26 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dashboard
+package maintainers
 
 import (
 	"github.com/gorilla/mux"
+
+	"istio.io/bots/policybot/dashboard"
 )
 
-// Topic represents a single major functional area within the dashboard
-type Topic interface {
-	// Title returns the title for the area, which will be used in the sidenav and window title.
-	Title() string
+type filteredTopic struct {
+	title       string
+	description string
+	suffix      string
+}
 
-	// Description returns a general deacription for the area
-	Description() string
+var _ dashboard.Topic = filteredTopic{}
 
-	// The suffix to apply to the parent topic's URL to reach this topic.
-	URLSuffix() string
+func (ft filteredTopic) Title() string {
+	return ft.title
+}
 
-	// Nested topics
-	Subtopics() []Topic
+func (ft filteredTopic) Description() string {
+	return ft.description
+}
 
-	// Installs the routes
-	Configure(htmlRouter *mux.Router, apiRouter *mux.Router, rc RenderContext, opt *Options)
+func (ft filteredTopic) URLSuffix() string {
+	return ft.suffix
+}
+
+func (ft filteredTopic) Subtopics() []dashboard.Topic {
+	return nil
+}
+
+func (ft filteredTopic) Configure(htmlRouter *mux.Router, apiRouter *mux.Router, context dashboard.RenderContext, opt *dashboard.Options) {
 }

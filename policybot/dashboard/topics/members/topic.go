@@ -62,8 +62,8 @@ func (t *topic) Description() string {
 	return "Learn about the folks that help develop and manage the Istio project"
 }
 
-func (t *topic) Name() string {
-	return "members"
+func (t *topic) URLSuffix() string {
+	return "/members"
 }
 
 func (t *topic) Subtopics() []dashboard.Topic {

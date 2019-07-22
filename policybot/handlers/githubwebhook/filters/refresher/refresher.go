@@ -66,7 +66,7 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 			return
 		}
 
-		issue, discoveredUsers := gh.ConvertIssue(
+		issue := gh.ConvertIssue(
 			p.GetRepo().GetOwner().GetLogin(),
 			p.GetRepo().GetName(),
 			p.GetIssue())
@@ -91,7 +91,8 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 			return
 		}
 
-		r.syncUsers(context, discoveredUsers)
+		r.syncUsers(context, issue.Author)
+		r.syncUsers(context, issue.Assignees...)
 
 	case *github.IssueCommentEvent:
 		scope.Infof("Received IssueCommentEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetIssue().GetNumber(), p.GetAction())
@@ -101,31 +102,34 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 			return
 		}
 
-		issueComment, discoveredUsers := gh.ConvertIssueComment(
+		issueComment := gh.ConvertIssueComment(
 			p.GetRepo().GetOwner().GetLogin(),
 			p.GetRepo().GetName(),
 			p.GetIssue().GetNumber(),
 			p.GetComment())
 		issueComments := []*storage.IssueComment{issueComment}
-		if err := r.cache.WriteIssueComments(context, issueComments); err == nil {
-			event := &storage.IssueCommentEvent{
-				OrgLogin:       issueComment.OrgLogin,
-				RepoName:       issueComment.RepoName,
-				IssueNumber:    issueComment.IssueNumber,
-				IssueCommentID: p.GetComment().GetID(),
-				CreatedAt:      time.Now(),
-				Actor:          p.GetSender().GetLogin(),
-				Action:         p.GetAction(),
-			}
-
-			events := []*storage.IssueCommentEvent{event}
-			if err := r.store.WriteIssueCommentEvents(context, events); err != nil {
-				scope.Error(err.Error())
-				return
-			}
+		if err := r.cache.WriteIssueComments(context, issueComments); err != nil {
+			scope.Error(err.Error())
+			return
 		}
 
-		r.syncUsers(context, discoveredUsers)
+		event := &storage.IssueCommentEvent{
+			OrgLogin:       issueComment.OrgLogin,
+			RepoName:       issueComment.RepoName,
+			IssueNumber:    issueComment.IssueNumber,
+			IssueCommentID: p.GetComment().GetID(),
+			CreatedAt:      time.Now(),
+			Actor:          p.GetSender().GetLogin(),
+			Action:         p.GetAction(),
+		}
+
+		events := []*storage.IssueCommentEvent{event}
+		if err := r.store.WriteIssueCommentEvents(context, events); err != nil {
+			scope.Error(err.Error())
+			return
+		}
+
+		r.syncUsers(context, issueComment.Author)
 
 	case *github.PullRequestEvent:
 		scope.Infof("Received PullRequestEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetNumber(), p.GetAction())
@@ -164,7 +168,7 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 				opt.Page = resp.NextPage
 			}
 
-			pr, discoveredUsers := gh.ConvertPullRequest(
+			pr := gh.ConvertPullRequest(
 				p.GetOrganization().GetLogin(),
 				p.GetRepo().GetName(),
 				p.GetPullRequest(),
@@ -172,9 +176,12 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 			prs := []*storage.PullRequest{pr}
 			if err := r.cache.WritePullRequests(context, prs); err != nil {
 				scope.Errorf(err.Error())
+				return
 			}
 
-			r.syncUsers(context, discoveredUsers)
+			r.syncUsers(context, pr.Author)
+			r.syncUsers(context, pr.Assignees...)
+			r.syncUsers(context, pr.RequestedReviewers...)
 		}
 
 		event := &storage.PullRequestEvent{
@@ -192,6 +199,8 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 			return
 		}
 
+		r.syncUsers(context, event.Actor)
+
 	case *github.PullRequestReviewEvent:
 		scope.Infof("Received PullRequestReviewEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetPullRequest().GetNumber(), p.GetAction())
 
@@ -200,7 +209,7 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 			return
 		}
 
-		review, discoveredUsers := gh.ConvertPullRequestReview(
+		review := gh.ConvertPullRequestReview(
 			p.GetOrganization().GetLogin(),
 			p.GetRepo().GetName(),
 			p.GetPullRequest().GetNumber(),
@@ -208,6 +217,7 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 		reviews := []*storage.PullRequestReview{review}
 		if err := r.cache.WritePullRequestReviews(context, reviews); err != nil {
 			scope.Errorf(err.Error())
+			return
 		}
 
 		event := &storage.PullRequestReviewEvent{
@@ -226,7 +236,7 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 			return
 		}
 
-		r.syncUsers(context, discoveredUsers)
+		r.syncUsers(context, review.Author)
 
 	case *github.PullRequestReviewCommentEvent:
 		scope.Infof("Received PullRequestReviewCommentEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetPullRequest().GetNumber(), p.GetAction())
@@ -237,7 +247,7 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 			return
 		}
 
-		comment, discoveredUsers := gh.ConvertPullRequestReviewComment(
+		comment := gh.ConvertPullRequestReviewComment(
 			p.GetRepo().GetOwner().GetLogin(),
 			p.GetRepo().GetName(),
 			p.GetPullRequest().GetNumber(),
@@ -263,7 +273,7 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 			return
 		}
 
-		r.syncUsers(context, discoveredUsers)
+		r.syncUsers(context, comment.Author)
 
 	case *github.CommitCommentEvent:
 		scope.Infof("Received CommitCommentEvent: %s, %s", p.GetRepo().GetFullName(), p.GetAction())
@@ -273,7 +283,7 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 			return
 		}
 
-		comment, discoveredUsers := gh.ConvertRepoComment(
+		comment := gh.ConvertRepoComment(
 			p.GetRepo().GetOwner().GetLogin(),
 			p.GetRepo().GetName(),
 			p.GetComment())
@@ -297,7 +307,7 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 			return
 		}
 
-		r.syncUsers(context, discoveredUsers)
+		r.syncUsers(context, comment.Author)
 
 	default:
 		// not what we're looking for
@@ -306,27 +316,22 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 	}
 }
 
-func (r *Refresher) syncUsers(context context.Context, discoveredUsers []*storage.User) {
-	// The user info provided with events is incomplete.
-	// So for any discovered users, we look to see if we already know about the
-	// user in our DB. If we do, then we're done. Otherwise, we look up the full
-	// user info from GH and write that user to our DB
-
+func (r *Refresher) syncUsers(context context.Context, discoveredUsers ...string) {
 	users := make([]*storage.User, 0, len(discoveredUsers))
 	for _, discoveredUser := range discoveredUsers {
-		if u, err := r.cache.ReadUser(context, discoveredUser.UserLogin); err != nil {
-			scope.Errorf("Unable to read info for user %s from storage: %v", discoveredUser.UserLogin, err)
+		if u, err := r.cache.ReadUser(context, discoveredUser); err != nil {
+			scope.Errorf("Unable to read info for user %s from storage: %v", discoveredUser, err)
 			return
 		} else if u == nil {
 			if ghUser, _, err := r.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
-				return client.Users.Get(context, discoveredUser.UserLogin)
+				return client.Users.Get(context, discoveredUser)
 			}); err == nil {
 				users = append(users, gh.ConvertUser(ghUser.(*github.User)))
 			} else {
-				scope.Warnf("couldn't get information for user %s: %v", discoveredUser.UserLogin, err)
+				scope.Warnf("couldn't get information for user %s: %v", discoveredUser, err)
 
 				// go with what we know
-				users = append(users, discoveredUser)
+				users = append(users, &storage.User{UserLogin: discoveredUser})
 			}
 		}
 	}

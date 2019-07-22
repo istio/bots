@@ -46,7 +46,7 @@ func (t *topic) Description() string {
 	return "Istio engineering dashboard"
 }
 
-func (t *topic) Name() string {
+func (t *topic) URLSuffix() string {
 	return ""
 }
 

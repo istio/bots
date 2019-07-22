@@ -22,18 +22,15 @@ import (
 
 // Maps from a GitHub issue to a storage issue. Also returns the set of
 // users discovered in the input.
-func ConvertIssue(orgLogin string, repoName string, issue *github.Issue) (*storage.Issue, []*storage.User) {
+func ConvertIssue(orgLogin string, repoName string, issue *github.Issue) *storage.Issue {
 	labels := make([]string, len(issue.Labels))
 	for i, label := range issue.Labels {
 		labels[i] = label.GetName()
 	}
 
-	discoveredUsers := make([]*storage.User, 0, len(issue.Assignees))
-
 	assignees := make([]string, len(issue.Assignees))
 	for i, user := range issue.Assignees {
 		assignees[i] = user.GetLogin()
-		discoveredUsers = append(discoveredUsers, ConvertUser(user))
 	}
 
 	return &storage.Issue{
@@ -49,16 +46,12 @@ func ConvertIssue(orgLogin string, repoName string, issue *github.Issue) (*stora
 		State:       issue.GetState(),
 		Author:      issue.GetUser().GetLogin(),
 		Assignees:   assignees,
-	}, discoveredUsers
+	}
 }
 
 // Maps from a GitHub issue comment to a storage issue comment. Also returns the set of
 // users discovered in the input.
-func ConvertIssueComment(orgLogin string, repoName string, issueNumber int, issueComment *github.IssueComment) (*storage.IssueComment, []*storage.User) {
-	discoveredUsers := []*storage.User{
-		ConvertUser(issueComment.GetUser()),
-	}
-
+func ConvertIssueComment(orgLogin string, repoName string, issueNumber int, issueComment *github.IssueComment) *storage.IssueComment {
 	return &storage.IssueComment{
 		OrgLogin:       orgLogin,
 		RepoName:       repoName,
@@ -68,16 +61,12 @@ func ConvertIssueComment(orgLogin string, repoName string, issueNumber int, issu
 		CreatedAt:      issueComment.GetCreatedAt(),
 		UpdatedAt:      issueComment.GetUpdatedAt(),
 		Author:         issueComment.GetUser().GetLogin(),
-	}, discoveredUsers
+	}
 }
 
 // Maps from a GitHub repo comment to a storage repo comment. Also returns the set of
 // users discovered in the input.
-func ConvertRepoComment(orgLogin string, repoName string, comment *github.RepositoryComment) (*storage.RepoComment, []*storage.User) {
-	discoveredUsers := []*storage.User{
-		ConvertUser(comment.GetUser()),
-	}
-
+func ConvertRepoComment(orgLogin string, repoName string, comment *github.RepositoryComment) *storage.RepoComment {
 	return &storage.RepoComment{
 		OrgLogin:  orgLogin,
 		RepoName:  repoName,
@@ -86,7 +75,7 @@ func ConvertRepoComment(orgLogin string, repoName string, comment *github.Reposi
 		CreatedAt: comment.GetCreatedAt(),
 		UpdatedAt: comment.GetUpdatedAt(),
 		Author:    comment.GetUser().GetLogin(),
-	}, discoveredUsers
+	}
 }
 
 // Maps from a GitHub user to a storage user.
@@ -132,24 +121,20 @@ func ConvertLabel(orgLogin string, repoName string, l *github.Label) *storage.La
 
 // Maps from a GitHub pr to a storage pr. Also returns the set of
 // users discovered in the input.
-func ConvertPullRequest(orgLogin string, repoName string, pr *github.PullRequest, files []string) (*storage.PullRequest, []*storage.User) {
+func ConvertPullRequest(orgLogin string, repoName string, pr *github.PullRequest, files []string) *storage.PullRequest {
 	labels := make([]string, len(pr.Labels))
 	for i, label := range pr.Labels {
 		labels[i] = label.GetName()
 	}
 
-	discoveredUsers := make([]*storage.User, 0, len(pr.Assignees)+len(pr.RequestedReviewers))
-
 	assignees := make([]string, len(pr.Assignees))
 	for i, user := range pr.Assignees {
 		assignees[i] = user.GetLogin()
-		discoveredUsers = append(discoveredUsers, ConvertUser(user))
 	}
 
 	reviewers := make([]string, len(pr.RequestedReviewers))
 	for i, user := range pr.RequestedReviewers {
 		reviewers[i] = user.GetLogin()
-		discoveredUsers = append(discoveredUsers, ConvertUser(user))
 	}
 
 	return &storage.PullRequest{
@@ -168,16 +153,13 @@ func ConvertPullRequest(orgLogin string, repoName string, pr *github.PullRequest
 		Title:              pr.GetTitle(),
 		Body:               pr.GetBody(),
 		Author:             pr.GetUser().GetLogin(),
-	}, discoveredUsers
+	}
 }
 
 // Maps from a GitHub pr comment to a storage pr comment. Also returns the set of
 // users discovered in the input.
 func ConvertPullRequestReviewComment(orgLogin string, repoName string, prNumber int,
-	comment *github.PullRequestComment) (*storage.PullRequestReviewComment, []*storage.User) {
-	discoveredUsers := []*storage.User{
-		ConvertUser(comment.GetUser()),
-	}
+	comment *github.PullRequestComment) *storage.PullRequestReviewComment {
 
 	return &storage.PullRequestReviewComment{
 		OrgLogin:                   orgLogin,
@@ -188,16 +170,12 @@ func ConvertPullRequestReviewComment(orgLogin string, repoName string, prNumber 
 		CreatedAt:                  comment.GetCreatedAt(),
 		UpdatedAt:                  comment.GetUpdatedAt(),
 		Author:                     comment.GetUser().GetLogin(),
-	}, discoveredUsers
+	}
 }
 
 // Maps from a GitHub pr review to a storage pr review. Also returns the set of
 // users discovered in the input.
-func ConvertPullRequestReview(orgLogin string, repoName string, prNumber int, prr *github.PullRequestReview) (*storage.PullRequestReview, []*storage.User) {
-	discoveredUsers := []*storage.User{
-		ConvertUser(prr.GetUser()),
-	}
-
+func ConvertPullRequestReview(orgLogin string, repoName string, prNumber int, prr *github.PullRequestReview) *storage.PullRequestReview {
 	return &storage.PullRequestReview{
 		OrgLogin:            orgLogin,
 		RepoName:            repoName,
@@ -207,5 +185,5 @@ func ConvertPullRequestReview(orgLogin string, repoName string, prNumber int, pr
 		SubmittedAt:         prr.GetSubmittedAt(),
 		Author:              prr.GetUser().GetLogin(),
 		State:               prr.GetState(),
-	}, discoveredUsers
+	}
 }
