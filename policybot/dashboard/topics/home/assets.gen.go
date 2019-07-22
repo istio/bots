@@ -45,8 +45,8 @@ func (fi bindataFileInfo) Sys() interface{} {
 }
 
 var _pageHtml = []byte(`<p>
-Use this dashboard to access and control a variety of Istio engineering systems.
-Please make a selection below to get going.
+Use this dashboard to access and control a variety of engineering systems.
+Please make a selection below to get started.
 </p>
 
 <div class="section-index">

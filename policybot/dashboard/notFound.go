@@ -12,35 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate ../../../scripts/gen_topic.sh
-
-package issues
+package dashboard
 
 import (
+	"bytes"
 	"net/http"
+	"text/template"
 
-	"istio.io/bots/policybot/dashboard/types"
-
-	"istio.io/bots/policybot/pkg/storage"
-	"istio.io/bots/policybot/pkg/storage/cache"
+	"istio.io/bots/policybot/pkg/util"
 )
 
-type Issues struct {
-	store storage.Store
-	cache *cache.Cache
-	page  string
+type notFound struct {
+	templates *template.Template
 }
 
-func New(store storage.Store, cache *cache.Cache) *Issues {
-	return &Issues{
-		store: store,
-		cache: cache,
-		page:  string(MustAsset("page.html")),
+func (nf notFound) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	info := templateInfo{
+		Title:       "Page Not Found",
+		Description: "Page Not Found",
 	}
-}
 
-func (is *Issues) Render(req *http.Request) (types.RenderInfo, error) {
-	return types.RenderInfo{
-		Content: is.page,
-	}, nil
+	b := &bytes.Buffer{}
+	if err := nf.templates.Execute(b, info); err != nil {
+		util.RenderError(w, util.HTTPErrorf(http.StatusNotFound, "Page Not Found"))
+		return
+	}
+
+	w.WriteHeader(http.StatusNotFound)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = b.WriteTo(w)
 }

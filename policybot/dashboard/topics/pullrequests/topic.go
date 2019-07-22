@@ -19,55 +19,28 @@ package pullrequests
 import (
 	"net/http"
 
-	"github.com/gorilla/mux"
+	"istio.io/bots/policybot/dashboard/types"
 
-	"istio.io/bots/policybot/dashboard"
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
 )
 
-type topic struct {
+type PullRequests struct {
 	store storage.Store
 	cache *cache.Cache
+	page  string
 }
 
-func NewTopic(store storage.Store, cache *cache.Cache) dashboard.Topic {
-	return &topic{
+func New(store storage.Store, cache *cache.Cache) *PullRequests {
+	return &PullRequests{
 		store: store,
 		cache: cache,
+		page:  string(MustAsset("page.html")),
 	}
 }
 
-func (t *topic) Title() string {
-	return "Pull Requests"
-}
-
-func (t *topic) Description() string {
-	return "Information on new and old pull requests."
-}
-
-func (t *topic) URLSuffix() string {
-	return "/prs"
-}
-
-func (t *topic) Subtopics() []dashboard.Topic {
-	return nil
-}
-
-func (t *topic) Configure(htmlRouter *mux.Router, apiRouter *mux.Router, context dashboard.RenderContext, opt *dashboard.Options) {
-	page := string(MustAsset("page.html"))
-
-	htmlRouter.StrictSlash(true).
-		Path("/").
-		Methods("GET").
-		HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			context.RenderHTML(w, "", page, "")
-		})
-
-	apiRouter.StrictSlash(true).
-		Path("/").
-		Methods("GET").
-		HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			context.RenderJSON(w, http.StatusOK, nil)
-		})
+func (pr *PullRequests) Render(req *http.Request) (types.RenderInfo, error) {
+	return types.RenderInfo{
+		Content: pr.page,
+	}, nil
 }

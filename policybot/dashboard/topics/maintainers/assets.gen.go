@@ -47,8 +47,7 @@ func (fi bindataFileInfo) Sys() interface{} {
 	return nil
 }
 
-var _listHtml = []byte(`{{ if eq .Filter ""}}
-<p>
+var _listHtml = []byte(`<p>
 These kind folks are responsible for specific areas of the Istio product, guiding its development
 and maintaining its code base.
 </p>
@@ -333,7 +332,7 @@ func single_controlHtml() (*asset, error) {
 }
 
 var _userHtml = []byte(`<div class="user">
-    <a href="{{ .User.UserLogin }}">
+    <a href="/maintainers/{{ .User.UserLogin }}">
         <div class="name">
             <div class="fit">
                 {{ if .User.Name }}
