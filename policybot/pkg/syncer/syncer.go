@@ -642,7 +642,7 @@ func (ss *syncState) handlePullRequests(repo *storage.Repo) error {
 		for _, pr := range prs {
 			// if this pr is already known to us and is up to date, skip further processing
 			if existing, _ := ss.syncer.store.ReadPullRequest(ss.ctx, repo.OrgLogin, repo.RepoName, pr.GetNumber()); existing != nil {
-				if existing.UpdatedAt == pr.GetUpdatedAt() {
+				if existing.UpdatedAt == pr.GetUpdatedAt() && existing.HeadCommit != nil {
 					continue
 				}
 			}
