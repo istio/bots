@@ -22,21 +22,20 @@ import (
 	"strings"
 	"text/template"
 
+	"istio.io/bots/policybot/dashboard/types"
+
 	"istio.io/bots/policybot/pkg/util"
 
-	"github.com/gorilla/mux"
-
-	"istio.io/bots/policybot/dashboard"
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
 )
 
-type topic struct {
-	store   storage.Store
-	cache   *cache.Cache
-	page    *template.Template
-	context dashboard.RenderContext
-	options *dashboard.Options
+// Members lets users view the set of project members.
+type Members struct {
+	store      storage.Store
+	cache      *cache.Cache
+	page       *template.Template
+	defaultOrg string
 }
 
 type memberInfo struct {
@@ -46,82 +45,40 @@ type memberInfo struct {
 	AvatarURL string `json:"avatar_url"`
 }
 
-func NewTopic(store storage.Store, cache *cache.Cache) dashboard.Topic {
-	return &topic{
-		store: store,
-		cache: cache,
-		page:  template.Must(template.New("page").Parse(string(MustAsset("page.html")))),
+// New creates a new Members instance.
+func New(store storage.Store, cache *cache.Cache, defaultOrg string) *Members {
+	return &Members{
+		store:      store,
+		cache:      cache,
+		page:       template.Must(template.New("page").Parse(string(MustAsset("page.html")))),
+		defaultOrg: defaultOrg,
 	}
 }
 
-func (t *topic) Title() string {
-	return "Org Members"
-}
-
-func (t *topic) Description() string {
-	return "Learn about the folks that help develop and manage the Istio project"
-}
-
-func (t *topic) URLSuffix() string {
-	return "/members"
-}
-
-func (t *topic) Subtopics() []dashboard.Topic {
-	return nil
-}
-
-func (t *topic) Configure(htmlRouter *mux.Router, apiRouter *mux.Router, context dashboard.RenderContext, opt *dashboard.Options) {
-	t.context = context
-	t.options = opt
-
-	htmlRouter.StrictSlash(true).
-		Path("/").
-		Methods("GET").
-		HandlerFunc(t.handleMemberListHTML)
-
-	apiRouter.StrictSlash(true).
-		Path("/").
-		Methods("GET").
-		HandlerFunc(t.handleMemberListJSON)
-}
-
-func (t *topic) handleMemberListHTML(w http.ResponseWriter, r *http.Request) {
-	orgLogin := r.URL.Query().Get("org")
+// Renders the HTML for this topic.
+func (m *Members) RenderList(req *http.Request) (types.RenderInfo, error) {
+	orgLogin := req.URL.Query().Get("org")
 	if orgLogin == "" {
-		orgLogin = t.options.DefaultOrg
+		orgLogin = m.defaultOrg
 	}
 
-	m, err := t.getMembers(r.Context(), orgLogin)
+	mi, err := m.getMembers(req.Context(), orgLogin)
 	if err != nil {
-		t.context.RenderHTMLError(w, err)
+		return types.RenderInfo{}, err
 	}
 
-	sb := &strings.Builder{}
-	if err := t.page.Execute(sb, m); err != nil {
-		t.context.RenderHTMLError(w, err)
-		return
+	var sb strings.Builder
+	if err := m.page.Execute(&sb, mi); err != nil {
+		return types.RenderInfo{}, err
 	}
 
-	t.context.RenderHTML(w, "", sb.String(), "")
+	return types.RenderInfo{
+		Content: sb.String(),
+	}, nil
 }
 
-func (t *topic) handleMemberListJSON(w http.ResponseWriter, r *http.Request) {
-	orgLogin := r.URL.Query().Get("org")
-	if orgLogin == "" {
-		orgLogin = t.options.DefaultOrg
-	}
-
-	m, err := t.getMembers(r.Context(), orgLogin)
-	if err != nil {
-		t.context.RenderHTMLError(w, err)
-		return
-	}
-
-	t.context.RenderJSON(w, http.StatusOK, m)
-}
-
-func (t *topic) getMembers(context context.Context, orgLogin string) ([]memberInfo, error) {
-	org, err := t.cache.ReadOrg(context, orgLogin)
+func (m *Members) getMembers(context context.Context, orgLogin string) ([]memberInfo, error) {
+	org, err := m.cache.ReadOrg(context, orgLogin)
 	if err != nil {
 		return nil, util.HTTPErrorf(http.StatusInternalServerError, "unable to get information on organization %s: %v", orgLogin, err)
 	} else if org == nil {
@@ -129,8 +86,8 @@ func (t *topic) getMembers(context context.Context, orgLogin string) ([]memberIn
 	}
 
 	var members []memberInfo
-	if err = t.store.QueryMembersByOrg(context, org.OrgLogin, func(m *storage.Member) error {
-		u, err := t.cache.ReadUser(context, m.UserLogin)
+	if err = m.store.QueryMembersByOrg(context, org.OrgLogin, func(member *storage.Member) error {
+		u, err := m.cache.ReadUser(context, member.UserLogin)
 		if err != nil {
 			return util.HTTPErrorf(http.StatusInternalServerError, "unable to read user information from storage: %v", err)
 		}

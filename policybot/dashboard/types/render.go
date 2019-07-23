@@ -12,26 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dashboard
+package types
 
-import (
-	"github.com/gorilla/mux"
-)
+import "net/http"
 
-// Topic represents a single major functional area within the dashboard
-type Topic interface {
-	// Title returns the title for the area, which will be used in the sidenav and window title.
-	Title() string
+type RenderFunc func(req *http.Request) (RenderInfo, error)
 
-	// Description returns a general deacription for the area
-	Description() string
-
-	// The suffix to apply to the parent topic's URL to reach this topic.
-	URLSuffix() string
-
-	// Nested topics
-	Subtopics() []Topic
-
-	// Installs the routes
-	Configure(htmlRouter *mux.Router, apiRouter *mux.Router, rc RenderContext, opt *Options)
+type RenderInfo struct {
+	Title   string
+	Content string
+	Control string
 }

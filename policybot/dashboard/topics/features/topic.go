@@ -19,55 +19,31 @@ package features
 import (
 	"net/http"
 
-	"github.com/gorilla/mux"
+	"istio.io/bots/policybot/dashboard/types"
 
-	"istio.io/bots/policybot/dashboard"
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
 )
 
-type topic struct {
+// Feature lets user visualize the set of existing features and associated test plans.
+type Feature struct {
 	store storage.Store
 	cache *cache.Cache
+	page  string
 }
 
-func NewTopic(store storage.Store, cache *cache.Cache) dashboard.Topic {
-	return &topic{
+// New creates a new Feature instance.
+func New(store storage.Store, cache *cache.Cache) *Feature {
+	return &Feature{
 		store: store,
 		cache: cache,
+		page:  string(MustAsset("page.html")),
 	}
 }
 
-func (t *topic) Title() string {
-	return "Features and Test Plans"
-}
-
-func (t *topic) Description() string {
-	return "Get information on product features and associated test plans."
-}
-
-func (t *topic) URLSuffix() string {
-	return "/features"
-}
-
-func (t *topic) Subtopics() []dashboard.Topic {
-	return nil
-}
-
-func (t *topic) Configure(htmlRouter *mux.Router, apiRouter *mux.Router, context dashboard.RenderContext, opt *dashboard.Options) {
-	page := string(MustAsset("page.html"))
-
-	htmlRouter.StrictSlash(true).
-		Path("/").
-		Methods("GET").
-		HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			context.RenderHTML(w, "", page, "")
-		})
-
-	apiRouter.StrictSlash(true).
-		Path("/").
-		Methods("GET").
-		HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			context.RenderJSON(w, http.StatusOK, nil)
-		})
+// Renders the HTML for this topic.
+func (f *Feature) Render(req *http.Request) (types.RenderInfo, error) {
+	return types.RenderInfo{
+		Content: f.page,
+	}, nil
 }

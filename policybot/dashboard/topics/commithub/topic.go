@@ -19,55 +19,30 @@ package commithub
 import (
 	"net/http"
 
-	"github.com/gorilla/mux"
-
-	"istio.io/bots/policybot/dashboard"
+	"istio.io/bots/policybot/dashboard/types"
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
 )
 
-type topic struct {
+// CommitHub lets users interact with their outstanding code commits.
+type CommitHub struct {
 	store storage.Store
 	cache *cache.Cache
+	page  string
 }
 
-func NewTopic(store storage.Store, cache *cache.Cache) dashboard.Topic {
-	return &topic{
+// New creates a new CommitHub instance.
+func New(store storage.Store, cache *cache.Cache) *CommitHub {
+	return &CommitHub{
 		store: store,
 		cache: cache,
+		page:  string(MustAsset("page.html")),
 	}
 }
 
-func (t *topic) Title() string {
-	return "Commit Hub"
-}
-
-func (t *topic) Description() string {
-	return "Interact with pull requests and commits."
-}
-
-func (t *topic) URLSuffix() string {
-	return "/commithub"
-}
-
-func (t *topic) Subtopics() []dashboard.Topic {
-	return nil
-}
-
-func (t *topic) Configure(htmlRouter *mux.Router, apiRouter *mux.Router, context dashboard.RenderContext, opt *dashboard.Options) {
-	page := string(MustAsset("page.html"))
-
-	htmlRouter.StrictSlash(true).
-		Path("/").
-		Methods("GET").
-		HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			context.RenderHTML(w, "", page, "")
-		})
-
-	apiRouter.StrictSlash(true).
-		Path("/").
-		Methods("GET").
-		HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			context.RenderJSON(w, http.StatusOK, nil)
-		})
+// Renders the HTML for this topic.
+func (ch *CommitHub) Render(req *http.Request) (types.RenderInfo, error) {
+	return types.RenderInfo{
+		Content: ch.page,
+	}, nil
 }

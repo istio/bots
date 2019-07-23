@@ -21,68 +21,43 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gorilla/mux"
+	"istio.io/bots/policybot/dashboard/types"
 
-	"istio.io/bots/policybot/dashboard"
 	"istio.io/bots/policybot/dashboard/templates/widgets"
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
 )
 
-type topic struct {
+// Perf lets users visualize stats about project performance.
+type Perf struct {
 	store storage.Store
 	cache *cache.Cache
 	page  *template.Template
 }
 
-func NewTopic(store storage.Store, cache *cache.Cache) dashboard.Topic {
+// New creates a new Perf instance.
+func New(store storage.Store, cache *cache.Cache) *Perf {
 	page := template.Must(template.New("page").Parse(string(MustAsset("page.html"))))
 	_ = template.Must(page.Parse(widgets.TimeSeriesInitTemplate))
 	_ = template.Must(page.Parse(widgets.TimeSeriesTemplate))
 
-	return &topic{
+	return &Perf{
 		store: store,
 		cache: cache,
 		page:  page,
 	}
 }
 
-func (t *topic) Title() string {
-	return "Performance"
-}
+// Renders the HTML for this topic.
+func (p *Perf) Render(req *http.Request) (types.RenderInfo, error) {
+	var sb strings.Builder
+	if err := p.page.Execute(&sb, p.getPerformanceResults()); err != nil {
+		return types.RenderInfo{}, err
+	}
 
-func (t *topic) Description() string {
-	return "Learn about Istio performance."
-}
-
-func (t *topic) URLSuffix() string {
-	return "/perf"
-}
-
-func (t *topic) Subtopics() []dashboard.Topic {
-	return nil
-}
-
-func (t *topic) Configure(htmlRouter *mux.Router, apiRouter *mux.Router, context dashboard.RenderContext, opt *dashboard.Options) {
-	htmlRouter.StrictSlash(true).
-		Path("/").
-		Methods("GET").
-		HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			sb := &strings.Builder{}
-			if err := t.page.Execute(sb, t.getPerformanceResults()); err != nil {
-				context.RenderHTMLError(w, err)
-				return
-			}
-
-			context.RenderHTML(w, "", sb.String(), "")
-		})
-
-	apiRouter.StrictSlash(true).
-		Path("/").
-		Methods("GET").
-		HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			context.RenderJSON(w, http.StatusOK, t.getPerformanceResults())
-		})
+	return types.RenderInfo{
+		Content: sb.String(),
+	}, nil
 }
 
 type Result struct {
@@ -91,14 +66,14 @@ type Result struct {
 	Target     string
 }
 
-func (t *topic) getPerformanceResults() []Result {
+func (p *Perf) getPerformanceResults() []Result {
 	results := []Result{
-		{Name: "Perf Test 1", Target: "perftest1", TimeSeries: t.getTimeSeries1()},
-		{Name: "Perf Test 2", Target: "perftest2", TimeSeries: t.getTimeSeries2()}}
+		{Name: "Perf Test 1", Target: "perftest1", TimeSeries: p.getTimeSeries1()},
+		{Name: "Perf Test 2", Target: "perftest2", TimeSeries: p.getTimeSeries2()}}
 	return results
 }
 
-func (t *topic) getTimeSeries1() string {
+func (p *Perf) getTimeSeries1() string {
 	return `[
 		{"date": "2014-01-01", "value": 109865},
 		{"date": "2014-01-02", "value": 34579},
@@ -133,7 +108,7 @@ func (t *topic) getTimeSeries1() string {
 		{"date": "2014-01-31", "value": 26177}]`
 }
 
-func (t *topic) getTimeSeries2() string {
+func (p *Perf) getTimeSeries2() string {
 	return `[
 		{"date": "2014-01-01", "value": 26547},
 		{"date": "2014-01-02", "value": 978098},

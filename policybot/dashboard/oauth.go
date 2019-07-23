@@ -23,58 +23,47 @@ import (
 	"net/url"
 )
 
-type loginHandler struct {
-	clientID    string
-	secretState string
-}
-
-type callbackHandler struct {
+type oauthHandler struct {
 	clientID     string
 	clientSecret string
 	secretState  string
-	rc           RenderContext
 }
 
 // Support for GitHub oauth flow
-func newOAuthHandlers(clientID string, clientSecret string, rc RenderContext) (login http.Handler, callback http.Handler) {
+func newOAuthHandler(clientID string, clientSecret string) *oauthHandler {
 	// secret state for OAuth exchanges
 	secretState := make([]byte, 32)
 	_, _ = rand.Read(secretState)
 
 	ss := base64.StdEncoding.EncodeToString(secretState)
 
-	return &loginHandler{
-			clientID:    clientID,
-			secretState: ss,
-		}, &callbackHandler{
-			clientID:     clientID,
-			secretState:  ss,
-			clientSecret: clientSecret,
-			rc:           rc,
-		}
+	return &oauthHandler{
+		clientID:     clientID,
+		secretState:  ss,
+		clientSecret: clientSecret,
+	}
 }
 
-func (h *loginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *oauthHandler) ServeLogin(w http.ResponseWriter, r *http.Request) error {
 	v := url.Values{}
 	v.Add("client_id", h.clientID)
 	v.Add("scope", "user,repo")
 	v.Add("state", h.secretState)
 
-	url := "https://github.com/login/oauth/authorize?" + v.Encode()
-	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
+	redirectURL := "https://github.com/login/oauth/authorize?" + v.Encode()
+	http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)
+	return nil
 }
 
-func (h *callbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *oauthHandler) ServeCallback(w http.ResponseWriter, r *http.Request) error {
 	httpClient := http.Client{}
 
 	if err := r.ParseForm(); err != nil {
-		h.rc.RenderHTMLError(w, fmt.Errorf("unable to parse query: %v", err))
-		return
+		return fmt.Errorf("unable to parse query: %v", err)
 	}
 
 	if r.FormValue("state") != h.secretState {
-		h.rc.RenderHTMLError(w, fmt.Errorf("unable to verify request state"))
-		return
+		return fmt.Errorf("unable to verify request state")
 	}
 
 	v := url.Values{}
@@ -85,8 +74,7 @@ func (h *callbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	url := "https://github.com/login/oauth/access_token?" + v.Encode()
 	req, err := http.NewRequest(http.MethodPost, url, nil)
 	if err != nil {
-		h.rc.RenderHTMLError(w, fmt.Errorf("unable to create request: %v", err))
-		return
+		return fmt.Errorf("unable to create request: %v", err)
 	}
 	// ask for the response in JSON
 	req.Header.Set("accept", "application/json")
@@ -94,20 +82,20 @@ func (h *callbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// send out the request to GitHub for the access token
 	res, err := httpClient.Do(req)
 	if err != nil {
-		h.rc.RenderHTMLError(w, fmt.Errorf("unable to contact GitHub: %v", err))
-		return
+		return fmt.Errorf("unable to contact GitHub: %v", err)
 	}
 	defer res.Body.Close()
 
 	var t oauthAccessResponse
 	if err := json.NewDecoder(res.Body).Decode(&t); err != nil {
-		h.rc.RenderHTMLError(w, fmt.Errorf("unable to parse response from GitHub: %v", err))
-		return
+		return fmt.Errorf("unable to parse response from GitHub: %v", err)
 	}
 
 	// finally, have GitHub redirect the user to the home page, passing the access token to the page
 	w.Header().Set("Location", "/?access_token="+t.AccessToken)
 	w.WriteHeader(http.StatusFound)
+
+	return nil
 }
 
 type oauthAccessResponse struct {

@@ -6,9 +6,10 @@
 	            Istio Eng Dashboard
         	</div>
 
-			{{ $topics := getTopics }}
+			{{ $topics := .Entries }}
+            {{ $selectedEntry := .SelectedEntry }}
             <div class="body default" aria-labelledby="header0">
-				{{ template "sidebar_level" (dict "topics" $topics "current" . "collapse" false "top" true "labelledby" "header0" ) }}
+				{{ template "sidebar_level" (dict "topics" $topics "collapse" false "top" true "labelledby" "header0" "selectedEntry" $selectedEntry ) }}
 			</div>
         </div>
     </div>

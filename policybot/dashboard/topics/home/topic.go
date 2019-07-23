@@ -21,49 +21,38 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/gorilla/mux"
-
-	"istio.io/bots/policybot/dashboard"
+	"istio.io/bots/policybot/dashboard/types"
 )
 
-type topic struct {
-	topics []*dashboard.RegisteredTopic
-	home   *template.Template
+// Home provides the landing page for the UI dashboard
+type Home struct {
+	page    *template.Template
+	entries []Entry
 }
 
-func NewTopic(topics []*dashboard.RegisteredTopic) dashboard.Topic {
-	return &topic{
-		topics: topics,
-		home:   template.Must(template.New("home").Parse(string(MustAsset("page.html")))),
+// A single entry to display on the dashboard landing page
+type Entry struct {
+	Title       string
+	Description string
+	URL         string
+}
+
+// New creates a new Home instance.
+func New(entries []Entry) *Home {
+	return &Home{
+		page:    template.Must(template.New("home").Parse(string(MustAsset("page.html")))),
+		entries: entries,
 	}
 }
 
-func (t *topic) Title() string {
-	return ""
-}
+// Renders the HTML for this topic.
+func (h *Home) Render(req *http.Request) (types.RenderInfo, error) {
+	var sb strings.Builder
+	if err := h.page.Execute(&sb, h.entries); err != nil {
+		return types.RenderInfo{}, err
+	}
 
-func (t *topic) Description() string {
-	return "Istio engineering dashboard"
-}
-
-func (t *topic) URLSuffix() string {
-	return ""
-}
-
-func (t *topic) Subtopics() []dashboard.Topic {
-	return nil
-}
-
-func (t *topic) Configure(htmlRouter *mux.Router, apiRouter *mux.Router, context dashboard.RenderContext, opt *dashboard.Options) {
-	htmlRouter.StrictSlash(true).
-		Path("/").
-		Methods("GET").
-		HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			sb := &strings.Builder{}
-			if err := t.home.Execute(sb, t.topics); err != nil {
-				context.RenderHTMLError(w, err)
-			} else {
-				context.RenderHTML(w, "", sb.String(), "")
-			}
-		})
+	return types.RenderInfo{
+		Content: sb.String(),
+	}, nil
 }

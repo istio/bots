@@ -15,10 +15,40 @@
 package config
 
 import (
-	"bytes"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 )
+
+// Work around the fact time.Duration doesn't support JSON serialization for some reason
+type Duration time.Duration
+
+func (d Duration) MarshalJSON() ([]byte, error) {
+	return json.Marshal(time.Duration(d).String())
+}
+
+func (d *Duration) UnmarshalJSON(b []byte) error {
+	var v interface{}
+	if err := json.Unmarshal(b, &v); err != nil {
+		return err
+	}
+	switch value := v.(type) {
+	case float64:
+		*d = Duration(time.Duration(value))
+		return nil
+	case string:
+		tmp, err := time.ParseDuration(value)
+		if err != nil {
+			return err
+		}
+		*d = Duration(tmp)
+		return nil
+	default:
+		return errors.New("invalid duration value %s")
+	}
+}
 
 // StartupOptions are set when the process starts and cannot be updated afterwards.
 type StartupOptions struct {
@@ -161,7 +191,7 @@ type Args struct {
 	// Name to use as sender when sending emails
 	EmailFrom string `json:"email_from"`
 
-	// BucketName to use to directo to gcs bucket
+	// BucketName to use to direct to gcs bucket
 	BucketName string `json:"bucket_name"`
 
 	// Email address to use as originating address when sending emails
@@ -173,7 +203,14 @@ type Args struct {
 	// Labels to create in all repos being controlled
 	LabelsToCreate []Label `json:"labels_to_create"`
 
+	// Name of GCP project that holds the GCS test buckets
 	GCPProject string `json:"gcp_project"`
+
+	// Time window within which a maintainer is considered active on the project
+	MaintainerActivityWindow Duration `json:"maintainer_activity_window"`
+
+	// Default GitHub org to use in the UI when none is specified
+	DefaultOrg string `json:"default_org"`
 }
 
 func DefaultArgs() *Args {
@@ -187,28 +224,30 @@ func DefaultArgs() *Args {
 
 // String produces a stringified version of the arguments for debugging.
 func (a *Args) String() string {
-	buf := &bytes.Buffer{}
+	var sb strings.Builder
 
 	// don't output secrets in the logs...
-	// _, _ = fmt.Fprintf(buf, "GitHubWebhookSecret: %s\n", a.StartupOptions.GitHubWebhookSecret)
-	// _, _ = fmt.Fprintf(buf, "GitHubToken: %s\n", a.StartupOptions.GitHubToken)
-	// _, _ = fmt.Fprintf(buf, "GCPCredentials: %s\n", a.StartupOptions.GCPCredentials)
-	// _, _ = fmt.Fprintf(buf, "SendGridAPIKey: %s\n", a.StartupOptions.SendGridAPIKey)
-	// _, _ = fmt.Fprintf(buf, "ZenHubToken: %s\n", a.StartupOptions.ZenHubToken)
-	// _, _ = fmt.Fprintf(buf, "GitHubOAuthClientSecret: %s\n", a.StartupOptions.GitHubOAuthClientSecret)
-	// _, _ = fmt.Fprintf(buf, "GitHubOAuthClientID: %s\n", a.StartupOptions.GitHubOAuthClientID)
+	// _, _ = fmt.Fprintf(&sb, "GitHubWebhookSecret: %s\n", a.StartupOptions.GitHubWebhookSecret)
+	// _, _ = fmt.Fprintf(&sb, "GitHubToken: %s\n", a.StartupOptions.GitHubToken)
+	// _, _ = fmt.Fprintf(&sb, "GCPCredentials: %s\n", a.StartupOptions.GCPCredentials)
+	// _, _ = fmt.Fprintf(&sb, "SendGridAPIKey: %s\n", a.StartupOptions.SendGridAPIKey)
+	// _, _ = fmt.Fprintf(&sb, "ZenHubToken: %s\n", a.StartupOptions.ZenHubToken)
+	// _, _ = fmt.Fprintf(&sb, "GitHubOAuthClientSecret: %s\n", a.StartupOptions.GitHubOAuthClientSecret)
+	// _, _ = fmt.Fprintf(&sb, "GitHubOAuthClientID: %s\n", a.StartupOptions.GitHubOAuthClientID)
 
-	_, _ = fmt.Fprintf(buf, "StartupOptions.ConfigFile: %s\n", a.StartupOptions.ConfigFile)
-	_, _ = fmt.Fprintf(buf, "StartupOptions.ConfigRepo: %s\n", a.StartupOptions.ConfigRepo)
-	_, _ = fmt.Fprintf(buf, "StartupOptions.Port: %d\n", a.StartupOptions.Port)
-	_, _ = fmt.Fprintf(buf, "SpannerDatabase: %s\n", a.SpannerDatabase)
-	_, _ = fmt.Fprintf(buf, "Orgs: %+v\n", a.Orgs)
-	_, _ = fmt.Fprintf(buf, "Nags: %+v\n", a.Nags)
-	_, _ = fmt.Fprintf(buf, "AutoLabels: %+v\n", a.AutoLabels)
-	_, _ = fmt.Fprintf(buf, "EmailFrom: %s\n", a.EmailFrom)
-	_, _ = fmt.Fprintf(buf, "EmailOriginAddress: %s\n", a.EmailOriginAddress)
-	_, _ = fmt.Fprintf(buf, "CacheTTL: %s\n", a.CacheTTL)
-	_, _ = fmt.Fprintf(buf, "GCPProject: %s\n", a.GCPProject)
+	_, _ = fmt.Fprintf(&sb, "StartupOptions.ConfigFile: %s\n", a.StartupOptions.ConfigFile)
+	_, _ = fmt.Fprintf(&sb, "StartupOptions.ConfigRepo: %s\n", a.StartupOptions.ConfigRepo)
+	_, _ = fmt.Fprintf(&sb, "StartupOptions.Port: %d\n", a.StartupOptions.Port)
+	_, _ = fmt.Fprintf(&sb, "SpannerDatabase: %s\n", a.SpannerDatabase)
+	_, _ = fmt.Fprintf(&sb, "Orgs: %+v\n", a.Orgs)
+	_, _ = fmt.Fprintf(&sb, "Nags: %+v\n", a.Nags)
+	_, _ = fmt.Fprintf(&sb, "AutoLabels: %+v\n", a.AutoLabels)
+	_, _ = fmt.Fprintf(&sb, "EmailFrom: %s\n", a.EmailFrom)
+	_, _ = fmt.Fprintf(&sb, "EmailOriginAddress: %s\n", a.EmailOriginAddress)
+	_, _ = fmt.Fprintf(&sb, "CacheTTL: %s\n", a.CacheTTL)
+	_, _ = fmt.Fprintf(&sb, "GCPProject: %s\n", a.GCPProject)
+	_, _ = fmt.Fprintf(&sb, "MaintainerActivityWindow: %v\n", a.MaintainerActivityWindow)
+	_, _ = fmt.Fprintf(&sb, "DefaultOrg: %v\n", a.DefaultOrg)
 
-	return buf.String()
+	return sb.String()
 }

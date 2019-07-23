@@ -19,55 +19,31 @@ package flakes
 import (
 	"net/http"
 
-	"github.com/gorilla/mux"
+	"istio.io/bots/policybot/dashboard/types"
 
-	"istio.io/bots/policybot/dashboard"
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
 )
 
-type topic struct {
+// Flakes lets users visualize the set of outstanding test flakes in the project.
+type Flakes struct {
 	store storage.Store
 	cache *cache.Cache
+	page  string
 }
 
-func NewTopic(store storage.Store, cache *cache.Cache) dashboard.Topic {
-	return &topic{
+// New creates a new Flakes instance.
+func New(store storage.Store, cache *cache.Cache) *Flakes {
+	return &Flakes{
 		store: store,
 		cache: cache,
+		page:  string(MustAsset("page.html")),
 	}
 }
 
-func (t *topic) Title() string {
-	return "Test Flakes"
-}
-
-func (t *topic) Description() string {
-	return "Discover the wonderful world of test flakes."
-}
-
-func (t *topic) URLSuffix() string {
-	return "/flakes"
-}
-
-func (t *topic) Subtopics() []dashboard.Topic {
-	return nil
-}
-
-func (t *topic) Configure(htmlRouter *mux.Router, apiRouter *mux.Router, context dashboard.RenderContext, opt *dashboard.Options) {
-	page := string(MustAsset("page.html"))
-
-	htmlRouter.StrictSlash(true).
-		Path("/").
-		Methods("GET").
-		HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			context.RenderHTML(w, "", page, "")
-		})
-
-	apiRouter.StrictSlash(true).
-		Path("/").
-		Methods("GET").
-		HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			context.RenderJSON(w, http.StatusOK, nil)
-		})
+// Renders the HTML for this topic.
+func (f *Flakes) Render(req *http.Request) (types.RenderInfo, error) {
+	return types.RenderInfo{
+		Content: f.page,
+	}, nil
 }

@@ -26,10 +26,11 @@ import (
 	"strings"
 	"time"
 
+	"istio.io/bots/policybot/dashboard/types"
+
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 
-	"istio.io/bots/policybot/dashboard"
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
 	"istio.io/bots/policybot/pkg/util"
@@ -37,15 +38,16 @@ import (
 	"istio.io/pkg/log"
 )
 
-type topic struct {
-	store         storage.Store
-	cache         *cache.Cache
-	combos        rawcache.ExpiringCache
-	context       dashboard.RenderContext
-	options       *dashboard.Options
-	single        *template.Template
-	user          *template.Template
-	singleControl *template.Template
+// Maintainers lets users view information about project maintainers.
+type Maintainers struct {
+	store          storage.Store
+	cache          *cache.Cache
+	combos         rawcache.ExpiringCache
+	single         *template.Template
+	user           *template.Template
+	singleControl  *template.Template
+	activityWindow time.Duration
+	defaultOrg     string
 }
 
 type combo struct {
@@ -54,8 +56,6 @@ type combo struct {
 	MaintainerInfo *storage.MaintainerInfo
 	TimeZero       time.Time // hack to provide a zero-initialized timestamp to the Go templates
 }
-
-const activityWindow = time.Hour * 24 * 90
 
 type filterFlags int
 
@@ -66,7 +66,8 @@ const (
 	emeritus                     = 1 << 2
 )
 
-func NewTopic(store storage.Store, cache *cache.Cache, cacheTTL time.Duration) dashboard.Topic {
+// New creates a new Maintainers instance
+func New(store storage.Store, cache *cache.Cache, cacheTTL time.Duration, activityWindow time.Duration, defaultOrg string) *Maintainers {
 	// purge the cache every 10 seconds
 	evictionInterval := 10 * time.Second
 	if cacheTTL < 20*time.Second {
@@ -74,113 +75,69 @@ func NewTopic(store storage.Store, cache *cache.Cache, cacheTTL time.Duration) d
 		evictionInterval = cacheTTL / 2
 	}
 
-	return &topic{
-		store:         store,
-		cache:         cache,
-		combos:        rawcache.NewTTL(cacheTTL, evictionInterval),
-		single:        template.Must(template.New("single").Parse(string(MustAsset("single.html")))),
-		user:          template.Must(template.New("user").Parse(string(MustAsset("user.html")))),
-		singleControl: template.Must(template.New("singleControl").Parse(string(MustAsset("single_control.html")))),
+	return &Maintainers{
+		store:          store,
+		cache:          cache,
+		combos:         rawcache.NewTTL(cacheTTL, evictionInterval),
+		single:         template.Must(template.New("single").Parse(string(MustAsset("single.html")))),
+		user:           template.Must(template.New("user").Parse(string(MustAsset("user.html")))),
+		singleControl:  template.Must(template.New("singleControl").Parse(string(MustAsset("single_control.html")))),
+		activityWindow: activityWindow,
+		defaultOrg:     defaultOrg,
 	}
 }
 
-func (t *topic) Title() string {
-	return "Org Maintainers"
-}
-
-func (t *topic) Description() string {
-	return "Learn about folks that maintain Istio."
-}
-
-func (t *topic) URLSuffix() string {
-	return "/maintainers"
-}
-
-func (t *topic) Subtopics() []dashboard.Topic {
-	return []dashboard.Topic{
-		filteredTopic{"Recently Active", "Maintainers who have been recently active on the project", "?filter=active"},
-		filteredTopic{"Recently Inactive", "Maintainers who have been recently inactive on the project", "?filter=inactive"},
-		filteredTopic{"Emeritus", "Maintainers who are no longer involved with the project", "?filter=emeritus"},
-	}
-}
-
-func (t *topic) Configure(htmlRouter *mux.Router, apiRouter *mux.Router, context dashboard.RenderContext, opt *dashboard.Options) {
-	t.context = context
-	t.options = opt
-
-	htmlRouter.StrictSlash(true).
-		Path("/").
-		Methods("GET").
-		HandlerFunc(t.handleMaintainersListHTML)
-
-	htmlRouter.StrictSlash(true).
-		Path("/{login}").
-		Methods("GET").
-		HandlerFunc(t.handleSingleMaintainerHTML)
-
-	apiRouter.StrictSlash(true).
-		Path("/").
-		Methods("GET").
-		HandlerFunc(t.handleMaintainerListJSON)
-}
-
-func (t *topic) handleSingleMaintainerHTML(w http.ResponseWriter, r *http.Request) {
-	orgLogin := r.URL.Query().Get("org")
+// Renders the HTML for a single maintainer.
+func (m *Maintainers) RenderSingle(req *http.Request) (types.RenderInfo, error) {
+	orgLogin := req.URL.Query().Get("org")
 	if orgLogin == "" {
-		orgLogin = t.options.DefaultOrg
+		orgLogin = m.defaultOrg
 	}
 
-	userLogin := mux.Vars(r)["login"]
+	userLogin := mux.Vars(req)["login"]
 
-	g, err := t.getSingleMaintainerInfo(r.Context(), orgLogin, userLogin)
+	g, err := m.getSingleMaintainerInfo(req.Context(), orgLogin, userLogin)
 	if err != nil {
-		t.context.RenderHTMLError(w, err)
-		return
+		return types.RenderInfo{}, err
 	}
 
-	content := &strings.Builder{}
-	if err := t.single.Execute(content, g); err != nil {
-		t.context.RenderHTMLError(w, err)
-		return
+	var content strings.Builder
+	if err := m.single.Execute(&content, g); err != nil {
+		return types.RenderInfo{}, err
 	}
 
-	control := &strings.Builder{}
-	if err := t.singleControl.Execute(control, g); err != nil {
-		t.context.RenderHTMLError(w, err)
-		return
+	var control strings.Builder
+	if err := m.singleControl.Execute(&control, g); err != nil {
+		return types.RenderInfo{}, err
 	}
 
-	name := g.User.Name
-	if name == "" {
-		name = g.User.UserLogin
-	}
-
-	t.context.RenderHTML(w, name, content.String(), control.String())
+	return types.RenderInfo{
+		Content: content.String(),
+		Control: control.String(),
+	}, nil
 }
 
-func (t *topic) handleMaintainersListHTML(w http.ResponseWriter, r *http.Request) {
-	orgLogin := r.URL.Query().Get("org")
+// Renders the HTML for the list of maintainers.
+func (m *Maintainers) RenderList(req *http.Request) (types.RenderInfo, error) {
+	orgLogin := req.URL.Query().Get("org")
 	if orgLogin == "" {
-		orgLogin = t.options.DefaultOrg
+		orgLogin = m.defaultOrg
 	}
 
-	filter, err := convFilterFlags(r.URL.Query().Get("filter"))
+	filter, err := convFilterFlags(req.URL.Query().Get("filter"))
 	if err != nil {
-		t.context.RenderHTMLError(w, util.HTTPErrorf(http.StatusBadRequest, "invalid filter expression %s specified", r.URL.Query().Get("filter")))
-		return
+		return types.RenderInfo{}, util.HTTPErrorf(http.StatusBadRequest, "invalid filter expression %s specified", req.URL.Query().Get("filter"))
 	}
 
-	org, err := t.cache.ReadOrg(r.Context(), orgLogin)
+	org, err := m.cache.ReadOrg(req.Context(), orgLogin)
 	if err != nil {
-		t.context.RenderHTMLError(w, util.HTTPErrorf(http.StatusInternalServerError, "unable to get information on organization %s: %v", orgLogin, err))
-		return
+		return types.RenderInfo{}, err
 	} else if org == nil {
-		t.context.RenderHTMLError(w, util.HTTPErrorf(http.StatusNotFound, "no information available on organization %s", orgLogin))
-		return
+		return types.RenderInfo{}, util.HTTPErrorf(http.StatusNotFound, "no information available on organization %s", orgLogin)
 	}
 
+	title := ""
 	if filter != 0 && filter != recentlyActive|recentlyInactive {
-		title := ""
 		if bits.OnesCount(uint(filter)) > 1 {
 			title = "Filtered Maintainers"
 		} else if filter&recentlyActive != 0 {
@@ -190,35 +147,38 @@ func (t *topic) handleMaintainersListHTML(w http.ResponseWriter, r *http.Request
 		} else if filter&emeritus != 0 {
 			title = "Emeritus Maintainers"
 		}
-
-		t.context.RenderHTML(w, title, string(MustAsset("list.html")), "")
-	} else {
-		t.context.RenderHTML(w, "", string(MustAsset("list.html")), "")
 	}
+
+	return types.RenderInfo{
+		Title:   title,
+		Content: string(MustAsset("list.html")),
+	}, nil
 }
 
-func (t *topic) handleMaintainerListJSON(w http.ResponseWriter, r *http.Request) {
-	orgLogin := r.URL.Query().Get("org")
+// Returns the list of maintainers via WebSocket.
+func (m *Maintainers) GetList(w http.ResponseWriter, req *http.Request) {
+	orgLogin := req.URL.Query().Get("org")
 	if orgLogin == "" {
-		orgLogin = t.options.DefaultOrg
+		orgLogin = m.defaultOrg
 	}
 
-	filter, err := convFilterFlags(r.URL.Query().Get("filter"))
+	filter, err := convFilterFlags(req.URL.Query().Get("filter"))
 	if err != nil {
 		util.RenderError(w, util.HTTPErrorf(http.StatusBadRequest, "%v", err))
+		return
 	}
 
 	// turn the connection into a web socket
 	var upgrader websocket.Upgrader
-	c, err := upgrader.Upgrade(w, r, nil)
+	c, err := upgrader.Upgrade(w, req, nil)
 	if err != nil {
 		util.RenderError(w, util.HTTPErrorf(http.StatusInternalServerError, "%v", err))
 		return
 	}
 	defer c.Close()
 
-	if err = t.store.QueryMaintainersByOrg(r.Context(), orgLogin, func(m *storage.Maintainer) error {
-		combo, err := t.getCombo(r.Context(), m, true)
+	if err = m.store.QueryMaintainersByOrg(req.Context(), orgLogin, func(maintainer *storage.Maintainer) error {
+		combo, err := m.getCombo(req.Context(), maintainer, true)
 		if err != nil {
 			return err
 		}
@@ -229,7 +189,7 @@ func (t *topic) handleMaintainerListJSON(w http.ResponseWriter, r *http.Request)
 		}
 
 		use := false
-		cutoff := time.Now().Add(-activityWindow)
+		cutoff := time.Now().Add(-m.activityWindow)
 		if filter&recentlyActive != 0 {
 			if combo.MaintainerInfo.LastMaintenanceActivity.After(cutoff) {
 				use = true
@@ -252,8 +212,8 @@ func (t *topic) handleMaintainerListJSON(w http.ResponseWriter, r *http.Request)
 			return nil
 		}
 
-		sb := &strings.Builder{}
-		if err := t.user.Execute(sb, combo); err != nil {
+		var sb strings.Builder
+		if err := m.user.Execute(&sb, combo); err != nil {
 			return err
 		}
 
@@ -287,15 +247,15 @@ func convFilterFlags(filter string) (filterFlags, error) {
 	return result, nil
 }
 
-func (t *topic) getSingleMaintainerInfo(context context.Context, orgLogin string, userLogin string) (*combo, error) {
-	maintainer, err := t.cache.ReadMaintainer(context, orgLogin, userLogin)
+func (m *Maintainers) getSingleMaintainerInfo(context context.Context, orgLogin string, userLogin string) (*combo, error) {
+	maintainer, err := m.cache.ReadMaintainer(context, orgLogin, userLogin)
 	if err != nil {
 		return nil, util.HTTPErrorf(http.StatusInternalServerError, "unable to get information on maintainer %s: %v", userLogin, err)
 	} else if maintainer == nil {
 		return nil, util.HTTPErrorf(http.StatusNotFound, "no information available on maintainer %s", userLogin)
 	}
 
-	combo, err := t.getCombo(context, maintainer, false)
+	combo, err := m.getCombo(context, maintainer, false)
 	if err != nil {
 		return nil, err
 	}
@@ -303,19 +263,19 @@ func (t *topic) getSingleMaintainerInfo(context context.Context, orgLogin string
 	return combo, err
 }
 
-func (t *topic) getCombo(context context.Context, maintainer *storage.Maintainer, skipUnknowns bool) (*combo, error) {
-	if result, ok := t.combos.Get(maintainer.OrgLogin + maintainer.UserLogin); ok {
+func (m *Maintainers) getCombo(context context.Context, maintainer *storage.Maintainer, skipUnknowns bool) (*combo, error) {
+	if result, ok := m.combos.Get(maintainer.OrgLogin + maintainer.UserLogin); ok {
 		return result.(*combo), nil
 	}
 
-	org, err := t.cache.ReadOrg(context, maintainer.OrgLogin)
+	org, err := m.cache.ReadOrg(context, maintainer.OrgLogin)
 	if err != nil {
 		return nil, util.HTTPErrorf(http.StatusInternalServerError, "unable to get information on organization %s: %v", maintainer.OrgLogin, err)
 	} else if org == nil {
 		return nil, util.HTTPErrorf(http.StatusNotFound, "no information available on organization %s", maintainer.OrgLogin)
 	}
 
-	user, err := t.cache.ReadUser(context, maintainer.UserLogin)
+	user, err := m.cache.ReadUser(context, maintainer.UserLogin)
 	if err != nil {
 		return nil, util.HTTPErrorf(http.StatusInternalServerError, "unable to read from storage: %v", err)
 	} else if user == nil {
@@ -327,7 +287,7 @@ func (t *topic) getCombo(context context.Context, maintainer *storage.Maintainer
 
 	var info *storage.MaintainerInfo
 	if maintainer.CachedInfo == "" {
-		info, err = t.store.QueryMaintainerInfo(context, maintainer)
+		info, err = m.store.QueryMaintainerInfo(context, maintainer)
 		if err != nil {
 			return nil, util.HTTPErrorf(http.StatusInternalServerError, "unable to get information about maintainer %s: %v", maintainer.UserLogin, err)
 		}
@@ -346,6 +306,6 @@ func (t *topic) getCombo(context context.Context, maintainer *storage.Maintainer
 		MaintainerInfo: info,
 	}
 
-	t.combos.Set(org.OrgLogin+user.UserLogin, combo)
+	m.combos.Set(org.OrgLogin+user.UserLogin, combo)
 	return combo, nil
 }

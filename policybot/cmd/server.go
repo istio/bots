@@ -27,16 +27,6 @@ import (
 	"google.golang.org/grpc/grpclog"
 
 	"istio.io/bots/policybot/dashboard"
-	"istio.io/bots/policybot/dashboard/topics/commithub"
-	"istio.io/bots/policybot/dashboard/topics/coverage"
-	"istio.io/bots/policybot/dashboard/topics/features"
-	"istio.io/bots/policybot/dashboard/topics/flakes"
-	"istio.io/bots/policybot/dashboard/topics/home"
-	"istio.io/bots/policybot/dashboard/topics/issues"
-	"istio.io/bots/policybot/dashboard/topics/maintainers"
-	"istio.io/bots/policybot/dashboard/topics/members"
-	"istio.io/bots/policybot/dashboard/topics/perf"
-	"istio.io/bots/policybot/dashboard/topics/pullrequests"
 	"istio.io/bots/policybot/handlers/githubwebhook"
 	"istio.io/bots/policybot/handlers/githubwebhook/filters"
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/cfgmonitor"
@@ -266,19 +256,8 @@ func runWithConfig(a *config.Args) error {
 	router.Handle("/githubwebhook", githubwebhook.NewHandler(a.StartupOptions.GitHubWebhookSecret, filters...)).Methods("POST")
 	router.Handle("/zenhubwebhook", zenhubwebhook.NewHandler(store, cache)).Methods("POST")
 
-	// UI topics
-	dashboard := dashboard.New(router, a.StartupOptions.GitHubOAuthClientID, a.StartupOptions.GitHubOAuthClientSecret)
-	dashboard.RegisterTopic(maintainers.NewTopic(store, cache, a.CacheTTL))
-	dashboard.RegisterTopic(members.NewTopic(store, cache))
-	dashboard.RegisterTopic(issues.NewTopic(store, cache))
-	dashboard.RegisterTopic(pullrequests.NewTopic(store, cache))
-	dashboard.RegisterTopic(perf.NewTopic(store, cache))
-	dashboard.RegisterTopic(commithub.NewTopic(store, cache))
-	dashboard.RegisterTopic(flakes.NewTopic(store, cache))
-	dashboard.RegisterTopic(coverage.NewTopic(store, cache))
-	dashboard.RegisterTopic(features.NewTopic(store, cache))
-	dashboard.RegisterTopic(home.NewTopic(dashboard.Topics()))
-	dashboard.RegisterPageNotFound()
+	// prep the UI
+	_ = dashboard.New(router, store, cache, a)
 
 	log.Infof("Listening on port %d", a.StartupOptions.Port)
 	err = httpServer.Serve(s.listener)
