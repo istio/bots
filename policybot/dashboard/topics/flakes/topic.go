@@ -25,12 +25,14 @@ import (
 	"istio.io/bots/policybot/pkg/storage/cache"
 )
 
+// Flakes lets users visualize the set of outstanding test flakes in the project.
 type Flakes struct {
 	store storage.Store
 	cache *cache.Cache
 	page  string
 }
 
+// New creates a new Flakes instance.
 func New(store storage.Store, cache *cache.Cache) *Flakes {
 	return &Flakes{
 		store: store,
@@ -39,6 +41,7 @@ func New(store storage.Store, cache *cache.Cache) *Flakes {
 	}
 }
 
+// Renders the HTML for this topic.
 func (f *Flakes) Render(req *http.Request) (types.RenderInfo, error) {
 	return types.RenderInfo{
 		Content: f.page,

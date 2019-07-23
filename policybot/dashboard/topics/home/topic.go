@@ -24,17 +24,20 @@ import (
 	"istio.io/bots/policybot/dashboard/types"
 )
 
+// Home provides the landing page for the UI dashboard
 type Home struct {
 	page    *template.Template
 	entries []Entry
 }
 
+// A single entry to display on the dashboard landing page
 type Entry struct {
 	Title       string
 	Description string
 	URL         string
 }
 
+// New creates a new Home instance.
 func New(entries []Entry) *Home {
 	return &Home{
 		page:    template.Must(template.New("home").Parse(string(MustAsset("page.html")))),
@@ -42,9 +45,10 @@ func New(entries []Entry) *Home {
 	}
 }
 
+// Renders the HTML for this topic.
 func (h *Home) Render(req *http.Request) (types.RenderInfo, error) {
-	sb := &strings.Builder{}
-	if err := h.page.Execute(sb, h.entries); err != nil {
+	var sb strings.Builder
+	if err := h.page.Execute(&sb, h.entries); err != nil {
 		return types.RenderInfo{}, err
 	}
 

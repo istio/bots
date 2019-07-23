@@ -25,12 +25,14 @@ import (
 	"istio.io/bots/policybot/pkg/storage/cache"
 )
 
+// PullRequests lets users visualize critical information about the project's outstanding pull requests.
 type PullRequests struct {
 	store storage.Store
 	cache *cache.Cache
 	page  string
 }
 
+// New creates a new PullRequests instance.
 func New(store storage.Store, cache *cache.Cache) *PullRequests {
 	return &PullRequests{
 		store: store,
@@ -39,6 +41,7 @@ func New(store storage.Store, cache *cache.Cache) *PullRequests {
 	}
 }
 
+// Renders the HTML for this topic.
 func (pr *PullRequests) Render(req *http.Request) (types.RenderInfo, error) {
 	return types.RenderInfo{
 		Content: pr.page,

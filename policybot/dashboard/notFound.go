@@ -32,8 +32,8 @@ func (nf notFound) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		Description: "Page Not Found",
 	}
 
-	b := &bytes.Buffer{}
-	if err := nf.templates.Execute(b, info); err != nil {
+	var b bytes.Buffer
+	if err := nf.templates.Execute(&b, info); err != nil {
 		util.RenderError(w, util.HTTPErrorf(http.StatusNotFound, "Page Not Found"))
 		return
 	}

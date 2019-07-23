@@ -25,12 +25,14 @@ import (
 	"istio.io/bots/policybot/pkg/storage/cache"
 )
 
+// Feature lets user visualize the set of existing features and associated test plans.
 type Feature struct {
 	store storage.Store
 	cache *cache.Cache
 	page  string
 }
 
+// New creates a new Feature instance.
 func New(store storage.Store, cache *cache.Cache) *Feature {
 	return &Feature{
 		store: store,
@@ -39,6 +41,7 @@ func New(store storage.Store, cache *cache.Cache) *Feature {
 	}
 }
 
+// Renders the HTML for this topic.
 func (f *Feature) Render(req *http.Request) (types.RenderInfo, error) {
 	return types.RenderInfo{
 		Content: f.page,

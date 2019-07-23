@@ -30,10 +30,12 @@ import (
 	"istio.io/bots/policybot/pkg/storage/cache"
 )
 
+// Members lets users view the set of project members.
 type Members struct {
-	store storage.Store
-	cache *cache.Cache
-	page  *template.Template
+	store      storage.Store
+	cache      *cache.Cache
+	page       *template.Template
+	defaultOrg string
 }
 
 type memberInfo struct {
@@ -43,18 +45,21 @@ type memberInfo struct {
 	AvatarURL string `json:"avatar_url"`
 }
 
-func New(store storage.Store, cache *cache.Cache) *Members {
+// New creates a new Members instance.
+func New(store storage.Store, cache *cache.Cache, defaultOrg string) *Members {
 	return &Members{
-		store: store,
-		cache: cache,
-		page:  template.Must(template.New("page").Parse(string(MustAsset("page.html")))),
+		store:      store,
+		cache:      cache,
+		page:       template.Must(template.New("page").Parse(string(MustAsset("page.html")))),
+		defaultOrg: defaultOrg,
 	}
 }
 
+// Renders the HTML for this topic.
 func (m *Members) RenderList(req *http.Request) (types.RenderInfo, error) {
 	orgLogin := req.URL.Query().Get("org")
 	if orgLogin == "" {
-		orgLogin = "istio" // TODO
+		orgLogin = m.defaultOrg
 	}
 
 	mi, err := m.getMembers(req.Context(), orgLogin)
@@ -62,8 +67,8 @@ func (m *Members) RenderList(req *http.Request) (types.RenderInfo, error) {
 		return types.RenderInfo{}, err
 	}
 
-	sb := &strings.Builder{}
-	if err := m.page.Execute(sb, mi); err != nil {
+	var sb strings.Builder
+	if err := m.page.Execute(&sb, mi); err != nil {
 		return types.RenderInfo{}, err
 	}
 

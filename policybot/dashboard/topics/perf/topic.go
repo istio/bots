@@ -28,12 +28,14 @@ import (
 	"istio.io/bots/policybot/pkg/storage/cache"
 )
 
+// Perf lets users visualize stats about project performance.
 type Perf struct {
 	store storage.Store
 	cache *cache.Cache
 	page  *template.Template
 }
 
+// New creates a new Perf instance.
 func New(store storage.Store, cache *cache.Cache) *Perf {
 	page := template.Must(template.New("page").Parse(string(MustAsset("page.html"))))
 	_ = template.Must(page.Parse(widgets.TimeSeriesInitTemplate))
@@ -46,9 +48,10 @@ func New(store storage.Store, cache *cache.Cache) *Perf {
 	}
 }
 
+// Renders the HTML for this topic.
 func (p *Perf) Render(req *http.Request) (types.RenderInfo, error) {
-	sb := &strings.Builder{}
-	if err := p.page.Execute(sb, p.getPerformanceResults()); err != nil {
+	var sb strings.Builder
+	if err := p.page.Execute(&sb, p.getPerformanceResults()); err != nil {
 		return types.RenderInfo{}, err
 	}
 

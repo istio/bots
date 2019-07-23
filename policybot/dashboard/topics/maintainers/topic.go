@@ -38,13 +38,16 @@ import (
 	"istio.io/pkg/log"
 )
 
+// Maintainers lets users view information about project maintainers.
 type Maintainers struct {
-	store         storage.Store
-	cache         *cache.Cache
-	combos        rawcache.ExpiringCache
-	single        *template.Template
-	user          *template.Template
-	singleControl *template.Template
+	store          storage.Store
+	cache          *cache.Cache
+	combos         rawcache.ExpiringCache
+	single         *template.Template
+	user           *template.Template
+	singleControl  *template.Template
+	activityWindow time.Duration
+	defaultOrg     string
 }
 
 type combo struct {
@@ -53,8 +56,6 @@ type combo struct {
 	MaintainerInfo *storage.MaintainerInfo
 	TimeZero       time.Time // hack to provide a zero-initialized timestamp to the Go templates
 }
-
-const activityWindow = time.Hour * 24 * 90
 
 type filterFlags int
 
@@ -65,7 +66,8 @@ const (
 	emeritus                     = 1 << 2
 )
 
-func New(store storage.Store, cache *cache.Cache, cacheTTL time.Duration) *Maintainers {
+// New creates a new Maintainers instance
+func New(store storage.Store, cache *cache.Cache, cacheTTL time.Duration, activityWindow time.Duration, defaultOrg string) *Maintainers {
 	// purge the cache every 10 seconds
 	evictionInterval := 10 * time.Second
 	if cacheTTL < 20*time.Second {
@@ -74,35 +76,38 @@ func New(store storage.Store, cache *cache.Cache, cacheTTL time.Duration) *Maint
 	}
 
 	return &Maintainers{
-		store:         store,
-		cache:         cache,
-		combos:        rawcache.NewTTL(cacheTTL, evictionInterval),
-		single:        template.Must(template.New("single").Parse(string(MustAsset("single.html")))),
-		user:          template.Must(template.New("user").Parse(string(MustAsset("user.html")))),
-		singleControl: template.Must(template.New("singleControl").Parse(string(MustAsset("single_control.html")))),
+		store:          store,
+		cache:          cache,
+		combos:         rawcache.NewTTL(cacheTTL, evictionInterval),
+		single:         template.Must(template.New("single").Parse(string(MustAsset("single.html")))),
+		user:           template.Must(template.New("user").Parse(string(MustAsset("user.html")))),
+		singleControl:  template.Must(template.New("singleControl").Parse(string(MustAsset("single_control.html")))),
+		activityWindow: activityWindow,
+		defaultOrg:     defaultOrg,
 	}
 }
 
-func (t *Maintainers) RenderSingle(req *http.Request) (types.RenderInfo, error) {
+// Renders the HTML for a single maintainer.
+func (m *Maintainers) RenderSingle(req *http.Request) (types.RenderInfo, error) {
 	orgLogin := req.URL.Query().Get("org")
 	if orgLogin == "" {
-		orgLogin = "istio" // TODO
+		orgLogin = m.defaultOrg
 	}
 
 	userLogin := mux.Vars(req)["login"]
 
-	g, err := t.getSingleMaintainerInfo(req.Context(), orgLogin, userLogin)
+	g, err := m.getSingleMaintainerInfo(req.Context(), orgLogin, userLogin)
 	if err != nil {
 		return types.RenderInfo{}, err
 	}
 
-	content := &strings.Builder{}
-	if err := t.single.Execute(content, g); err != nil {
+	var content strings.Builder
+	if err := m.single.Execute(&content, g); err != nil {
 		return types.RenderInfo{}, err
 	}
 
-	control := &strings.Builder{}
-	if err := t.singleControl.Execute(control, g); err != nil {
+	var control strings.Builder
+	if err := m.singleControl.Execute(&control, g); err != nil {
 		return types.RenderInfo{}, err
 	}
 
@@ -112,10 +117,11 @@ func (t *Maintainers) RenderSingle(req *http.Request) (types.RenderInfo, error) 
 	}, nil
 }
 
-func (t *Maintainers) RenderList(req *http.Request) (types.RenderInfo, error) {
+// Renders the HTML for the list of maintainers.
+func (m *Maintainers) RenderList(req *http.Request) (types.RenderInfo, error) {
 	orgLogin := req.URL.Query().Get("org")
 	if orgLogin == "" {
-		orgLogin = "istio" // TODO
+		orgLogin = m.defaultOrg
 	}
 
 	filter, err := convFilterFlags(req.URL.Query().Get("filter"))
@@ -123,7 +129,7 @@ func (t *Maintainers) RenderList(req *http.Request) (types.RenderInfo, error) {
 		return types.RenderInfo{}, util.HTTPErrorf(http.StatusBadRequest, "invalid filter expression %s specified", req.URL.Query().Get("filter"))
 	}
 
-	org, err := t.cache.ReadOrg(req.Context(), orgLogin)
+	org, err := m.cache.ReadOrg(req.Context(), orgLogin)
 	if err != nil {
 		return types.RenderInfo{}, err
 	} else if org == nil {
@@ -149,10 +155,11 @@ func (t *Maintainers) RenderList(req *http.Request) (types.RenderInfo, error) {
 	}, nil
 }
 
-func (t *Maintainers) ListAPI(w http.ResponseWriter, req *http.Request) {
+// Returns the list of maintainers via WebSocket.
+func (m *Maintainers) GetList(w http.ResponseWriter, req *http.Request) {
 	orgLogin := req.URL.Query().Get("org")
 	if orgLogin == "" {
-		orgLogin = "istio" // TODO
+		orgLogin = m.defaultOrg
 	}
 
 	filter, err := convFilterFlags(req.URL.Query().Get("filter"))
@@ -170,8 +177,8 @@ func (t *Maintainers) ListAPI(w http.ResponseWriter, req *http.Request) {
 	}
 	defer c.Close()
 
-	if err = t.store.QueryMaintainersByOrg(req.Context(), orgLogin, func(m *storage.Maintainer) error {
-		combo, err := t.getCombo(req.Context(), m, true)
+	if err = m.store.QueryMaintainersByOrg(req.Context(), orgLogin, func(maintainer *storage.Maintainer) error {
+		combo, err := m.getCombo(req.Context(), maintainer, true)
 		if err != nil {
 			return err
 		}
@@ -182,7 +189,7 @@ func (t *Maintainers) ListAPI(w http.ResponseWriter, req *http.Request) {
 		}
 
 		use := false
-		cutoff := time.Now().Add(-activityWindow)
+		cutoff := time.Now().Add(-m.activityWindow)
 		if filter&recentlyActive != 0 {
 			if combo.MaintainerInfo.LastMaintenanceActivity.After(cutoff) {
 				use = true
@@ -205,8 +212,8 @@ func (t *Maintainers) ListAPI(w http.ResponseWriter, req *http.Request) {
 			return nil
 		}
 
-		sb := &strings.Builder{}
-		if err := t.user.Execute(sb, combo); err != nil {
+		var sb strings.Builder
+		if err := m.user.Execute(&sb, combo); err != nil {
 			return err
 		}
 
@@ -240,15 +247,15 @@ func convFilterFlags(filter string) (filterFlags, error) {
 	return result, nil
 }
 
-func (t *Maintainers) getSingleMaintainerInfo(context context.Context, orgLogin string, userLogin string) (*combo, error) {
-	maintainer, err := t.cache.ReadMaintainer(context, orgLogin, userLogin)
+func (m *Maintainers) getSingleMaintainerInfo(context context.Context, orgLogin string, userLogin string) (*combo, error) {
+	maintainer, err := m.cache.ReadMaintainer(context, orgLogin, userLogin)
 	if err != nil {
 		return nil, util.HTTPErrorf(http.StatusInternalServerError, "unable to get information on maintainer %s: %v", userLogin, err)
 	} else if maintainer == nil {
 		return nil, util.HTTPErrorf(http.StatusNotFound, "no information available on maintainer %s", userLogin)
 	}
 
-	combo, err := t.getCombo(context, maintainer, false)
+	combo, err := m.getCombo(context, maintainer, false)
 	if err != nil {
 		return nil, err
 	}
@@ -256,19 +263,19 @@ func (t *Maintainers) getSingleMaintainerInfo(context context.Context, orgLogin 
 	return combo, err
 }
 
-func (t *Maintainers) getCombo(context context.Context, maintainer *storage.Maintainer, skipUnknowns bool) (*combo, error) {
-	if result, ok := t.combos.Get(maintainer.OrgLogin + maintainer.UserLogin); ok {
+func (m *Maintainers) getCombo(context context.Context, maintainer *storage.Maintainer, skipUnknowns bool) (*combo, error) {
+	if result, ok := m.combos.Get(maintainer.OrgLogin + maintainer.UserLogin); ok {
 		return result.(*combo), nil
 	}
 
-	org, err := t.cache.ReadOrg(context, maintainer.OrgLogin)
+	org, err := m.cache.ReadOrg(context, maintainer.OrgLogin)
 	if err != nil {
 		return nil, util.HTTPErrorf(http.StatusInternalServerError, "unable to get information on organization %s: %v", maintainer.OrgLogin, err)
 	} else if org == nil {
 		return nil, util.HTTPErrorf(http.StatusNotFound, "no information available on organization %s", maintainer.OrgLogin)
 	}
 
-	user, err := t.cache.ReadUser(context, maintainer.UserLogin)
+	user, err := m.cache.ReadUser(context, maintainer.UserLogin)
 	if err != nil {
 		return nil, util.HTTPErrorf(http.StatusInternalServerError, "unable to read from storage: %v", err)
 	} else if user == nil {
@@ -280,7 +287,7 @@ func (t *Maintainers) getCombo(context context.Context, maintainer *storage.Main
 
 	var info *storage.MaintainerInfo
 	if maintainer.CachedInfo == "" {
-		info, err = t.store.QueryMaintainerInfo(context, maintainer)
+		info, err = m.store.QueryMaintainerInfo(context, maintainer)
 		if err != nil {
 			return nil, util.HTTPErrorf(http.StatusInternalServerError, "unable to get information about maintainer %s: %v", maintainer.UserLogin, err)
 		}
@@ -299,6 +306,6 @@ func (t *Maintainers) getCombo(context context.Context, maintainer *storage.Main
 		MaintainerInfo: info,
 	}
 
-	t.combos.Set(org.OrgLogin+user.UserLogin, combo)
+	m.combos.Set(org.OrgLogin+user.UserLogin, combo)
 	return combo, nil
 }

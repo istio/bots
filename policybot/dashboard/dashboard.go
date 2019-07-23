@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/gorilla/mux"
 
@@ -111,8 +112,8 @@ func New(router *mux.Router, store storage.Store, cache *cache.Cache, a *config.
 	d.registerStaticDir("dashboard/static/favicons", "/favicons/")
 
 	// topics
-	maintainers := maintainers.New(store, cache, a.CacheTTL)
-	members := members.New(store, cache)
+	maintainers := maintainers.New(store, cache, a.CacheTTL, time.Duration(a.MaintainerActivityWindow), a.DefaultOrg)
+	members := members.New(store, cache, a.DefaultOrg)
 	issues := issues.New(store, cache)
 	pullRequests := pullrequests.New(store, cache)
 	perf := perf.New(store, cache)
@@ -188,7 +189,7 @@ func New(router *mux.Router, store storage.Store, cache *cache.Cache, a *config.
 	router.HandleFunc("/githuboauthcallback", d.oauthCallback)
 
 	// API endpoints
-	d.registerAPI("/api/maintainers/", maintainers.ListAPI)
+	d.registerAPI("/api/maintainers/", maintainers.GetList)
 
 	return d
 }
@@ -239,8 +240,8 @@ func (d *Dashboard) registerUIPage(path string, render types.RenderFunc) *mux.Ro
 				SelectedEntry: entry,
 			}
 
-			b := &bytes.Buffer{}
-			if err := d.primaryTemplates.Execute(b, info); err != nil {
+			var b bytes.Buffer
+			if err := d.primaryTemplates.Execute(&b, info); err != nil {
 				d.renderError(w, err)
 				return
 			}
@@ -300,8 +301,8 @@ func (d *Dashboard) renderError(w http.ResponseWriter, err error) {
 		Content:     fmt.Sprintf("%v", err),
 	}
 
-	b := &bytes.Buffer{}
-	if tplErr := d.errorTemplates.Execute(b, info); tplErr != nil {
+	var b bytes.Buffer
+	if tplErr := d.errorTemplates.Execute(&b, info); tplErr != nil {
 		util.RenderError(w, err)
 		return
 	}

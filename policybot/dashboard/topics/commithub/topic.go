@@ -24,12 +24,14 @@ import (
 	"istio.io/bots/policybot/pkg/storage/cache"
 )
 
+// CommitHub lets users interact with their outstanding code commits.
 type CommitHub struct {
 	store storage.Store
 	cache *cache.Cache
 	page  string
 }
 
+// New creates a new CommitHub instance.
 func New(store storage.Store, cache *cache.Cache) *CommitHub {
 	return &CommitHub{
 		store: store,
@@ -38,6 +40,7 @@ func New(store storage.Store, cache *cache.Cache) *CommitHub {
 	}
 }
 
+// Renders the HTML for this topic.
 func (ch *CommitHub) Render(req *http.Request) (types.RenderInfo, error) {
 	return types.RenderInfo{
 		Content: ch.page,

@@ -25,12 +25,14 @@ import (
 	"istio.io/bots/policybot/pkg/storage/cache"
 )
 
+// Issues lets users visualize critical information about outstanding issues.
 type Issues struct {
 	store storage.Store
 	cache *cache.Cache
 	page  string
 }
 
+// New creates a new Issues instance.
 func New(store storage.Store, cache *cache.Cache) *Issues {
 	return &Issues{
 		store: store,
@@ -39,6 +41,7 @@ func New(store storage.Store, cache *cache.Cache) *Issues {
 	}
 }
 
+// Renders the HTML for this topic.
 func (is *Issues) Render(req *http.Request) (types.RenderInfo, error) {
 	return types.RenderInfo{
 		Content: is.page,

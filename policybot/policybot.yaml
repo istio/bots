@@ -2,6 +2,8 @@ spanner_db: projects/istio-testing/instances/istio-policy-bot/databases/main
 gcp_project: istio-testing
 email_from: Istio Policy Bot
 email_origin_address: noreply@istio.io
+maintainer_activity_window: 2160h
+default_org: istio
 
 nags:
   - name: Go
@@ -154,6 +156,18 @@ orgs:
         color: ff0000
         description: Set this label on a PR to auto-merge it to the release-1.3 branch
 
+      - name: 'cla: yes'
+        color: bfdadc
+        description: Set by the Google CLA bot to indicate the author of a PR has signed the Google CLA.
+
+      - name: 'cla: no'
+        color: bfdadc
+        description: Set by the Google CLA bot to indicate the author of a PR has not signed the Google CLA.
+
+      - name: 'cla: human-approved'
+        color: bfdadc
+        description: Set by a human to override the Google CLA bot.
+
     repos:
       - name: istio.io
       - name: tools
@@ -164,6 +178,6 @@ orgs:
       - name: installer
       - name: pkg
       - name: bots
-      - name: proxy
       - name: common-files
       - name: istio
+      - name: proxy

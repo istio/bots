@@ -25,12 +25,14 @@ import (
 	"istio.io/bots/policybot/pkg/storage/cache"
 )
 
+// Coverage lets users visualize system-wide code coverage statistics.
 type Coverage struct {
 	store storage.Store
 	cache *cache.Cache
 	page  string
 }
 
+// New creates a new Coverage instance
 func New(store storage.Store, cache *cache.Cache) *Coverage {
 	return &Coverage{
 		store: store,
@@ -39,6 +41,7 @@ func New(store storage.Store, cache *cache.Cache) *Coverage {
 	}
 }
 
+// Renders the HTML for this topic.
 func (c *Coverage) Render(req *http.Request) (types.RenderInfo, error) {
 	return types.RenderInfo{
 		Content: c.page,
