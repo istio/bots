@@ -118,6 +118,10 @@ CREATE TABLE PullRequests (
   Assignees ARRAY<STRING(MAX)>,
   Title STRING(MAX) NOT NULL,
   Body STRING(MAX) NOT NULL,
+  BranchName STRING(MAX) NOT NULL,
+  -- HeadCommit represents the current PR head or the merge commit SHA if the
+  -- PR is merged.
+  HeadCommit STRING(MAX) NOT NULL,
 ) PRIMARY KEY(OrgLogin, RepoName, PullRequestNumber),
   INTERLEAVE IN PARENT Repos ON DELETE CASCADE;
 

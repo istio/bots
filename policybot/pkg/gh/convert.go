@@ -15,6 +15,8 @@
 package gh
 
 import (
+	"strings"
+
 	"github.com/google/go-github/v26/github"
 
 	"istio.io/bots/policybot/pkg/storage"
@@ -137,6 +139,13 @@ func ConvertPullRequest(orgLogin string, repoName string, pr *github.PullRequest
 		reviewers[i] = user.GetLogin()
 	}
 
+	sha := pr.GetMergeCommitSHA()
+	if sha == "" { // Not merged, so use the current head
+		sha = pr.GetHead().GetSHA()
+	}
+	base := pr.GetBase().GetLabel()
+	branch := base[strings.Index(base, ":")+1:]
+
 	return &storage.PullRequest{
 		OrgLogin:           orgLogin,
 		RepoName:           repoName,
@@ -153,6 +162,8 @@ func ConvertPullRequest(orgLogin string, repoName string, pr *github.PullRequest
 		Title:              pr.GetTitle(),
 		Body:               pr.GetBody(),
 		Author:             pr.GetUser().GetLogin(),
+		HeadCommit:         &sha,
+		BranchName:         &branch,
 	}
 }
 
