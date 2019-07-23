@@ -22,10 +22,8 @@ import (
 	"net/http"
 	"time"
 
-	"cloud.google.com/go/storage"
 	"github.com/gorilla/mux"
 	"github.com/spf13/cobra"
-	"google.golang.org/api/option"
 	"google.golang.org/grpc/grpclog"
 
 	"istio.io/bots/policybot/dashboard"
@@ -208,11 +206,10 @@ func runWithConfig(a *config.Args) error {
 	}
 	defer store.Close()
 
-	cs, err := storage.NewClient(context.Background(), option.WithCredentialsJSON(creds))
+	bs, err := gcs.NewStore(context.Background(), creds)
 	if err != nil {
 		return fmt.Errorf("unable to create blob storage layer: %v", err)
 	}
-	bs := gcs.NewStore(cs)
 	defer bs.Close()
 
 	cache := cache.New(store, a.CacheTTL)
