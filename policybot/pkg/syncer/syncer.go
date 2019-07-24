@@ -31,6 +31,7 @@ import (
 	"google.golang.org/api/option"
 
 	gcs "cloud.google.com/go/storage"
+
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/resultgatherer"
@@ -775,6 +776,7 @@ func (ss *syncState) handleTestResults(org *storage.Org, repos []*storage.Repo) 
 				return err
 			}
 		}
+		// TODO: check Post Submit tests as well.
 	}
 
 	return nil

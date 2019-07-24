@@ -117,10 +117,6 @@ func (trg *TestResultGatherer) getTestsForPR(ctx context.Context, orgLogin strin
 	return trg.getTests(ctx, prefixForPr)
 }
 
-func (trg *TestResultGatherer) getPostSubmitTests(ctx context.Context) (map[string][]string, error) {
-	return trg.getTests(ctx, trg.PostSubmitPrefix)
-}
-
 // GetTest given a gcs path that contains test results in the format [testname]/[runnumber]/[resultfiles], return a map of testname to []runnumber
 // Client: client used to get buckets and objects.
 // PrNum: the PR number inputted.
@@ -263,24 +259,24 @@ func (trg *TestResultGatherer) testRunHasArtifacts(ctx context.Context, testRun 
 	return len(artifactsDir) == 1
 }
 
-// getManyResults function return the status of test passing, clone failure, sha number, base sha for each test 
+// getManyResults function return the status of test passing, clone failure, sha number, base sha for each test
 // run under each test suite for the given pr.
 // Client: client used to get buckets and objects from google cloud storage.
 // TestSlice: a slice of Tests objects containing all tests and the path to folder for each test run for the test under such pr.
 // Return a map of test suite name -- pr number -- run number -- FortestResult objects.
-func (trg *TestResultGatherer) getManyResults(ctx context.Context, testSlice map[string][]string, 
+func (trg *TestResultGatherer) getManyResults(ctx context.Context, testSlice map[string][]string,
 	orgLogin string, repoName string) ([]*store.TestResult, error) {
 
 	var allTestRuns = []*store.TestResult{}
 
 	for testName, runPaths := range testSlice {
 		for _, runPath := range runPaths {
-			if testResult, err := trg.getTestResult(ctx, testName, runPath); err != nil {
-				return nil, err
-			} else {
+			if testResult, err := trg.getTestResult(ctx, testName, runPath); err == nil {
 				testResult.OrgLogin = orgLogin
 				testResult.RepoName = repoName
 				allTestRuns = append(allTestRuns, testResult)
+			} else {
+				return nil, err
 			}
 		}
 	}
