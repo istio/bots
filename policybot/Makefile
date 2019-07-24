@@ -29,6 +29,13 @@ container: gen
 .PHONY: container
 
 push: container
+	@echo "When deploying, please make sure of the following:"
+	@echo ""
+	@echo "  1. That latest sources are up to date."
+	@echo "  2. That the dashboard is working locally."
+	@echo "  3. That eng.istio.io works after deployment."
+	@echo ""
+	@read -p "Press enter to continue."
 	@docker push $(IMG)
 	@echo "Built container and published to $(IMG)"
 .PHONY: push
