@@ -198,7 +198,7 @@ func runWithConfig(a *config.Args) error {
 
 	bs, err := gcs.NewStore(context.Background(), creds)
 	if err != nil {
-		return fmt.Errorf("unable to create blob storage lsyer: %v", err)
+		return fmt.Errorf("unable to create blob storage layer: %v", err)
 	}
 	defer bs.Close()
 

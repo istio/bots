@@ -17,10 +17,10 @@ package resultgatherer
 import (
 	"context"
 
-	s "cloud.google.com/go/storage"
 	"github.com/google/go-github/v26/github"
 
 	"istio.io/bots/policybot/handlers/githubwebhook/filters"
+	"istio.io/bots/policybot/pkg/blobstorage"
 	"istio.io/bots/policybot/pkg/config"
 	gatherer "istio.io/bots/policybot/pkg/resultgatherer"
 	"istio.io/bots/policybot/pkg/storage"
@@ -38,15 +38,10 @@ type ResultGatherer struct {
 
 var scope = log.RegisterScope("ResultGatherer", "Result gatherer for each pr test run", 0)
 
-func NewResultGatherer(store storage.Store,
+func NewResultGatherer(store storage.Store, blobStore blobstorage.Store,
 	cache *cache.Cache, orgs []config.Org, bucketName string) filters.Filter {
-	ctx := context.Background()
 
-	client, err := s.NewClient(ctx)
-	if err != nil {
-		return nil
-	}
-	testResultGatherer, err := gatherer.NewTestResultGatherer(client, bucketName)
+	testResultGatherer, err := gatherer.NewTestResultGatherer(blobStore, bucketName)
 	if err != nil {
 		scope.Errorf(err.Error())
 		return nil
