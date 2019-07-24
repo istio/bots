@@ -93,7 +93,6 @@ func (trg *TestResultGatherer) queryChan(ctx context.Context, prefix string, res
 		if err != nil {
 			continue
 		}
-		fmt.Println("writing one query result to channel")
 		result <- attrs.Prefix
 	}
 	return nil
@@ -104,7 +103,6 @@ func (trg *TestResultGatherer) query(ctx context.Context, prefix string) (result
 	go trg.queryChan(ctx, prefix, out)
 
 	for path := range out {
-		fmt.Println("de-channeling one query result")
 		result = append(result, path)
 	}
 	return
@@ -272,7 +270,7 @@ func (trg *TestResultGatherer) testRunHasArtifacts(ctx context.Context, testRun 
 // Client: client used to get buckets and objects from google cloud storage.
 // TestSlice: a slice of Tests objects containing all tests and the path to folder for each test run for the test under such pr.
 // Return a map of test suite name -- pr number -- run number -- FortestResult objects.
-func (trg *TestResultGatherer) getManyResults(ctx context.Context, testSlice map[string][]string) ([]*store.TestResult, error) {
+func (trg *TestResultGatherer) getManyResults(ctx context.Context, testSlice map[string][]string, orgLogin string, repoName string) ([]*store.TestResult, error) {
 	var allTestRuns = []*store.TestResult{}
 
 	for testName, runPaths := range testSlice {
@@ -280,9 +278,10 @@ func (trg *TestResultGatherer) getManyResults(ctx context.Context, testSlice map
 			if testResult, err := trg.getTestResult(ctx, testName, runPath); err != nil {
 				return nil, err
 			} else {
+				testResult.OrgLogin = orgLogin
+				testResult.RepoName = repoName
 				allTestRuns = append(allTestRuns, testResult)
 			}
-
 		}
 	}
 	return allTestRuns, nil
@@ -312,13 +311,14 @@ func (trg *TestResultGatherer) getTestResult(ctx context.Context, testName strin
 	testResult.StartTime = time.Unix(started.Timestamp, 0)
 
 	finished, err := trg.getInformationFromFinishedFile(ctx, testRun)
-	if err != nil {
-		return
+	if err != storage.ErrObjectNotExist {
+		if err != nil {
+			return
+		}
+		testResult.TestPassed = finished.Passed
+		testResult.Result = finished.Result
+		testResult.FinishTime = time.Unix(finished.Timestamp, 0)
 	}
-
-	testResult.TestPassed = finished.Passed
-	testResult.Result = finished.Result
-	testResult.FinishTime = time.Unix(finished.Timestamp, 0)
 
 	prefSplit := strings.Split(testRun, "/")
 
@@ -348,7 +348,7 @@ func (trg *TestResultGatherer) CheckTestResultsForPr(ctx context.Context, orgLog
 	if err != nil {
 		return nil, err
 	}
-	fullResult, err := trg.getManyResults(ctx, testSlice)
+	fullResult, err := trg.getManyResults(ctx, testSlice, orgLogin, repoName)
 
 	if err != nil {
 		return nil, err

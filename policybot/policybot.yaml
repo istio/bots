@@ -108,13 +108,13 @@ autolabels:
 
 orgs:
   - name: istio
+    bucket_name: istio-prow
+    presubmit_path: pr-logs/pull/
+
     labels_to_create:
       - name: flag/needs-release-note
         color: e02642
         description: Indicates a PR contains changes worthy of mentioning in customer-facing release notes.
-    bucket_name: istio-prow
-    presubmit_path: pr-logs/pull/
-
       - name: do-not-merge
         color: bfdadc
         description: Block automatic merging of a PR.
