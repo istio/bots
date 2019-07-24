@@ -1,14 +1,14 @@
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: istio-policybot-ingress
+  name: policybot
   annotations:
     ingress.kubernetes.io/force-ssl-redirect: "true"
 spec:
   tls:
   - secretName: istio-policybot-certs
   backend:
-    serviceName: istio-policybot
+    serviceName: policybot-server
     servicePort: 8080
 
 # This requires prior creation of sslcerts

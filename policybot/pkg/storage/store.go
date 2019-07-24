@@ -15,6 +15,7 @@
 package storage
 
 import (
+	"context"
 	"io"
 )
 
@@ -22,40 +23,53 @@ import (
 type Store interface {
 	io.Closer
 
-	WriteOrgs(orgs []*Org) error
-	WriteRepos(repos []*Repo) error
-	WriteIssues(issues []*Issue) error
-	WriteIssueComments(issueComments []*IssueComment) error
-	WriteIssuePipelines(issueData []*IssuePipeline) error
-	WritePullRequests(prs []*PullRequest) error
-	WritePullRequestComments(prComments []*PullRequestComment) error
-	WritePullRequestReviews(prReviews []*PullRequestReview) error
-	WriteUsers(users []*User) error
-	WriteLabels(labels []*Label) error
-	WriteAllMembers(members []*Member) error
-	WriteAllMaintainers(maintainers []*Maintainer) error
-	WriteBotActivities(activities []*BotActivity) error
+	WriteOrgs(context context.Context, orgs []*Org) error
+	WriteRepos(context context.Context, repos []*Repo) error
+	WriteRepoComments(context context.Context, comments []*RepoComment) error
+	WriteIssues(context context.Context, issues []*Issue) error
+	WriteIssueComments(context context.Context, issueComments []*IssueComment) error
+	WriteIssuePipelines(context context.Context, issueData []*IssuePipeline) error
+	WritePullRequests(context context.Context, prs []*PullRequest) error
+	WritePullRequestReviewComments(context context.Context, prComments []*PullRequestReviewComment) error
+	WritePullRequestReviews(context context.Context, prReviews []*PullRequestReview) error
+	WriteUsers(context context.Context, users []*User) error
+	WriteLabels(context context.Context, labels []*Label) error
+	WriteAllMembers(context context.Context, members []*Member) error
+	WriteAllMaintainers(context context.Context, maintainers []*Maintainer) error
+	WriteBotActivities(context context.Context, activities []*BotActivity) error
+	WriteTestResults(context context.Context, testResults []*TestResult) error
+	WriteIssueEvents(context context.Context, events []*IssueEvent) error
+	WriteIssueCommentEvents(context context.Context, events []*IssueCommentEvent) error
+	WritePullRequestEvents(context context.Context, events []*PullRequestEvent) error
+	WritePullRequestReviewCommentEvents(context context.Context, events []*PullRequestReviewCommentEvent) error
+	WritePullRequestReviewEvents(context context.Context, events []*PullRequestReviewEvent) error
+	WriteRepoCommentEvents(context context.Context, events []*RepoCommentEvent) error
 
-	ReadOrgByID(orgID string) (*Org, error)
-	ReadOrgByLogin(login string) (*Org, error)
-	ReadRepoByID(orgID string, repoID string) (*Repo, error)
-	ReadRepoByName(orgID string, name string) (*Repo, error)
-	ReadIssueByID(orgID string, repoID string, issueID string) (*Issue, error)
-	ReadIssueByNumber(orgID string, repoID string, number int) (*Issue, error)
-	ReadIssueCommentByID(orgID string, repoID string, issueID string, issueCommentID string) (*IssueComment, error)
-	ReadIssuePipelineByNumber(orgID string, repoID string, number int) (*IssuePipeline, error)
-	ReadLabelByID(orgID string, repoID string, labelID string) (*Label, error)
-	ReadUserByID(userID string) (*User, error)
-	ReadUserByLogin(login string) (*User, error)
-	ReadPullRequestByID(orgID string, repoID string, prID string) (*PullRequest, error)
-	ReadPullRequestCommentByID(orgID string, repoID string, prID string, prCommentID string) (*PullRequestComment, error)
-	ReadPullRequestReviewByID(orgID string, repoID string, prID string, prReviewID string) (*PullRequestReview, error)
-	ReadBotActivityByID(orgID string, repoID string) (*BotActivity, error)
+	UpdateBotActivity(context context.Context, orgLogin string, repoName string, cb func(*BotActivity) error) error
 
-	QueryMembersByOrg(orgID string, cb func(*Member) error) error
-	QueryMaintainersByOrg(orgID string, cb func(*Maintainer) error) error
-	QueryMaintainerInfo(maintainer *Maintainer) (*MaintainerInfo, error)
-	QueryIssuesByRepo(orgID string, repoID string, cb func(*Issue) error) error
-	QueryTestFlakeIssues(inactiveDays, createdDays int) ([]*Issue, error)
-	QueryAllUsers(cb func(*User) error) error
+	ReadOrg(context context.Context, orgLogin string) (*Org, error)
+	ReadRepo(context context.Context, orgLogin string, repoName string) (*Repo, error)
+	ReadIssue(context context.Context, orgLogin string, repoName string, number int) (*Issue, error)
+	ReadIssueComment(context context.Context, orgLogin string, repoName string, issueNumber int, issueCommentID int) (*IssueComment, error)
+	ReadIssuePipeline(context context.Context, orgLogin string, repoName string, issueNumber int) (*IssuePipeline, error)
+	ReadLabel(context context.Context, orgLogin string, repoName string, labelName string) (*Label, error)
+	ReadUser(context context.Context, userLogin string) (*User, error)
+	ReadPullRequest(context context.Context, orgLogin string, repoName string, prNumber int) (*PullRequest, error)
+	ReadPullRequestReviewComment(context context.Context, orgLogin string, repoName string, prNumber int, prCommentID int) (*PullRequestReviewComment, error)
+	ReadPullRequestReview(context context.Context, orgLogin string, repoName string, prNumber int, prReviewID int) (*PullRequestReview, error)
+	ReadBotActivity(context context.Context, orgLogin string, repoName string) (*BotActivity, error)
+	ReadMaintainer(context context.Context, orgLogin string, userLogin string) (*Maintainer, error)
+	ReadTestResult(context context.Context, orgLogin string, repoName string, testName string, pullRequestNumber int64, runNumber int64) (*TestResult, error)
+
+	QueryMembersByOrg(context context.Context, orgLogin string, cb func(*Member) error) error
+	QueryMaintainersByOrg(context context.Context, orgLogin string, cb func(*Maintainer) error) error
+	QueryMaintainerInfo(context context.Context, maintainer *Maintainer) (*MaintainerInfo, error)
+	QueryIssuesByRepo(context context.Context, orgLogin string, repoName string, cb func(*Issue) error) error
+	QueryTestResultByPrNumber(context context.Context, orgLogin string, repoName string, pullRequestNumber int64, cb func(*TestResult) error) error
+	QueryTestResultByUndone(context context.Context, orgLogin string, repoName string, cb func(*TestResult) error) error
+	QueryAllTestResults(context context.Context, orgLogin string, repoName string, cb func(*TestResult) error) error
+	QueryTestResultByTestName(context context.Context, orgLogin string, repoName string, testName string, cb func(*TestResult) error) error
+
+	// TODO: needs to be org-specific and/or repo-specific, needs to use a callback instead of returning a slice
+	QueryTestFlakeIssues(context context.Context, inactiveDays, createdDays int) ([]*Issue, error)
 }

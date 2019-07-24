@@ -16,10 +16,9 @@ package refresher
 
 import (
 	"context"
-	"net/http"
+	"time"
 
-	webhook "github.com/go-playground/webhooks/github"
-	"github.com/google/go-github/v25/github"
+	"github.com/google/go-github/v26/github"
 
 	"istio.io/bots/policybot/handlers/githubwebhook/filters"
 	"istio.io/bots/policybot/pkg/config"
@@ -33,18 +32,18 @@ import (
 type Refresher struct {
 	repos map[string]bool
 	cache *cache.Cache
-	ght   *gh.ThrottledClient
-	ctx   context.Context
+	store storage.Store
+	gc    *gh.ThrottledClient
 }
 
 var scope = log.RegisterScope("refresher", "Dynamic database refresher", 0)
 
-func NewRefresher(ctx context.Context, cache *cache.Cache, ght *gh.ThrottledClient, orgs []config.Org) filters.Filter {
+func NewRefresher(cache *cache.Cache, store storage.Store, gc *gh.ThrottledClient, orgs []config.Org) filters.Filter {
 	r := &Refresher{
 		repos: make(map[string]bool),
 		cache: cache,
-		ght:   ght,
-		ctx:   ctx,
+		store: store,
+		gc:    gc,
 	}
 
 	for _, org := range orgs {
@@ -56,141 +55,288 @@ func NewRefresher(ctx context.Context, cache *cache.Cache, ght *gh.ThrottledClie
 	return r
 }
 
-func (r *Refresher) Events() []webhook.Event {
-	return []webhook.Event{
-		webhook.IssuesEvent,
-		webhook.IssueCommentEvent,
-		webhook.PullRequestEvent,
-		webhook.PullRequestReviewEvent,
-	}
-}
-
 // accept an event arriving from GitHub
-func (r *Refresher) Handle(_ http.ResponseWriter, githubObject interface{}) {
-	switch p := githubObject.(type) {
-	case webhook.IssuesPayload:
-		scope.Infof("Received IssuePayload: %s, %d, %s", p.Repository.FullName, p.Issue.Number, p.Action)
+func (r *Refresher) Handle(context context.Context, event interface{}) {
+	switch p := event.(type) {
+	case *github.IssuesEvent:
+		scope.Infof("Received IssuesEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetIssue().GetNumber(), p.GetAction())
 
-		if !r.repos[p.Repository.FullName] {
-			scope.Infof("Ignoring issue %d from repo %s since it's not in a monitored repo", p.Issue.Number, p.Repository.FullName)
+		if !r.repos[p.GetRepo().GetFullName()] {
+			scope.Infof("Ignoring issue %d from repo %s since it's not in a monitored repo", p.GetIssue().GetNumber(), p.GetRepo().GetFullName())
 			return
 		}
 
-		issue, discoveredUsers := gh.IssueFromHook(&p)
+		issue := gh.ConvertIssue(
+			p.GetRepo().GetOwner().GetLogin(),
+			p.GetRepo().GetName(),
+			p.GetIssue())
 		issues := []*storage.Issue{issue}
-		if err := r.cache.WriteIssues(issues); err != nil {
+		if err := r.cache.WriteIssues(context, issues); err != nil {
 			scope.Errorf(err.Error())
-		}
-		r.syncUsers(discoveredUsers)
-
-	case webhook.IssueCommentPayload:
-		scope.Infof("Received IssueCommentPayload: %s, %d, %s", p.Repository.FullName, p.Issue.Number, p.Action)
-
-		if !r.repos[p.Repository.FullName] {
-			scope.Infof("Ignoring issue comment for issue %d from repo %s since it's not in a monitored repo", p.Issue.Number, p.Repository.FullName)
 			return
 		}
 
-		issueComment, discoveredUsers := gh.IssueCommentFromHook(&p)
+		event := &storage.IssueEvent{
+			OrgLogin:    issue.OrgLogin,
+			RepoName:    issue.RepoName,
+			IssueNumber: issue.IssueNumber,
+			CreatedAt:   time.Now(),
+			Actor:       p.GetSender().GetLogin(),
+			Action:      p.GetAction(),
+		}
+
+		events := []*storage.IssueEvent{event}
+		if err := r.store.WriteIssueEvents(context, events); err != nil {
+			scope.Error(err.Error())
+			return
+		}
+
+		r.syncUsers(context, issue.Author)
+		r.syncUsers(context, issue.Assignees...)
+
+	case *github.IssueCommentEvent:
+		scope.Infof("Received IssueCommentEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetIssue().GetNumber(), p.GetAction())
+
+		if !r.repos[p.GetRepo().GetFullName()] {
+			scope.Infof("Ignoring issue comment for issue %d from repo %s since it's not in a monitored repo", p.GetIssue().GetNumber(), p.GetRepo().GetFullName())
+			return
+		}
+
+		issueComment := gh.ConvertIssueComment(
+			p.GetRepo().GetOwner().GetLogin(),
+			p.GetRepo().GetName(),
+			p.GetIssue().GetNumber(),
+			p.GetComment())
 		issueComments := []*storage.IssueComment{issueComment}
-		if err := r.cache.WriteIssueComments(issueComments); err != nil {
-
-			// try again, this time as a PR comment
-			var prComment *storage.PullRequestComment
-			prComment, discoveredUsers = gh.PullRequestCommentFromHook(&p)
-			prComments := []*storage.PullRequestComment{prComment}
-			if err := r.cache.WritePullRequestComments(prComments); err != nil {
-				scope.Errorf(err.Error())
-			}
-		}
-		r.syncUsers(discoveredUsers)
-
-	case webhook.PullRequestPayload:
-		scope.Infof("Received PullRequestPayload: %s, %d, %s", p.Repository.FullName, p.Number, p.Action)
-
-		if !r.repos[p.Repository.FullName] {
-			scope.Infof("Ignoring PR %d from repo %s since it's not in a monitored repo", p.PullRequest.Number, p.Repository.FullName)
+		if err := r.cache.WriteIssueComments(context, issueComments); err != nil {
+			scope.Error(err.Error())
 			return
 		}
 
-		pr, discoveredUsers := gh.PullRequestFromHook(&p)
-
-		opt := &github.ListOptions{
-			PerPage: 100,
+		event := &storage.IssueCommentEvent{
+			OrgLogin:       issueComment.OrgLogin,
+			RepoName:       issueComment.RepoName,
+			IssueNumber:    issueComment.IssueNumber,
+			IssueCommentID: p.GetComment().GetID(),
+			CreatedAt:      time.Now(),
+			Actor:          p.GetSender().GetLogin(),
+			Action:         p.GetAction(),
 		}
 
-		// get the set of files comprising this PR since the payload didn't supply them
-		var allFiles []string
-		for {
-			files, resp, err := r.ght.Get().PullRequests.ListFiles(r.ctx, p.Repository.Owner.Login, p.Repository.Name, int(p.Number), opt)
-			if err != nil {
-				scope.Errorf("Unable to list all files for pull request %d in repo %s: %v\n", p.Number, p.Repository.FullName, err)
+		events := []*storage.IssueCommentEvent{event}
+		if err := r.store.WriteIssueCommentEvents(context, events); err != nil {
+			scope.Error(err.Error())
+			return
+		}
+
+		r.syncUsers(context, issueComment.Author)
+
+	case *github.PullRequestEvent:
+		scope.Infof("Received PullRequestEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetNumber(), p.GetAction())
+
+		if !r.repos[p.GetRepo().GetFullName()] {
+			scope.Infof("Ignoring PR %d from repo %s since it's not in a monitored repo", p.GetNumber(), p.GetRepo().GetFullName())
+			return
+		}
+
+		action := p.GetAction()
+		if action == "opened" || action == "edited" {
+			opt := &github.ListOptions{
+				PerPage: 100,
+			}
+
+			// get the set of files comprising this PR since the payload didn't supply them
+			var allFiles []string
+			for {
+				files, resp, err := r.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+					return client.PullRequests.ListFiles(context, p.GetRepo().GetOwner().GetLogin(), p.GetRepo().GetName(), p.GetNumber(), opt)
+				})
+
+				if err != nil {
+					scope.Errorf("Unable to list all files for pull request %d in repo %s: %v\n", p.GetNumber(), p.GetRepo().GetFullName(), err)
+					return
+				}
+
+				for _, f := range files.([]*github.CommitFile) {
+					allFiles = append(allFiles, f.GetFilename())
+				}
+
+				if resp.NextPage == 0 {
+					break
+				}
+
+				opt.Page = resp.NextPage
+			}
+
+			pr := gh.ConvertPullRequest(
+				p.GetOrganization().GetLogin(),
+				p.GetRepo().GetName(),
+				p.GetPullRequest(),
+				allFiles)
+			prs := []*storage.PullRequest{pr}
+			if err := r.cache.WritePullRequests(context, prs); err != nil {
+				scope.Errorf(err.Error())
 				return
 			}
 
-			for _, f := range files {
-				allFiles = append(allFiles, f.GetFilename())
-			}
-
-			if resp.NextPage == 0 {
-				break
-			}
-
-			opt.Page = resp.NextPage
+			r.syncUsers(context, pr.Author)
+			r.syncUsers(context, pr.Assignees...)
+			r.syncUsers(context, pr.RequestedReviewers...)
 		}
-		pr.Files = allFiles
 
-		prs := []*storage.PullRequest{pr}
-		if err := r.cache.WritePullRequests(prs); err != nil {
-			scope.Errorf(err.Error())
+		event := &storage.PullRequestEvent{
+			OrgLogin:          p.GetOrganization().GetLogin(),
+			RepoName:          p.GetRepo().GetName(),
+			PullRequestNumber: int64(p.GetPullRequest().GetNumber()),
+			CreatedAt:         time.Now(),
+			Actor:             p.GetSender().GetLogin(),
+			Action:            p.GetAction(),
 		}
-		r.syncUsers(discoveredUsers)
 
-	case webhook.PullRequestReviewPayload:
-		scope.Infof("Received PullRequestReviewPayload: %s, %d, %s", p.Repository.FullName, p.PullRequest.Number, p.Action)
-
-		if !r.repos[p.Repository.FullName] {
-			scope.Infof("Ignoring PR review for PR %d from repo %s since it's not in a monitored repo", p.PullRequest.Number, p.Repository.FullName)
+		events := []*storage.PullRequestEvent{event}
+		if err := r.store.WritePullRequestEvents(context, events); err != nil {
+			scope.Error(err.Error())
 			return
 		}
 
-		review, discoveredUsers := gh.PullRequestReviewFromHook(&p)
+		r.syncUsers(context, event.Actor)
+
+	case *github.PullRequestReviewEvent:
+		scope.Infof("Received PullRequestReviewEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetPullRequest().GetNumber(), p.GetAction())
+
+		if !r.repos[p.GetRepo().GetFullName()] {
+			scope.Infof("Ignoring PR review for PR %d from repo %s since it's not in a monitored repo", p.GetPullRequest().GetNumber(), p.GetRepo().GetFullName())
+			return
+		}
+
+		review := gh.ConvertPullRequestReview(
+			p.GetOrganization().GetLogin(),
+			p.GetRepo().GetName(),
+			p.GetPullRequest().GetNumber(),
+			p.GetReview())
 		reviews := []*storage.PullRequestReview{review}
-		if err := r.cache.WritePullRequestReviews(reviews); err != nil {
+		if err := r.cache.WritePullRequestReviews(context, reviews); err != nil {
+			scope.Errorf(err.Error())
+			return
+		}
+
+		event := &storage.PullRequestReviewEvent{
+			OrgLogin:            review.OrgLogin,
+			RepoName:            review.RepoName,
+			PullRequestNumber:   review.PullRequestNumber,
+			PullRequestReviewID: p.GetReview().GetID(),
+			CreatedAt:           time.Now(),
+			Actor:               p.GetSender().GetLogin(),
+			Action:              p.GetAction(),
+		}
+
+		events := []*storage.PullRequestReviewEvent{event}
+		if err := r.store.WritePullRequestReviewEvents(context, events); err != nil {
+			scope.Error(err.Error())
+			return
+		}
+
+		r.syncUsers(context, review.Author)
+
+	case *github.PullRequestReviewCommentEvent:
+		scope.Infof("Received PullRequestReviewCommentEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetPullRequest().GetNumber(), p.GetAction())
+
+		if !r.repos[p.GetRepo().GetFullName()] {
+			scope.Infof("Ignoring PR review comment for PR %d from repo %s since it's not in a monitored repo",
+				p.GetPullRequest().GetNumber(), p.GetRepo().GetFullName())
+			return
+		}
+
+		comment := gh.ConvertPullRequestReviewComment(
+			p.GetRepo().GetOwner().GetLogin(),
+			p.GetRepo().GetName(),
+			p.GetPullRequest().GetNumber(),
+			p.GetComment())
+		comments := []*storage.PullRequestReviewComment{comment}
+		if err := r.cache.WritePullRequestReviewComments(context, comments); err != nil {
 			scope.Errorf(err.Error())
 		}
-		r.syncUsers(discoveredUsers)
+
+		event := &storage.PullRequestReviewCommentEvent{
+			OrgLogin:                   comment.OrgLogin,
+			RepoName:                   comment.RepoName,
+			PullRequestNumber:          comment.PullRequestNumber,
+			PullRequestReviewCommentID: p.GetComment().GetID(),
+			CreatedAt:                  time.Now(),
+			Actor:                      p.GetSender().GetLogin(),
+			Action:                     p.GetAction(),
+		}
+
+		events := []*storage.PullRequestReviewCommentEvent{event}
+		if err := r.store.WritePullRequestReviewCommentEvents(context, events); err != nil {
+			scope.Error(err.Error())
+			return
+		}
+
+		r.syncUsers(context, comment.Author)
+
+	case *github.CommitCommentEvent:
+		scope.Infof("Received CommitCommentEvent: %s, %s", p.GetRepo().GetFullName(), p.GetAction())
+
+		if !r.repos[p.GetRepo().GetFullName()] {
+			scope.Infof("Ignoring repo comment from repo %s since it's not in a monitored repo", p.GetRepo().GetFullName())
+			return
+		}
+
+		comment := gh.ConvertRepoComment(
+			p.GetRepo().GetOwner().GetLogin(),
+			p.GetRepo().GetName(),
+			p.GetComment())
+		comments := []*storage.RepoComment{comment}
+		if err := r.cache.WriteRepoComments(context, comments); err != nil {
+			scope.Errorf(err.Error())
+		}
+
+		event := &storage.RepoCommentEvent{
+			OrgLogin:      comment.OrgLogin,
+			RepoName:      comment.RepoName,
+			RepoCommentID: p.GetComment().GetID(),
+			CreatedAt:     time.Now(),
+			Actor:         p.GetSender().GetLogin(),
+			Action:        p.GetAction(),
+		}
+
+		events := []*storage.RepoCommentEvent{event}
+		if err := r.store.WriteRepoCommentEvents(context, events); err != nil {
+			scope.Error(err.Error())
+			return
+		}
+
+		r.syncUsers(context, comment.Author)
 
 	default:
 		// not what we're looking for
-		scope.Debugf("Unknown payload received: %T %+v", p, p)
+		scope.Debugf("Unknown event received: %T %+v", p, p)
 		return
 	}
 }
 
-func (r *Refresher) syncUsers(discoveredUsers map[string]string) {
-	var users []*storage.User
-	for _, du := range discoveredUsers {
-		user, err := r.cache.ReadUserByLogin(du)
-		if err != nil {
-			scope.Warnf("unable to read user %s from storage: %v", du, err)
-		}
+func (r *Refresher) syncUsers(context context.Context, discoveredUsers ...string) {
+	users := make([]*storage.User, 0, len(discoveredUsers))
+	for _, discoveredUser := range discoveredUsers {
+		if u, err := r.cache.ReadUser(context, discoveredUser); err != nil {
+			scope.Errorf("Unable to read info for user %s from storage: %v", discoveredUser, err)
+			return
+		} else if u == nil {
+			if ghUser, _, err := r.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+				return client.Users.Get(context, discoveredUser)
+			}); err == nil {
+				users = append(users, gh.ConvertUser(ghUser.(*github.User)))
+			} else {
+				scope.Warnf("couldn't get information for user %s: %v", discoveredUser, err)
 
-		if user != nil {
-			// we already know about this user
-			continue
-		}
-
-		// didn't get user info from our storage layer, ask GitHub for details
-		u, _, err := r.ght.Get().Users.Get(r.ctx, du)
-		if err != nil {
-			scope.Errorf("Unable to get info on user %s from GitHub: %v", du, err)
-		} else {
-			users = append(users, gh.UserFromAPI(u))
+				// go with what we know
+				users = append(users, &storage.User{UserLogin: discoveredUser})
+			}
 		}
 	}
 
-	if err := r.cache.WriteUsers(users); err != nil {
+	if err := r.cache.WriteUsers(context, users); err != nil {
 		scope.Errorf("Unable to write users: %v", err)
 	}
 }

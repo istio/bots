@@ -15,58 +15,47 @@
 package githubwebhook
 
 import (
-	"fmt"
 	"net/http"
 
-	webhook "github.com/go-playground/webhooks/github"
+	"github.com/google/go-github/v26/github"
 
 	"istio.io/bots/policybot/handlers/githubwebhook/filters"
+	"istio.io/bots/policybot/pkg/util"
 	"istio.io/pkg/log"
 )
 
+var scope = log.RegisterScope("githubwebhook", "GitHub webhook handler", 0)
+
 // Decodes and dispatches GitHub webhook calls
 type handler struct {
-	wh      *webhook.Webhook
+	secret  []byte
 	filters []filters.Filter
-	events  []webhook.Event
 }
 
-func NewHandler(githubWebhookSecret string, filters ...filters.Filter) (http.Handler, error) {
-	wh, err := webhook.New(webhook.Options.Secret(githubWebhookSecret))
-	if err != nil {
-		return nil, fmt.Errorf("unable to create webhook: %v", err)
-	}
-
-	m := make(map[webhook.Event]bool)
-	for _, p := range filters {
-		for _, e := range p.Events() {
-			m[e] = true
-		}
-	}
-
-	events := make([]webhook.Event, 0, len(m))
-	for e := range m {
-		events = append(events, e)
-	}
-
+func NewHandler(githubWebhookSecret string, filters ...filters.Filter) http.Handler {
 	return &handler{
-		wh:      wh,
+		secret:  []byte(githubWebhookSecret),
 		filters: filters,
-		events:  events,
-	}, nil
+	}
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	payload, err := h.wh.Parse(r, h.events...)
+	payload, err := github.ValidatePayload(r, h.secret)
 	if err != nil {
-		if err != webhook.ErrEventNotFound {
-			log.Errorf("Unable to parse GitHub webhook trigger: %v", err)
-		}
+		util.RenderError(w, err)
 		return
 	}
 
-	// dispatch to all the registered plugins
+	scope.Debugf("Received GitHub event: %v", github.WebHookType(r))
+
+	event, err := github.ParseWebHook(github.WebHookType(r), payload)
+	if err != nil {
+		util.RenderError(w, err)
+		return
+	}
+
+	// dispatch to all the registered filters
 	for _, filter := range h.filters {
-		filter.Handle(w, payload)
+		filter.Handle(r.Context(), event)
 	}
 }

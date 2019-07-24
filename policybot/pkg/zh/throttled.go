@@ -15,36 +15,47 @@
 package zh
 
 import (
-	"context"
+	"time"
 
-	"golang.org/x/time/rate"
-)
+	"github.com/google/go-github/v26/github"
 
-const (
-	maxZenHubRequestsPerMinute = 100.0                           // per-minute max, to stay under rate limit
-	maxZenHubRequestsPerSecond = maxZenHubRequestsPerMinute / 60 // per-second max, to stay under abuse detection limit
-	maxZenHubBurst             = 10                              // max burst size, to stay under abuse detection limit
+	"istio.io/pkg/log"
 )
 
 // ZenHubThrottle is used to throttle our use of the ZenHub API in order to
 // prevent hitting rate limits or abuse limits.
 type ThrottledClient struct {
-	ctx     context.Context
-	client  *Client
-	limiter *rate.Limiter
+	client *Client
 }
 
-func NewThrottledClient(ctx context.Context, zenhubToken string) *ThrottledClient {
+func NewThrottledClient(zenhubToken string) *ThrottledClient {
 	return &ThrottledClient{
-		ctx:     ctx,
-		client:  NewClient(zenhubToken),
-		limiter: rate.NewLimiter(maxZenHubRequestsPerSecond, maxZenHubBurst),
+		client: NewClient(zenhubToken),
 	}
 }
 
-// Get the ZenHub client in a throttled fashion, so we don't exceed ZenHub's usage limits. This will block
-// until it is safe to make the call to GitHub.
-func (zht *ThrottledClient) Get() *Client {
-	_ = zht.limiter.Wait(zht.ctx)
-	return zht.client
+// ThrottledCall invokes the given callback and watches for error returns indicating a GitHub rate limit errors.
+// If a rate limit error is detected, the call is tried again based on the reset time
+// specified in the error.
+func (tc *ThrottledClient) ThrottledCall(cb func(*Client) (interface{}, error)) (interface{}, error) {
+	for {
+		result, err := cb(tc.client)
+		if err == nil {
+			return result, nil
+		}
+
+		rle, ok := err.(*github.RateLimitError)
+		if !ok {
+			return result, err
+		}
+
+		sleep(rle)
+	}
+}
+
+func sleep(rle *github.RateLimitError) {
+	// wait for the reset time
+	// TODO: would be nice to wait in a cancellable way, per a context
+	log.Debugf("Waiting for ZenHub rate limit reset at %s", rle.Rate.Reset.UTC().String())
+	time.Sleep(time.Until(rle.Rate.Reset.Time))
 }

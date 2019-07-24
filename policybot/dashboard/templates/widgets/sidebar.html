@@ -1,0 +1,17 @@
+{{ define "sidebar" }}
+<nav id="sidebar" aria-label="Section Navigation">
+    <div class="directory">
+        <div class="card">
+            <div id="header0" class="header">
+	            Istio Eng Dashboard
+        	</div>
+
+			{{ $topics := .Entries }}
+            {{ $selectedEntry := .SelectedEntry }}
+            <div class="body default" aria-labelledby="header0">
+				{{ template "sidebar_level" (dict "topics" $topics "collapse" false "top" true "labelledby" "header0" "selectedEntry" $selectedEntry ) }}
+			</div>
+        </div>
+    </div>
+</nav>
+{{ end }}

@@ -16,9 +16,12 @@ package zh
 
 import (
 	"errors"
-	"fmt"
+	"io"
 	"net/http"
+	"strconv"
 	"time"
+
+	"github.com/google/go-github/v26/github"
 )
 
 const (
@@ -39,8 +42,14 @@ func NewClient(authToken string) *Client {
 
 var ErrNotFound = errors.New("requested resource not found")
 
-func (c *Client) sendRequest(method, urlPath string) (resp *http.Response, err error) {
-	req, err := http.NewRequest(method, baseURL+urlPath, nil)
+const (
+	headerRateLimit     = "X-RateLimit-Limit"
+	headerRateRemaining = "X-RateLimit-Remaining"
+	headerRateReset     = "X-RateLimit-Reset"
+)
+
+func (c *Client) sendRequest(method, urlPath string, body io.Reader) (*http.Response, error) {
+	req, err := http.NewRequest(method, baseURL+urlPath, body)
 	if err != nil {
 		return nil, err
 	}
@@ -55,18 +64,43 @@ func (c *Client) sendRequest(method, urlPath string) (resp *http.Response, err e
 		Timeout: timeout,
 	}
 
-	resp, err = client.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
+	}
+
+	if resp.StatusCode/100 == 2 {
+		return resp, nil
 	}
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, ErrNotFound
 	}
 
-	if resp.StatusCode/100 != 2 {
-		return nil, fmt.Errorf("request failed with status code %d", resp.StatusCode)
+	if resp.StatusCode == http.StatusForbidden {
+		return nil, &github.RateLimitError{
+			Rate:     parseRate(resp),
+			Response: resp,
+			Message:  "Limit reached",
+		}
 	}
 
 	return resp, nil
+}
+
+// parseRate parses the rate related headers.
+func parseRate(r *http.Response) github.Rate {
+	var rate github.Rate
+	if limit := r.Header.Get(headerRateLimit); limit != "" {
+		rate.Limit, _ = strconv.Atoi(limit)
+	}
+	if remaining := r.Header.Get(headerRateRemaining); remaining != "" {
+		rate.Remaining, _ = strconv.Atoi(remaining)
+	}
+	if reset := r.Header.Get(headerRateReset); reset != "" {
+		if v, _ := strconv.ParseInt(reset, 10, 64); v != 0 {
+			rate.Reset = github.Timestamp{time.Unix(v, 0)}
+		}
+	}
+	return rate
 }

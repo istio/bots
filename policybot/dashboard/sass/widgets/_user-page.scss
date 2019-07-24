@@ -1,0 +1,80 @@
+.user-page {
+    display: grid;
+    grid-template-columns: auto;
+    grid-gap: 1rem;
+    margin: 2rem 0 0 0;
+
+    @media (min-width: $bp-xl) {
+        grid-template-columns: auto auto;
+    }
+
+    .profile {
+        display: grid;
+        grid-template-columns: [avatar] 200px [info] auto;
+        border: 1px solid $boxBorderColor;
+        padding: 1rem;
+        border-radius: $border-radius;
+
+        .avatar {
+            grid-column: avatar;
+        }
+
+        .info {
+            grid-column: info;
+            padding-left: 2rem;
+        }
+    }
+
+    .repo {
+        border: 1px solid $boxBorderColor;
+        padding: 1rem;
+        border-radius: $border-radius;
+
+        .title {
+            text-decoration: underline;
+        }
+    }
+
+    .property-table {
+        display: grid;
+        grid-template-columns: [name] auto [value] auto;
+        grid-gap: 0;
+        margin: 1rem 0;
+
+        .name {
+            grid-column: name;
+        }
+
+        .value {
+            grid-column: value;
+            padding-left: 1em;
+        }
+    }
+
+    .paths {
+        .property-table {
+            grid-template-columns: [name] auto [submitted] auto [reviewed] auto;
+
+            .name {
+                border-right: 1px solid $boxBorderColor;
+                padding-left: 0.5em;
+                padding-right: 0.5em;
+            }
+
+            .value {
+                padding-left: 0.5em;
+                padding-right: 0.5em;
+                grid-column: reviewed;
+            }
+
+            .inner {
+                border-right: 1px solid $boxBorderColor;
+                grid-column: submitted;
+            }
+
+            .header {
+                border-bottom: 1px solid $boxBorderColor;
+            }
+        }
+    }
+}

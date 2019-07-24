@@ -15,6 +15,7 @@
 package zenhubwebhook
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 
@@ -50,6 +51,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		num, _ := strconv.Atoi(r.Form.Get("issue_number"))
 		h.storePipeline(
+			r.Context(),
 			r.Form.Get("organization"),
 			r.Form.Get("repo"),
 			num,
@@ -57,33 +59,33 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *handler) storePipeline(org string, repo string, issueNumber int, pipeline string) {
-	o, err := h.cache.ReadOrgByLogin(org)
+func (h *handler) storePipeline(context context.Context, orgLogin string, repoName string, issueNumber int, pipeline string) {
+	o, err := h.cache.ReadOrg(context, orgLogin)
 	if err != nil {
-		scope.Errorf("Unable to get info on organization %s: %v", org, err)
+		scope.Errorf("Unable to get info on organization %s: %v", orgLogin, err)
 		return
 	} else if o == nil {
-		scope.Errorf("Organization %s was not found", org)
+		scope.Errorf("Organization %s was not found", orgLogin)
 		return
 	}
 
-	r, err := h.cache.ReadRepoByName(o.OrgID, repo)
+	r, err := h.cache.ReadRepo(context, o.OrgLogin, repoName)
 	if err != nil {
-		scope.Errorf("Unable to get info on repo %s/%s: %v", org, repo, err)
+		scope.Errorf("Unable to get info on repo %s/%s: %v", orgLogin, repoName, err)
 		return
 	} else if r == nil {
-		scope.Errorf("Repo %s/%s was not found", org, repo)
+		scope.Errorf("Repo %s/%s was not found", orgLogin, repoName)
 		return
 	}
 
 	issuePipeline := &storage.IssuePipeline{
-		OrgID:       r.OrgID,
-		RepoID:      r.RepoID,
+		OrgLogin:    r.OrgLogin,
+		RepoName:    r.RepoName,
 		IssueNumber: int64(issueNumber),
 		Pipeline:    pipeline,
 	}
 
-	if err := h.store.WriteIssuePipelines([]*storage.IssuePipeline{issuePipeline}); err != nil {
+	if err := h.store.WriteIssuePipelines(context, []*storage.IssuePipeline{issuePipeline}); err != nil {
 		scope.Errorf("Unable to write pipeline to storage: %v", err)
 	}
 }

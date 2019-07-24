@@ -37,11 +37,6 @@ The existing handlers include:
  
 - zenhubwebhook. Handles ZenHub web hook events
 
-- syncer. Initiates a synchronization of GitHub data to Google Cloud Spanner, where the data can then be used
-for analysis. The syncer needs to be invoked on a periodic basis to refresh the data.
-
-- flakechaser. Performs schedule analysis on test-flake related bugs and nags the PR to prompt for a resolution.
-
 - topics. A number of handlers which each deliver the HTML and JSON to support the dashboard UI.
 
 The githubwebhook handler supports a chain of filters which each get called for incoming
@@ -99,18 +94,19 @@ treated as a local file path within the bot's container.
 
 - PORT / --port. The TCP port to listen to for incoming traffic.
 
+- HTTPS_ONLY / --https_only. Causes all HTTP traffic to be redirected to HTTPS instead.
+
 ## REST API
 
 The bot exposes a REST API at https://eng.istio.io:
 
-- /sync - triggers the bot to synchronize GitHub issues into Google Cloud Spanner. This is called periodically  by 
-a job scheduled in Google Cloud scheduler. You can filter what gets synced using a filter query string with a 
-command-separated list of things to sync [members, maintainers, issues, prs, labels, zenhub]
-
-- /githubwebhook - used to report events in GitHub. This is called by GitHub whenever anything interesting happens in
+- /githubwebhook - used to report events from GitHub. This is called by GitHub whenever anything interesting happens in
 the Istio repos.
 
-- /maintainersapi - used to query information about project maintainers
+- /zenhubwebhook - used to report events from ZenHub. This is called by ZenHub whenever anything interesting happens to Istio issues
+tracked by ZenHub.
+
+- /api/* - topic-specific API available to query information that the bot generates.
 
 ## Configuration file
 
@@ -130,7 +126,7 @@ with GCP. Once a new revision is deployed to GKE, it immediately starts receivin
 - The bot depends on having a configured Google Cloud Spanner database. The schema of the database
 is described by `spanner.ddl`
 
-- TBD: The bot'ss configuration is maintained in the file `policybot/policybot.yaml` in the <https://github.com/istio/test-infra> repo.
+- TBD: The bot's configuration is maintained in the file `policybot/policybot.yaml` in the <https://github.com/istio/test-infra> repo.
 Changes pushed to this file are automatically picked up by the bot.
 
 ## Credentials and secrets

@@ -1,0 +1,29 @@
+{{ define "main" }}
+{{ template "header" . }}
+
+<main class="primary notoc">
+	<div id="sidebar-container" class="sidebar-container sidebar-offcanvas">
+        {{ template "sidebar" . }}
+    </div>
+
+	<div class="article-container">
+        {{ if .Control }}
+            <nav aria-label="Control">
+                {{ .Control }}
+            </nav>
+        {{ end }}
+
+        <article aria-labelledby="title">
+            <div class="title-area">
+                <div>
+                    <h1 id="title">
+                        {{- .Title -}}
+                    </h1>
+
+					{{ .Content }}
+				</div>
+			</div>
+		</article>
+    </div>
+</main>
+{{ end }}

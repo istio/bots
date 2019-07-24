@@ -15,6 +15,7 @@
 package blobstorage
 
 import (
+	"context"
 	"io"
 )
 
@@ -22,5 +23,16 @@ import (
 type Store interface {
 	io.Closer
 
-	ReadBlob(path string) ([]byte, error)
+	Bucket(name string) Bucket
+}
+
+// Bucket represents a group of blobs.
+type Bucket interface {
+	Reader(ctx context.Context, path string) (io.ReadCloser, error)
+
+	// ListPrefixes returns a slice of prefixes that begin with the input
+	// prefix. This is roughly equivalent to a list of directories directly
+	// under a given prefix, though in blob storage systems, directories
+	// don't really exist.
+	ListPrefixes(ctx context.Context, prefix string) ([]string, error)
 }

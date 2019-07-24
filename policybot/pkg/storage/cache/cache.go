@@ -16,6 +16,7 @@
 package cache
 
 import (
+	"context"
 	"strconv"
 	"time"
 
@@ -25,20 +26,21 @@ import (
 
 // Cached access over our database.
 type Cache struct {
-	store                   storage.Store
-	orgCache                cache.ExpiringCache
-	orgByLoginCache         cache.ExpiringCache
-	repoCache               cache.ExpiringCache
-	repoByNameCache         cache.ExpiringCache
-	issueCache              cache.ExpiringCache
-	issueCommentCache       cache.ExpiringCache
-	labelCache              cache.ExpiringCache
-	userCache               cache.ExpiringCache
-	userByLoginCache        cache.ExpiringCache
-	pullRequestCache        cache.ExpiringCache
-	pullRequestCommentCache cache.ExpiringCache
-	pullRequestReviewCache  cache.ExpiringCache
-	pipelineCache           cache.ExpiringCache
+	store                         storage.Store
+	orgCache                      cache.ExpiringCache
+	repoCache                     cache.ExpiringCache
+	issueCache                    cache.ExpiringCache
+	issueCommentCache             cache.ExpiringCache
+	labelCache                    cache.ExpiringCache
+	userCache                     cache.ExpiringCache
+	userByLoginCache              cache.ExpiringCache
+	pullRequestCache              cache.ExpiringCache
+	pullRequestReviewCommentCache cache.ExpiringCache
+	pullRequestReviewCache        cache.ExpiringCache
+	pipelineCache                 cache.ExpiringCache
+	maintainerCache               cache.ExpiringCache
+	repoCommentCache              cache.ExpiringCache
+	testResultCache               cache.ExpiringCache
 }
 
 func New(store storage.Store, entryTTL time.Duration) *Cache {
@@ -50,133 +52,60 @@ func New(store storage.Store, entryTTL time.Duration) *Cache {
 	}
 
 	return &Cache{
-		store:                   store,
-		orgCache:                cache.NewTTL(entryTTL, evictionInterval),
-		orgByLoginCache:         cache.NewTTL(entryTTL, evictionInterval),
-		repoCache:               cache.NewTTL(entryTTL, evictionInterval),
-		repoByNameCache:         cache.NewTTL(entryTTL, evictionInterval),
-		issueCache:              cache.NewTTL(entryTTL, evictionInterval),
-		issueCommentCache:       cache.NewTTL(entryTTL, evictionInterval),
-		labelCache:              cache.NewTTL(entryTTL, evictionInterval),
-		userCache:               cache.NewTTL(entryTTL, evictionInterval),
-		userByLoginCache:        cache.NewTTL(entryTTL, evictionInterval),
-		pullRequestCache:        cache.NewTTL(entryTTL, evictionInterval),
-		pullRequestCommentCache: cache.NewTTL(entryTTL, evictionInterval),
-		pullRequestReviewCache:  cache.NewTTL(entryTTL, evictionInterval),
-		pipelineCache:           cache.NewTTL(entryTTL, evictionInterval),
+		store:                         store,
+		orgCache:                      cache.NewTTL(entryTTL, evictionInterval),
+		repoCache:                     cache.NewTTL(entryTTL, evictionInterval),
+		issueCache:                    cache.NewTTL(entryTTL, evictionInterval),
+		issueCommentCache:             cache.NewTTL(entryTTL, evictionInterval),
+		labelCache:                    cache.NewTTL(entryTTL, evictionInterval),
+		userCache:                     cache.NewTTL(entryTTL, evictionInterval),
+		userByLoginCache:              cache.NewTTL(entryTTL, evictionInterval),
+		pullRequestCache:              cache.NewTTL(entryTTL, evictionInterval),
+		pullRequestReviewCommentCache: cache.NewTTL(entryTTL, evictionInterval),
+		pullRequestReviewCache:        cache.NewTTL(entryTTL, evictionInterval),
+		pipelineCache:                 cache.NewTTL(entryTTL, evictionInterval),
+		maintainerCache:               cache.NewTTL(entryTTL, evictionInterval),
+		repoCommentCache:              cache.NewTTL(entryTTL, evictionInterval),
+		testResultCache:               cache.NewTTL(entryTTL, evictionInterval),
 	}
 }
 
 // Reads from cache and if not found reads from DB
-func (c *Cache) ReadOrg(orgID string) (*storage.Org, error) {
-	if value, ok := c.orgCache.Get(orgID); ok {
+func (c *Cache) ReadOrg(context context.Context, orgLogin string) (*storage.Org, error) {
+	key := orgLogin
+	if value, ok := c.orgCache.Get(key); ok {
 		return value.(*storage.Org), nil
 	}
 
-	result, err := c.store.ReadOrgByID(orgID)
+	result, err := c.store.ReadOrg(context, orgLogin)
 	if err == nil {
-		c.orgCache.Set(orgID, result)
-		if result != nil {
-			c.orgByLoginCache.Set(result.Login, result)
-		}
+		c.orgCache.Set(key, result)
 	}
 
 	return result, err
 }
 
 // Reads from cache and if not found reads from DB
-func (c *Cache) ReadOrgByLogin(login string) (*storage.Org, error) {
-	if value, ok := c.orgByLoginCache.Get(login); ok {
-		return value.(*storage.Org), nil
-	}
-
-	result, err := c.store.ReadOrgByLogin(login)
-	if err == nil {
-		if result != nil {
-			c.orgCache.Set(result.OrgID, result)
-			c.orgByLoginCache.Set(result.Login, result)
-		}
-	}
-
-	return result, err
-}
-
-// Reads from cache and if not found reads from DB
-func (c *Cache) ReadRepo(orgID string, repoID string) (*storage.Repo, error) {
-	if value, ok := c.repoCache.Get(repoID); ok {
+func (c *Cache) ReadRepo(context context.Context, orgLogin string, repoName string) (*storage.Repo, error) {
+	key := orgLogin + repoName
+	if value, ok := c.repoCache.Get(key); ok {
 		return value.(*storage.Repo), nil
 	}
 
-	result, err := c.store.ReadRepoByID(orgID, repoID)
+	result, err := c.store.ReadRepo(context, orgLogin, repoName)
 	if err == nil {
-		c.repoCache.Set(repoID, result)
-		if result != nil {
-			c.repoByNameCache.Set(orgID+result.Name, result)
-		}
-	}
-
-	return result, err
-}
-
-// Reads from cache and if not found reads from DB
-func (c *Cache) ReadRepoByName(orgID string, repo string) (*storage.Repo, error) {
-	key := orgID + repo
-	if value, ok := c.repoByNameCache.Get(key); ok {
-		return value.(*storage.Repo), nil
-	}
-
-	result, err := c.store.ReadRepoByName(orgID, repo)
-	if err == nil {
-		c.repoByNameCache.Set(key, result)
-		if result != nil {
-			c.repoCache.Set(result.RepoID, result)
-		}
-	}
-
-	return result, err
-}
-
-// Reads from cache and if not found reads from DB
-func (c *Cache) ReadUser(userID string) (*storage.User, error) {
-	if value, ok := c.userCache.Get(userID); ok {
-		return value.(*storage.User), nil
-	}
-
-	result, err := c.store.ReadUserByID(userID)
-	if err == nil {
-		c.userCache.Set(userID, result)
-		if result != nil {
-			c.userByLoginCache.Set(result.Login, result)
-		}
-	}
-
-	return result, err
-}
-
-// Reads from cache and if not found reads from DB
-func (c *Cache) ReadUserByLogin(login string) (*storage.User, error) {
-	if value, ok := c.userByLoginCache.Get(login); ok {
-		return value.(*storage.User), nil
-	}
-
-	result, err := c.store.ReadUserByLogin(login)
-	if err == nil {
-		if result != nil {
-			c.userCache.Set(result.UserID, result)
-			c.userByLoginCache.Set(result.Login, result)
-		}
+		c.repoCache.Set(key, result)
 	}
 
 	return result, err
 }
 
 // Writes to DB and if successful, updates the cache
-func (c *Cache) WriteUsers(users []*storage.User) error {
-	err := c.store.WriteUsers(users)
+func (c *Cache) WriteRepoComments(context context.Context, comments []*storage.RepoComment) error {
+	err := c.store.WriteRepoComments(context, comments)
 	if err == nil {
-		for _, user := range users {
-			c.userCache.Set(user.UserID, user)
-			c.userByLoginCache.Set(user.Login, user)
+		for _, comment := range comments {
+			c.repoCommentCache.Set(comment.OrgLogin+comment.RepoName+strconv.Itoa(int(comment.CommentID)), comment)
 		}
 	}
 
@@ -184,39 +113,68 @@ func (c *Cache) WriteUsers(users []*storage.User) error {
 }
 
 // Reads from cache and if not found reads from DB
-func (c *Cache) ReadLabel(orgID string, repoID string, labelID string) (*storage.Label, error) {
-	if value, ok := c.labelCache.Get(labelID); ok {
+func (c *Cache) ReadUser(context context.Context, userLogin string) (*storage.User, error) {
+	key := userLogin
+	if value, ok := c.userCache.Get(key); ok {
+		return value.(*storage.User), nil
+	}
+
+	result, err := c.store.ReadUser(context, userLogin)
+	if err == nil {
+		c.userCache.Set(key, result)
+	}
+
+	return result, err
+}
+
+// Writes to DB and if successful, updates the cache
+func (c *Cache) WriteUsers(context context.Context, users []*storage.User) error {
+	err := c.store.WriteUsers(context, users)
+	if err == nil {
+		for _, user := range users {
+			c.userCache.Set(user.UserLogin, user)
+		}
+	}
+
+	return err
+}
+
+// Reads from cache and if not found reads from DB
+func (c *Cache) ReadLabel(context context.Context, orgLogin string, repoName string, labelName string) (*storage.Label, error) {
+	key := orgLogin + repoName + labelName
+	if value, ok := c.labelCache.Get(key); ok {
 		return value.(*storage.Label), nil
 	}
 
-	result, err := c.store.ReadLabelByID(orgID, repoID, labelID)
+	result, err := c.store.ReadLabel(context, orgLogin, repoName, labelName)
 	if err == nil {
-		c.labelCache.Set(labelID, result)
+		c.labelCache.Set(key, result)
 	}
 
 	return result, err
 }
 
 // Reads from cache and if not found reads from DB
-func (c *Cache) ReadIssue(orgID string, repoID string, issueID string) (*storage.Issue, error) {
-	if value, ok := c.issueCache.Get(issueID); ok {
+func (c *Cache) ReadIssue(context context.Context, orgLogin string, repoName string, issueNumber int) (*storage.Issue, error) {
+	key := orgLogin + repoName + strconv.Itoa(issueNumber)
+	if value, ok := c.issueCache.Get(key); ok {
 		return value.(*storage.Issue), nil
 	}
 
-	result, err := c.store.ReadIssueByID(orgID, repoID, issueID)
+	result, err := c.store.ReadIssue(context, orgLogin, repoName, issueNumber)
 	if err == nil {
-		c.issueCache.Set(issueID, result)
+		c.issueCache.Set(key, result)
 	}
 
 	return result, err
 }
 
 // Writes to DB and if successful, updates the cache
-func (c *Cache) WriteIssues(issues []*storage.Issue) error {
-	err := c.store.WriteIssues(issues)
+func (c *Cache) WriteIssues(context context.Context, issues []*storage.Issue) error {
+	err := c.store.WriteIssues(context, issues)
 	if err == nil {
 		for _, issue := range issues {
-			c.issueCache.Set(issue.IssueID, issue)
+			c.issueCache.Set(issue.OrgLogin+issue.RepoName+strconv.Itoa(int(issue.IssueNumber)), issue)
 		}
 	}
 
@@ -224,26 +182,28 @@ func (c *Cache) WriteIssues(issues []*storage.Issue) error {
 }
 
 // Reads from cache and if not found reads from DB
-func (c *Cache) ReadIssueComment(orgID string, repoID string, issueID string,
-	issueCommentID string) (*storage.IssueComment, error) {
-	if value, ok := c.issueCommentCache.Get(issueCommentID); ok {
+func (c *Cache) ReadIssueComment(context context.Context, orgLogin string, repoName string, issueNumber int,
+	issueCommentID int) (*storage.IssueComment, error) {
+	key := orgLogin + repoName + strconv.Itoa(issueNumber) + strconv.Itoa(issueCommentID)
+	if value, ok := c.issueCommentCache.Get(key); ok {
 		return value.(*storage.IssueComment), nil
 	}
 
-	result, err := c.store.ReadIssueCommentByID(orgID, repoID, issueID, issueCommentID)
+	result, err := c.store.ReadIssueComment(context, orgLogin, repoName, issueNumber, issueCommentID)
 	if err == nil {
-		c.issueCommentCache.Set(issueCommentID, result)
+		c.issueCommentCache.Set(key, result)
 	}
 
 	return result, err
 }
 
 // Writes to DB and if successful, updates the cache
-func (c *Cache) WriteIssueComments(issueComments []*storage.IssueComment) error {
-	err := c.store.WriteIssueComments(issueComments)
+func (c *Cache) WriteIssueComments(context context.Context, issueComments []*storage.IssueComment) error {
+	err := c.store.WriteIssueComments(context, issueComments)
 	if err == nil {
 		for _, comment := range issueComments {
-			c.issueCommentCache.Set(comment.IssueCommentID, comment)
+			c.issueCommentCache.Set(comment.OrgLogin+comment.RepoName+strconv.Itoa(int(comment.IssueNumber))+strconv.Itoa(int(comment.IssueCommentID)),
+				comment)
 		}
 	}
 
@@ -251,25 +211,26 @@ func (c *Cache) WriteIssueComments(issueComments []*storage.IssueComment) error 
 }
 
 // Reads from cache and if not found reads from DB
-func (c *Cache) ReadPullRequest(orgID string, repoID string, prID string) (*storage.PullRequest, error) {
-	if value, ok := c.pullRequestCache.Get(prID); ok {
+func (c *Cache) ReadPullRequest(context context.Context, orgLogin string, repoName string, prNumber int) (*storage.PullRequest, error) {
+	key := orgLogin + repoName + strconv.Itoa(prNumber)
+	if value, ok := c.pullRequestCache.Get(key); ok {
 		return value.(*storage.PullRequest), nil
 	}
 
-	result, err := c.store.ReadPullRequestByID(orgID, repoID, prID)
+	result, err := c.store.ReadPullRequest(context, orgLogin, repoName, prNumber)
 	if err == nil {
-		c.pullRequestReviewCache.Set(prID, result)
+		c.pullRequestReviewCache.Set(key, result)
 	}
 
 	return result, err
 }
 
 // Writes to DB and if successful, updates the cache
-func (c *Cache) WritePullRequests(prs []*storage.PullRequest) error {
-	err := c.store.WritePullRequests(prs)
+func (c *Cache) WritePullRequests(context context.Context, prs []*storage.PullRequest) error {
+	err := c.store.WritePullRequests(context, prs)
 	if err == nil {
 		for _, pr := range prs {
-			c.pullRequestCache.Set(pr.PullRequestID, pr)
+			c.pullRequestCache.Set(pr.OrgLogin+pr.RepoName+strconv.Itoa(int(pr.PullRequestNumber)), pr)
 		}
 	}
 
@@ -277,26 +238,30 @@ func (c *Cache) WritePullRequests(prs []*storage.PullRequest) error {
 }
 
 // Reads from cache and if not found reads from DB
-func (c *Cache) ReadPullRequestComment(orgID string, repoID string, prID string,
-	prCommentID string) (*storage.PullRequestComment, error) {
-	if value, ok := c.pullRequestCommentCache.Get(prCommentID); ok {
-		return value.(*storage.PullRequestComment), nil
+func (c *Cache) ReadPullRequestReviewComment(context context.Context, orgLogin string, repoName string, prNumber int,
+	prCommentID int) (*storage.PullRequestReviewComment, error) {
+	key := orgLogin + repoName + strconv.Itoa(prNumber) + strconv.Itoa(prCommentID)
+	if value, ok := c.pullRequestReviewCommentCache.Get(key); ok {
+		return value.(*storage.PullRequestReviewComment), nil
 	}
 
-	result, err := c.store.ReadPullRequestCommentByID(orgID, repoID, prID, prCommentID)
+	result, err := c.store.ReadPullRequestReviewComment(context, orgLogin, repoName, prNumber, prCommentID)
 	if err == nil {
-		c.pullRequestCommentCache.Set(prCommentID, result)
+		c.pullRequestReviewCommentCache.Set(key, result)
 	}
 
 	return result, err
 }
 
 // Writes to DB and if successful, updates the cache
-func (c *Cache) WritePullRequestComments(prComments []*storage.PullRequestComment) error {
-	err := c.store.WritePullRequestComments(prComments)
+func (c *Cache) WritePullRequestReviewComments(context context.Context, prComments []*storage.PullRequestReviewComment) error {
+	err := c.store.WritePullRequestReviewComments(context, prComments)
 	if err == nil {
 		for _, comment := range prComments {
-			c.pullRequestCommentCache.Set(comment.PullRequestCommentID, comment)
+			c.pullRequestReviewCommentCache.Set(comment.OrgLogin+
+				comment.RepoName+
+				strconv.Itoa(int(comment.PullRequestNumber))+
+				strconv.Itoa(int(comment.PullRequestReviewCommentID)), comment)
 		}
 	}
 
@@ -304,26 +269,30 @@ func (c *Cache) WritePullRequestComments(prComments []*storage.PullRequestCommen
 }
 
 // Reads from cache and if not found reads from DB
-func (c *Cache) ReadPullRequestReview(orgID string, repoID string, prID string,
-	prReviewID string) (*storage.PullRequestReview, error) {
-	if value, ok := c.pullRequestReviewCache.Get(prReviewID); ok {
+func (c *Cache) ReadPullRequestReview(context context.Context, orgLogin string, repoName string, prNumber int,
+	prReviewID int) (*storage.PullRequestReview, error) {
+	key := orgLogin + repoName + strconv.Itoa(prNumber) + strconv.Itoa(prReviewID)
+	if value, ok := c.pullRequestReviewCache.Get(key); ok {
 		return value.(*storage.PullRequestReview), nil
 	}
 
-	result, err := c.store.ReadPullRequestReviewByID(orgID, repoID, prID, prReviewID)
+	result, err := c.store.ReadPullRequestReview(context, orgLogin, repoName, prNumber, prReviewID)
 	if err == nil {
-		c.pullRequestReviewCache.Set(prReviewID, result)
+		c.pullRequestReviewCache.Set(key, result)
 	}
 
 	return result, err
 }
 
 // Writes to DB and if successful, updates the cache
-func (c *Cache) WritePullRequestReviews(prReviews []*storage.PullRequestReview) error {
-	err := c.store.WritePullRequestReviews(prReviews)
+func (c *Cache) WritePullRequestReviews(context context.Context, prReviews []*storage.PullRequestReview) error {
+	err := c.store.WritePullRequestReviews(context, prReviews)
 	if err == nil {
 		for _, review := range prReviews {
-			c.pullRequestReviewCache.Set(review.PullRequestReviewID, review)
+			c.pullRequestReviewCache.Set(review.OrgLogin+
+				review.RepoName+
+				strconv.Itoa(int(review.PullRequestNumber))+
+				strconv.Itoa(int(review.PullRequestReviewID)), review)
 		}
 	}
 
@@ -331,13 +300,13 @@ func (c *Cache) WritePullRequestReviews(prReviews []*storage.PullRequestReview) 
 }
 
 // Reads from cache and if not found reads from DB
-func (c *Cache) ReadIssuePipeline(orgID string, repoID string, issueNumber int) (*storage.IssuePipeline, error) {
-	key := orgID + repoID + strconv.Itoa(issueNumber)
+func (c *Cache) ReadIssuePipeline(context context.Context, orgLogin string, repoName string, issueNumber int) (*storage.IssuePipeline, error) {
+	key := orgLogin + repoName + strconv.Itoa(issueNumber)
 	if value, ok := c.pipelineCache.Get(key); ok {
 		return value.(*storage.IssuePipeline), nil
 	}
 
-	result, err := c.store.ReadIssuePipelineByNumber(orgID, repoID, issueNumber)
+	result, err := c.store.ReadIssuePipeline(context, orgLogin, repoName, issueNumber)
 	if err == nil {
 		c.pipelineCache.Set(key, result)
 	}
@@ -345,7 +314,51 @@ func (c *Cache) ReadIssuePipeline(orgID string, repoID string, issueNumber int) 
 	return result, err
 }
 
-// QueryTestFlakeIssues returns issue based on the SQL query.
-func (c *Cache) ReadTestFlakyIssues(inactiveDays, createdDays int) ([]*storage.Issue, error) {
-	return c.store.QueryTestFlakeIssues(inactiveDays, createdDays)
+func (c *Cache) ReadTestResult(context context.Context,
+	orgLogin string, repoName string, testName string, prNum int64, runNumber int64) (*storage.TestResult, error) {
+	key := orgLogin + repoName + testName + strconv.FormatInt(prNum, 10) + strconv.FormatInt(runNumber, 10)
+	if value, ok := c.testResultCache.Get(key); ok {
+		return value.(*storage.TestResult), nil
+	}
+
+	result, err := c.store.ReadTestResult(context, orgLogin, repoName, testName, prNum, runNumber)
+	if err == nil {
+		c.testResultCache.Set(key, result)
+	}
+
+	return result, err
+}
+
+// Writes to DB and if successful, updates the cache
+func (c *Cache) WriteTestResults(context context.Context, testResults []*storage.TestResult) error {
+	err := c.store.WriteTestResults(context, testResults)
+	if err == nil {
+		for _, testResult := range testResults {
+			orgID := testResult.OrgLogin
+			repoID := testResult.RepoName
+			testName := testResult.TestName
+			prNum := testResult.PullRequestNumber
+			runNum := testResult.RunNumber
+			key := orgID + repoID + testName + strconv.FormatInt(prNum, 10) + strconv.FormatInt(runNum, 10)
+
+			c.testResultCache.Set(key, testResult)
+		}
+	}
+
+	return err
+}
+
+// Reads from cache and if not found reads from DB
+func (c *Cache) ReadMaintainer(context context.Context, orgLogin string, userLogin string) (*storage.Maintainer, error) {
+	key := orgLogin + userLogin
+	if value, ok := c.maintainerCache.Get(key); ok {
+		return value.(*storage.Maintainer), nil
+	}
+
+	result, err := c.store.ReadMaintainer(context, orgLogin, userLogin)
+	if err == nil {
+		c.maintainerCache.Set(key, result)
+	}
+
+	return result, err
 }
