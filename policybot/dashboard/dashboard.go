@@ -22,6 +22,8 @@ import (
 	"text/template"
 	"time"
 
+	"istio.io/bots/policybot/dashboard/topics/workinggroups"
+
 	"github.com/gorilla/mux"
 
 	"istio.io/bots/policybot/dashboard/templates/layout"
@@ -121,6 +123,7 @@ func New(router *mux.Router, store storage.Store, cache *cache.Cache, a *config.
 	flakes := flakes.New(store, cache)
 	coverage := coverage.New(store, cache)
 	features := features.New(store, cache)
+	workingGroups := workinggroups.New(store, cache)
 
 	// all the sidebar entries and their associated UI pages
 	d.addEntry("Maintainers", "Lists the folks that maintain the project.").
@@ -146,6 +149,10 @@ func New(router *mux.Router, store storage.Store, cache *cache.Cache, a *config.
 		endEntry().
 		addPage("/members", members.RenderList).
 		addPage("/members/{login}", members.RenderSingle).
+		endEntry()
+
+	d.addEntry("Working Groups", "Shows information about the project's working groups.").
+		addPage("/workinggroups", workingGroups.Render).
 		endEntry()
 
 	d.addEntry("Issues", "Information on new and old issues.").

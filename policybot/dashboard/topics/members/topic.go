@@ -21,10 +21,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"istio.io/bots/policybot/pkg/config"
 	"net/http"
 	"strings"
 	"time"
+
+	"istio.io/bots/policybot/pkg/config"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
