@@ -363,6 +363,8 @@ func (s store) QueryMaintainerActivity(context context.Context, maintainer *stor
 			pr, err := s.ReadPullRequest(context, maintainer.OrgLogin, repoName, int(e.PullRequestNumber))
 			if err != nil {
 				return err
+			} else if pr == nil {
+				return nil
 			}
 
 			// if the pr affects any files in any of the maintainer's paths, update the timed entry for the path

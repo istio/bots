@@ -26,13 +26,13 @@ flakechaser:
   repos:
     - "istio/istio"
 
-autolabels:
+autolabelstoapply:
   - name: Config
     matchbody:
       - "\\[ ?x ?\\] ?Configuration"
     absentlabels:
       - "area/.?"
-    labels:
+    labelstoapply:
       - area/config
 
   - name: Docs
@@ -40,7 +40,7 @@ autolabels:
       - "\\[ ?x ?\\] ?Docs"
     absentlabels:
       - "kind/.?"
-    labels:
+    labelstoapply:
       - kind/docs
 
   - name: Installation
@@ -48,7 +48,7 @@ autolabels:
       - "\\[ ?x ?\\] ?Installation"
     absentlabels:
       - "area/.?"
-    labels:
+    labelstoapply:
       - area/environments
 
   - name: Networking
@@ -56,7 +56,7 @@ autolabels:
       - "\\[ ?x ?\\] ?Networking"
     absentlabels:
       - "area/.?"
-    labels:
+    labelstoapply:
       - area/networking
 
   - name: Security
@@ -64,7 +64,7 @@ autolabels:
       - "\\[ ?x ?\\] ?Security"
     absentlabels:
       - "area/.?"
-    labels:
+    labelstoapply:
       - area/security
 
   - name: Test and Release
@@ -73,7 +73,7 @@ autolabels:
       - "\\[ ?x ?\\] ?Developer Infrastructure"
     absentlabels:
       - "area/.?"
-    labels:
+    labelstoapply:
       - "area/test and release"
 
   - name: Perf & Scalability
@@ -81,7 +81,7 @@ autolabels:
       - "\\[ ?x ?\\] ?Performance"
     absentlabels:
       - "area/.?"
-    labels:
+    labelstoapply:
       - "area/perf and scalability"
 
   - name: Policies and Telemetry
@@ -89,7 +89,7 @@ autolabels:
       - "\\[ ?x ?\\] ?Policies"
     absentlabels:
       - "area/.?"
-    labels:
+    labelstoapply:
       - "area/policies and telemetry"
 
   - name: UX
@@ -97,13 +97,13 @@ autolabels:
       - "\\[ ?x ?\\] ?User ?Experience"
     absentlabels:
       - "area/.?"
-    labels:
+    labelstoapply:
       - "area/user experience"
 
   - name: Feature Request
     matchbody:
       - "feature request"
-    labels:
+    labelstoapply:
       - kind/enhancement
 
 orgs:
@@ -172,6 +172,7 @@ orgs:
         description: Set by a human to override the Google CLA bot.
 
     repos:
+      - name: test-infra
       - name: istio.io
       - name: tools
       - name: api
