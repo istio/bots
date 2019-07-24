@@ -79,7 +79,7 @@ type TestResultGatherer struct {
 	PostSubmitPrefix string
 }
 
-func (trg *TestResultGatherer) queryChan(ctx context.Context, prefix string, result chan string) error {
+func (trg *TestResultGatherer) queryChan(ctx context.Context, prefix string, result chan string) {
 	defer close(result)
 	client := trg.Client
 	bucket := client.Bucket(trg.BucketName)
@@ -95,7 +95,6 @@ func (trg *TestResultGatherer) queryChan(ctx context.Context, prefix string, res
 		}
 		result <- attrs.Prefix
 	}
-	return nil
 }
 
 func (trg *TestResultGatherer) query(ctx context.Context, prefix string) (result []string, err error) {
@@ -115,11 +114,10 @@ func (trg *TestResultGatherer) getRepoPrPath(orgLogin string, repoName string) s
 func (trg *TestResultGatherer) getTestsForPR(ctx context.Context, orgLogin string, repoName string, prNumInt int64) (map[string][]string, error) {
 	prNum := strconv.FormatInt(prNumInt, 10)
 	prefixForPr := trg.getRepoPrPath(orgLogin, repoName) + prNum + "/"
-	// prefixForPr := "pr-logs/pull/" + orgLogin + "_" + repoName + "/" + prNum + "/"
 	return trg.getTests(ctx, prefixForPr)
 }
 
-func (trg *TestResultGatherer) getPostSubmitTests(ctx context.Context, orgLogin string, repoName string) (map[string][]string, error) {
+func (trg *TestResultGatherer) getPostSubmitTests(ctx context.Context) (map[string][]string, error) {
 	return trg.getTests(ctx, trg.PostSubmitPrefix)
 }
 
@@ -157,7 +155,6 @@ func (trg *TestResultGatherer) getTests(ctx context.Context, pathPrefix string) 
 }
 
 func (trg *TestResultGatherer) getInformationFromFinishedFile(ctx context.Context, pref string) (*finished, error) {
-	// TOOD: It is possible that the folder might not contain finished.json.
 	client := trg.Client
 	bucket := client.Bucket(trg.BucketName)
 	nrdr, err := bucket.Reader(ctx, pref+"finished.json")
@@ -266,11 +263,14 @@ func (trg *TestResultGatherer) testRunHasArtifacts(ctx context.Context, testRun 
 	return len(artifactsDir) == 1
 }
 
-// getManyResults function return the status of test passing, clone failure, sha number, base sha for each test run under each test suite for the given pr.
+// getManyResults function return the status of test passing, clone failure, sha number, base sha for each test 
+// run under each test suite for the given pr.
 // Client: client used to get buckets and objects from google cloud storage.
 // TestSlice: a slice of Tests objects containing all tests and the path to folder for each test run for the test under such pr.
 // Return a map of test suite name -- pr number -- run number -- FortestResult objects.
-func (trg *TestResultGatherer) getManyResults(ctx context.Context, testSlice map[string][]string, orgLogin string, repoName string) ([]*store.TestResult, error) {
+func (trg *TestResultGatherer) getManyResults(ctx context.Context, testSlice map[string][]string, 
+	orgLogin string, repoName string) ([]*store.TestResult, error) {
+
 	var allTestRuns = []*store.TestResult{}
 
 	for testName, runPaths := range testSlice {

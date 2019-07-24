@@ -29,9 +29,9 @@ import (
 
 // Updates the DB based on incoming GitHub webhook events.
 type TestResultFilter struct {
-	repos              map[string]gatherer.TestResultGatherer
-	cache              *cache.Cache
-	testResultGatherer *gatherer.TestResultGatherer
+	repos map[string]gatherer.TestResultGatherer
+	cache *cache.Cache
+	// testResultGatherer *gatherer.TestResultGatherer
 }
 
 var scope = log.RegisterScope("ResultGatherer", "Result gatherer for each pr test run", 0)
@@ -41,13 +41,10 @@ func NewTestResultFilter(cache *cache.Cache, orgs []config.Org, bucketName strin
 
 	client, err := s.NewClient(ctx)
 	if err != nil {
-		return nil
-	}
-	// testResultGatherer, err := gatherer.NewTestResultGatherer(client, bucketName)
-	if err != nil {
 		scope.Errorf(err.Error())
 		return nil
 	}
+
 	r := &TestResultFilter{
 		repos: make(map[string]gatherer.TestResultGatherer),
 		cache: cache,

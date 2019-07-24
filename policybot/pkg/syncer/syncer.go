@@ -770,8 +770,10 @@ func (ss *syncState) handleTestResults(org *storage.Org, repos []*storage.Repo) 
 			if err != nil {
 				return err
 			}
-			ss.syncer.store.WriteTestResults(ss.ctx, results)
-
+			err = ss.syncer.store.WriteTestResults(ss.ctx, results)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
