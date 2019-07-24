@@ -105,7 +105,7 @@ func (s store) QueryTestResultByPrNumber(
 	iter := s.client.Single().Query(context, stmt)
 	err := iter.Do(func(row *spanner.Row) error {
 		testResult := &storage.TestResult{}
-		if err := row.ToStruct(testResult); err != nil {
+		if err := rowToStruct(row, testResult); err != nil {
 			return err
 		}
 
@@ -126,7 +126,7 @@ func (s store) QueryTestResultByUndone(context context.Context, orgLogin string,
 	iter := s.client.Single().Query(context, stmt)
 	err := iter.Do(func(row *spanner.Row) error {
 		testResult := &storage.TestResult{}
-		if err := row.ToStruct(testResult); err != nil {
+		if err := rowToStruct(row, testResult); err != nil {
 			return err
 		}
 
@@ -147,7 +147,7 @@ func (s store) QueryAllTestResults(context context.Context, orgLogin string, rep
 	iter := s.client.Single().Query(context, stmt)
 	err := iter.Do(func(row *spanner.Row) error {
 		testResult := &storage.TestResult{}
-		if err := row.ToStruct(testResult); err != nil {
+		if err := rowToStruct(row, testResult); err != nil {
 			return err
 		}
 
@@ -172,7 +172,7 @@ func (s store) QueryTestFlakeIssues(context context.Context, inactiveDays, creat
 	var issues []*storage.Issue
 	getIssue := func(row *spanner.Row) error {
 		issue := storage.Issue{}
-		if err := row.ToStruct(&issue); err != nil {
+		if err := rowToStruct(row, &issue); err != nil {
 			return err
 		}
 		issues = append(issues, &issue)
@@ -225,7 +225,7 @@ func (s store) QueryMaintainerInfo(context context.Context, maintainer *storage.
 		err := iter.Do(func(row *spanner.Row) error {
 
 			var pr storage.PullRequest
-			if err := row.ToStruct(&pr); err != nil {
+			if err := rowToStruct(row, &pr); err != nil {
 				return err
 			}
 
@@ -288,7 +288,7 @@ func (s store) QueryMaintainerInfo(context context.Context, maintainer *storage.
 		err := iter.Do(func(row *spanner.Row) error {
 
 			var e storage.PullRequestReviewEvent
-			if err := row.ToStruct(&e); err != nil {
+			if err := rowToStruct(row, &e); err != nil {
 				return err
 			}
 
@@ -356,7 +356,7 @@ func (s store) QueryMaintainerInfo(context context.Context, maintainer *storage.
 		err := iter.Do(func(row *spanner.Row) error {
 
 			var e storage.PullRequestReviewCommentEvent
-			if err := row.ToStruct(&e); err != nil {
+			if err := rowToStruct(row, &e); err != nil {
 				return err
 			}
 
@@ -418,7 +418,7 @@ func (s store) QueryMaintainerInfo(context context.Context, maintainer *storage.
 			maintainer.OrgLogin, repoName, maintainer.UserLogin)})
 		err := iter.Do(func(row *spanner.Row) error {
 			var e storage.IssueCommentEvent
-			if err := row.ToStruct(&e); err != nil {
+			if err := rowToStruct(row, &e); err != nil {
 				return err
 			}
 
@@ -457,7 +457,7 @@ func (s store) QueryMaintainerInfo(context context.Context, maintainer *storage.
 			maintainer.UserLogin)})
 		err = iter.Do(func(row *spanner.Row) error {
 			var e storage.IssueEvent
-			if err := row.ToStruct(&e); err != nil {
+			if err := rowToStruct(row, &e); err != nil {
 				return err
 			}
 
@@ -491,7 +491,7 @@ func (s store) QueryMaintainerInfo(context context.Context, maintainer *storage.
 			maintainer.UserLogin)})
 		err = iter.Do(func(row *spanner.Row) error {
 			var e storage.IssueEvent
-			if err := row.ToStruct(&e); err != nil {
+			if err := rowToStruct(row, &e); err != nil {
 				return err
 			}
 

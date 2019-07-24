@@ -1,7 +1,19 @@
+{{ if eq .Mode "inactive" }}
+    <p>
+        These kind folks are responsible for specific areas of the Istio product, guiding its development
+        and maintaining its code base, but they've been inactive in the project for the last {{ .ActivityDays }} days.
+    </p>
+{{ else if eq .Mode "emeritus" }}
+    <p>
+        These kind folks were previously responsible for specific areas of the Istio product, but have taken a leave of the project. We'd love
+        to have 'em back.
+    </p>
+{{ else }}
 <p>
-These kind folks are responsible for specific areas of the Istio product, guiding its development
-and maintaining its code base.
+    These kind folks are responsible for specific areas of the Istio product, guiding its development
+    and maintaining its code base.
 </p>
+{{ end }}
 
 <div id="gallery" class="user-gallery active inactive">
 </div>

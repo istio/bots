@@ -46,6 +46,7 @@ type Maintainers struct {
 	single         *template.Template
 	user           *template.Template
 	singleControl  *template.Template
+	list           *template.Template
 	activityWindow time.Duration
 	defaultOrg     string
 }
@@ -82,6 +83,7 @@ func New(store storage.Store, cache *cache.Cache, cacheTTL time.Duration, activi
 		single:         template.Must(template.New("single").Parse(string(MustAsset("single.html")))),
 		user:           template.Must(template.New("user").Parse(string(MustAsset("user.html")))),
 		singleControl:  template.Must(template.New("singleControl").Parse(string(MustAsset("single_control.html")))),
+		list:           template.Must(template.New("list").Parse(string(MustAsset("list.html")))),
 		activityWindow: activityWindow,
 		defaultOrg:     defaultOrg,
 	}
@@ -136,6 +138,14 @@ func (m *Maintainers) RenderList(req *http.Request) (types.RenderInfo, error) {
 		return types.RenderInfo{}, util.HTTPErrorf(http.StatusNotFound, "no information available on organization %s", orgLogin)
 	}
 
+	info := struct {
+		Mode         string
+		ActivityDays int
+	}{
+		Mode:         "normal",
+		ActivityDays: int(m.activityWindow / (time.Hour * 24)),
+	}
+
 	title := ""
 	if filter != 0 && filter != recentlyActive|recentlyInactive {
 		if bits.OnesCount(uint(filter)) > 1 {
@@ -144,14 +154,21 @@ func (m *Maintainers) RenderList(req *http.Request) (types.RenderInfo, error) {
 			title = "Recently Active Maintainers"
 		} else if filter&recentlyInactive != 0 {
 			title = "Recently Inactive Maintainers"
+			info.Mode = "inactive"
 		} else if filter&emeritus != 0 {
 			title = "Emeritus Maintainers"
+			info.Mode = "emeritus"
 		}
+	}
+
+	var sb strings.Builder
+	if err := m.list.Execute(&sb, info); err != nil {
+		return types.RenderInfo{}, err
 	}
 
 	return types.RenderInfo{
 		Title:   title,
-		Content: string(MustAsset("list.html")),
+		Content: sb.String(),
 	}, nil
 }
 
