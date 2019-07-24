@@ -1,0 +1,93 @@
+{{ if eq .Mode "inactive" }}
+    <p>
+        These kind folks have been helping make Istio what is it, but they've been inactive on the project for the last {{ .ActivityDays }} days.
+    </p>
+{{ else }}
+    <p>
+        These kind folks help Istio be what it is. Thanks to all of them!
+    </p>
+{{ end }}
+
+<div id="gallery" class="user-gallery active inactive">
+</div>
+
+<script>
+    "use strict";
+
+    function getMembers() {
+        let url = "ws://" + window.location.host + "/api/members/" + window.location.search;
+        if (window.location.protocol === "https:") {
+            url = "wss://" + window.location.host + "/api/members/" + window.location.search;
+        }
+
+        const ws = new WebSocket(url);
+        const gallery = document.getElementById("gallery");
+
+        // Attach a popper to the given anchor
+        function attachPopper(anchor, element) {
+            if (popper) {
+                popper.destroy();
+            }
+
+            popper = new Popper(anchor, element, {
+                modifiers: {
+                    flip: {
+                        enabled: true,
+                    },
+                    preventOverflow: {
+                        enabled: true,
+                    },
+                    shift: {
+                        enabled: true,
+                    },
+                },
+                placement: "auto-start",
+            });
+        }
+
+        function detachPopper() {
+            if (popper) {
+                popper.destroy();
+            }
+        }
+
+        ws.onmessage = evt => {
+            const el = document.createElement("html");
+            el.innerHTML = evt.data;
+
+            const user = el.querySelector(".user");
+            const popover = el.querySelector(".popover");
+            const fit = el.querySelector(".fit");
+
+            convertUTCToLocalDate(el);
+            fitty(fit, {
+                minSize: 12,
+                maxSize: 22,
+            });
+
+            listen(user, mouseenter, e => {
+                e.cancelBubble = true;
+                toggleOverlay(popover);
+                attachPopper(user, popover);
+            });
+
+            listen(user, mouseleave, e => {
+                e.cancelBubble = true;
+                toggleOverlay(popover);
+                detachPopper();
+            });
+
+            gallery.appendChild(user);
+
+            if (popover !== null) {
+                listen(popover, click, e => {
+                    e.cancelBubble = true;
+                });
+
+                gallery.appendChild(popover);
+            }
+        };
+    }
+
+    getMembers();
+</script>

@@ -3,6 +3,7 @@ gcp_project: istio-testing
 email_from: Istio Policy Bot
 email_origin_address: noreply@istio.io
 maintainer_activity_window: 2160h
+member_activity_window: 4320h
 default_org: istio
 
 nags:

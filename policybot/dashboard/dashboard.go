@@ -113,7 +113,7 @@ func New(router *mux.Router, store storage.Store, cache *cache.Cache, a *config.
 
 	// topics
 	maintainers := maintainers.New(store, cache, a.CacheTTL, time.Duration(a.MaintainerActivityWindow), a.DefaultOrg)
-	members := members.New(store, cache, a.DefaultOrg)
+	members := members.New(store, cache, a.CacheTTL, time.Duration(a.MemberActivityWindow), a.DefaultOrg, a.Orgs)
 	issues := issues.New(store, cache)
 	pullRequests := pullrequests.New(store, cache)
 	perf := perf.New(store, cache)
@@ -138,7 +138,14 @@ func New(router *mux.Router, store storage.Store, cache *cache.Cache, a *config.
 		endEntry()
 
 	d.addEntry("Members", "Lists the folks that help develop and manage the project.").
+		addEntry("Recently Active", "Members that have recently contributed to the project.").
+		addPageWithQuery("/members", "filter", "active", members.RenderList).
+		endEntry().
+		addEntry("Recently Inactive", "Members that have not recently contributed to the project.").
+		addPageWithQuery("/members", "filter", "inactive", members.RenderList).
+		endEntry().
 		addPage("/members", members.RenderList).
+		addPage("/members/{login}", members.RenderSingle).
 		endEntry()
 
 	d.addEntry("Issues", "Information on new and old issues.").
@@ -190,6 +197,7 @@ func New(router *mux.Router, store storage.Store, cache *cache.Cache, a *config.
 
 	// API endpoints
 	d.registerAPI("/api/maintainers/", maintainers.GetList)
+	d.registerAPI("/api/members/", members.GetList)
 
 	return d
 }

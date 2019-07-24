@@ -59,11 +59,13 @@ type Store interface {
 	ReadPullRequestReview(context context.Context, orgLogin string, repoName string, prNumber int, prReviewID int) (*PullRequestReview, error)
 	ReadBotActivity(context context.Context, orgLogin string, repoName string) (*BotActivity, error)
 	ReadMaintainer(context context.Context, orgLogin string, userLogin string) (*Maintainer, error)
+	ReadMember(context context.Context, orgLogin string, userLogin string) (*Member, error)
 	ReadTestResult(context context.Context, orgLogin string, repoName string, testName string, pullRequestNumber int64, runNumber int64) (*TestResult, error)
 
 	QueryMembersByOrg(context context.Context, orgLogin string, cb func(*Member) error) error
 	QueryMaintainersByOrg(context context.Context, orgLogin string, cb func(*Maintainer) error) error
-	QueryMaintainerInfo(context context.Context, maintainer *Maintainer) (*MaintainerInfo, error)
+	QueryMaintainerActivity(context context.Context, maintainer *Maintainer) (*ActivityInfo, error)
+	QueryMemberActivity(context context.Context, member *Member, repoNames []string) (*ActivityInfo, error)
 	QueryIssuesByRepo(context context.Context, orgLogin string, repoName string, cb func(*Issue) error) error
 	QueryTestResultByPrNumber(context context.Context, orgLogin string, repoName string, pullRequestNumber int64, cb func(*TestResult) error) error
 	QueryTestResultByUndone(context context.Context, orgLogin string, repoName string, cb func(*TestResult) error) error

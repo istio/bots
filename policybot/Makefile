@@ -7,6 +7,16 @@ export GO111MODULE=on
 
 dockerrun := docker run -t -i --sig-proxy=true --rm -v $(shell pwd):/site -w /site "gcr.io/istio-testing/website-builder:2019-05-03"
 
+gen:
+	@$(dockerrun) scripts/gen_dashboard.sh
+	@go generate ./...
+
+lint:
+	@$(dockerrun) scripts/lint_dashboard.sh
+
+clean:
+	@rm -fr policybot tmp generated */*.gen.go */*/*.gen.go */*/*/*.gen.go
+
 deploy: push deploy_only
 .PHONY: deploy
 
@@ -39,13 +49,3 @@ push: container
 	@docker push $(IMG)
 	@echo "Built container and published to $(IMG)"
 .PHONY: push
-
-gen:
-	@$(dockerrun) scripts/gen_dashboard.sh
-	@go generate ./...
-
-lint:
-	@$(dockerrun) scripts/lint_dashboard.sh
-
-clean:
-	@rm -fr policybot tmp generated */*.gen.go */*/*.gen.go */*/*/*.gen.go

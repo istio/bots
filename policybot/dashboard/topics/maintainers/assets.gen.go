@@ -324,7 +324,7 @@ func singleHtml() (*asset, error) {
 
 var _single_controlHtml = []byte(`<a href="/maintainers">
     <svg class="icon"><use xlink:href="/icons/icons.svg#left-arrow"/></svg>
-    Org Maintainers
+    Maintainers
 </a>
 `)
 
@@ -369,7 +369,7 @@ var _userHtml = []byte(`<div class="user">
             </div>
 
             <div class="last-seen">
-                Last active on <span class="utc">{{ .MaintainerInfo.LastMaintenanceActivity }}</span>
+                Last active on <span class="utc">{{ .MaintainerInfo.LastActivity }}</span>
             </div>
         {{ end }}
 

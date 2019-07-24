@@ -214,7 +214,7 @@ func (ss *syncState) handleOrg(org *storage.Org, repos []*storage.Repo) error {
 	}
 
 	if ss.flags&Members != 0 {
-		if err := ss.handleMembers(org); err != nil {
+		if err := ss.handleMembers(org, repos); err != nil {
 			return err
 		}
 	}
@@ -305,7 +305,7 @@ func (ss *syncState) handleActivity(repo *storage.Repo, cb func(*storage.Repo, t
 	return nil
 }
 
-func (ss *syncState) handleMembers(org *storage.Org) error {
+func (ss *syncState) handleMembers(org *storage.Org, repos []*storage.Repo) error {
 	scope.Debugf("Getting members from org %s", org.OrgLogin)
 
 	var storageMembers []*storage.Member
@@ -318,6 +318,32 @@ func (ss *syncState) handleMembers(org *storage.Org) error {
 		return nil
 	}); err != nil {
 		return err
+	}
+
+	// now compute the contribution info for each maintainer
+
+	var repoNames []string
+	for _, repo := range repos {
+		repoNames = append(repoNames, repo.RepoName)
+	}
+
+	for _, member := range storageMembers {
+		info, err := ss.syncer.store.QueryMemberActivity(ss.ctx, member, repoNames)
+		if err != nil {
+			scope.Warnf("Couldn't get contribution info for member %s: %v", member.UserLogin, err)
+			member.CachedInfo = ""
+			continue
+		}
+
+		result, err := json.Marshal(info)
+		if err != nil {
+			scope.Warnf("Couldn't encode contribution info for member %s: %v", member.UserLogin, err)
+			member.CachedInfo = ""
+			continue
+		}
+
+		scope.Debugf("Saving cached contribution info for member %s", member.UserLogin)
+		member.CachedInfo = string(result)
 	}
 
 	return ss.syncer.store.WriteAllMembers(ss.ctx, storageMembers)
@@ -747,7 +773,7 @@ func (ss *syncState) handleMaintainers(org *storage.Org, repos []*storage.Repo) 
 
 	// now compute the contribution info for each maintainer
 	for _, maintainer := range maintainers {
-		info, err := ss.syncer.store.QueryMaintainerInfo(ss.ctx, maintainer)
+		info, err := ss.syncer.store.QueryMaintainerActivity(ss.ctx, maintainer)
 		if err != nil {
 			scope.Warnf("Couldn't get contribution info for maintainer %s: %v", maintainer.UserLogin, err)
 			maintainer.CachedInfo = ""

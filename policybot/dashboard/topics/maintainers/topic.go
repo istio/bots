@@ -54,7 +54,7 @@ type Maintainers struct {
 type combo struct {
 	User           *storage.User
 	Maintainer     *storage.Maintainer
-	MaintainerInfo *storage.MaintainerInfo
+	MaintainerInfo *storage.ActivityInfo
 	TimeZero       time.Time // hack to provide a zero-initialized timestamp to the Go templates
 }
 
@@ -113,7 +113,13 @@ func (m *Maintainers) RenderSingle(req *http.Request) (types.RenderInfo, error) 
 		return types.RenderInfo{}, err
 	}
 
+	title := g.User.Name
+	if title == "" {
+		title = g.User.UserLogin
+	}
+
 	return types.RenderInfo{
+		Title:   title,
 		Content: content.String(),
 		Control: control.String(),
 	}, nil
@@ -208,13 +214,13 @@ func (m *Maintainers) GetList(w http.ResponseWriter, req *http.Request) {
 		use := false
 		cutoff := time.Now().Add(-m.activityWindow)
 		if filter&recentlyActive != 0 {
-			if combo.MaintainerInfo.LastMaintenanceActivity.After(cutoff) {
+			if combo.MaintainerInfo.LastActivity.After(cutoff) {
 				use = true
 			}
 		}
 
 		if filter&recentlyInactive != 0 {
-			if combo.MaintainerInfo.LastMaintenanceActivity.Before(cutoff) {
+			if combo.MaintainerInfo.LastActivity.Before(cutoff) {
 				use = true
 			}
 		}
@@ -302,14 +308,14 @@ func (m *Maintainers) getCombo(context context.Context, maintainer *storage.Main
 		return nil, util.HTTPErrorf(http.StatusNotFound, "no information available on maintainer %s", maintainer.UserLogin)
 	}
 
-	var info *storage.MaintainerInfo
+	var info *storage.ActivityInfo
 	if maintainer.CachedInfo == "" {
-		info, err = m.store.QueryMaintainerInfo(context, maintainer)
+		info, err = m.store.QueryMaintainerActivity(context, maintainer)
 		if err != nil {
 			return nil, util.HTTPErrorf(http.StatusInternalServerError, "unable to get information about maintainer %s: %v", maintainer.UserLogin, err)
 		}
 	} else {
-		var o storage.MaintainerInfo
+		var o storage.ActivityInfo
 		err = json.Unmarshal([]byte(maintainer.CachedInfo), &o)
 		if err != nil {
 			return nil, util.HTTPErrorf(http.StatusInternalServerError, "unable to decode contribution info about maintainer %s: %v", maintainer.UserLogin, err)

@@ -209,6 +209,9 @@ type Args struct {
 	// Time window within which a maintainer is considered active on the project
 	MaintainerActivityWindow Duration `json:"maintainer_activity_window"`
 
+	// Time window within which a member is considered active on the project
+	MemberActivityWindow Duration `json:"member_activity_window"`
+
 	// Default GitHub org to use in the UI when none is specified
 	DefaultOrg string `json:"default_org"`
 }
@@ -247,6 +250,7 @@ func (a *Args) String() string {
 	_, _ = fmt.Fprintf(&sb, "CacheTTL: %s\n", a.CacheTTL)
 	_, _ = fmt.Fprintf(&sb, "GCPProject: %s\n", a.GCPProject)
 	_, _ = fmt.Fprintf(&sb, "MaintainerActivityWindow: %v\n", a.MaintainerActivityWindow)
+	_, _ = fmt.Fprintf(&sb, "MemberActivityWindow: %v\n", a.MemberActivityWindow)
 	_, _ = fmt.Fprintf(&sb, "DefaultOrg: %v\n", a.DefaultOrg)
 
 	return sb.String()

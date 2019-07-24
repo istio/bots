@@ -185,8 +185,8 @@ func (s store) QueryTestFlakeIssues(context context.Context, inactiveDays, creat
 	return issues, nil
 }
 
-func (s store) QueryMaintainerInfo(context context.Context, maintainer *storage.Maintainer) (*storage.MaintainerInfo, error) {
-	info := &storage.MaintainerInfo{
+func (s store) QueryMaintainerActivity(context context.Context, maintainer *storage.Maintainer) (*storage.ActivityInfo, error) {
+	info := &storage.ActivityInfo{
 		Repos: make(map[string]*storage.RepoActivityInfo),
 	}
 
@@ -240,8 +240,8 @@ func (s store) QueryMaintainerInfo(context context.Context, maintainer *storage.
 						}
 						repoInfo.Paths[sp] = pai
 
-						if pr.MergedAt.After(info.LastMaintenanceActivity) {
-							info.LastMaintenanceActivity = pr.MergedAt
+						if pr.MergedAt.After(info.LastActivity) {
+							info.LastActivity = pr.MergedAt
 						}
 
 						delete(soughtPaths[repoName], sp)
@@ -308,8 +308,8 @@ func (s store) QueryMaintainerInfo(context context.Context, maintainer *storage.
 						}
 						repoInfo.Paths[sp] = pai
 
-						if e.CreatedAt.After(info.LastMaintenanceActivity) {
-							info.LastMaintenanceActivity = e.CreatedAt
+						if e.CreatedAt.After(info.LastActivity) {
+							info.LastActivity = e.CreatedAt
 						}
 
 						delete(soughtPaths[repoName], sp)
@@ -376,8 +376,8 @@ func (s store) QueryMaintainerInfo(context context.Context, maintainer *storage.
 						}
 						repoInfo.Paths[sp] = pai
 
-						if e.CreatedAt.After(info.LastMaintenanceActivity) {
-							info.LastMaintenanceActivity = e.CreatedAt
+						if e.CreatedAt.After(info.LastActivity) {
+							info.LastActivity = e.CreatedAt
 						}
 
 						delete(soughtPaths[repoName], sp)
@@ -405,8 +405,49 @@ func (s store) QueryMaintainerInfo(context context.Context, maintainer *storage.
 
 	// now figure out issue activity for all repos
 	for repoName, repoInfo := range info.Repos {
-		iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
-			`SELECT * FROM IssueCommentEvents
+		if err := s.getIssueActivity(context, maintainer.OrgLogin, repoName, maintainer.UserLogin, info, repoInfo); err != nil {
+			return nil, err
+		}
+	}
+
+	return info, nil
+}
+
+func (s store) QueryMemberActivity(context context.Context, member *storage.Member, repoNames []string) (*storage.ActivityInfo, error) {
+	info := &storage.ActivityInfo{
+		Repos: make(map[string]*storage.RepoActivityInfo),
+	}
+
+	for _, repoName := range repoNames {
+		repoInfo := &storage.RepoActivityInfo{}
+		repoInfo.Paths = make(map[string]storage.RepoPathActivityInfo)
+		repoInfo.Paths["/"] = storage.RepoPathActivityInfo{}
+
+		if err := s.getIssueActivity(context, member.OrgLogin, repoName, member.UserLogin, info, repoInfo); err != nil {
+			return nil, err
+		}
+
+		if err := s.getPRActivity(context, member.OrgLogin, repoName, member.UserLogin, info, repoInfo); err != nil {
+			return nil, err
+		}
+
+		// if any activity was detected, keep track of the repo
+		if repoInfo.LastIssueCommented.Number != 0 ||
+			repoInfo.LastIssueClosed.Number != 0 ||
+			repoInfo.LastIssueTriaged.Number != 0 ||
+			repoInfo.Paths["/"].LastPullRequestReviewed.Number != 0 ||
+			repoInfo.Paths["/"].LastPullRequestSubmitted.Number != 0 {
+			info.Repos[repoName] = repoInfo
+		}
+	}
+
+	return info, nil
+}
+
+func (s *store) getIssueActivity(context context.Context, orgLogin string, repoName string, userLogin string,
+	info *storage.ActivityInfo, repoInfo *storage.RepoActivityInfo) error {
+	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
+		`SELECT * FROM IssueCommentEvents
 			WHERE
 				OrgLogin = '%s' 
 				AND RepoName = '%s' 
@@ -415,31 +456,31 @@ func (s store) QueryMaintainerInfo(context context.Context, maintainer *storage.
 					OR Action = 'edited')
 			ORDER BY CreatedAt DESC
 			LIMIT 1;`,
-			maintainer.OrgLogin, repoName, maintainer.UserLogin)})
-		err := iter.Do(func(row *spanner.Row) error {
-			var e storage.IssueCommentEvent
-			if err := rowToStruct(row, &e); err != nil {
-				return err
-			}
-
-			repoInfo.LastIssueCommented = storage.TimedEntry{
-				Time:   e.CreatedAt,
-				Number: e.IssueNumber,
-			}
-
-			if e.CreatedAt.After(info.LastMaintenanceActivity) {
-				info.LastMaintenanceActivity = e.CreatedAt
-			}
-
-			return nil
-		})
-
-		if err != nil {
-			return nil, err
+		orgLogin, repoName, userLogin)})
+	err := iter.Do(func(row *spanner.Row) error {
+		var e storage.IssueCommentEvent
+		if err := rowToStruct(row, &e); err != nil {
+			return err
 		}
 
-		iter = s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
-			`SELECT * FROM IssueEvents
+		repoInfo.LastIssueCommented = storage.TimedEntry{
+			Time:   e.CreatedAt,
+			Number: e.IssueNumber,
+		}
+
+		if e.CreatedAt.After(info.LastActivity) {
+			info.LastActivity = e.CreatedAt
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	iter = s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
+		`SELECT * FROM IssueEvents
 			WHERE 
 				OrgLogin = '%s'
 				AND RepoName = '%s'
@@ -452,33 +493,31 @@ func (s store) QueryMaintainerInfo(context context.Context, maintainer *storage.
 					OR Action = 'unassigned')
 			ORDER BY CreatedAt DESC
 			LIMIT 1;`,
-			maintainer.OrgLogin,
-			repoName,
-			maintainer.UserLogin)})
-		err = iter.Do(func(row *spanner.Row) error {
-			var e storage.IssueEvent
-			if err := rowToStruct(row, &e); err != nil {
-				return err
-			}
-
-			repoInfo.LastIssueTriaged = storage.TimedEntry{
-				Time:   e.CreatedAt,
-				Number: e.IssueNumber,
-			}
-
-			if e.CreatedAt.After(info.LastMaintenanceActivity) {
-				info.LastMaintenanceActivity = e.CreatedAt
-			}
-
-			return nil
-		})
-
-		if err != nil {
-			return nil, err
+		orgLogin, repoName, userLogin)})
+	err = iter.Do(func(row *spanner.Row) error {
+		var e storage.IssueEvent
+		if err := rowToStruct(row, &e); err != nil {
+			return err
 		}
 
-		iter = s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
-			`SELECT * FROM IssueEvents
+		repoInfo.LastIssueTriaged = storage.TimedEntry{
+			Time:   e.CreatedAt,
+			Number: e.IssueNumber,
+		}
+
+		if e.CreatedAt.After(info.LastActivity) {
+			info.LastActivity = e.CreatedAt
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	iter = s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
+		`SELECT * FROM IssueEvents
 			WHERE
 				OrgLogin = '%s'
 				AND RepoName = '%s'
@@ -486,31 +525,126 @@ func (s store) QueryMaintainerInfo(context context.Context, maintainer *storage.
 				AND Action = 'closed'
 			ORDER BY CreatedAt DESC
 			LIMIT 1;`,
-			maintainer.OrgLogin,
-			repoName,
-			maintainer.UserLogin)})
-		err = iter.Do(func(row *spanner.Row) error {
-			var e storage.IssueEvent
-			if err := rowToStruct(row, &e); err != nil {
-				return err
-			}
-
-			repoInfo.LastIssueClosed = storage.TimedEntry{
-				Time:   e.CreatedAt,
-				Number: e.IssueNumber,
-			}
-
-			if e.CreatedAt.After(info.LastMaintenanceActivity) {
-				info.LastMaintenanceActivity = e.CreatedAt
-			}
-
-			return nil
-		})
-
-		if err != nil {
-			return nil, err
+		orgLogin, repoName, userLogin)})
+	err = iter.Do(func(row *spanner.Row) error {
+		var e storage.IssueEvent
+		if err := rowToStruct(row, &e); err != nil {
+			return err
 		}
+
+		repoInfo.LastIssueClosed = storage.TimedEntry{
+			Time:   e.CreatedAt,
+			Number: e.IssueNumber,
+		}
+
+		if e.CreatedAt.After(info.LastActivity) {
+			info.LastActivity = e.CreatedAt
+		}
+
+		return nil
+	})
+
+	return err
+}
+
+func (s *store) getPRActivity(context context.Context, orgLogin string, repoName string, userLogin string,
+	info *storage.ActivityInfo, repoInfo *storage.RepoActivityInfo) error {
+
+	pathInfo := repoInfo.Paths["/"]
+
+	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
+		`SELECT * FROM PullRequestEvents
+			WHERE
+				OrgLogin = '%s' 
+				AND RepoName = '%s' 
+				AND Actor = '%s' 
+				AND Action = 'closed'
+			ORDER BY CreatedAt DESC
+			LIMIT 1;`,
+		orgLogin, repoName, userLogin)})
+	err := iter.Do(func(row *spanner.Row) error {
+		var e storage.PullRequestEvent
+		if err := rowToStruct(row, &e); err != nil {
+			return err
+		}
+
+		pathInfo.LastPullRequestSubmitted = storage.TimedEntry{
+			Time:   e.CreatedAt,
+			Number: e.PullRequestNumber,
+		}
+
+		if e.CreatedAt.After(info.LastActivity) {
+			info.LastActivity = e.CreatedAt
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
 	}
 
-	return info, nil
+	iter = s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
+		`SELECT * FROM PullRequestReviewEvents
+			WHERE 
+				OrgLogin = '%s'
+				AND RepoName = '%s'
+				AND Actor = '%s'
+			ORDER BY CreatedAt DESC
+			LIMIT 1;`,
+		orgLogin, repoName, userLogin)})
+	err = iter.Do(func(row *spanner.Row) error {
+		var e storage.PullRequestReviewEvent
+		if err := rowToStruct(row, &e); err != nil {
+			return err
+		}
+
+		pathInfo.LastPullRequestReviewed = storage.TimedEntry{
+			Time:   e.CreatedAt,
+			Number: e.PullRequestNumber,
+		}
+
+		if e.CreatedAt.After(info.LastActivity) {
+			info.LastActivity = e.CreatedAt
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	iter = s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
+		`SELECT * FROM PullRequestReviewCommentEvents
+			WHERE 
+				OrgLogin = '%s'
+				AND RepoName = '%s'
+				AND Actor = '%s'
+			ORDER BY CreatedAt DESC
+			LIMIT 1;`,
+		orgLogin, repoName, userLogin)})
+	err = iter.Do(func(row *spanner.Row) error {
+		var e storage.PullRequestReviewCommentEvent
+		if err := rowToStruct(row, &e); err != nil {
+			return err
+		}
+
+		if pathInfo.LastPullRequestReviewed.Time.Before(e.CreatedAt) {
+			pathInfo.LastPullRequestReviewed = storage.TimedEntry{
+				Time:   e.CreatedAt,
+				Number: e.PullRequestNumber,
+			}
+		}
+
+		if e.CreatedAt.After(info.LastActivity) {
+			info.LastActivity = e.CreatedAt
+		}
+
+		return nil
+	})
+
+	repoInfo.Paths["/"] = pathInfo
+
+	return err
 }
