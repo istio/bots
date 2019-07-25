@@ -63,6 +63,7 @@ var (
 	pullRequestReviewColumns        []string
 	botActivityColumns              []string
 	maintainerColumns               []string
+	memberColumns                   []string
 	testResultColumns               []string
 )
 
@@ -116,6 +117,10 @@ func maintainerKey(orgLogin string, userLogin string) spanner.Key {
 	return spanner.Key{orgLogin, userLogin}
 }
 
+func memberKey(orgLogin string, userLogin string) spanner.Key {
+	return spanner.Key{orgLogin, userLogin}
+}
+
 func testResultKey(orgLogin string, repoName string, testName string, prNum int64, runNumber int64) spanner.Key {
 	return spanner.Key{orgLogin, repoName, testName, prNum, runNumber}
 }
@@ -132,6 +137,7 @@ func init() {
 	pullRequestReviewColumns = getFields(storage.PullRequestReview{})
 	botActivityColumns = getFields(storage.BotActivity{})
 	maintainerColumns = getFields(storage.Maintainer{})
+	memberColumns = getFields(storage.Member{})
 	testResultColumns = getFields(storage.TestResult{})
 }
 

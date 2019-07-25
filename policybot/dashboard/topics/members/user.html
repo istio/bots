@@ -1,0 +1,29 @@
+<div class="user">
+    <a href="/members/{{ .User.UserLogin }}">
+        <div class="name">
+            <div class="fit">
+                {{ if .User.Name }}
+                    {{ .User.Name }}
+                {{ else }}
+                    {{ .User.UserLogin }}
+                {{ end }}
+            </div>
+        </div>
+
+        <div class="avatar">
+            <img src="{{ .User.AvatarURL }}">
+        </div>
+
+        <div class="num-repos">
+            {{ if eq (len .MemberInfo.Repos) 1 }}
+                Contributed to 1 repo
+            {{ else }}
+                Contributed in {{ len .MemberInfo.Repos }} repos
+            {{ end }}
+        </div>
+
+        <div class="last-seen">
+            Last active on <span class="utc">{{ .MemberInfo.LastActivity }}</span>
+        </div>
+    </a>
+</div>

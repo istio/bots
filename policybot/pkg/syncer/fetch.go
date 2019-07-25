@@ -90,7 +90,6 @@ func (s *Syncer) fetchRepoComments(context context.Context, repo *storage.Repo, 
 
 func (s *Syncer) fetchMembers(context context.Context, org *storage.Org, cb func([]*github.User) error) error {
 	opt := &github.ListMembersOptions{
-		PublicOnly: true,
 		ListOptions: github.ListOptions{
 			PerPage: 100,
 		},

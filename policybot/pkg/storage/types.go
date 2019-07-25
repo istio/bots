@@ -127,8 +127,9 @@ type PullRequestReview struct {
 }
 
 type Member struct {
-	OrgLogin  string
-	UserLogin string
+	OrgLogin   string
+	UserLogin  string
+	CachedInfo string // a JSON encoded ActivityInfo
 }
 
 type BotActivity struct {
@@ -144,7 +145,7 @@ type Maintainer struct {
 	UserLogin  string
 	Paths      []string // where each path is of the form RepoName/path_in_repo
 	Emeritus   bool
-	CachedInfo string // a JSON encoded MaintainerInfo
+	CachedInfo string // a JSON encoded ActivityInfo
 }
 
 type IssuePipeline struct {
@@ -171,9 +172,9 @@ type RepoActivityInfo struct {
 	LastIssueTriaged   TimedEntry                      // last issue triaged by the maintainer
 }
 
-type MaintainerInfo struct {
-	Repos                   map[string]*RepoActivityInfo // about the maintainer's activity in different repos (index is repo name)
-	LastMaintenanceActivity time.Time                    // when is the last time the maintainer did maintenance
+type ActivityInfo struct {
+	Repos        map[string]*RepoActivityInfo // about user activity in different repos (index is repo name)
+	LastActivity time.Time                    // when is the last time any activity took place
 }
 
 type TestResult struct {

@@ -1,0 +1,122 @@
+<div class="user-page">
+    <div class="profile">
+        <div class="avatar">
+            <img src="{{ .User.AvatarURL }}" />
+        </div>
+
+        <div class="info">
+            <div class="property-table">
+                {{ if .User.Name }}
+                    <div class="name">
+                        Name
+                    </div>
+                    <div class="value">
+                        {{ .User.Name }}
+                    </div>
+                {{ end  }}
+
+                <div class="name">
+                    GitHub Handle
+                </div>
+                <div class="value">
+                    <a href="https://github.com/{{ .User.UserLogin }}">{{ .User.UserLogin }}</a>
+                </div>
+
+                {{ if .User.Company }}
+                    <div class="name">
+                        Affiliation
+                    </div>
+                    <div class="value">
+                        {{ .User.Company }}
+                    </div>
+                {{ end }}
+            </div>
+        </div>
+    </div>
+
+    {{ $member := .Member }}
+
+    {{ range $repoName, $repoInfo := .MemberInfo.Repos }}
+        <div class="repo">
+            <div class="title">
+                Contribution activity on the <a href="https://github.com/{{ $member.OrgLogin }}/{{ $repoName }}">{{ $repoName }}</a> repo
+            </div>
+
+            <div class="property-table">
+                <div class="name">
+                    Last comment left on an issue or PR
+                </div>
+                <div class="value">
+                    {{ if $repoInfo.LastIssueCommented.Number }}
+                        #<a href="https://github.com/{{ $member.OrgLogin }}/{{ $repoName }}/issues/{{ $repoInfo.LastIssueCommented.Number }}">
+                            {{ $repoInfo.LastIssueCommented.Number }}</a>
+                        on <span class="utc">{{ $repoInfo.LastIssueCommented.Time }}</span>
+                    {{ else }}
+                        &lt;never&gt;
+                    {{ end }}
+                </div>
+
+                <div class="name">
+                    Last issue or PR triaged
+                </div>
+                <div class="value">
+                    {{ if $repoInfo.LastIssueTriaged.Number }}
+                        #<a href="https://github.com/{{ $member.OrgLogin }}/{{ $repoName }}/issues/{{ $repoInfo.LastIssueTriaged.Number }}">
+                            {{ $repoInfo.LastIssueTriaged.Number }}</a>
+                        on <span class="utc">{{ $repoInfo.LastIssueTriaged.Time }}</span>
+                    {{ else }}
+                        &lt;never&gt;
+                    {{ end }}
+                </div>
+
+                <div class="name">
+                    Last issue or PR closed
+                </div>
+                <div class="value">
+                    {{ if $repoInfo.LastIssueClosed.Number }}
+                        #<a href="https://github.com/{{ $member.OrgLogin }}/{{ $repoName }}/issues/{{ $repoInfo.LastIssueClosed.Number }}">
+                            {{ $repoInfo.LastIssueClosed.Number }}</a>
+                        on <span class="utc">{{ $repoInfo.LastIssueClosed.Time }}</span>
+                    {{ else }}
+                        &lt;never&gt;
+                    {{ end }}
+                </div>
+
+                {{ $pathInfo := index $repoInfo.Paths "/" }}
+
+                <div class="name">
+                    Last PR submitted
+                </div>
+                <div class="value">
+                    {{ if $pathInfo.LastPullRequestSubmitted.Number }}
+                        #<a href="https://github.com/{{ $member.OrgLogin }}/{{ $repoName }}/issues/{{ $pathInfo.LastPullRequestSubmitted.Number }}">
+                            {{ $pathInfo.LastPullRequestSubmitted.Number }}</a>
+                        on <span class="utc">{{ $pathInfo.LastPullRequestSubmitted.Time }}</span>
+                    {{ else }}
+                        &lt;never&gt;
+                    {{ end }}
+                </div>
+
+                <div class="name">
+                    Last PR reviewed
+                </div>
+                <div class="value">
+                    {{ if $pathInfo.LastPullRequestReviewed.Number }}
+                        #<a href="https://github.com/{{ $member.OrgLogin }}/{{ $repoName }}/issues/{{ $pathInfo.LastPullRequestReviewed.Number }}">
+                            {{ $pathInfo.LastPullRequestReviewed.Number }}</a>
+                        on <span class="utc">{{ $pathInfo.LastPullRequestReviewed.Time }}</span>
+                    {{ else }}
+                        &lt;never&gt;
+                    {{ end }}
+                </div>
+            </div>
+        </div>
+    {{ end }}
+</div>
+
+<script>
+    "use strict";
+    document.addEventListener("DOMContentLoaded", () => {
+        convertUTCToLocalDate(document);
+    });
+</script>

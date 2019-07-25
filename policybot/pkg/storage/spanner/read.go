@@ -235,3 +235,19 @@ func (s store) ReadMaintainer(context context.Context, orgLogin string, userLogi
 
 	return &result, nil
 }
+
+func (s store) ReadMember(context context.Context, orgLogin string, userLogin string) (*storage.Member, error) {
+	row, err := s.client.Single().ReadRow(context, memberTable, memberKey(orgLogin, userLogin), memberColumns)
+	if spanner.ErrCode(err) == codes.NotFound {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	var result storage.Member
+	if err := rowToStruct(row, &result); err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}

@@ -63,6 +63,7 @@ func (se *sidebarEntry) addPage(path string, render types.RenderFunc) *sidebarEn
 	return se
 }
 
+// nolint: unparam
 func (se *sidebarEntry) addPageWithQuery(path string, queryName string, queryValue string, render types.RenderFunc) *sidebarEntry {
 	if len(se.Routes) == 0 {
 		// use the first page associated with this entry as the entry's target URL

@@ -39,6 +39,7 @@ type Cache struct {
 	pullRequestReviewCache        cache.ExpiringCache
 	pipelineCache                 cache.ExpiringCache
 	maintainerCache               cache.ExpiringCache
+	memberCache                   cache.ExpiringCache
 	repoCommentCache              cache.ExpiringCache
 	testResultCache               cache.ExpiringCache
 }
@@ -65,6 +66,7 @@ func New(store storage.Store, entryTTL time.Duration) *Cache {
 		pullRequestReviewCache:        cache.NewTTL(entryTTL, evictionInterval),
 		pipelineCache:                 cache.NewTTL(entryTTL, evictionInterval),
 		maintainerCache:               cache.NewTTL(entryTTL, evictionInterval),
+		memberCache:                   cache.NewTTL(entryTTL, evictionInterval),
 		repoCommentCache:              cache.NewTTL(entryTTL, evictionInterval),
 		testResultCache:               cache.NewTTL(entryTTL, evictionInterval),
 	}
@@ -358,6 +360,21 @@ func (c *Cache) ReadMaintainer(context context.Context, orgLogin string, userLog
 	result, err := c.store.ReadMaintainer(context, orgLogin, userLogin)
 	if err == nil {
 		c.maintainerCache.Set(key, result)
+	}
+
+	return result, err
+}
+
+// Reads from cache and if not found reads from DB
+func (c *Cache) ReadMember(context context.Context, orgLogin string, userLogin string) (*storage.Member, error) {
+	key := orgLogin + userLogin
+	if value, ok := c.memberCache.Get(key); ok {
+		return value.(*storage.Member), nil
+	}
+
+	result, err := c.store.ReadMember(context, orgLogin, userLogin)
+	if err == nil {
+		c.memberCache.Set(key, result)
 	}
 
 	return result, err
