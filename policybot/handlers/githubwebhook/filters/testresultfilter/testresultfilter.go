@@ -16,6 +16,7 @@ package testresultfilter
 
 import (
 	"context"
+	"istio.io/bots/policybot/pkg/blobstorage"
 
 	"github.com/google/go-github/v26/github"
 
@@ -31,20 +32,11 @@ import (
 type TestResultFilter struct {
 	repos map[string]gatherer.TestResultGatherer
 	cache *cache.Cache
-	// testResultGatherer *gatherer.TestResultGatherer
 }
 
-var scope = log.RegisterScope("ResultGatherer", "Result gatherer for each pr test run", 0)
+var scope = log.RegisterScope("TestResultFilter", "Result filter for each pr test run", 0)
 
-func NewTestResultFilter(cache *cache.Cache, orgs []config.Org, bucketName string) filters.Filter {
-	ctx := context.Background()
-
-	client, err := s.NewClient(ctx)
-	if err != nil {
-		scope.Errorf(err.Error())
-		return nil
-	}
-
+func NewTestResultFilter(cache *cache.Cache, orgs []config.Org, client blobstorage.Store) filters.Filter {
 	r := &TestResultFilter{
 		repos: make(map[string]gatherer.TestResultGatherer),
 		cache: cache,
@@ -52,7 +44,7 @@ func NewTestResultFilter(cache *cache.Cache, orgs []config.Org, bucketName strin
 
 	for _, org := range orgs {
 		for _, repo := range org.Repos {
-			r.repos[org.Name+"/"+repo.Name] = gatherer.TestResultGatherer{client, bucketName, org.PreSubmitTestPath, org.PostSubmitTestPath}
+			r.repos[org.Name+"/"+repo.Name] = gatherer.TestResultGatherer{client, org.BucketName, org.PreSubmitTestPath, org.PostSubmitTestPath}
 		}
 	}
 

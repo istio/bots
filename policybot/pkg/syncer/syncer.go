@@ -138,13 +138,11 @@ func (s *Syncer) Sync(context context.Context, flags FilterFlags) error {
 	var repos []*storage.Repo
 
 	// get all the org & repo info
-	if err := s.fetchOrgs(ss.ctx, func(org *github.Organization, configOrg config.Org) error {
+	if err := s.fetchOrgs(ss.ctx, func(org *github.Organization) error {
 		storageOrg := gh.ConvertOrg(org)
-		storageOrg.Config = configOrg
 		orgs = append(orgs, storageOrg)
-		return s.fetchRepos(ss.ctx, func(repo *github.Repository, configRepo config.Repo) error {
+		return s.fetchRepos(ss.ctx, func(repo *github.Repository) error {
 			storageRepo := gh.ConvertRepo(repo)
-			storageRepo.Config = configRepo
 			repos = append(repos, storageRepo)
 			return nil
 		})
@@ -159,7 +157,7 @@ func (s *Syncer) Sync(context context.Context, flags FilterFlags) error {
 	if err := s.store.WriteRepos(ss.ctx, repos); err != nil {
 		return err
 	}
-
+	// persist data about storage.Orgs and related
 	for _, org := range orgs {
 		var orgRepos []*storage.Repo
 		for _, repo := range repos {
@@ -173,15 +171,19 @@ func (s *Syncer) Sync(context context.Context, flags FilterFlags) error {
 				return err
 			}
 		}
+	}
+
+	// process data to persist about config.orgs and related
+	for _, org := range s.orgs {
 
 		if flags&Maintainers != 0 {
-			if err := ss.handleMaintainers(org, orgRepos); err != nil {
+			if err := ss.handleMaintainers(&org); err != nil {
 				return err
 			}
 		}
 
 		if flags&TestResults != 0 {
-			if err := ss.handleTestResults(org, orgRepos); err != nil {
+			if err := ss.handleTestResults(&org); err != nil {
 				return err
 			}
 		}
@@ -747,17 +749,17 @@ func (ss *syncState) handlePullRequestReviewComments(repo *storage.Repo, start t
 	})
 }
 
-func (ss *syncState) handleTestResults(org *storage.Org, repos []*storage.Repo) error {
-	scope.Debugf("Getting test results for org %s", org.OrgLogin)
+func (ss *syncState) handleTestResults(org *config.Org) error {
+	scope.Debugf("Getting test results for org %s", org.Name)
 	client, err := gcs.NewClient(ss.ctx)
 	if err != nil {
 		return err
 	}
-	g := resultgatherer.TestResultGatherer{Client: client, BucketName: org.Config.BucketName,
-		PreSubmitPrefix: org.Config.PreSubmitTestPath, PostSubmitPrefix: org.Config.PostSubmitTestPath}
+	g := resultgatherer.TestResultGatherer{Client: client, BucketName: org.BucketName,
+		PreSubmitPrefix: org.PreSubmitTestPath, PostSubmitPrefix: org.PostSubmitTestPath}
 	// TODO: this should be paralellized for speed
-	for _, repo := range repos {
-		prPaths, err := g.GetAllPullRequests(ss.ctx, org.OrgLogin, repo.RepoName)
+	for _, repo := range org.Repos {
+		prPaths, err := g.GetAllPullRequests(ss.ctx, org.Name, repo.Name)
 		if err != nil {
 			return err
 		}
@@ -767,7 +769,7 @@ func (ss *syncState) handleTestResults(org *storage.Org, repos []*storage.Repo) 
 			if err != nil {
 				return err
 			}
-			results, err := g.CheckTestResultsForPr(ss.ctx, org.OrgLogin, repo.RepoName, prNum)
+			results, err := g.CheckTestResultsForPr(ss.ctx, org.Name, repo.Name, prNum)
 			if err != nil {
 				return err
 			}
@@ -782,24 +784,24 @@ func (ss *syncState) handleTestResults(org *storage.Org, repos []*storage.Repo) 
 	return nil
 }
 
-func (ss *syncState) handleMaintainers(org *storage.Org, repos []*storage.Repo) error {
-	scope.Debugf("Getting maintainers for org %s", org.OrgLogin)
+func (ss *syncState) handleMaintainers(org *config.Org) error {
+	scope.Debugf("Getting maintainers for org %s", org.Name)
 
 	maintainers := make(map[string]*storage.Maintainer)
 
-	for _, repo := range repos {
+	for _, repo := range org.Repos {
 		fc, _, _, err := ss.syncer.gc.ThrottledCallTwoResult(func(client *github.Client) (interface{}, interface{}, *github.Response, error) {
-			return client.Repositories.GetContents(ss.ctx, repo.OrgLogin, repo.RepoName, "CODEOWNERS", nil)
+			return client.Repositories.GetContents(ss.ctx, org.Name, repo.Name, "CODEOWNERS", nil)
 		})
 
 		if err == nil {
-			err = ss.handleCODEOWNERS(org, repo, maintainers, fc.(*github.RepositoryContent))
+			err = ss.handleCODEOWNERS(org, &repo, maintainers, fc.(*github.RepositoryContent))
 		} else {
-			err = ss.handleOWNERS(org, repo, maintainers)
+			err = ss.handleOWNERS(org, &repo, maintainers)
 		}
 
 		if err != nil {
-			scope.Warnf("Unable to establish maintainers for repo %s/%s: %v", repo.OrgLogin, repo.RepoName, err)
+			scope.Warnf("Unable to establish maintainers for repo %s/%s: %v", org.Name, repo.Name, err)
 		}
 	}
 
@@ -845,15 +847,15 @@ func (ss *syncState) handleMaintainers(org *storage.Org, repos []*storage.Repo) 
 	return ss.syncer.store.WriteAllMaintainers(ss.ctx, storageMaintainers)
 }
 
-func (ss *syncState) handleCODEOWNERS(org *storage.Org, repo *storage.Repo, maintainers map[string]*storage.Maintainer, fc *github.RepositoryContent) error {
+func (ss *syncState) handleCODEOWNERS(org *config.Org, repo *config.Repo, maintainers map[string]*storage.Maintainer, fc *github.RepositoryContent) error {
 	content, err := fc.GetContent()
 	if err != nil {
-		return fmt.Errorf("unable to read CODEOWNERS body from repo %s/%s: %v", repo.OrgLogin, repo.RepoName, err)
+		return fmt.Errorf("unable to read CODEOWNERS body from repo %s/%s: %v", org.Name, repo.Name, err)
 	}
 
 	lines := strings.Split(content, "\n")
 
-	scope.Debugf("%d lines in CODEOWNERS file for repo %s/%s", len(lines), repo.OrgLogin, repo.RepoName)
+	scope.Debugf("%d lines in CODEOWNERS file for repo %s/%s", len(lines), org.Name, repo.Name)
 
 	// go through each line of the CODEOWNERS file
 	for _, line := range lines {
@@ -877,7 +879,7 @@ func (ss *syncState) handleCODEOWNERS(org *storage.Org, repo *storage.Repo, main
 				path = ""
 			}
 
-			scope.Debugf("User '%s' can review path '%s/%s/%s'", login, repo.OrgLogin, repo.RepoName, path)
+			scope.Debugf("User '%s' can review path '%s/%s/%s'", login, org.Name, repo.Name, path)
 
 			maintainer, err := ss.getMaintainer(org, maintainers, login)
 			if maintainer == nil || err != nil {
@@ -885,7 +887,7 @@ func (ss *syncState) handleCODEOWNERS(org *storage.Org, repo *storage.Repo, main
 				continue
 			}
 
-			maintainer.Paths = append(maintainer.Paths, repo.RepoName+"/"+path)
+			maintainer.Paths = append(maintainer.Paths, repo.Name+"/"+path)
 		}
 	}
 
@@ -897,7 +899,7 @@ type ownersFile struct {
 	Reviewers []string `json:"reviewers"`
 }
 
-func (ss *syncState) handleOWNERS(org *storage.Org, repo *storage.Repo, maintainers map[string]*storage.Maintainer) error {
+func (ss *syncState) handleOWNERS(org *config.Org, repo *config.Repo, maintainers map[string]*storage.Maintainer) error {
 	opt := &github.CommitsListOptions{
 		ListOptions: github.ListOptions{
 			PerPage: 1,
@@ -906,19 +908,19 @@ func (ss *syncState) handleOWNERS(org *storage.Org, repo *storage.Repo, maintain
 
 	// TODO: we need to get the SHA for the latest commit on the master branch, not just any branch
 	rc, _, err := ss.syncer.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
-		return client.Repositories.ListCommits(ss.ctx, repo.OrgLogin, repo.RepoName, opt)
+		return client.Repositories.ListCommits(ss.ctx, org.Name, repo.Name, opt)
 	})
 
 	if err != nil {
-		return fmt.Errorf("unable to get latest commit in repo %s/%s: %v", repo.OrgLogin, repo.RepoName, err)
+		return fmt.Errorf("unable to get latest commit in repo %s/%s: %v", org.Name, repo.Name, err)
 	}
 
 	tree, _, err := ss.syncer.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
-		return client.Git.GetTree(ss.ctx, repo.OrgLogin, repo.RepoName, rc.([]*github.RepositoryCommit)[0].GetSHA(), true)
+		return client.Git.GetTree(ss.ctx, org.Name, repo.Name, rc.([]*github.RepositoryCommit)[0].GetSHA(), true)
 	})
 
 	if err != nil {
-		return fmt.Errorf("unable to get tree in repo %s/%s: %v", repo.OrgLogin, repo.RepoName, err)
+		return fmt.Errorf("unable to get tree in repo %s/%s: %v", org.Name, repo.Name, err)
 	}
 
 	files := make(map[string]ownersFile)
@@ -926,7 +928,7 @@ func (ss *syncState) handleOWNERS(org *storage.Org, repo *storage.Repo, maintain
 		components := strings.Split(entry.GetPath(), "/")
 		if components[len(components)-1] == "OWNERS" && components[0] != "vendor" { // HACK: skip Go's vendor directory
 
-			url := "https://raw.githubusercontent.com/" + repo.OrgLogin + "/" + repo.RepoName + "/master/" + entry.GetPath()
+			url := "https://raw.githubusercontent.com/" + org.Name + "/" + repo.Name + "/master/" + entry.GetPath()
 
 			resp, err := http.Get(url)
 			if err != nil {
@@ -949,7 +951,7 @@ func (ss *syncState) handleOWNERS(org *storage.Org, repo *storage.Repo, maintain
 		}
 	}
 
-	scope.Debugf("%d OWNERS files found in repo %s/%s", len(files), org.OrgLogin, repo.RepoName)
+	scope.Debugf("%d OWNERS files found in repo %s/%s", len(files), org.Name, repo.Name)
 
 	for path, file := range files {
 		for _, user := range file.Approvers {
@@ -961,9 +963,9 @@ func (ss *syncState) handleOWNERS(org *storage.Org, repo *storage.Repo, maintain
 
 			p := strings.TrimSuffix(path, "OWNERS")
 
-			scope.Debugf("User '%s' can approve path %s/%s/%s", user, org.OrgLogin, repo.RepoName, p)
+			scope.Debugf("User '%s' can approve path %s/%s/%s", user, org.Name, repo.Name, p)
 
-			maintainer.Paths = append(maintainer.Paths, repo.RepoName+"/"+p)
+			maintainer.Paths = append(maintainer.Paths, repo.Name+"/"+p)
 		}
 	}
 
@@ -976,7 +978,7 @@ func (ss *syncState) addUsers(users ...string) {
 	}
 }
 
-func (ss *syncState) getMaintainer(org *storage.Org, maintainers map[string]*storage.Maintainer, user string) (*storage.Maintainer, error) {
+func (ss *syncState) getMaintainer(org *config.Org, maintainers map[string]*storage.Maintainer, user string) (*storage.Maintainer, error) {
 	maintainer, ok := maintainers[strings.ToUpper(user)]
 	if ok {
 		// already created a struct
@@ -985,13 +987,13 @@ func (ss *syncState) getMaintainer(org *storage.Org, maintainers map[string]*sto
 
 	ss.addUsers(user)
 
-	maintainer, err := ss.syncer.store.ReadMaintainer(ss.ctx, org.OrgLogin, user)
+	maintainer, err := ss.syncer.store.ReadMaintainer(ss.ctx, org.Name, user)
 	if err != nil {
 		return nil, err
 	} else if maintainer == nil {
 		// unknown maintainer, so create a record
 		maintainer = &storage.Maintainer{
-			OrgLogin:  org.OrgLogin,
+			OrgLogin:  org.Name,
 			UserLogin: user,
 		}
 	}

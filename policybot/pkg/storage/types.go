@@ -77,7 +77,6 @@ type Org struct {
 	Company     string
 	AvatarURL   string
 	Description string
-	Config      config.Org `spanner:"-"`
 }
 
 type Repo struct {
@@ -85,7 +84,6 @@ type Repo struct {
 	RepoName    string
 	Description string
 	RepoNumber  int64
-	Config      config.Repo `spanner:"-"`
 }
 
 type PullRequest struct {

@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"istio.io/bots/policybot/pkg/blobstorage"
 	"regexp"
 
 	"io/ioutil"
@@ -82,6 +83,7 @@ type TestResultGatherer struct {
 func (trg *TestResultGatherer) queryChan(ctx context.Context, prefix string, result chan string) {
 	defer close(result)
 	client := trg.Client
+	client.
 	bucket := client.Bucket(trg.BucketName)
 	query := &storage.Query{Prefix: prefix, Delimiter: "/"}
 	it := bucket.Objects(ctx, query)

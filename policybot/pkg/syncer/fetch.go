@@ -21,11 +21,10 @@ import (
 
 	"github.com/google/go-github/v26/github"
 
-	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/storage"
 )
 
-func (s *Syncer) fetchOrgs(context context.Context, cb func(organization *github.Organization, configOrg config.Org) error) error {
+func (s *Syncer) fetchOrgs(context context.Context, cb func(organization *github.Organization) error) error {
 	for _, o := range s.orgs {
 		org, _, err := s.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.Organizations.Get(context, o.Name)
@@ -35,7 +34,7 @@ func (s *Syncer) fetchOrgs(context context.Context, cb func(organization *github
 			return fmt.Errorf("unable to get information for org %s: %v", o.Name, err)
 		}
 
-		if err = cb(org.(*github.Organization), o); err != nil {
+		if err = cb(org.(*github.Organization)); err != nil {
 			return err
 		}
 	}
@@ -43,7 +42,7 @@ func (s *Syncer) fetchOrgs(context context.Context, cb func(organization *github
 	return nil
 }
 
-func (s *Syncer) fetchRepos(context context.Context, cb func(repo *github.Repository, configRepo config.Repo) error) error {
+func (s *Syncer) fetchRepos(context context.Context, cb func(repo *github.Repository) error) error {
 	for _, o := range s.orgs {
 		for _, r := range o.Repos {
 			repo, _, err := s.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
@@ -54,7 +53,7 @@ func (s *Syncer) fetchRepos(context context.Context, cb func(repo *github.Reposi
 				return fmt.Errorf("unable to get information for repo %s/%s: %v", o.Name, r.Name, err)
 			}
 
-			if err = cb(repo.(*github.Repository), r); err != nil {
+			if err = cb(repo.(*github.Repository)); err != nil {
 				return err
 			}
 		}
