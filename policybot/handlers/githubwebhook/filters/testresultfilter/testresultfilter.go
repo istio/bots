@@ -44,7 +44,7 @@ func NewTestResultFilter(cache *cache.Cache, orgs []config.Org, client blobstora
 
 	for _, org := range orgs {
 		for _, repo := range org.Repos {
-			r.repos[org.Name+"/"+repo.Name] = gatherer.TestResultGatherer{&client, org.BucketName, org.PreSubmitTestPath, org.PostSubmitTestPath}
+			r.repos[org.Name+"/"+repo.Name] = gatherer.TestResultGatherer{client, org.BucketName, org.PreSubmitTestPath, org.PostSubmitTestPath}
 		}
 	}
 

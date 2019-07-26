@@ -77,7 +77,7 @@ type started struct {
 }
 
 type TestResultGatherer struct {
-	Client           *blobstorage.Store
+	Client           blobstorage.Store
 	BucketName       string
 	PreSubmitPrefix  string
 	PostSubmitPrefix string
@@ -94,8 +94,7 @@ func (trg *TestResultGatherer) getTestsForPR(ctx context.Context, orgLogin strin
 }
 
 func (trg *TestResultGatherer) getBucket() blobstorage.Bucket {
-	//return trg.Client.Bucket(trg.BucketName)
-	return nil
+	return trg.Client.Bucket(trg.BucketName)
 }
 
 // GetTest given a gcs path that contains test results in the format [testname]/[runnumber]/[resultfiles], return a map of testname to []runnumber
@@ -227,7 +226,7 @@ func (trg *TestResultGatherer) getEvironmentalSignatures(ctx context.Context, te
 			signatures = append(signatures, signature)
 			names = append(names, name)
 		}
-		foo := getSignature(ctx, r, objName, signatures)
+		foo := getSignature(r, objName, signatures)
 		result = append(result, names[foo])
 	}
 	return
@@ -340,7 +339,7 @@ func (trg *TestResultGatherer) GetAllPullRequests(ctx context.Context, orgLogin 
 
 // if any pattern is found in the object, return it's index
 // if no pattern is found, return -1
-func getSignature(ctx context.Context, r io.ReadCloser, objectName string, patterns []string) int {
+func getSignature(r io.ReadCloser, objectName string, patterns []string) int {
 	kdk := bufio.NewReader(r)
 	re := compileRegex(patterns)
 

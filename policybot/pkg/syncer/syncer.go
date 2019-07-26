@@ -84,6 +84,9 @@ func New(gc *gh.ThrottledClient, gcpCreds []byte, gcpProject string,
 		return nil, fmt.Errorf("unable to create BigQuery client: %v", err)
 	}
 	bs, err := gcs.NewStore(context.Background(), gcpCreds)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create gcs client: %v", err)
+	}
 
 	return &Syncer{
 		gc:        gc,
@@ -755,7 +758,7 @@ func (ss *syncState) handlePullRequestReviewComments(repo *storage.Repo, start t
 
 func (ss *syncState) handleTestResults(org *config.Org) error {
 	scope.Debugf("Getting test results for org %s", org.Name)
-	g := resultgatherer.TestResultGatherer{Client: &ss.syncer.blobstore, BucketName: org.BucketName,
+	g := resultgatherer.TestResultGatherer{Client: ss.syncer.blobstore, BucketName: org.BucketName,
 		PreSubmitPrefix: org.PreSubmitTestPath, PostSubmitPrefix: org.PostSubmitTestPath}
 	// TODO: this should be paralellized for speed
 	for _, repo := range org.Repos {
