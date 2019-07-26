@@ -215,8 +215,7 @@ var knownSignatures map[string]map[string]string
 func (trg *TestResultGatherer) getEvironmentalSignatures(ctx context.Context, testRun string) (result []string) {
 	bucket := trg.getBucket()
 	for filename, sigmap := range knownSignatures {
-		objName := testRun + filename
-		r, err := bucket.Reader(ctx, objName)
+		r, err := bucket.Reader(ctx, testRun+filename)
 		if err != nil {
 			log.Fatal("foo")
 		}
@@ -226,7 +225,7 @@ func (trg *TestResultGatherer) getEvironmentalSignatures(ctx context.Context, te
 			signatures = append(signatures, signature)
 			names = append(names, name)
 		}
-		foo := getSignature(r, objName, signatures)
+		foo := getSignature(r, signatures)
 		result = append(result, names[foo])
 	}
 	return
@@ -339,7 +338,7 @@ func (trg *TestResultGatherer) GetAllPullRequests(ctx context.Context, orgLogin 
 
 // if any pattern is found in the object, return it's index
 // if no pattern is found, return -1
-func getSignature(r io.ReadCloser, objectName string, patterns []string) int {
+func getSignature(r io.ReadCloser, patterns []string) int {
 	kdk := bufio.NewReader(r)
 	re := compileRegex(patterns)
 
