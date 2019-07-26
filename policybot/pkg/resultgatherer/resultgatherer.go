@@ -212,7 +212,7 @@ var knownSignatures map[string]map[string]string
 // 	}
 // }
 
-func (trg *TestResultGatherer) getEvironmentalSignatures(ctx context.Context, testRun string) (result []string) {
+func (trg *TestResultGatherer) getEnvironmentalSignatures(ctx context.Context, testRun string) (result []string) {
 	bucket := trg.getBucket()
 	for filename, sigmap := range knownSignatures {
 		r, err := bucket.Reader(ctx, testRun+filename)
@@ -231,12 +231,12 @@ func (trg *TestResultGatherer) getEvironmentalSignatures(ctx context.Context, te
 	return
 }
 
-func (trg *TestResultGatherer) testRunHasArtifacts(ctx context.Context, testRun string) (result bool) {
-	artifactsDir, err := trg.getBucket().ListPrefixes(ctx, testRun+"artifacts")
+func (trg *TestResultGatherer) getTestRunArtifacts(ctx context.Context, testRun string) ([]string, error) {
+	artifacts, err := trg.getBucket().ListItems(ctx, testRun+"artifacts/")
 	if err != nil {
-		return false
+		return nil, err
 	}
-	return len(artifactsDir) == 1
+	return artifacts, nil
 }
 
 // getManyResults function return the status of test passing, clone failure, sha number, base sha for each test
@@ -309,11 +309,16 @@ func (trg *TestResultGatherer) getTestResult(ctx context.Context, testName strin
 	}
 	testResult.PullRequestNumber = prNo
 
-	testResult.HasArtifacts = trg.testRunHasArtifacts(ctx, testRun)
+	artifacts, err := trg.getTestRunArtifacts(ctx, testRun)
+	if err != nil {
+		return
+	}
+	testResult.HasArtifacts = len(artifacts) != 0
+	testResult.Artifacts = artifacts
 
 	if !testResult.TestPassed && !testResult.HasArtifacts {
 		// this is almost certainly an environmental failure, check for known sigs
-		testResult.Signatures = trg.getEvironmentalSignatures(ctx, testRun)
+		testResult.Signatures = trg.getEnvironmentalSignatures(ctx, testRun)
 	}
 	return
 }
