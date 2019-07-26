@@ -102,6 +102,14 @@ func (l *Labeler) processAutoLabelRegexes(al config.AutoLabel) error {
 		l.singleLineRegexes[expr] = r
 	}
 
+	for _, expr := range al.PresentLabels {
+		r, err := regexp.Compile("(?i)" + expr)
+		if err != nil {
+			return fmt.Errorf("invalid regular expression %s: %v", expr, err)
+		}
+		l.singleLineRegexes[expr] = r
+	}
+
 	return nil
 }
 
@@ -180,16 +188,19 @@ func (l *Labeler) processIssue(context context.Context, issue *storage.Issue, or
 
 	// find any matching global auto labels
 	var toApply []string
+	var toRemove []string
 	for _, al := range l.autoLabels {
 		if l.matchAutoLabel(al, issue.Title, issue.Body, labels) {
-			toApply = append(toApply, al.Labels...)
+			toApply = append(toApply, al.LabelsToApply...)
+			toRemove = append(toRemove, al.LabelsToRemove...)
 		}
 	}
 
 	// find any matching org-level auto labels
 	for _, al := range orgALs {
 		if l.matchAutoLabel(al, issue.Title, issue.Body, labels) {
-			toApply = append(toApply, al.Labels...)
+			toApply = append(toApply, al.LabelsToApply...)
+			toRemove = append(toRemove, al.LabelsToRemove...)
 		}
 	}
 
@@ -203,6 +214,19 @@ func (l *Labeler) processIssue(context context.Context, issue *storage.Issue, or
 	}
 
 	scope.Infof("Applied %d label(s) to issue/PR %d from repo %s/%s", len(toApply), issue.IssueNumber, issue.OrgLogin, issue.RepoName)
+
+	if len(toRemove) > 0 {
+		for _, label := range toRemove {
+			if _, err := l.gc.ThrottledCallNoResult(func(client *github.Client) (*github.Response, error) {
+				return client.Issues.RemoveLabelForIssue(context, issue.OrgLogin, issue.RepoName, int(issue.IssueNumber), label)
+			}); err != nil {
+				scope.Errorf("Unable to remove labels on issue/PR %d in repo %s/%s: %v", issue.IssueNumber, issue.OrgLogin, issue.RepoName, err)
+				return
+			}
+		}
+	}
+
+	scope.Infof("Removed %d label(s) from issue/PR %d from repo %s/%s", len(toRemove), issue.IssueNumber, issue.OrgLogin, issue.RepoName)
 }
 
 func (l *Labeler) processPullRequest(context context.Context, pr *storage.PullRequest, orgALs []config.AutoLabel) {
@@ -222,14 +246,14 @@ func (l *Labeler) processPullRequest(context context.Context, pr *storage.PullRe
 	var toApply []string
 	for _, al := range l.autoLabels {
 		if l.matchAutoLabel(al, pr.Title, pr.Body, labels) {
-			toApply = append(toApply, al.Labels...)
+			toApply = append(toApply, al.LabelsToApply...)
 		}
 	}
 
 	// find any matching org-level auto labels
 	for _, al := range orgALs {
 		if l.matchAutoLabel(al, pr.Title, pr.Body, labels) {
-			toApply = append(toApply, al.Labels...)
+			toApply = append(toApply, al.LabelsToApply...)
 		}
 	}
 
@@ -251,13 +275,33 @@ func (l *Labeler) matchAutoLabel(al config.AutoLabel, title string, body string,
 		return false
 	}
 
-	// if any labels match, we're done
+	// if any of the 'must be absent' labels match, we bail
 	for _, label := range labels {
-		if l.labelMatch(al, label.LabelName) {
+		for _, expr := range al.AbsentLabels {
+			r := l.singleLineRegexes[expr]
+			if r.MatchString(label.LabelName) {
+				return false
+			}
+		}
+	}
+
+	// if any of the 'must be present' labels don't match, we bail
+	for _, expr := range al.PresentLabels {
+		found := false
+		for _, label := range labels {
+			r := l.singleLineRegexes[expr]
+			if r.MatchString(label.LabelName) {
+				found = true
+				break
+			}
+		}
+
+		if !found {
 			return false
 		}
 	}
 
+	// we found a suitable candidate
 	return true
 }
 
@@ -276,17 +320,6 @@ func (l *Labeler) bodyMatch(al config.AutoLabel, body string) bool {
 	for _, expr := range al.MatchBody {
 		r := l.multiLineRegexes[expr]
 		if r.MatchString(body) {
-			return true
-		}
-	}
-
-	return false
-}
-
-func (l *Labeler) labelMatch(al config.AutoLabel, label string) bool {
-	for _, expr := range al.AbsentLabels {
-		r := l.singleLineRegexes[expr]
-		if r.MatchString(label) {
 			return true
 		}
 	}

@@ -101,7 +101,7 @@ type FlakeChaser struct {
 	// Name of the nag.
 	Name string
 
-	// InactiveDays represents the days that a flakey test issue hasn't been updated.
+	// InactiveDays represents the days that a flaky test issue hasn't been updated.
 	InactiveDays int
 
 	// CreatedDays determines the bot search range, only issues created within this days ago
@@ -137,8 +137,14 @@ type AutoLabel struct {
 	// AbsentLabels represents labels that must not be on the PR or issue
 	AbsentLabels []string // regexes
 
+	// PresentLabels represents labels that must be on the PR or issue
+	PresentLabels []string // regexes
+
 	// The labels to apply when any of the Match* expressions match and none of the Absent* expressions do.
-	Labels []string
+	LabelsToApply []string
+
+	// The labels to remove when any of the Match* expressions match and none of the Absent* expressions do.
+	LabelsToRemove []string
 }
 
 // Configuration for an individual repo.
