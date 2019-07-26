@@ -207,19 +207,23 @@ CREATE TABLE RepoCommentEvents (
 CREATE TABLE TestResults (
   OrgLogin STRING(MAX) NOT NULL,
   RepoName STRING(MAX) NOT NULL,
+  Done BOOL NOT NULL,
   PullRequestNumber INT64 NOT NULL,
   RunNumber INT64 NOT NULL,
   TestName STRING(MAX) NOT NULL,
+  Artifacts ARRAY<STRING(MAX)>,
   BaseSha STRING(MAX),
   CloneFailed BOOL NOT NULL,
   FinishTime TIMESTAMP,
+  HasArtifacts BOOL,
   Result STRING(MAX),
   RunPath STRING(MAX) NOT NULL,
-  Sha STRING(MAX) NOT NULL,
+  Sha BYTES(MAX) NOT NULL,
+  Signatures ARRAY<STRING(MAX)>,
   StartTime TIMESTAMP NOT NULL,
   TestPassed BOOL,
-) PRIMARY KEY(OrgLogin, RepoName, TestName, PullRequestNumber, RunNumber),
-  INTERLEAVE IN PARENT Repos ON DELETE CASCADE;
+) PRIMARY KEY (OrgLogin, RepoName, TestName, PullRequestNumber, RunNumber, Done),
+INTERLEAVE IN PARENT Repos ON DELETE CASCADE;
 
 CREATE TABLE Users (
   UserLogin STRING(MAX) NOT NULL,

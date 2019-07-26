@@ -194,6 +194,7 @@ type TestResult struct {
 	CloneFailed       bool
 	Done              bool
 	HasArtifacts      bool
+	Artifacts         []string
 }
 
 type RepoComment struct {
