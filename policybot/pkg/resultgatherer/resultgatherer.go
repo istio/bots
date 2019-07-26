@@ -338,7 +338,7 @@ func (trg *TestResultGatherer) GetAllPullRequests(ctx context.Context, orgLogin 
 
 // if any pattern is found in the object, return it's index
 // if no pattern is found, return -1
-func getSignature(r io.ReadCloser, patterns []string) int {
+func getSignature(r io.Reader, patterns []string) int {
 	kdk := bufio.NewReader(r)
 	re := compileRegex(patterns)
 
