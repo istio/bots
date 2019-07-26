@@ -22,8 +22,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"istio.io/bots/policybot/pkg/blobstorage"
+	"io"
+	"log"
 	"regexp"
+
+	"cloud.google.com/go/storage"
 
 	"io/ioutil"
 	"strconv"
@@ -80,35 +83,6 @@ type TestResultGatherer struct {
 	PostSubmitPrefix string
 }
 
-func (trg *TestResultGatherer) queryChan(ctx context.Context, prefix string, result chan string) {
-	defer close(result)
-	client := trg.Client
-	client.
-	bucket := client.Bucket(trg.BucketName)
-	query := &storage.Query{Prefix: prefix, Delimiter: "/"}
-	it := bucket.Objects(ctx, query)
-	for {
-		attrs, err := it.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			continue
-		}
-		result <- attrs.Prefix
-	}
-}
-
-func (trg *TestResultGatherer) query(ctx context.Context, prefix string) (result []string, err error) {
-	out := make(chan string)
-	go trg.queryChan(ctx, prefix, out)
-
-	for path := range out {
-		result = append(result, path)
-	}
-	return
-}
-
 func (trg *TestResultGatherer) getRepoPrPath(orgLogin string, repoName string) string {
 	return trg.PreSubmitPrefix + orgLogin + "_" + repoName + "/"
 }
@@ -119,12 +93,18 @@ func (trg *TestResultGatherer) getTestsForPR(ctx context.Context, orgLogin strin
 	return trg.getTests(ctx, prefixForPr)
 }
 
+func (trg *TestResultGatherer) getBucket() blobstorage.Bucket {
+	//return trg.Client.Bucket(trg.BucketName)
+	return nil
+}
+
 // GetTest given a gcs path that contains test results in the format [testname]/[runnumber]/[resultfiles], return a map of testname to []runnumber
 // Client: client used to get buckets and objects.
 // PrNum: the PR number inputted.
 // Return []Tests return a slice of Tests objects.
 func (trg *TestResultGatherer) getTests(ctx context.Context, pathPrefix string) (map[string][]string, error) {
-	testNames, err := trg.query(ctx, pathPrefix)
+	bucket := trg.getBucket()
+	testNames, err := bucket.ListPrefixes(ctx, pathPrefix)
 	if err != nil {
 		return nil, err
 	}
@@ -153,8 +133,7 @@ func (trg *TestResultGatherer) getTests(ctx context.Context, pathPrefix string) 
 }
 
 func (trg *TestResultGatherer) getInformationFromFinishedFile(ctx context.Context, pref string) (*finished, error) {
-	client := trg.Client
-	bucket := client.Bucket(trg.BucketName)
+	bucket := trg.getBucket()
 	nrdr, err := bucket.Reader(ctx, pref+"finished.json")
 	var finish finished
 
@@ -175,8 +154,7 @@ func (trg *TestResultGatherer) getInformationFromFinishedFile(ctx context.Contex
 }
 
 func (trg *TestResultGatherer) getInformationFromStartedFile(ctx context.Context, pref string) (*started, error) {
-	client := trg.Client
-	bucket := client.Bucket(trg.BucketName)
+	bucket := trg.getBucket()
 	nrdr, err := bucket.Reader(ctx, pref+"started.json")
 	if err != nil {
 		return nil, err
@@ -197,8 +175,7 @@ func (trg *TestResultGatherer) getInformationFromStartedFile(ctx context.Context
 }
 
 func (trg *TestResultGatherer) getInformationFromCloneFile(ctx context.Context, pref string) ([]*cloneRecord, error) {
-	client := trg.Client
-	bucket := client.Bucket(trg.BucketName)
+	bucket := trg.getBucket()
 	rdr, err := bucket.Reader(ctx, pref+"clone-records.json")
 	if err != nil {
 		return nil, err
@@ -237,24 +214,27 @@ var knownSignatures map[string]map[string]string
 // }
 
 func (trg *TestResultGatherer) getEvironmentalSignatures(ctx context.Context, testRun string) (result []string) {
-	client := trg.Client
-	bucket := client.Bucket(trg.BucketName)
+	bucket := trg.getBucket()
 	for filename, sigmap := range knownSignatures {
-		obj := bucket.Object(testRun + filename)
+		objName := testRun + filename
+		r, err := bucket.Reader(ctx, objName)
+		if err != nil {
+			log.Fatal("foo")
+		}
 		signatures := []string{}
 		names := []string{}
 		for signature, name := range sigmap {
 			signatures = append(signatures, signature)
 			names = append(names, name)
 		}
-		foo := getSignature(ctx, obj, signatures)
+		foo := getSignature(ctx, r, objName, signatures)
 		result = append(result, names[foo])
 	}
 	return
 }
 
 func (trg *TestResultGatherer) testRunHasArtifacts(ctx context.Context, testRun string) (result bool) {
-	artifactsDir, err := trg.query(ctx, testRun+"artifacts")
+	artifactsDir, err := trg.getBucket().ListPrefixes(ctx, testRun+"artifacts")
 	if err != nil {
 		return false
 	}
@@ -355,17 +335,12 @@ func (trg *TestResultGatherer) CheckTestResultsForPr(ctx context.Context, orgLog
 }
 
 func (trg *TestResultGatherer) GetAllPullRequests(ctx context.Context, orgLogin string, repoName string) (prs []string, err error) {
-	return trg.query(ctx, trg.getRepoPrPath(orgLogin, repoName))
+	return trg.getBucket().ListPrefixes(ctx, trg.getRepoPrPath(orgLogin, repoName))
 }
 
 // if any pattern is found in the object, return it's index
 // if no pattern is found, return -1
-func getSignature(ctx context.Context, obj *storage.ObjectHandle, patterns []string) int {
-	r, err := obj.NewReader(ctx)
-	if err != nil {
-		fmt.Printf("Error while creating reader for %s: %s\n", obj.ObjectName(), err)
-		return -1
-	}
+func getSignature(ctx context.Context, r io.ReadCloser, objectName string, patterns []string) int {
 	kdk := bufio.NewReader(r)
 	re := compileRegex(patterns)
 

@@ -16,12 +16,12 @@ package testresultfilter
 
 import (
 	"context"
+
 	"istio.io/bots/policybot/pkg/blobstorage"
 
 	"github.com/google/go-github/v26/github"
 
 	"istio.io/bots/policybot/handlers/githubwebhook/filters"
-	"istio.io/bots/policybot/pkg/blobstorage"
 	"istio.io/bots/policybot/pkg/config"
 	gatherer "istio.io/bots/policybot/pkg/resultgatherer"
 	"istio.io/bots/policybot/pkg/storage/cache"
@@ -44,7 +44,7 @@ func NewTestResultFilter(cache *cache.Cache, orgs []config.Org, client blobstora
 
 	for _, org := range orgs {
 		for _, repo := range org.Repos {
-			r.repos[org.Name+"/"+repo.Name] = gatherer.TestResultGatherer{client, org.BucketName, org.PreSubmitTestPath, org.PostSubmitTestPath}
+			r.repos[org.Name+"/"+repo.Name] = gatherer.TestResultGatherer{&client, org.BucketName, org.PreSubmitTestPath, org.PostSubmitTestPath}
 		}
 	}
 

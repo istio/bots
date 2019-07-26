@@ -16,8 +16,6 @@ package storage
 
 import (
 	"time"
-
-	"istio.io/bots/policybot/pkg/config"
 )
 
 // This file defines the shapes we csn read/write to/from the DB. Before

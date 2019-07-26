@@ -24,13 +24,14 @@ import (
 	"strings"
 	"time"
 
+	"istio.io/bots/policybot/pkg/blobstorage"
+	"istio.io/bots/policybot/pkg/blobstorage/gcs"
+
 	"cloud.google.com/go/bigquery"
 	"github.com/ghodss/yaml"
 	"github.com/google/go-github/v26/github"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
-
-	gcs "cloud.google.com/go/storage"
 
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
@@ -42,11 +43,12 @@ import (
 
 // Syncer is responsible for synchronizing state from GitHub and ZenHub into our local store
 type Syncer struct {
-	bq    *bigquery.Client
-	gc    *gh.ThrottledClient
-	zc    *zh.ThrottledClient
-	store storage.Store
-	orgs  []config.Org
+	bq        *bigquery.Client
+	gc        *gh.ThrottledClient
+	zc        *zh.ThrottledClient
+	store     storage.Store
+	orgs      []config.Org
+	blobstore blobstorage.Store
 }
 
 type FilterFlags int
@@ -81,13 +83,15 @@ func New(gc *gh.ThrottledClient, gcpCreds []byte, gcpProject string,
 	if err != nil {
 		return nil, fmt.Errorf("unable to create BigQuery client: %v", err)
 	}
+	bs, err := gcs.NewStore(context.Background(), gcpCreds)
 
 	return &Syncer{
-		gc:    gc,
-		bq:    bq,
-		zc:    zc,
-		store: store,
-		orgs:  orgs,
+		gc:        gc,
+		bq:        bq,
+		zc:        zc,
+		store:     store,
+		blobstore: bs,
+		orgs:      orgs,
 	}, nil
 }
 
@@ -751,11 +755,7 @@ func (ss *syncState) handlePullRequestReviewComments(repo *storage.Repo, start t
 
 func (ss *syncState) handleTestResults(org *config.Org) error {
 	scope.Debugf("Getting test results for org %s", org.Name)
-	client, err := gcs.NewClient(ss.ctx)
-	if err != nil {
-		return err
-	}
-	g := resultgatherer.TestResultGatherer{Client: client, BucketName: org.BucketName,
+	g := resultgatherer.TestResultGatherer{Client: &ss.syncer.blobstore, BucketName: org.BucketName,
 		PreSubmitPrefix: org.PreSubmitTestPath, PostSubmitPrefix: org.PostSubmitTestPath}
 	// TODO: this should be paralellized for speed
 	for _, repo := range org.Repos {
