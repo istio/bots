@@ -12,50 +12,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package resultgatherer
+package testresultfilter
 
 import (
 	"context"
 
+	"istio.io/bots/policybot/pkg/blobstorage"
+
 	"github.com/google/go-github/v26/github"
 
 	"istio.io/bots/policybot/handlers/githubwebhook/filters"
-	"istio.io/bots/policybot/pkg/blobstorage"
 	"istio.io/bots/policybot/pkg/config"
 	gatherer "istio.io/bots/policybot/pkg/resultgatherer"
-	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
 	"istio.io/pkg/log"
 )
 
 // Updates the DB based on incoming GitHub webhook events.
-type ResultGatherer struct {
-	store              storage.Store
-	repos              map[string]bool
-	cache              *cache.Cache
-	testResultGatherer *gatherer.TestResultGatherer
+type TestResultFilter struct {
+	repos map[string]gatherer.TestResultGatherer
+	cache *cache.Cache
 }
 
-var scope = log.RegisterScope("ResultGatherer", "Result gatherer for each pr test run", 0)
+var scope = log.RegisterScope("TestResultFilter", "Result filter for each pr test run", 0)
 
-func NewResultGatherer(store storage.Store, blobStore blobstorage.Store,
-	cache *cache.Cache, orgs []config.Org, bucketName string) filters.Filter {
-
-	testResultGatherer, err := gatherer.NewTestResultGatherer(blobStore, bucketName)
-	if err != nil {
-		scope.Errorf(err.Error())
-		return nil
-	}
-	r := &ResultGatherer{
-		store:              store,
-		repos:              make(map[string]bool),
-		cache:              cache,
-		testResultGatherer: testResultGatherer,
+func NewTestResultFilter(cache *cache.Cache, orgs []config.Org, client blobstorage.Store) filters.Filter {
+	r := &TestResultFilter{
+		repos: make(map[string]gatherer.TestResultGatherer),
+		cache: cache,
 	}
 
 	for _, org := range orgs {
 		for _, repo := range org.Repos {
-			r.repos[org.Name+"/"+repo.Name] = true
+			r.repos[org.Name+"/"+repo.Name] = gatherer.TestResultGatherer{client, org.BucketName, org.PreSubmitTestPath, org.PostSubmitTestPath}
 		}
 	}
 
@@ -63,20 +52,19 @@ func NewResultGatherer(store storage.Store, blobStore blobstorage.Store,
 }
 
 // accept an event arriving from GitHub
-func (r *ResultGatherer) Handle(context context.Context, event interface{}) {
+func (r *TestResultFilter) Handle(context context.Context, event interface{}) {
 	switch p := event.(type) {
 	case *github.PullRequestEvent:
 		scope.Infof("Received PullRequestEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetNumber(), p.GetAction())
-
-		if !r.repos[p.GetRepo().GetFullName()] {
+		gatherer, ok := r.repos[p.GetRepo().GetFullName()]
+		if !ok {
 			scope.Infof("Ignoring PR %d from repo %s since it's not in a monitored repo", p.PullRequest.Number, p.GetRepo().GetFullName())
 			return
 		}
-
 		repoName := p.GetRepo().GetFullName()
 		orgLogin := p.GetOrganization().GetLogin()
 		prNum := p.GetNumber()
-		testResults, err := r.testResultGatherer.CheckTestResultsForPr(context, orgLogin, repoName, int64(prNum))
+		testResults, err := gatherer.CheckTestResultsForPr(context, orgLogin, repoName, int64(prNum))
 		if err != nil {
 			scope.Errorf("Error: Unable to get test result for PR %d in repo %s: %v", prNum, repoName, err)
 			return
@@ -88,7 +76,8 @@ func (r *ResultGatherer) Handle(context context.Context, event interface{}) {
 
 	case *github.CheckRunEvent:
 		scope.Infof("Received CheckRunEvent: %s", p.GetRepo().GetName())
-		if !r.repos[p.GetRepo().GetName()] {
+		val, ok := r.repos[p.GetRepo().GetFullName()]
+		if !ok {
 			scope.Infof("Ignoring CheckRun event from repo %s since it's not in a monitored repo", p.GetRepo().GetFullName())
 			return
 		}
@@ -99,7 +88,7 @@ func (r *ResultGatherer) Handle(context context.Context, event interface{}) {
 		pullRequest := p.GetCheckRun().GetCheckSuite().PullRequests[0]
 		prNum := pullRequest.Number
 
-		testResults, err := r.testResultGatherer.CheckTestResultsForPr(context, orgLogin, repoName, int64(*prNum))
+		testResults, err := val.CheckTestResultsForPr(context, orgLogin, repoName, int64(*prNum))
 		if err != nil {
 			scope.Errorf("Error: Unable to get test result for PR %d in repo %s: %v", prNum, repoName, err)
 			return

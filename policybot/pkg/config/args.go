@@ -166,6 +166,15 @@ type Org struct {
 
 	// Labels to create in all repos being controlled in this organization
 	LabelsToCreate []Label `json:"labels_to_create"`
+
+	// BucketName to locate prow test output
+	BucketName string `json:"bucket_name"`
+
+	// PresubmitTestPath to locate presubmit test output within the bucket
+	PreSubmitTestPath string `json:"presubmit_path"`
+
+	// PostSubmitTestPath to locate postsubmit test output within the bucket
+	PostSubmitTestPath string `json:"postsubmit_path"`
 }
 
 // Args represents the set of options that control the behavior of the bot.
@@ -190,9 +199,6 @@ type Args struct {
 
 	// Name to use as sender when sending emails
 	EmailFrom string `json:"email_from"`
-
-	// BucketName to use to direct to gcs bucket
-	BucketName string `json:"bucket_name"`
 
 	// Email address to use as originating address when sending emails
 	EmailOriginAddress string `json:"email_origin_address"`

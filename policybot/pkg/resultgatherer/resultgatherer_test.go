@@ -53,14 +53,11 @@ func TestResultGatherer(t *testing.T) {
 
 	client, err := gcs.NewStore(context, nil)
 	if err != nil {
-		return
-	}
-
-	testResultGatherer, err := resultgatherer.NewTestResultGatherer(client, "istio-flakey-test")
-	if err != nil {
 		fmt.Println(err)
 		return
 	}
+
+	testResultGatherer := resultgatherer.TestResultGatherer{client, "istio-flakey-test", "pr-logs/pull/", ""}
 	testResults, _ := testResultGatherer.CheckTestResultsForPr(context, "istio", "istio", prNum)
 	test := testResults[0]
 	if !reflect.DeepEqual(test, correctInfo) {

@@ -178,20 +178,22 @@ type ActivityInfo struct {
 }
 
 type TestResult struct {
+	StartTime         time.Time
+	FinishTime        time.Time
+	Signatures        []string
 	OrgLogin          string
 	RepoName          string
 	TestName          string
-	TestPassed        bool
-	CloneFailed       bool
-	Done              bool
-	PullRequestNumber int64
-	RunNumber         int64
-	StartTime         time.Time
-	FinishTime        time.Time
 	Sha               string
 	Result            string
 	BaseSha           string
 	RunPath           string
+	PullRequestNumber int64
+	RunNumber         int64
+	TestPassed        bool
+	CloneFailed       bool
+	Done              bool
+	HasArtifacts      bool
 }
 
 type RepoComment struct {
