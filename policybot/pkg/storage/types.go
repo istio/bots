@@ -100,8 +100,8 @@ type PullRequest struct {
 	Files              []string
 	Author             string
 	State              string
-	BranchName         *string
-	HeadCommit         *string
+	BranchName         string
+	HeadCommit         string
 }
 
 type PullRequestReviewComment struct {

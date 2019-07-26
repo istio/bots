@@ -162,8 +162,8 @@ func ConvertPullRequest(orgLogin string, repoName string, pr *github.PullRequest
 		Title:              pr.GetTitle(),
 		Body:               pr.GetBody(),
 		Author:             pr.GetUser().GetLogin(),
-		HeadCommit:         &sha,
-		BranchName:         &branch,
+		HeadCommit:         sha,
+		BranchName:         branch,
 	}
 }
 

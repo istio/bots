@@ -405,16 +405,16 @@ func (ss *syncState) handleEvents(repo *storage.Repo) error {
 		SELECT * FROM (
 		  SELECT type as Type, payload as Payload, org.login as OrgLogin, repo.name as RepoName, actor.login as Actor, created_at as CreatedAt,
 			JSON_EXTRACT(payload, '$.action') as event
-		  FROM (TABLE_DATE_RANGE([githubarchive:day.], 
-			TIMESTAMP('2016-12-01'), 
+		  FROM (TABLE_DATE_RANGE([githubarchive:day.],
+			TIMESTAMP('2016-12-01'),
 			TIMESTAMP('%4d-%2d-%2d')
-		  )) 
+		  ))
 		  WHERE (type = 'IssuesEvent'
 					OR type = 'IssueCommentEvent'
 					OR type = 'PullRequestEvent'
-					OR type = 'PullRequestReviewEvent' 
+					OR type = 'PullRequestReviewEvent'
 					OR type = 'PullRequestReviewCommentEvent')
-				AND repo.name = '%s/%s' 
+				AND repo.name = '%s/%s'
 		);`, now.Year(), now.Month(), now.Day(), repo.OrgLogin, repo.RepoName))
 
 	q.UseLegacySQL = true
@@ -693,7 +693,7 @@ func (ss *syncState) handlePullRequests(repo *storage.Repo) error {
 		for _, pr := range prs {
 			// if this pr is already known to us and is up to date, skip further processing
 			if existing, _ := ss.syncer.store.ReadPullRequest(ss.ctx, repo.OrgLogin, repo.RepoName, pr.GetNumber()); existing != nil {
-				if existing.UpdatedAt == pr.GetUpdatedAt() && existing.HeadCommit != nil {
+				if existing.UpdatedAt == pr.GetUpdatedAt() {
 					continue
 				}
 			}
