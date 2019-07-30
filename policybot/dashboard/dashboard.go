@@ -114,7 +114,7 @@ func New(router *mux.Router, store storage.Store, cache *cache.Cache, a *config.
 	// topics
 	maintainers := maintainers.New(store, cache, a.CacheTTL, time.Duration(a.MaintainerActivityWindow), a.DefaultOrg)
 	members := members.New(store, cache, a.DefaultOrg)
-	issues := issues.New(store, cache)
+	issues := issues.New(store, cache, a.DefaultOrg)
 	pullRequests := pullrequests.New(store, cache)
 	perf := perf.New(store, cache)
 	commitHub := commithub.New(store, cache)
@@ -142,7 +142,7 @@ func New(router *mux.Router, store storage.Store, cache *cache.Cache, a *config.
 		endEntry()
 
 	d.addEntry("Issues", "Information on new and old issues.").
-		addPage("/issues", issues.Render).
+		addPage("/issues", issues.RenderList).
 		endEntry()
 
 	d.addEntry("Pull Requests", "Information on new and old pull requests.").

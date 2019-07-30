@@ -45,20 +45,45 @@ func (fi bindataFileInfo) Sys() interface{} {
 }
 
 var _pageHtml = []byte(`<aside class="callout warning">
-    <div class="type">
-        <svg class="large-icon">
-            <use xlink:href="/icons/icons.svg#callout-warning">
-            </use>
-        </svg>
-    </div>
-    <div class="content">
-        This page is under construction
-    </div>
+  <div class="type">
+      <svg class="large-icon">
+          <use xlink:href="/icons/icons.svg#callout-warning">
+          </use>
+      </svg>
+  </div>
+  <div class="content">
+      This page is under construction
+  </div>
 </aside>
 
 <p>
-This will display information about GitHub issues.
+Here are all open issues
 </p>
+
+<table>
+  <thead>
+  <tr>
+      <th>RepoName</th>
+      <th>IssueNumber</th>
+      <th>Title</th>
+      <th>Created</th>
+      <th>Last Updated</th>
+      <th>Assigned To</th>
+  </tr>
+  </thead>
+  <tbody>
+      {{ range . }}
+          <tr>
+              <td>{{ .RepoName }}</td>
+              <td>{{ .IssueNumber }}</td>
+              <td>{{ .Title }}</td>
+              <td>{{ .CreatedAt }}</td>
+              <td>{{ .UpdatedAt }}</td>
+              <td>{{ .Assignees }}</td>
+          </tr>
+      {{ end }}
+  </tbody>
+</table>
 `)
 
 func pageHtmlBytes() ([]byte, error) {
