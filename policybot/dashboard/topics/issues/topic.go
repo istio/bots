@@ -31,7 +31,7 @@ import (
 	"istio.io/bots/policybot/pkg/storage/cache"
 )
 
-// Issues lets users view data about issues for all repositories.
+// Issues lets users visualize critical information about outstanding issues.
 type Issues struct {
 	store      storage.Store
 	cache      *cache.Cache

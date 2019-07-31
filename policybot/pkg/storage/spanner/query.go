@@ -67,6 +67,7 @@ func (s store) QueryIssues(context context.Context, orgLogin string, cb func(*st
 
 	return err
 }
+
 func (s store) QueryIssuesByRepo(context context.Context, orgLogin string, repoName string, cb func(*storage.Issue) error) error {
 	iter := s.client.Single().Query(context,
 		spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM Issues WHERE OrgLogin = '%s' AND RepoName = '%s';", orgLogin, repoName)})
@@ -585,9 +586,9 @@ func (s *store) getPRActivity(context context.Context, orgLogin string, repoName
 	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
 		`SELECT * FROM PullRequestEvents
 			WHERE
-				OrgLogin = '%s' 
-				AND RepoName = '%s' 
-				AND Actor = '%s' 
+				OrgLogin = '%s'
+				AND RepoName = '%s'
+				AND Actor = '%s'
 				AND Action = 'closed'
 			ORDER BY CreatedAt DESC
 			LIMIT 1;`,
@@ -616,7 +617,7 @@ func (s *store) getPRActivity(context context.Context, orgLogin string, repoName
 
 	iter = s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
 		`SELECT * FROM PullRequestReviewEvents
-			WHERE 
+			WHERE
 				OrgLogin = '%s'
 				AND RepoName = '%s'
 				AND Actor = '%s'
@@ -647,7 +648,7 @@ func (s *store) getPRActivity(context context.Context, orgLogin string, repoName
 
 	iter = s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
 		`SELECT * FROM PullRequestReviewCommentEvents
-			WHERE 
+			WHERE
 				OrgLogin = '%s'
 				AND RepoName = '%s'
 				AND Actor = '%s'
