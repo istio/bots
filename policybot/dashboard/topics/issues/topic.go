@@ -177,7 +177,7 @@ func (i *Issues) getIssuesSummary(context context.Context, orgLogin string) (iss
 			if !ok {
 				opened[repo] = make(map[string]int)
 			}
-			opened[repo][monthCreated] +=
+			opened[repo][monthCreated]++
 		}
 		return nil
 	}); err != nil {
