@@ -115,7 +115,7 @@ func New(router *mux.Router, store storage.Store, cache *cache.Cache, a *config.
 
 	// topics
 	maintainers := maintainers.New(store, cache, a.CacheTTL, time.Duration(a.MaintainerActivityWindow), a.DefaultOrg)
-	members := members.New(store, cache, a.DefaultOrg)
+	members := members.New(store, cache, a.CacheTTL, time.Duration(a.MemberActivityWindow), a.DefaultOrg, a.Orgs)
 	issues := issues.New(store, cache, a.DefaultOrg)
 	pullRequests := pullrequests.New(store, cache)
 	perf := perf.New(store, cache)
