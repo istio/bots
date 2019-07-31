@@ -64,6 +64,7 @@ type Store interface {
 	QueryMembersByOrg(context context.Context, orgLogin string, cb func(*Member) error) error
 	QueryMaintainersByOrg(context context.Context, orgLogin string, cb func(*Maintainer) error) error
 	QueryMaintainerInfo(context context.Context, maintainer *Maintainer) (*MaintainerInfo, error)
+	QueryIssues(context context.Context, orgLogin string, cb func(*Issue) error) error
 	QueryIssuesByRepo(context context.Context, orgLogin string, repoName string, cb func(*Issue) error) error
 	QueryOpenIssues(context context.Context, orgLogin string, cb func(*Issue) error) error
 	QueryTestResultByPrNumber(context context.Context, orgLogin string, repoName string, pullRequestNumber int64, cb func(*TestResult) error) error

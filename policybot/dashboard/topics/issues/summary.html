@@ -1,0 +1,33 @@
+<aside class="callout warning">
+    <div class="type">
+        <svg class="large-icon">
+            <use xlink:href="/icons/icons.svg#callout-warning">
+            </use>
+        </svg>
+    </div>
+    <div class="content">
+        This page is under construction
+    </div>
+</aside>
+
+<table>
+  <caption>Issues Opened By Month</caption>
+  <thead>
+  <tr>
+    <th>Repository</th>
+    {{ range .Months }}
+      <th>{{ . }}</th>
+    {{ end}}
+  </tr>
+  </thead>
+  <tbody>
+    {{ range .Opened }}
+      <tr>
+        <td>{{ .RepoName }}</td>
+        {{ range .Counts }}
+          <td>{{ . }}</td>
+        {{ end }}
+      </tr>
+    {{ end }}
+  </tbody>
+</table>

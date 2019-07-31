@@ -53,6 +53,20 @@ func (s store) QueryMaintainersByOrg(context context.Context, orgLogin string, c
 	return err
 }
 
+func (s store) QueryIssues(context context.Context, orgLogin string, cb func(*storage.Issue) error) error {
+	iter := s.client.Single().Query(context,
+		spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM Issues WHERE OrgLogin = '%s';", orgLogin)})
+	err := iter.Do(func(row *spanner.Row) error {
+		issue := &storage.Issue{}
+		if err := rowToStruct(row, issue); err != nil {
+			return err
+		}
+
+		return cb(issue)
+	})
+
+	return err
+}
 func (s store) QueryIssuesByRepo(context context.Context, orgLogin string, repoName string, cb func(*storage.Issue) error) error {
 	iter := s.client.Single().Query(context,
 		spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM Issues WHERE OrgLogin = '%s' AND RepoName = '%s';", orgLogin, repoName)})

@@ -142,7 +142,13 @@ func New(router *mux.Router, store storage.Store, cache *cache.Cache, a *config.
 		endEntry()
 
 	d.addEntry("Issues", "Information on new and old issues.").
-		addPage("/issues", issues.RenderList).
+		addEntry("Issue Summary", "An overview of issues").
+		addPageWithQuery("/issues", "option", "summary", issues.RenderSummary).
+		endEntry().
+		addEntry("Open Issues", "List of all open issues").
+		addPageWithQuery("/issues", "option", "list", issues.RenderList).
+		endEntry().
+		addPage("/issues", issues.RenderSummary).
 		endEntry()
 
 	d.addEntry("Pull Requests", "Information on new and old pull requests.").
