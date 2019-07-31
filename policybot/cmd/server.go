@@ -33,6 +33,7 @@ import (
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/labeler"
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/nagger"
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/refresher"
+	"istio.io/bots/policybot/handlers/githubwebhook/filters/unstaler"
 	"istio.io/bots/policybot/handlers/zenhubwebhook"
 	"istio.io/bots/policybot/pkg/blobstorage/gcs"
 	"istio.io/bots/policybot/pkg/config"
@@ -214,6 +215,11 @@ func runWithConfig(a *config.Args) error {
 		return fmt.Errorf("unable to create labeler: %v", err)
 	}
 
+	unstaler, err := unstaler.NewUnstaler(gc, a.Orgs)
+	if err != nil {
+		return fmt.Errorf("unable to create unstaler: %v", err)
+	}
+
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", a.StartupOptions.Port))
 	if err != nil {
 		return fmt.Errorf("unable to listen to port: %v", err)
@@ -242,6 +248,7 @@ func runWithConfig(a *config.Args) error {
 	filters := []filters.Filter{
 		refresher.NewRefresher(cache, store, gc, a.Orgs),
 		nag,
+		unstaler,
 		labeler,
 		monitor,
 		//		resultgatherer.NewResultGatherer(store, cache, a.Orgs, a.BucketName),

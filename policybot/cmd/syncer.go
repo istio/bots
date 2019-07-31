@@ -68,7 +68,8 @@ func syncerCmd() *cobra.Command {
 	syncerCmd.PersistentFlags().StringVarP(&ca.StartupOptions.GCPCredentials, "gcp_creds", "", ca.StartupOptions.GCPCredentials, gcpCreds)
 
 	syncerCmd.PersistentFlags().StringVarP(&filters,
-		"filter", "", "", "Comma-separated filters to limit what is synced, one or more of [issues, prs, labels, maintainers, members, zenhub, repocomments]")
+		"filter", "", "", "Comma-separated filters to limit what is synced, one or more of "+
+			"[issues, prs, labels, maintainers, members, zenhub, repocomments, events, testresults]")
 
 	loggingOptions.AttachCobraFlags(syncerCmd)
 

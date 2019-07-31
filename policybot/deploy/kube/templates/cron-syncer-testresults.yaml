@@ -1,0 +1,27 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: policybot-syncer-testresults
+  labels:
+    app: policybot-syncer-testresults
+spec:
+  schedule: "0 3 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: policybot
+              image: "{{ .Values.image }}"
+              imagePullPolicy: "{{ .Values.imagePullPolicy }}"
+              args:
+                - /policybot
+                - syncer
+                - --config_file
+                - ./policybot.yaml
+                - --filter
+                - TestResults
+              envFrom:
+                - secretRef:
+                    name: policybot
+          restartPolicy: OnFailure

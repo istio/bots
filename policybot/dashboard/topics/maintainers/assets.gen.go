@@ -343,6 +343,27 @@ func singleHtml() (*asset, error) {
 	return a, nil
 }
 
+var _single_controlHtml = []byte(`<a href="/maintainers">
+    <svg class="icon"><use xlink:href="/icons/icons.svg#left-arrow"/></svg>
+    Maintainers
+</a>
+`)
+
+func single_controlHtmlBytes() ([]byte, error) {
+	return _single_controlHtml, nil
+}
+
+func single_controlHtml() (*asset, error) {
+	bytes, err := single_controlHtmlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "single_control.html", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
 var _userHtml = []byte(`<div class="user">
     <a href="/maintainers/{{ .User.UserLogin }}">
         <div class="name">
@@ -369,7 +390,7 @@ var _userHtml = []byte(`<div class="user">
             </div>
 
             <div class="last-seen">
-                Last active on <span class="utc">{{ .MaintainerInfo.LastMaintenanceActivity }}</span>
+                Last active on <span class="utc">{{ .MaintainerInfo.LastActivity }}</span>
             </div>
         {{ end }}
 

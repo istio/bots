@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"regexp"
-	"strings"
 
 	"github.com/google/go-github/v26/github"
 
@@ -173,7 +172,10 @@ func (n *Nagger) processPR(context context.Context, pr *storage.PullRequest, org
 	if len(contentMatches) == 0 {
 		scope.Infof("Nothing to nag about for PR %d from repo %s/%s since its title and body don't match any nags",
 			pr.PullRequestNumber, pr.OrgLogin, pr.RepoName)
-		n.removeNagComment(context, pr)
+
+		if err := gh.RemoveBotComment(context, n.gc, pr.OrgLogin, pr.RepoName, int(pr.PullRequestNumber), nagSignature); err != nil {
+			scope.Error(err.Error())
+		}
 		return
 	}
 
@@ -187,7 +189,9 @@ func (n *Nagger) processPR(context context.Context, pr *storage.PullRequest, org
 	if len(fileMatches) == 0 {
 		scope.Infof("Nothing to nag about for PR %d from repo %s/%s since its affected files don't match any nags",
 			pr.PullRequestNumber, pr.OrgLogin, pr.RepoName)
-		n.removeNagComment(context, pr)
+		if err := gh.RemoveBotComment(context, n.gc, pr.OrgLogin, pr.RepoName, int(pr.PullRequestNumber), nagSignature); err != nil {
+			scope.Error(err.Error())
+		}
 		return
 	}
 
@@ -197,7 +201,9 @@ func (n *Nagger) processPR(context context.Context, pr *storage.PullRequest, org
 	for _, nag := range fileMatches {
 		if !n.fileMatch(nag.AbsentFiles, pr.Files) {
 			scope.Infof("Nagging PR %d from repo %s/%s (nag: %s)", pr.PullRequestNumber, pr.OrgLogin, pr.RepoName, nag.Name)
-			n.postNagComment(context, pr, nag)
+			if err := gh.AddOrReplaceBotComment(context, n.gc, pr.OrgLogin, pr.RepoName, int(pr.PullRequestNumber), nag.Message, nagSignature); err != nil {
+				scope.Error(err.Error())
+			}
 
 			// only post a single nag comment per PR even if it's got multiple hits
 			return
@@ -205,79 +211,9 @@ func (n *Nagger) processPR(context context.Context, pr *storage.PullRequest, org
 	}
 
 	scope.Infof("Nothing to nag about for PR %d from repo %s/%s since it contains required files", pr.PullRequestNumber, pr.OrgLogin, pr.RepoName)
-	n.removeNagComment(context, pr)
-}
 
-func (n *Nagger) removeNagComment(context context.Context, pr *storage.PullRequest) {
-	existing, id := n.getNagComment(context, pr)
-	if existing != "" {
-		if _, err := n.gc.ThrottledCallNoResult(func(client *github.Client) (*github.Response, error) {
-			return client.Issues.DeleteComment(context, pr.OrgLogin, pr.RepoName, id)
-		}); err != nil {
-			scope.Errorf("Unable to delete nag comment in PR %d from repo %s/%s: %v", pr.PullRequestNumber, pr.OrgLogin, pr.RepoName, err)
-		}
-	}
-}
-
-func (n *Nagger) getNagComment(context context.Context, pr *storage.PullRequest) (string, int64) {
-	opt := &github.IssueListCommentsOptions{
-		ListOptions: github.ListOptions{
-			PerPage: 100,
-		},
-	}
-
-	for {
-		comments, resp, err := n.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
-			return client.Issues.ListComments(context, pr.OrgLogin, pr.RepoName, int(pr.PullRequestNumber), opt)
-		})
-
-		if err != nil {
-			scope.Errorf("Unable to list comments for pull request %d in repo %s/%s: %v\n", pr.PullRequestNumber, pr.OrgLogin, pr.RepoName, err)
-			return "", -1
-		}
-
-		for _, comment := range comments.([]*github.IssueComment) {
-			body := comment.GetBody()
-			if strings.Contains(body, nagSignature) {
-				return body, comment.GetID()
-			}
-		}
-
-		if resp.NextPage == 0 {
-			break
-		}
-
-		opt.Page = resp.NextPage
-	}
-
-	return "", -1
-}
-
-func (n *Nagger) postNagComment(context context.Context, pr *storage.PullRequest, nag config.Nag) {
-	msg := nag.Message + nagSignature
-	pc := &github.IssueComment{
-		Body: &msg,
-	}
-
-	existing, id := n.getNagComment(context, pr)
-	if existing == msg {
-		// nag comment is already present
-		return
-	} else if existing != "" {
-		// try to delete the previous nag
-		if _, err := n.gc.ThrottledCallNoResult(func(client *github.Client) (*github.Response, error) {
-			return client.Issues.DeleteComment(context, pr.OrgLogin, pr.RepoName, id)
-		}); err != nil {
-			scope.Errorf("Unable to delete nag comment in PR %d from repo %s/%s: %v", pr.PullRequestNumber, pr.OrgLogin, pr.RepoName, err)
-		}
-	}
-
-	_, _, err := n.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
-		return client.Issues.CreateComment(context, pr.OrgLogin, pr.RepoName, int(pr.PullRequestNumber), pc)
-	})
-
-	if err != nil {
-		scope.Errorf("Unable to attach nagging comment to PR %d from repo %s/%s: %v", pr.PullRequestNumber, pr.OrgLogin, pr.RepoName, err)
+	if err := gh.RemoveBotComment(context, n.gc, pr.OrgLogin, pr.RepoName, int(pr.PullRequestNumber), nagSignature); err != nil {
+		scope.Error(err.Error())
 	}
 }
 

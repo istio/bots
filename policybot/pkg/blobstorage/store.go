@@ -35,4 +35,8 @@ type Bucket interface {
 	// under a given prefix, though in blob storage systems, directories
 	// don't really exist.
 	ListPrefixes(ctx context.Context, prefix string) ([]string, error)
+
+	// ListItems returns a slice of GCS object names that begin with the input
+	// prefix.
+	ListItems(ctx context.Context, prefix string) ([]string, error)
 }

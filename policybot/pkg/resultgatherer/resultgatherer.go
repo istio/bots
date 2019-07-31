@@ -18,8 +18,15 @@
 package resultgatherer
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
+	"fmt"
+	"io"
+	"log"
+	"regexp"
+
+	"cloud.google.com/go/storage"
 
 	"io/ioutil"
 	"strconv"
@@ -70,29 +77,33 @@ type started struct {
 }
 
 type TestResultGatherer struct {
-	client     blobstorage.Store
-	bucketName string
+	Client           blobstorage.Store
+	BucketName       string
+	PreSubmitPrefix  string
+	PostSubmitPrefix string
 }
 
-// Function to initionalize new TestResultGatherer object.
-// Use `testResultGatherer, err := NewTestResultGatherer()` and `testFlakes := testResultGatherer.checkTestFlakesForPr(<pr_number>)`
-// to get test flakes information for a given pr.
-func NewTestResultGatherer(client blobstorage.Store, bucketName string) (*TestResultGatherer, error) {
-	return &TestResultGatherer{
-		client:     client,
-		bucketName: bucketName,
-	}, nil
+func (trg *TestResultGatherer) getRepoPrPath(orgLogin string, repoName string) string {
+	return trg.PreSubmitPrefix + orgLogin + "_" + repoName + "/"
 }
 
-// GetTest function get all directories under the given pr in blob storage for each test suite name.
+func (trg *TestResultGatherer) getTestsForPR(ctx context.Context, orgLogin string, repoName string, prNumInt int64) (map[string][]string, error) {
+	prNum := strconv.FormatInt(prNumInt, 10)
+	prefixForPr := trg.getRepoPrPath(orgLogin, repoName) + prNum + "/"
+	return trg.getTests(ctx, prefixForPr)
+}
+
+func (trg *TestResultGatherer) getBucket() blobstorage.Bucket {
+	return trg.Client.Bucket(trg.BucketName)
+}
+
+// GetTest given a gcs path that contains test results in the format [testname]/[runnumber]/[resultfiles], return a map of testname to []runnumber
 // Client: client used to get buckets and objects.
 // PrNum: the PR number inputted.
 // Return []Tests return a slice of Tests objects.
-func (trg *TestResultGatherer) getTests(ctx context.Context, orgLogin string, repoName string, prNumInt int64) (map[string][]string, error) {
-	prNum := strconv.FormatInt(prNumInt, 10)
-	prefixForPr := "pr-logs/pull/" + orgLogin + "_" + repoName + "/" + prNum + "/"
-	bucket := trg.client.Bucket(trg.bucketName)
-	testNames, err := bucket.ListPrefixes(ctx, prefixForPr)
+func (trg *TestResultGatherer) getTests(ctx context.Context, pathPrefix string) (map[string][]string, error) {
+	bucket := trg.getBucket()
+	testNames, err := bucket.ListPrefixes(ctx, pathPrefix)
 	if err != nil {
 		return nil, err
 	}
@@ -120,15 +131,13 @@ func (trg *TestResultGatherer) getTests(ctx context.Context, orgLogin string, re
 	return testMap, nil
 }
 
-func (trg *TestResultGatherer) getInformationFromFinishedFile(ctx context.Context, pref string, eachRun *store.TestResult) (*store.TestResult, error) {
-	// It is possible that the folder might not contain finished.json.
-	client := trg.client
-	bucket := client.Bucket(trg.bucketName)
+func (trg *TestResultGatherer) getInformationFromFinishedFile(ctx context.Context, pref string) (*finished, error) {
+	bucket := trg.getBucket()
 	nrdr, err := bucket.Reader(ctx, pref+"finished.json")
 	var finish finished
 
 	if err != nil {
-		return eachRun, err
+		return nil, err
 	}
 
 	defer nrdr.Close()
@@ -140,25 +149,14 @@ func (trg *TestResultGatherer) getInformationFromFinishedFile(ctx context.Contex
 	if err = json.Unmarshal(finishFile, &finish); err != nil {
 		return nil, err
 	}
-
-	passed := finish.Passed
-	result := finish.Result
-	t := finish.Timestamp
-	tm := time.Unix(t, 0)
-
-	eachRun.TestPassed = passed
-	eachRun.Result = result
-	eachRun.FinishTime = tm
-
-	return eachRun, nil
+	return &finish, nil
 }
 
-func (trg *TestResultGatherer) getInformationFromStartedFile(ctx context.Context, pref string, eachRun *store.TestResult) (*store.TestResult, error) {
-	client := trg.client
-	bucket := client.Bucket(trg.bucketName)
+func (trg *TestResultGatherer) getInformationFromStartedFile(ctx context.Context, pref string) (*started, error) {
+	bucket := trg.getBucket()
 	nrdr, err := bucket.Reader(ctx, pref+"started.json")
 	if err != nil {
-		return eachRun, err
+		return nil, err
 	}
 
 	defer nrdr.Close()
@@ -172,19 +170,14 @@ func (trg *TestResultGatherer) getInformationFromStartedFile(ctx context.Context
 	if err := json.Unmarshal(startFile, &started); err != nil {
 		return nil, err
 	}
-	t := started.Timestamp
-	tm := time.Unix(t, 0)
-	eachRun.StartTime = tm
-
-	return eachRun, nil
+	return &started, nil
 }
 
-func (trg *TestResultGatherer) getInformationFromCloneFile(ctx context.Context, pref string, eachRun *store.TestResult) (*store.TestResult, error) {
-	client := trg.client
-	bucket := client.Bucket(trg.bucketName)
+func (trg *TestResultGatherer) getInformationFromCloneFile(ctx context.Context, pref string) ([]*cloneRecord, error) {
+	bucket := trg.getBucket()
 	rdr, err := bucket.Reader(ctx, pref+"clone-records.json")
 	if err != nil {
-		return eachRun, err
+		return nil, err
 	}
 
 	defer rdr.Close()
@@ -193,90 +186,181 @@ func (trg *TestResultGatherer) getInformationFromCloneFile(ctx context.Context, 
 		return nil, err
 	}
 
-	var records []cloneRecord
+	var records []*cloneRecord
 
 	if err = json.Unmarshal(cloneFile, &records); err != nil {
 		return nil, err
 	}
-	record := records[0]
-	refs := record.Refs
-	orgLogin := refs.Org
-	repoName := refs.Repo
-	pulls := refs.Pulls
-	pull := pulls[0]
-	sha := pull.Sha
-	baseSha := refs.BaseSha
-	failed := record.Failed
 
-	eachRun.Sha = sha
-	eachRun.BaseSha = baseSha
-	eachRun.CloneFailed = failed
-	eachRun.OrgLogin = orgLogin
-	eachRun.RepoName = repoName
-
-	return eachRun, nil
+	return records, nil
 }
 
-// GetShaAndPassStatus function return the status of test passing, clone failure, sha number, base sha for each test run under each test suite for the given pr.
+var knownSignatures map[string]map[string]string
+
+// = {
+// 	"build-log.txt": {
+// 		"error parsing HTTP 408 response body": "",
+// 		"failed to get a Boskos resource": "",
+// 		"recipe for target '.*docker.*' failed": "",
+// 		"Entrypoint received interrupt: terminated": "",
+// 		"release istio failed: Service \"istio-ingressgateway\" is invalid: spec\\.ports\\[\\d\\]\\.nodePort\\: Invalid value\\:": "",
+// 		"The connection to the server \\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\ was refused - did you specify the right host or port\\?": "",
+// 		"gzip: stdin: unexpected end of file": "",
+// 		"Process did not finish before": "",
+// 		"No cluster named ": "boskos refers to non-existent cluster or project"
+// 		"API Server failed to come up": "",
+// 	}
+// }
+
+func (trg *TestResultGatherer) getEnvironmentalSignatures(ctx context.Context, testRun string) (result []string) {
+	bucket := trg.getBucket()
+	for filename, sigmap := range knownSignatures {
+		r, err := bucket.Reader(ctx, testRun+filename)
+		if err != nil {
+			log.Fatal("foo")
+		}
+		signatures := []string{}
+		names := []string{}
+		for signature, name := range sigmap {
+			signatures = append(signatures, signature)
+			names = append(names, name)
+		}
+		foo := getSignature(r, signatures)
+		result = append(result, names[foo])
+	}
+	return
+}
+
+func (trg *TestResultGatherer) getTestRunArtifacts(ctx context.Context, testRun string) ([]string, error) {
+	artifacts, err := trg.getBucket().ListItems(ctx, testRun+"artifacts/")
+	if err != nil {
+		return nil, err
+	}
+	return artifacts, nil
+}
+
+// getManyResults function return the status of test passing, clone failure, sha number, base sha for each test
+// run under each test suite for the given pr.
 // Client: client used to get buckets and objects from google cloud storage.
 // TestSlice: a slice of Tests objects containing all tests and the path to folder for each test run for the test under such pr.
-// Return a map of test suite name -- pr number -- run number -- ForEachRun objects.
-func (trg *TestResultGatherer) getShaAndPassStatus(ctx context.Context, testSlice map[string][]string) ([]*store.TestResult, error) {
+// Return a map of test suite name -- pr number -- run number -- FortestResult objects.
+func (trg *TestResultGatherer) getManyResults(ctx context.Context, testSlice map[string][]string,
+	orgLogin string, repoName string) ([]*store.TestResult, error) {
+
 	var allTestRuns = []*store.TestResult{}
 
 	for testName, runPaths := range testSlice {
 		for _, runPath := range runPaths {
-
-			var eachRun = &store.TestResult{}
-			eachRun.TestName = testName
-			eachRun.RunPath = runPath
-			eachRun.Done = false
-
-			var err error
-			eachRun, err = trg.getInformationFromCloneFile(ctx, runPath, eachRun)
-			if err != nil {
+			if testResult, err := trg.getTestResult(ctx, testName, runPath); err == nil {
+				testResult.OrgLogin = orgLogin
+				testResult.RepoName = repoName
+				allTestRuns = append(allTestRuns, testResult)
+			} else {
 				return nil, err
 			}
-
-			eachRun, err = trg.getInformationFromStartedFile(ctx, runPath, eachRun)
-			if err != nil {
-				return nil, err
-			}
-
-			eachRun, err = trg.getInformationFromFinishedFile(ctx, runPath, eachRun)
-			if err != nil {
-				return nil, err
-			}
-
-			prefSplit := strings.Split(runPath, "/")
-
-			runNo, err := strconv.ParseInt(prefSplit[len(prefSplit)-2], 10, 64)
-			if err != nil {
-				return nil, err
-			}
-			eachRun.RunNumber = runNo
-			prNo, newError := strconv.ParseInt(prefSplit[len(prefSplit)-4], 10, 64)
-			if newError != nil {
-				return nil, newError
-			}
-			eachRun.PullRequestNumber = prNo
-			allTestRuns = append(allTestRuns, eachRun)
-
 		}
 	}
 	return allTestRuns, nil
 }
 
+func (trg *TestResultGatherer) getTestResult(ctx context.Context, testName string, testRun string) (testResult *store.TestResult, err error) {
+	testResult = &store.TestResult{}
+	testResult.TestName = testName
+	testResult.RunPath = testRun
+	testResult.Done = false
+
+	records, err := trg.getInformationFromCloneFile(ctx, testRun)
+	if err != nil {
+		return
+	}
+
+	record := records[0]
+	testResult.Sha = record.Refs.Pulls[0].Sha
+	testResult.BaseSha = record.Refs.BaseSha
+	testResult.CloneFailed = record.Failed
+
+	started, err := trg.getInformationFromStartedFile(ctx, testRun)
+	if err != nil {
+		return
+	}
+
+	testResult.StartTime = time.Unix(started.Timestamp, 0)
+
+	finished, err := trg.getInformationFromFinishedFile(ctx, testRun)
+	if err != storage.ErrObjectNotExist {
+		if err != nil {
+			return
+		}
+		testResult.TestPassed = finished.Passed
+		testResult.Result = finished.Result
+		testResult.FinishTime = time.Unix(finished.Timestamp, 0)
+	}
+
+	prefSplit := strings.Split(testRun, "/")
+
+	runNo, err := strconv.ParseInt(prefSplit[len(prefSplit)-2], 10, 64)
+	if err != nil {
+		return
+	}
+	testResult.RunNumber = runNo
+	prNo, newError := strconv.ParseInt(prefSplit[len(prefSplit)-4], 10, 64)
+	if newError != nil {
+		return nil, newError
+	}
+	testResult.PullRequestNumber = prNo
+
+	artifacts, err := trg.getTestRunArtifacts(ctx, testRun)
+	if err != nil {
+		return
+	}
+	testResult.HasArtifacts = len(artifacts) != 0
+	testResult.Artifacts = artifacts
+
+	if !testResult.TestPassed && !testResult.HasArtifacts {
+		// this is almost certainly an environmental failure, check for known sigs
+		testResult.Signatures = trg.getEnvironmentalSignatures(ctx, testRun)
+	}
+	return
+}
+
 // Read in gcs the folder of the given pr number and write the result of each test runs into a slice of TestFlake struct.
 func (trg *TestResultGatherer) CheckTestResultsForPr(ctx context.Context, orgLogin string, repoName string, prNum int64) ([]*store.TestResult, error) {
-	testSlice, err := trg.getTests(ctx, orgLogin, repoName, prNum)
+	testSlice, err := trg.getTestsForPR(ctx, orgLogin, repoName, prNum)
 	if err != nil {
 		return nil, err
 	}
-	fullResult, err := trg.getShaAndPassStatus(ctx, testSlice)
+	fullResult, err := trg.getManyResults(ctx, testSlice, orgLogin, repoName)
 
 	if err != nil {
 		return nil, err
 	}
 	return fullResult, nil
+}
+
+func (trg *TestResultGatherer) GetAllPullRequests(ctx context.Context, orgLogin string, repoName string) (prs []string, err error) {
+	return trg.getBucket().ListPrefixes(ctx, trg.getRepoPrPath(orgLogin, repoName))
+}
+
+// if any pattern is found in the object, return it's index
+// if no pattern is found, return -1
+func getSignature(r io.Reader, patterns []string) int {
+	kdk := bufio.NewReader(r)
+	re := compileRegex(patterns)
+
+	indices := re.FindReaderSubmatchIndex(kdk)
+
+	// the array is effectively start/end tuples
+	// with the first two tuple representing the whole regex
+	// and outer parens.  indices[4] = pattern[0].start
+	for i := 4; i < len(indices); i += 2 {
+		if indices[i] > -1 {
+			return (i - 4) / 2
+		}
+	}
+	return -1
+}
+
+func compileRegex(patterns []string) *regexp.Regexp {
+	s := fmt.Sprintf("((%s))", strings.Join(patterns, ")|("))
+	return regexp.MustCompile(s)
 }

@@ -145,10 +145,14 @@ func exportStruct(s interface{}) ([]string, []interface{}, error) {
 	vals := make([]interface{}, 0, structType.NumField())
 	for i := 0; i < structType.NumField(); i++ {
 		fieldInfo := structType.Field(i)
-		if fieldInfo.PkgPath != "" { // field is unexported
+		tagInfo := fieldInfo.Tag.Get("spanner")
+		if fieldInfo.PkgPath != "" || tagInfo == "-" { // field is unexported or ignored
 			continue
 		}
-		cols = append(cols, fieldInfo.Name)
+		if tagInfo == "" {
+			tagInfo = fieldInfo.Name
+		}
+		cols = append(cols, tagInfo)
 		switch f := structVal.Field(i).Interface().(type) {
 		case *string:
 			ns := spanner.NullString{}

@@ -72,8 +72,28 @@ func (b *bucket) ListPrefixes(ctx context.Context, prefix string) ([]string, err
 		if err != nil {
 			return nil, err
 		}
-		paths = append(paths, attrs.Prefix)
-
+		if attrs.Prefix != "" {
+			paths = append(paths, attrs.Prefix)
+		}
 	}
 	return paths, nil
+}
+
+func (b *bucket) ListItems(ctx context.Context, prefix string) ([]string, error) {
+	query := &storage.Query{Prefix: prefix}
+	it := b.bucket.Objects(ctx, query)
+	names := []string{}
+	for {
+		attrs, err := it.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		if attrs.Name != "" {
+			names = append(names, attrs.Name)
+		}
+	}
+	return names, nil
 }

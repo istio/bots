@@ -101,7 +101,7 @@ type FlakeChaser struct {
 	// Name of the nag.
 	Name string
 
-	// InactiveDays represents the days that a flakey test issue hasn't been updated.
+	// InactiveDays represents the days that a flaky test issue hasn't been updated.
 	InactiveDays int
 
 	// CreatedDays determines the bot search range, only issues created within this days ago
@@ -137,8 +137,14 @@ type AutoLabel struct {
 	// AbsentLabels represents labels that must not be on the PR or issue
 	AbsentLabels []string // regexes
 
+	// PresentLabels represents labels that must be on the PR or issue
+	PresentLabels []string // regexes
+
 	// The labels to apply when any of the Match* expressions match and none of the Absent* expressions do.
-	Labels []string
+	LabelsToApply []string
+
+	// The labels to remove when any of the Match* expressions match and none of the Absent* expressions do.
+	LabelsToRemove []string
 }
 
 // Configuration for an individual repo.
@@ -166,6 +172,15 @@ type Org struct {
 
 	// Labels to create in all repos being controlled in this organization
 	LabelsToCreate []Label `json:"labels_to_create"`
+
+	// BucketName to locate prow test output
+	BucketName string `json:"bucket_name"`
+
+	// PresubmitTestPath to locate presubmit test output within the bucket
+	PreSubmitTestPath string `json:"presubmit_path"`
+
+	// PostSubmitTestPath to locate postsubmit test output within the bucket
+	PostSubmitTestPath string `json:"postsubmit_path"`
 }
 
 // Args represents the set of options that control the behavior of the bot.
@@ -191,9 +206,6 @@ type Args struct {
 	// Name to use as sender when sending emails
 	EmailFrom string `json:"email_from"`
 
-	// BucketName to use to direct to gcs bucket
-	BucketName string `json:"bucket_name"`
-
 	// Email address to use as originating address when sending emails
 	EmailOriginAddress string `json:"email_origin_address"`
 
@@ -208,6 +220,9 @@ type Args struct {
 
 	// Time window within which a maintainer is considered active on the project
 	MaintainerActivityWindow Duration `json:"maintainer_activity_window"`
+
+	// Time window within which a member is considered active on the project
+	MemberActivityWindow Duration `json:"member_activity_window"`
 
 	// Default GitHub org to use in the UI when none is specified
 	DefaultOrg string `json:"default_org"`
@@ -247,6 +262,7 @@ func (a *Args) String() string {
 	_, _ = fmt.Fprintf(&sb, "CacheTTL: %s\n", a.CacheTTL)
 	_, _ = fmt.Fprintf(&sb, "GCPProject: %s\n", a.GCPProject)
 	_, _ = fmt.Fprintf(&sb, "MaintainerActivityWindow: %v\n", a.MaintainerActivityWindow)
+	_, _ = fmt.Fprintf(&sb, "MemberActivityWindow: %v\n", a.MemberActivityWindow)
 	_, _ = fmt.Fprintf(&sb, "DefaultOrg: %v\n", a.DefaultOrg)
 
 	return sb.String()
