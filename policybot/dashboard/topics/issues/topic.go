@@ -173,12 +173,11 @@ func (i *Issues) getIssuesSummary(context context.Context, orgLogin string) (iss
 			(create.Month() != time.Now().Month() || create.Year() == time.Now().Year()) {
 			monthCreated := issue.CreatedAt.Month().String()
 			repo := issue.RepoName
-			monthlyCounts, ok := opened[repo]
+			_, ok := opened[repo]
 			if !ok {
-				monthlyCounts = make(map[string]int)
-				opened[repo] = monthlyCounts
+				opened[repo] = make(map[string]int)
 			}
-			opened[repo][monthCreated] = opened[repo][monthCreated] + 1
+			opened[repo][monthCreated] +=
 		}
 		return nil
 	}); err != nil {
