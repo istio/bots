@@ -106,7 +106,7 @@ func ConvFilterFlags(filter string) (FilterFlags, error) {
 
 	var result FilterFlags
 	for _, f := range strings.Split(filter, ",") {
-		switch f {
+		switch strings.ToLower(f) {
 		case "issues":
 			result |= Issues
 		case "prs":
