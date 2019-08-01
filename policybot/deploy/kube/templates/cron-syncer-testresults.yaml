@@ -20,7 +20,7 @@ spec:
                 - --config_file
                 - ./policybot.yaml
                 - --filter
-                - TestResults
+                - testresults
               envFrom:
                 - secretRef:
                     name: policybot
