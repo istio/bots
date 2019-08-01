@@ -53,6 +53,21 @@ func (s store) QueryMaintainersByOrg(context context.Context, orgLogin string, c
 	return err
 }
 
+func (s store) QueryIssues(context context.Context, orgLogin string, cb func(*storage.Issue) error) error {
+	iter := s.client.Single().Query(context,
+		spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM Issues WHERE OrgLogin = '%s';", orgLogin)})
+	err := iter.Do(func(row *spanner.Row) error {
+		issue := &storage.Issue{}
+		if err := rowToStruct(row, issue); err != nil {
+			return err
+		}
+
+		return cb(issue)
+	})
+
+	return err
+}
+
 func (s store) QueryIssuesByRepo(context context.Context, orgLogin string, repoName string, cb func(*storage.Issue) error) error {
 	iter := s.client.Single().Query(context,
 		spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM Issues WHERE OrgLogin = '%s' AND RepoName = '%s';", orgLogin, repoName)})
@@ -68,6 +83,20 @@ func (s store) QueryIssuesByRepo(context context.Context, orgLogin string, repoN
 	return err
 }
 
+func (s store) QueryOpenIssues(context context.Context, orgLogin string, cb func(*storage.Issue) error) error {
+	iter := s.client.Single().Query(context,
+		spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM Issues WHERE OrgLogin = '%s' AND State = '%s';", orgLogin, "open")})
+	err := iter.Do(func(row *spanner.Row) error {
+		issue := &storage.Issue{}
+		if err := rowToStruct(row, issue); err != nil {
+			return err
+		}
+
+		return cb(issue)
+	})
+
+	return err
+}
 func (s store) QueryTestResultByTestName(context context.Context, orgLogin string, repoName string, testName string, cb func(*storage.TestResult) error) error {
 	sql := `SELECT * from TestResults
 	WHERE OrgLogin = @orgLogin AND
@@ -451,9 +480,9 @@ func (s *store) getIssueActivity(context context.Context, orgLogin string, repoN
 	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
 		`SELECT * FROM IssueCommentEvents
 			WHERE
-				OrgLogin = '%s' 
-				AND RepoName = '%s' 
-				AND Actor = '%s' 
+				OrgLogin = '%s'
+				AND RepoName = '%s'
+				AND Actor = '%s'
 				AND (Action = 'created'
 					OR Action = 'edited')
 			ORDER BY CreatedAt DESC
@@ -483,14 +512,14 @@ func (s *store) getIssueActivity(context context.Context, orgLogin string, repoN
 
 	iter = s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
 		`SELECT * FROM IssueEvents
-			WHERE 
+			WHERE
 				OrgLogin = '%s'
 				AND RepoName = '%s'
 				AND Actor = '%s'
-				AND (Action = 'labeled' 
-					OR Action = 'unlabaled' 
-					OR Action = 'milestoned' 
-					OR Action = 'unmilestoned' 
+				AND (Action = 'labeled'
+					OR Action = 'unlabaled'
+					OR Action = 'milestoned'
+					OR Action = 'unmilestoned'
 					OR Action = 'assigned'
 					OR Action = 'unassigned')
 			ORDER BY CreatedAt DESC
@@ -557,9 +586,9 @@ func (s *store) getPRActivity(context context.Context, orgLogin string, repoName
 	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
 		`SELECT * FROM PullRequestEvents
 			WHERE
-				OrgLogin = '%s' 
-				AND RepoName = '%s' 
-				AND Actor = '%s' 
+				OrgLogin = '%s'
+				AND RepoName = '%s'
+				AND Actor = '%s'
 				AND Action = 'closed'
 			ORDER BY CreatedAt DESC
 			LIMIT 1;`,
@@ -588,7 +617,7 @@ func (s *store) getPRActivity(context context.Context, orgLogin string, repoName
 
 	iter = s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
 		`SELECT * FROM PullRequestReviewEvents
-			WHERE 
+			WHERE
 				OrgLogin = '%s'
 				AND RepoName = '%s'
 				AND Actor = '%s'
@@ -619,7 +648,7 @@ func (s *store) getPRActivity(context context.Context, orgLogin string, repoName
 
 	iter = s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
 		`SELECT * FROM PullRequestReviewCommentEvents
-			WHERE 
+			WHERE
 				OrgLogin = '%s'
 				AND RepoName = '%s'
 				AND Actor = '%s'
