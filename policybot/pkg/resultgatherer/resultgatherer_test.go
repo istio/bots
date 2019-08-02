@@ -48,6 +48,7 @@ func TestResultGatherer(t *testing.T) {
 		Result:            "SUCCESS",
 		BaseSha:           "d995c19aefe6b5ff0748b783e8b69c59963bc8ae",
 		RunPath:           "pr-logs/pull/istio_istio/110/release-test/155/",
+		Artifacts: []string{},
 	}
 	var prNum int64 = 110
 
