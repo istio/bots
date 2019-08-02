@@ -270,15 +270,15 @@ func (l *Labeler) processPullRequest(context context.Context, pr *storage.PullRe
 }
 
 func (l *Labeler) matchAutoLabel(al config.AutoLabel, title string, body string, labels []*storage.Label) bool {
-	// if the title and body don't match, we're done
+	// if both the title and body don't match, we're done
 	if !l.titleMatch(al, title) && !l.bodyMatch(al, body) {
 		return false
 	}
 
 	// if any of the 'must be absent' labels match, we bail
-	for _, label := range labels {
-		for _, expr := range al.AbsentLabels {
-			r := l.singleLineRegexes[expr]
+	for _, expr := range al.AbsentLabels {
+		r := l.singleLineRegexes[expr]
+		for _, label := range labels {
 			if r.MatchString(label.LabelName) {
 				return false
 			}
@@ -287,9 +287,9 @@ func (l *Labeler) matchAutoLabel(al config.AutoLabel, title string, body string,
 
 	// if any of the 'must be present' labels don't match, we bail
 	for _, expr := range al.PresentLabels {
+		r := l.singleLineRegexes[expr]
 		found := false
 		for _, label := range labels {
-			r := l.singleLineRegexes[expr]
 			if r.MatchString(label.LabelName) {
 				found = true
 				break
