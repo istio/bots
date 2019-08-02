@@ -135,7 +135,7 @@ func (r *TestResultFilter) getPrNumForSha(context context.Context, sha string) (
 	}
 	issues := resp.(*github.IssuesSearchResult).Issues
 	if len(issues) == 0 {
-		return 0, fmt.Errorf("No pull requests found for commit %s", sha)
+		return 0, fmt.Errorf("no pull requests found for commit %s", sha)
 	}
 	prNum := int64(issues[0].GetNumber())
 	r.shaToPrCache.Set(sha, prNum)
