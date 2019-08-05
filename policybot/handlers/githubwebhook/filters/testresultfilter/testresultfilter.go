@@ -102,6 +102,7 @@ func (r *TestResultFilter) Handle(context context.Context, event interface{}) {
 		prNum, err := r.getPrNumForSha(context, sha)
 		if err != nil {
 			scope.Errorf("Error fetching pull request info for commit %s: %v", sha, err)
+			return
 		}
 		scope.Infof("Commit %s corresponds to pull request %d.", sha, prNum)
 
