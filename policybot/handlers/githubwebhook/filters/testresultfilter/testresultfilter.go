@@ -16,10 +16,9 @@ package testresultfilter
 
 import (
 	"context"
-	"fmt"
-	"time"
 
 	"istio.io/bots/policybot/pkg/blobstorage"
+	"istio.io/bots/policybot/pkg/coverage"
 	"istio.io/bots/policybot/pkg/gh"
 
 	"github.com/google/go-github/v26/github"
@@ -28,26 +27,23 @@ import (
 	"istio.io/bots/policybot/pkg/config"
 	gatherer "istio.io/bots/policybot/pkg/resultgatherer"
 	"istio.io/bots/policybot/pkg/storage/cache"
-	ic "istio.io/pkg/cache"
 	"istio.io/pkg/log"
 )
 
 // Updates the DB based on incoming GitHub webhook events.
 type TestResultFilter struct {
-	repos        map[string]gatherer.TestResultGatherer
-	cache        *cache.Cache
-	gc           *gh.ThrottledClient
-	shaToPrCache ic.ExpiringCache
+	repos map[string]gatherer.TestResultGatherer
+	cache *cache.Cache
+	gc    *gh.ThrottledClient
 }
 
 var scope = log.RegisterScope("testresultfilter", "Result filter for each pr test run", 0)
 
 func NewTestResultFilter(cache *cache.Cache, orgs []config.Org, gc *gh.ThrottledClient, client blobstorage.Store) filters.Filter {
 	r := &TestResultFilter{
-		repos:        make(map[string]gatherer.TestResultGatherer),
-		cache:        cache,
-		gc:           gc,
-		shaToPrCache: ic.NewTTL(3*time.Hour, 1*time.Minute),
+		repos: make(map[string]gatherer.TestResultGatherer),
+		cache: cache,
+		gc:    gc,
 	}
 
 	for _, org := range orgs {
@@ -99,7 +95,7 @@ func (r *TestResultFilter) Handle(context context.Context, event interface{}) {
 		repoName := p.GetRepo().GetName()
 
 		sha := p.GetCommit().GetSHA()
-		prNum, err := r.getPrNumForSha(context, sha)
+		prNum, err := gh.GetPRNumberForSHA(context, r.gc, sha)
 		if err != nil {
 			scope.Errorf("Error fetching pull request info for commit %s: %v", sha, err)
 			return
@@ -121,24 +117,4 @@ func (r *TestResultFilter) Handle(context context.Context, event interface{}) {
 		scope.Debugf("Unknown payload received: %T %+v", p, p)
 		return
 	}
-}
-
-func (r *TestResultFilter) getPrNumForSha(context context.Context, sha string) (int64, error) {
-	val, ok := r.shaToPrCache.Get(sha)
-	if ok {
-		return val.(int64), nil
-	}
-	resp, _, err := r.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
-		return client.Search.Issues(context, sha, nil)
-	})
-	if err != nil {
-		return 0, err
-	}
-	issues := resp.(*github.IssuesSearchResult).Issues
-	if len(issues) == 0 {
-		return 0, fmt.Errorf("no pull requests found for commit %s", sha)
-	}
-	prNum := int64(issues[0].GetNumber())
-	r.shaToPrCache.Set(sha, prNum)
-	return prNum, nil
 }
