@@ -74,6 +74,7 @@ type Store interface {
 	QueryTestResultByUndone(context context.Context, orgLogin string, repoName string, cb func(*TestResult) error) error
 	QueryAllTestResults(context context.Context, orgLogin string, repoName string, cb func(*TestResult) error) error
 	QueryTestResultByTestName(context context.Context, orgLogin string, repoName string, testName string, cb func(*TestResult) error) error
+	QueryTestResultsBySHA(context context.Context, orgLogin string, repoName string, sha string, cb func(*TestResult) error) error
 
 	// TODO: needs to be org-specific and/or repo-specific, needs to use a callback instead of returning a slice
 	QueryTestFlakeIssues(context context.Context, inactiveDays, createdDays int) ([]*Issue, error)
