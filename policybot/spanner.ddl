@@ -231,3 +231,17 @@ CREATE TABLE Users (
   Company STRING(MAX) NOT NULL,
   AvatarUrl STRING(MAX) NOT NULL,
 ) PRIMARY KEY(UserLogin);
+
+CREATE TABLE CoverageData (
+  OrgLogin STRING(MAX) NOT NULL,
+  RepoName STRING(MAX) NOT NULL,
+  BranchName STRING(MAX) NOT NULL,
+  PackageName STRING(MAX) NOT NULL,
+  Sha STRING(MAX) NOT NULL,
+  TestName STRING(MAX) NOT NULL,
+  Type STRING(MAX) NOT NULL,
+  CompletedAt TIMESTAMP NOT NULL,
+  StmtsCovered INT64 NOT NULL,
+  StmtsTotal INT64 NOT NULL,
+) PRIMARY KEY(OrgLogin, RepoName, BranchName, PackageName, Sha, TestName),
+  INTERLEAVE IN PARENT Repos ON DELETE CASCADE;

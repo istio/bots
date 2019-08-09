@@ -47,6 +47,7 @@ const (
 	pullRequestReviewEventTable        = "PullRequestReviewEvents"
 	repoCommentEventTable              = "RepoCommentEvents"
 	testResultTable                    = "TestResults"
+	coverageDataTable                  = "CoverageData"
 )
 
 // Holds the column names for each table or index in the database (filled in at startup)
