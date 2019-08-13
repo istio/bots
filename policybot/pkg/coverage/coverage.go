@@ -29,6 +29,7 @@ import (
 
 	"github.com/google/go-github/v26/github"
 	"golang.org/x/tools/cover"
+
 	"istio.io/bots/policybot/pkg/blobstorage"
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage"
@@ -124,7 +125,11 @@ func (c *Client) CheckCoverage(ctx context.Context, pr *github.PullRequest, sha 
 		}
 	}
 
-	err = c.StorageClient.WriteCoverageData(ctx, c.getCoverageDataFromProfiles(covMap, pr))
+	covData, err := c.getCoverageDataFromProfiles(covMap, pr)
+	if err != nil {
+		return fmt.Errorf("coverage: error generating coverage data from profiles: %v", err)
+	}
+	err = c.StorageClient.WriteCoverageData(ctx, covData)
 	if err != nil {
 		return fmt.Errorf("coverage: error writing coverage data to storage: %v", err)
 	}
@@ -172,7 +177,7 @@ func (c *Client) getProfilesForTestResult(
 func (c *Client) getCoverageDataFromProfiles(
 	covMap map[*storage.TestResult]profiles,
 	pr *github.PullRequest,
-) []*storage.CoverageData {
+) ([]*storage.CoverageData, error) {
 	var covs []*storage.CoverageData
 	testTypeCov := map[string]profiles{
 		"e2e":   make(profiles),
@@ -189,7 +194,9 @@ func (c *Client) getCoverageDataFromProfiles(
 	// Create a merged profile for each test type and generate CoverageData entries for each
 	// individual test.
 	for r, profs := range covMap {
-		mergeProfiles(testTypeCov[getTestType(r.TestName)], profs)
+		if err := mergeProfiles(testTypeCov[getTestType(r.TestName)], profs); err != nil {
+			return nil, err
+		}
 		covs = append(covs,
 			getCoverageDataFromProfiles(c.OrgLogin, c.Repo, branch, r.TestName, r.FinishTime, profs)...)
 	}
@@ -198,7 +205,7 @@ func (c *Client) getCoverageDataFromProfiles(
 		covs = append(covs,
 			getCoverageDataFromProfiles(c.OrgLogin, c.Repo, branch, testType, time.Now(), profs)...)
 	}
-	return covs
+	return covs, nil
 }
 
 func getCoverageDataFromProfiles(

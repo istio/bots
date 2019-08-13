@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/google/go-github/v26/github"
+
 	"istio.io/pkg/cache"
 )
 
