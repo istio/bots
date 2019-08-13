@@ -20,6 +20,7 @@ import (
 	"istio.io/bots/policybot/pkg/blobstorage"
 	"istio.io/bots/policybot/pkg/coverage"
 	"istio.io/bots/policybot/pkg/gh"
+	"istio.io/bots/policybot/pkg/storage"
 
 	"github.com/google/go-github/v26/github"
 
@@ -30,25 +31,50 @@ import (
 	"istio.io/pkg/log"
 )
 
+type testHandlers struct {
+	trg gatherer.TestResultGatherer
+	cov coverage.Client
+}
+
 // Updates the DB based on incoming GitHub webhook events.
 type TestResultFilter struct {
-	repos map[string]gatherer.TestResultGatherer
+	repos map[string]testHandlers
 	cache *cache.Cache
 	gc    *gh.ThrottledClient
 }
 
 var scope = log.RegisterScope("testresultfilter", "Result filter for each pr test run", 0)
 
-func NewTestResultFilter(cache *cache.Cache, orgs []config.Org, gc *gh.ThrottledClient, client blobstorage.Store) filters.Filter {
+func NewTestResultFilter(
+	cache *cache.Cache,
+	orgs []config.Org,
+	gc *gh.ThrottledClient,
+	client blobstorage.Store,
+	storageClient storage.Store,
+) filters.Filter {
 	r := &TestResultFilter{
-		repos: make(map[string]gatherer.TestResultGatherer),
+		repos: make(map[string]testHandlers),
 		cache: cache,
 		gc:    gc,
 	}
 
 	for _, org := range orgs {
 		for _, repo := range org.Repos {
-			r.repos[org.Name+"/"+repo.Name] = gatherer.TestResultGatherer{client, org.BucketName, org.PreSubmitTestPath, org.PostSubmitTestPath}
+			r.repos[org.Name+"/"+repo.Name] = testHandlers{
+				trg: gatherer.TestResultGatherer{
+					client,
+					org.BucketName,
+					org.PreSubmitTestPath,
+					org.PostSubmitTestPath,
+				},
+				cov: coverage.Client{
+					OrgLogin:      org.Name,
+					Repo:          repo.Name,
+					BlobClient:    client,
+					StorageClient: storageClient,
+					GithubClient:  gc,
+				},
+			}
 		}
 	}
 
@@ -60,15 +86,18 @@ func (r *TestResultFilter) Handle(context context.Context, event interface{}) {
 	switch p := event.(type) {
 	case *github.PullRequestEvent:
 		scope.Infof("Received PullRequestEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetNumber(), p.GetAction())
-		gatherer, ok := r.repos[p.GetRepo().GetFullName()]
+		handlers, ok := r.repos[p.GetRepo().GetFullName()]
 		if !ok {
 			scope.Infof("Ignoring PR %d from repo %s since it's not in a monitored repo", p.PullRequest.Number, p.GetRepo().GetFullName())
 			return
 		}
-		repoName := p.GetRepo().GetFullName()
+		repoName := p.GetRepo().GetName()
 		orgLogin := p.GetOrganization().GetLogin()
 		prNum := p.GetNumber()
-		testResults, err := gatherer.CheckTestResultsForPr(context, orgLogin, repoName, int64(prNum))
+		if p.GetAction() == "opened" || p.GetAction() == "synchronize" {
+			handlers.cov.SetPendingCoverage(context, p.GetPullRequest().GetHead().GetSHA())
+		}
+		testResults, err := handlers.trg.CheckTestResultsForPr(context, orgLogin, repoName, int64(prNum))
 		if err != nil {
 			scope.Errorf("Error: Unable to get test result for PR %d in repo %s: %v", prNum, repoName, err)
 			return
@@ -95,20 +124,24 @@ func (r *TestResultFilter) Handle(context context.Context, event interface{}) {
 		repoName := p.GetRepo().GetName()
 
 		sha := p.GetCommit().GetSHA()
-		prNum, err := gh.GetPRNumberForSHA(context, r.gc, sha)
+		pr, err := gh.GetPRForSHA(context, r.gc, sha)
+		prNum := int64(pr.GetNumber())
 		if err != nil {
 			scope.Errorf("Error fetching pull request info for commit %s: %v", sha, err)
 			return
 		}
 		scope.Infof("Commit %s corresponds to pull request %d.", sha, prNum)
 
-		testResults, err := val.CheckTestResultsForPr(context, orgLogin, repoName, prNum)
+		testResults, err := val.trg.CheckTestResultsForPr(context, orgLogin, repoName, prNum)
 		if err != nil {
 			scope.Errorf("Error: Unable to get test result for PR %d in repo %s: %v", prNum, repoName, err)
 			return
 		}
 
 		if err = r.cache.WriteTestResults(context, testResults); err != nil {
+			scope.Errorf(err.Error())
+		}
+		if err = val.cov.CheckCoverage(context, pr, sha); err != nil {
 			scope.Errorf(err.Error())
 		}
 
