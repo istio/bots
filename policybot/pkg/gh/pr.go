@@ -20,6 +20,7 @@ package gh
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/go-github/v26/github"
@@ -48,15 +49,16 @@ func GetPRForSHA(context context.Context, gc *ThrottledClient, sha string) (*git
 	if len(issues) == 0 {
 		return nil, fmt.Errorf("no pull requests found for commit %s", sha)
 	}
+	// The returned issue doesn't have nice fields for owner/repo.
+	repoURL := issues[0].GetRepositoryURL()
+	parts := strings.Split(repoURL, "/")
+	owner := parts[len(parts)-2]
+	repo := parts[len(parts)-1]
 	resp, _, err = gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
-		return client.PullRequests.Get(
-			context, issues[0].GetRepository().GetOwner().GetLogin(),
-			issues[0].GetRepository().GetName(),
-			issues[0].GetNumber(),
-		)
+		return client.PullRequests.Get(context, owner, repo, issues[0].GetNumber())
 	})
 	if err != nil {
-		return nil, fmt.Errorf("error fetching pull request for commit %s", sha)
+		return nil, fmt.Errorf("error fetching pull request for commit %s: %v", sha, err)
 	}
 	shaToPRCache.Set(sha, resp)
 	return resp.(*github.PullRequest), nil
