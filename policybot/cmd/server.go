@@ -33,6 +33,7 @@ import (
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/labeler"
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/nagger"
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/refresher"
+	"istio.io/bots/policybot/handlers/githubwebhook/filters/testresultfilter"
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/unstaler"
 	"istio.io/bots/policybot/handlers/zenhubwebhook"
 	"istio.io/bots/policybot/pkg/blobstorage/gcs"
@@ -58,6 +59,7 @@ const (
 	githubOAuthClientSecret = "Client secret for GitHub OAuth2 flow"
 	githubOAuthClientID     = "Client ID for GitHub OAuth2 flow"
 	httpsOnly               = "Send https redirect if x-forwarded-header is not set"
+	enableTestResultFilter  = "Enable the test result Github webhook filter"
 )
 
 func serverCmd() *cobra.Command {
@@ -126,6 +128,9 @@ func serverCmd() *cobra.Command {
 		"github_oauth_client_id", "", ca.StartupOptions.GitHubOAuthClientID, githubOAuthClientID)
 	serverCmd.PersistentFlags().BoolVarP(&ca.StartupOptions.HTTPSOnly,
 		"https_only", "", ca.StartupOptions.HTTPSOnly, httpsOnly)
+	serverCmd.PersistentFlags().BoolVarP(&ca.StartupOptions.EnableTestResultFilter,
+		"enable_test_result_filter", "", ca.StartupOptions.EnableTestResultFilter,
+		enableTestResultFilter)
 
 	loggingOptions.AttachCobraFlags(serverCmd)
 	introspectionOptions.AttachCobraFlags(serverCmd)
@@ -251,7 +256,11 @@ func runWithConfig(a *config.Args) error {
 		unstaler,
 		labeler,
 		monitor,
-		//		resultgatherer.NewResultGatherer(store, cache, a.Orgs, a.BucketName),
+	}
+
+	if a.StartupOptions.EnableTestResultFilter {
+		testFilter := testresultfilter.NewTestResultFilter(cache, a.Orgs, gc, bs, store)
+		filters = append(filters, testFilter)
 	}
 
 	if a.StartupOptions.HTTPSOnly {

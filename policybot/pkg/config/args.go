@@ -63,6 +63,7 @@ type StartupOptions struct {
 	GitHubOAuthClientSecret string
 	GitHubOAuthClientID     string
 	HTTPSOnly               bool
+	EnableTestResultFilter  bool
 }
 
 // Nag expresses some matching conditions against a PR, along with a message to inject into a PR
