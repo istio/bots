@@ -26,26 +26,37 @@ import (
 	"istio.io/pkg/cache"
 )
 
-var shaToPRCache = cache.NewTTL(3*time.Hour, 1*time.Minute)
+var shaToPRCache = cache.NewTTL(time.Hour, time.Minute)
 
-// GetPRNumberForSHA fetches the associated pull request for a commit sha using
-// the Github Search API.
-func GetPRNumberForSHA(context context.Context, gc *ThrottledClient, sha string) (int64, error) {
+// GetPRForSHA fetches the associated pull request for a commit sha using
+// the Github Search API. This method can return a cached pull request object,
+// so it is only useful for fairly static in formation, such as the pull
+// request number, the PR base information, etc.
+func GetPRForSHA(context context.Context, gc *ThrottledClient, sha string) (*github.PullRequest, error) {
 	val, ok := shaToPRCache.Get(sha)
 	if ok {
-		return val.(int64), nil
+		return val.(*github.PullRequest), nil
 	}
 	resp, _, err := gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 		return client.Search.Issues(context, sha, nil)
 	})
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	issues := resp.(*github.IssuesSearchResult).Issues
 	if len(issues) == 0 {
-		return 0, fmt.Errorf("no pull requests found for commit %s", sha)
+		return nil, fmt.Errorf("no pull requests found for commit %s", sha)
 	}
-	prNum := int64(issues[0].GetNumber())
-	shaToPRCache.Set(sha, prNum)
-	return prNum, nil
+	resp, _, err = gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+		return client.PullRequests.Get(
+			context, issues[0].GetRepository().GetOwner().GetLogin(),
+			issues[0].GetRepository().GetName(),
+			issues[0].GetNumber(),
+		)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error fetching pull request for commit %s", sha)
+	}
+	shaToPRCache.Set(sha, resp)
+	return resp.(*github.PullRequest), nil
 }
