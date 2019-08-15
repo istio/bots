@@ -23,6 +23,7 @@ import (
 
 	"github.com/google/go-github/v26/github"
 	"golang.org/x/tools/cover"
+
 	"istio.io/bots/policybot/pkg/storage"
 )
 
@@ -58,9 +59,9 @@ func TestClientGetCoverageDataFromProfiles(t *testing.T) {
 	}
 	now := time.Now()
 	covMap := map[*storage.TestResult]profiles{
-		&storage.TestResult{TestName: "unittests", FinishTime: now}:  indexProfiles(unitProfs),
-		&storage.TestResult{TestName: "unittests2", FinishTime: now}: indexProfiles(unitProfs2),
-		&storage.TestResult{TestName: "e2e-test", FinishTime: now}:   indexProfiles(e2eProfs),
+		{TestName: "unittests", FinishTime: now}:  indexProfiles(unitProfs),
+		{TestName: "unittests2", FinishTime: now}: indexProfiles(unitProfs2),
+		{TestName: "e2e-test", FinishTime: now}:   indexProfiles(e2eProfs),
 	}
 	label := "bots:master"
 	pr := &github.PullRequest{
@@ -73,9 +74,13 @@ func TestClientGetCoverageDataFromProfiles(t *testing.T) {
 		Repo:     "bots",
 	}
 	data, err := c.getCoverageDataFromProfiles("sha", covMap, pr)
+	if err != nil {
+		t.Errorf("error generating coverage data: %v", err)
+		return
+	}
 	sort.Sort(byTestName(data))
 	expected := []*storage.CoverageData{
-		&storage.CoverageData{
+		{
 			OrgLogin:     "istio",
 			RepoName:     "bots",
 			BranchName:   "master",
@@ -87,7 +92,7 @@ func TestClientGetCoverageDataFromProfiles(t *testing.T) {
 			StmtsCovered: 3,
 			StmtsTotal:   3,
 		},
-		&storage.CoverageData{
+		{
 			OrgLogin:     "istio",
 			RepoName:     "bots",
 			BranchName:   "master",
@@ -99,7 +104,7 @@ func TestClientGetCoverageDataFromProfiles(t *testing.T) {
 			StmtsCovered: 3,
 			StmtsTotal:   3,
 		},
-		&storage.CoverageData{
+		{
 			OrgLogin:     "istio",
 			RepoName:     "bots",
 			BranchName:   "master",
@@ -111,7 +116,7 @@ func TestClientGetCoverageDataFromProfiles(t *testing.T) {
 			StmtsCovered: 3,
 			StmtsTotal:   5,
 		},
-		&storage.CoverageData{
+		{
 			OrgLogin:     "istio",
 			RepoName:     "bots",
 			BranchName:   "master",
@@ -123,7 +128,7 @@ func TestClientGetCoverageDataFromProfiles(t *testing.T) {
 			StmtsCovered: 0,
 			StmtsTotal:   5,
 		},
-		&storage.CoverageData{
+		{
 			OrgLogin:     "istio",
 			RepoName:     "bots",
 			BranchName:   "master",
