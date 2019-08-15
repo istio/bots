@@ -125,7 +125,7 @@ func (c *Client) CheckCoverage(ctx context.Context, pr *github.PullRequest, sha 
 		}
 	}
 
-	covData, err := c.getCoverageDataFromProfiles(covMap, pr)
+	covData, err := c.getCoverageDataFromProfiles(sha, covMap, pr)
 	if err != nil {
 		return fmt.Errorf("coverage: error generating coverage data from profiles: %v", err)
 	}
@@ -174,15 +174,21 @@ func (c *Client) getProfilesForTestResult(
 	return merged, nil
 }
 
+type aggregate struct {
+	p profiles
+	c time.Time
+}
+
 func (c *Client) getCoverageDataFromProfiles(
+	sha string,
 	covMap map[*storage.TestResult]profiles,
 	pr *github.PullRequest,
 ) ([]*storage.CoverageData, error) {
 	var covs []*storage.CoverageData
-	testTypeCov := map[string]profiles{
-		"e2e":   make(profiles),
-		"integ": make(profiles),
-		"unit":  make(profiles),
+	testTypeCov := map[string]*aggregate{
+		e2eType:   {make(profiles), time.Time{}},
+		integType: {make(profiles), time.Time{}},
+		unitType:  {make(profiles), time.Time{}},
 	}
 	// In theory, we can probably just use GetRef instead of operating over GetLabel, but
 	// there really is not documentation explaining the difference between the second part
@@ -194,22 +200,27 @@ func (c *Client) getCoverageDataFromProfiles(
 	// Create a merged profile for each test type and generate CoverageData entries for each
 	// individual test.
 	for r, profs := range covMap {
-		if err := mergeProfiles(testTypeCov[getTestType(r.TestName)], profs); err != nil {
+		info := testTypeCov[getTestType(r.TestName)]
+		if err := mergeProfiles(info.p, profs); err != nil {
 			return nil, err
 		}
+		// Use the last finish time for a given test type as the aggregate finish time.
+		if r.FinishTime.After(info.c) {
+			info.c = r.FinishTime
+		}
 		covs = append(covs,
-			getCoverageDataFromProfiles(c.OrgLogin, c.Repo, branch, r.TestName, r.FinishTime, profs)...)
+			getCoverageDataFromProfiles(c.OrgLogin, c.Repo, branch, sha, r.TestName, r.FinishTime, profs)...)
 	}
 	// Now create CoverageData entries representing each test type aggregation.
-	for testType, profs := range testTypeCov {
+	for testType, info := range testTypeCov {
 		covs = append(covs,
-			getCoverageDataFromProfiles(c.OrgLogin, c.Repo, branch, testType, time.Now(), profs)...)
+			getCoverageDataFromProfiles(c.OrgLogin, c.Repo, branch, sha, testType, info.c, info.p)...)
 	}
 	return covs, nil
 }
 
 func getCoverageDataFromProfiles(
-	org, repo, branch, test string,
+	org, repo, branch, sha, test string,
 	completedAt time.Time,
 	profs profiles,
 ) []*storage.CoverageData {
@@ -223,6 +234,7 @@ func getCoverageDataFromProfiles(
 				RepoName:    repo,
 				BranchName:  branch,
 				PackageName: pkg,
+				Sha:         sha,
 				TestName:    test,
 				Type:        getTestType(test),
 				CompletedAt: completedAt,

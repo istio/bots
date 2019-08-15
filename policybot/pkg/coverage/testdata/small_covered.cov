@@ -1,0 +1,2 @@
+mode: set
+istio.io/bots/policybot/pkg/storage/spanner/write.go:25.78,29.33 3 1
