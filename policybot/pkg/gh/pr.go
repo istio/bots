@@ -34,7 +34,11 @@ var shaToPRCache = cache.NewTTL(time.Hour, time.Minute)
 // the Github Search API. This method can return a cached pull request object,
 // so it is only useful for fairly static in formation, such as the pull
 // request number, the PR base information, etc.
-func GetPRForSHA(context context.Context, gc *ThrottledClient, sha string) (*github.PullRequest, error) {
+func GetPRForSHA(
+	context context.Context,
+	gc *ThrottledClient,
+	orgLogin, repoName, sha string,
+) (*github.PullRequest, error) {
 	val, ok := shaToPRCache.Get(sha)
 	if ok {
 		return val.(*github.PullRequest), nil
@@ -49,17 +53,23 @@ func GetPRForSHA(context context.Context, gc *ThrottledClient, sha string) (*git
 	if len(issues) == 0 {
 		return nil, fmt.Errorf("no pull requests found for commit %s", sha)
 	}
-	// The returned issue doesn't have nice fields for owner/repo.
-	repoURL := issues[0].GetRepositoryURL()
-	parts := strings.Split(repoURL, "/")
-	owner := parts[len(parts)-2]
-	repo := parts[len(parts)-1]
-	resp, _, err = gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
-		return client.PullRequests.Get(context, owner, repo, issues[0].GetNumber())
-	})
-	if err != nil {
-		return nil, fmt.Errorf("error fetching pull request for commit %s: %v", sha, err)
+	for _, issue := range issues {
+		// The returned issue doesn't have nice fields for owner/repo.
+		repoURL := issue.GetRepositoryURL()
+		parts := strings.Split(repoURL, "/")
+		owner := parts[len(parts)-2]
+		repo := parts[len(parts)-1]
+		if orgLogin != owner || repoName != repo {
+			continue
+		}
+		resp, _, err = gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+			return client.PullRequests.Get(context, owner, repo, issues[0].GetNumber())
+		})
+		if err != nil {
+			return nil, fmt.Errorf("error fetching pull request for commit %s: %v", sha, err)
+		}
+		shaToPRCache.Set(sha, resp)
+		return resp.(*github.PullRequest), nil
 	}
-	shaToPRCache.Set(sha, resp)
-	return resp.(*github.PullRequest), nil
+	return nil, fmt.Errorf("returned pull requests did not match org/repo")
 }
