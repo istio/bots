@@ -115,6 +115,7 @@ orgs:
       - name: flag/needs-release-note
         color: e02642
         description: Indicates a PR contains changes worthy of mentioning in customer-facing release notes.
+
       - name: do-not-merge
         color: bfdadc
         description: Block automatic merging of a PR.
@@ -147,15 +148,15 @@ orgs:
         color: 77bb00
         description: Denotes a PR that changes 1000+ lines, ignoring generated files.
 
-      - name: action/merge-to-master
+      - name: cherrypick/master
         color: ff0000
         description: Set this label on a PR to auto-merge from a release branch to master
 
-      - name: action/merge-to-release-1.2-branch
+      - name: cherrypick/release-1.2
         color: ff0000
         description: Set this label on a PR to auto-merge it to the release-1.2 branch
 
-      - name: action/merge-to-release-1.3-branch
+      - name: cherrypick/release-1.3
         color: ff0000
         description: Set this label on a PR to auto-merge it to the release-1.3 branch
 
@@ -167,9 +168,13 @@ orgs:
         color: bfdadc
         description: Set by the Google CLA bot to indicate the author of a PR has not signed the Google CLA.
 
-      - name: 'cla: human-approved'
+      - name: 'ok-to-test'
         color: bfdadc
-        description: Set by a human to override the Google CLA bot.
+        description: Set this label allow normal testing to take place for a PR not submitted by an Istio org member.
+
+      - name: 'needs-rebase'
+        color: bfdadc
+        description: Indicates a PR needs to be rebased before being merged
 
     repos:
       - name: test-infra

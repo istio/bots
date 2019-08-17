@@ -1,5 +1,3 @@
-#!/bin/bash
-
 # Copyright 2019 Istio Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,18 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FAILED=0
+build:
+	@go generate ./...
+	@go build ./...
 
-echo -ne "sass-lint "
-npx sass-lint --version
-echo -ne "tslint "
-npx tslint  --version
+lint:
+	@scripts/check_license.sh
+	@golangci-lint run -j 8 -v ./...
 
-npx sass-lint -c sass-lint.yml --verbose 'dashboard/sass/**/*.scss'
-npx tslint dashboard/ts/*.ts
+fmt:
+	@goimports -w -local "istio.io" $(shell find . -type f -name '*.go' ! -name '*.gen.go' ! -name '*.pb.go' )
 
-if [[ ${FAILED} -eq 1 ]]
-then
-    echo "LINTING FAILED"
-    exit 1
-fi
+test:
+	@go test -race ./...
+
+include Makefile.common.mk
