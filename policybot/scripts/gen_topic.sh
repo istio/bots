@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-SCRIPTPATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PKGNAME="$( basename ${PWD} )"
 
-${SCRIPTPATH}/../../scripts/run_gobindata.sh --nocompress --nometadata --pkg ${PKGNAME} -o assets.gen.go *.html
+go-bindata --nocompress --nometadata --pkg ${PKGNAME} -o assets.gen.go *.html
