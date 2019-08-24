@@ -5,7 +5,7 @@ HUB ?= gcr.io/istio-testing/policybot
 IMG := $(HUB):$(TAG)
 export GO111MODULE=on
 
-dockerrun := docker run -t -i --sig-proxy=true --rm -v $(shell pwd):/site -w /site "gcr.io/istio-testing/build-tools:2019-08-16T20-50-36"
+dockerrun := docker run -t -i --sig-proxy=true --rm -v $(shell pwd):/site -w /site "gcr.io/istio-testing/build-tools:2019-08-22T16-27-38"
 
 gen:
 	@$(dockerrun) scripts/gen_dashboard.sh

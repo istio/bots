@@ -16,7 +16,7 @@ build:
 	@go generate ./...
 	@go build ./...
 
-lint: lint-copyright-banner lint-go
+lint: lint-copyright-banner lint-go lint-scripts lint-dockerfiles
 
 fmt: format-go
 
