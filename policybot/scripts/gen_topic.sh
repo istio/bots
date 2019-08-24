@@ -14,6 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-PKGNAME="$( basename ${PWD} )"
+PKGNAME="$( basename "${PWD}" )"
 
-go-bindata --nocompress --nometadata --pkg ${PKGNAME} -o assets.gen.go *.html
+go-bindata --nocompress --nometadata --pkg "${PKGNAME}" -o assets.gen.go ./*.html

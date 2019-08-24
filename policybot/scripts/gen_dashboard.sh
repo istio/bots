@@ -18,11 +18,11 @@ set -e
 
 mkdir -p generated/css generated/js generated/icons tmp/js
 
-npx sass dashboard/sass/_all.scss all.css -s compressed
+sass dashboard/sass/_all.scss all.css -s compressed
 mv all.css* generated/css
-npx tsc
+tsc
 
-npx babel-cli --source-maps --minified --no-comments --presets minify \
+babel --source-maps --minified --no-comments --presets minify \
     tmp/js/constants.js \
     tmp/js/utils.js \
     tmp/js/kbdnav.js \
@@ -41,8 +41,8 @@ npx babel-cli --source-maps --minified --no-comments --presets minify \
     tmp/js/authnButton.js \
     --out-file generated/js/all.min.js
 
-npx babel-cli --source-maps --minified --no-comments --presets minify \
+babel --source-maps --minified --no-comments --presets minify \
     tmp/js//themes_init.js \
     --out-file generated/js/themes_init.min.js
 
-npx svgstore -o generated/icons/icons.svg dashboard/icons/**/*.svg
+svgstore -o generated/icons/icons.svg dashboard/icons/**/*.svg
