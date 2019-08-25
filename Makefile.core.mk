@@ -23,4 +23,4 @@ fmt: format-go
 test:
 	@go test -race ./...
 
-include Makefile.common.mk
+include common/Makefile.common.mk
