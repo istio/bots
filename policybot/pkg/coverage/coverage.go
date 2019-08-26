@@ -81,7 +81,8 @@ func (c *Client) CheckCoverage(ctx context.Context, pr *github.PullRequest, sha 
 	for _, status := range statuses.Statuses {
 		if status.GetContext() == statusName {
 			hasCoverageStatus = true
-		} else if status.GetState() == "pending" {
+		} else if status.GetCreator().GetLogin() == "istio-testing" &&
+			status.GetContext() != "tide" && status.GetState() == "pending" {
 			scope.Infof("skipping coverage check for %s/%s commit %s, which has pending statuses",
 				c.OrgLogin, c.Repo, sha)
 			return nil
