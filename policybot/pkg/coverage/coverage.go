@@ -39,7 +39,10 @@ import (
 var scope = log.RegisterScope("coverage", "Coverage client", 0)
 
 var (
-	pending    = "pending"
+	Pending    = "pending"
+	Success    = "success"
+	Error      = "error"
+	Failure    = "failure"
 	statusName = "istio-testing/coverage"
 )
 
@@ -47,8 +50,8 @@ type profiles map[string]*cover.Profile
 
 const (
 	e2eType   = "e2e"
-	integType = "integ"
-	unitType  = "unit"
+	integType = "intPendingeg"
+	unitType  = "uniPendingt"
 )
 
 // Client handles all aspects of gathering and reporting code coverage.
@@ -91,6 +94,7 @@ func (c *Client) CheckCoverage(ctx context.Context, pr *github.PullRequest, sha 
 	if !hasCoverageStatus {
 		scope.Infof("skipping coverage check for %s/%s commit %s, which has no coverage status",
 			c.OrgLogin, c.Repo, sha)
+		c.SetCoverageStatus(ctx, sha, Success)
 		return nil
 	}
 
@@ -105,6 +109,7 @@ func (c *Client) CheckCoverage(ctx context.Context, pr *github.PullRequest, sha 
 			return nil
 		})
 	if err != nil {
+		c.SetCoverageStatus(ctx, sha, Error)
 		return fmt.Errorf("coverage: error fetching test results for %s/%s commit %s: %v",
 			c.OrgLogin, c.Repo, sha, err)
 	}
@@ -115,6 +120,7 @@ func (c *Client) CheckCoverage(ctx context.Context, pr *github.PullRequest, sha 
 	b := c.BlobClient.Bucket(c.Bucket)
 	tmpDir, err := ioutil.TempDir("", "coverage")
 	if err != nil {
+		c.SetCoverageStatus(ctx, sha, Error)
 		return fmt.Errorf("coverage: error creating temp dir for coverage files")
 	}
 	defer os.RemoveAll(tmpDir)
@@ -128,12 +134,15 @@ func (c *Client) CheckCoverage(ctx context.Context, pr *github.PullRequest, sha 
 
 	covData, err := c.getCoverageDataFromProfiles(sha, covMap, pr)
 	if err != nil {
+		c.SetCoverageStatus(ctx, sha, Error)
 		return fmt.Errorf("coverage: error generating coverage data from profiles: %v", err)
 	}
 	err = c.StorageClient.WriteCoverageData(ctx, covData)
 	if err != nil {
+		c.SetCoverageStatus(ctx, sha, Error)
 		return fmt.Errorf("coverage: error writing coverage data to storage: %v", err)
 	}
+	c.SetCoverageStatus(ctx, sha, Success)
 	return nil
 }
 
@@ -256,12 +265,12 @@ func getCoverageDataFromProfiles(
 	return covs
 }
 
-// SetPendingCoverage sets a pending coverage status for a given commit.
-func (c *Client) SetPendingCoverage(ctx context.Context, sha string) {
+// SetCoverageStatus sets a pending coverage status for a given commit.
+func (c *Client) SetCoverageStatus(ctx context.Context, sha string, state string) {
 	_, _, err := c.GithubClient.ThrottledCall(
 		func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.Repositories.CreateStatus(ctx, c.OrgLogin, c.Repo, sha, &github.RepoStatus{
-				State:   &pending,
+				State:   &state,
 				Context: &statusName,
 			})
 		})
