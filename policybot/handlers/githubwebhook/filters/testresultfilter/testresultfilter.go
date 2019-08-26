@@ -16,11 +16,11 @@ package testresultfilter
 
 import (
 	"context"
-	"fmt"
-	"time"
 
 	"istio.io/bots/policybot/pkg/blobstorage"
+	"istio.io/bots/policybot/pkg/coverage"
 	"istio.io/bots/policybot/pkg/gh"
+	"istio.io/bots/policybot/pkg/storage"
 
 	"github.com/google/go-github/v26/github"
 
@@ -28,31 +28,53 @@ import (
 	"istio.io/bots/policybot/pkg/config"
 	gatherer "istio.io/bots/policybot/pkg/resultgatherer"
 	"istio.io/bots/policybot/pkg/storage/cache"
-	ic "istio.io/pkg/cache"
 	"istio.io/pkg/log"
 )
 
+type testHandlers struct {
+	trg gatherer.TestResultGatherer
+	cov coverage.Client
+}
+
 // Updates the DB based on incoming GitHub webhook events.
 type TestResultFilter struct {
-	repos        map[string]gatherer.TestResultGatherer
-	cache        *cache.Cache
-	gc           *gh.ThrottledClient
-	shaToPrCache ic.ExpiringCache
+	repos map[string]testHandlers
+	cache *cache.Cache
+	gc    *gh.ThrottledClient
 }
 
 var scope = log.RegisterScope("testresultfilter", "Result filter for each pr test run", 0)
 
-func NewTestResultFilter(cache *cache.Cache, orgs []config.Org, gc *gh.ThrottledClient, client blobstorage.Store) filters.Filter {
+func NewTestResultFilter(
+	cache *cache.Cache,
+	orgs []config.Org,
+	gc *gh.ThrottledClient,
+	client blobstorage.Store,
+	storageClient storage.Store,
+) filters.Filter {
 	r := &TestResultFilter{
-		repos:        make(map[string]gatherer.TestResultGatherer),
-		cache:        cache,
-		gc:           gc,
-		shaToPrCache: ic.NewTTL(3*time.Hour, 1*time.Minute),
+		repos: make(map[string]testHandlers),
+		cache: cache,
+		gc:    gc,
 	}
 
 	for _, org := range orgs {
 		for _, repo := range org.Repos {
-			r.repos[org.Name+"/"+repo.Name] = gatherer.TestResultGatherer{client, org.BucketName, org.PreSubmitTestPath, org.PostSubmitTestPath}
+			r.repos[org.Name+"/"+repo.Name] = testHandlers{
+				trg: gatherer.TestResultGatherer{
+					client,
+					org.BucketName,
+					org.PreSubmitTestPath,
+					org.PostSubmitTestPath,
+				},
+				cov: coverage.Client{
+					OrgLogin:      org.Name,
+					Repo:          repo.Name,
+					BlobClient:    client,
+					StorageClient: storageClient,
+					GithubClient:  gc,
+				},
+			}
 		}
 	}
 
@@ -64,15 +86,18 @@ func (r *TestResultFilter) Handle(context context.Context, event interface{}) {
 	switch p := event.(type) {
 	case *github.PullRequestEvent:
 		scope.Infof("Received PullRequestEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetNumber(), p.GetAction())
-		gatherer, ok := r.repos[p.GetRepo().GetFullName()]
+		handlers, ok := r.repos[p.GetRepo().GetFullName()]
 		if !ok {
 			scope.Infof("Ignoring PR %d from repo %s since it's not in a monitored repo", p.PullRequest.Number, p.GetRepo().GetFullName())
 			return
 		}
-		repoName := p.GetRepo().GetFullName()
+		repoName := p.GetRepo().GetName()
 		orgLogin := p.GetOrganization().GetLogin()
 		prNum := p.GetNumber()
-		testResults, err := gatherer.CheckTestResultsForPr(context, orgLogin, repoName, int64(prNum))
+		if p.GetAction() == "opened" || p.GetAction() == "synchronize" {
+			handlers.cov.SetCoverageStatus(context, p.GetPullRequest().GetHead().GetSHA(), coverage.Pending)
+		}
+		testResults, err := handlers.trg.CheckTestResultsForPr(context, orgLogin, repoName, int64(prNum))
 		if err != nil {
 			scope.Errorf("Error: Unable to get test result for PR %d in repo %s: %v", prNum, repoName, err)
 			return
@@ -99,13 +124,15 @@ func (r *TestResultFilter) Handle(context context.Context, event interface{}) {
 		repoName := p.GetRepo().GetName()
 
 		sha := p.GetCommit().GetSHA()
-		prNum, err := r.getPrNumForSha(context, sha)
+		pr, err := gh.GetPRForSHA(context, r.gc, orgLogin, repoName, sha)
 		if err != nil {
 			scope.Errorf("Error fetching pull request info for commit %s: %v", sha, err)
+			return
 		}
+		prNum := int64(pr.GetNumber())
 		scope.Infof("Commit %s corresponds to pull request %d.", sha, prNum)
 
-		testResults, err := val.CheckTestResultsForPr(context, orgLogin, repoName, prNum)
+		testResults, err := val.trg.CheckTestResultsForPr(context, orgLogin, repoName, prNum)
 		if err != nil {
 			scope.Errorf("Error: Unable to get test result for PR %d in repo %s: %v", prNum, repoName, err)
 			return
@@ -114,30 +141,13 @@ func (r *TestResultFilter) Handle(context context.Context, event interface{}) {
 		if err = r.cache.WriteTestResults(context, testResults); err != nil {
 			scope.Errorf(err.Error())
 		}
+		if err = val.cov.CheckCoverage(context, pr, sha); err != nil {
+			scope.Errorf(err.Error())
+		}
 
 	default:
 		// not what we're looking for
 		scope.Debugf("Unknown payload received: %T %+v", p, p)
 		return
 	}
-}
-
-func (r *TestResultFilter) getPrNumForSha(context context.Context, sha string) (int64, error) {
-	val, ok := r.shaToPrCache.Get(sha)
-	if ok {
-		return val.(int64), nil
-	}
-	resp, _, err := r.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
-		return client.Search.Issues(context, sha, nil)
-	})
-	if err != nil {
-		return 0, err
-	}
-	issues := resp.(*github.IssuesSearchResult).Issues
-	if len(issues) == 0 {
-		return 0, fmt.Errorf("no pull requests found for commit %s", sha)
-	}
-	prNum := int64(issues[0].GetNumber())
-	r.shaToPrCache.Set(sha, prNum)
-	return prNum, nil
 }

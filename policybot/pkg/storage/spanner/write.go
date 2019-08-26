@@ -356,3 +356,18 @@ func (s store) WriteRepoCommentEvents(context context.Context, events []*storage
 	_, err := s.client.Apply(context, mutations)
 	return err
 }
+
+func (s store) WriteCoverageData(context context.Context, data []*storage.CoverageData) error {
+	scope.Debugf("Writing %d coverage data", len(data))
+
+	mutations := make([]*spanner.Mutation, len(data))
+	for i := 0; i < len(data); i++ {
+		var err error
+		if mutations[i], err = insertOrUpdateStruct(coverageDataTable, data[i]); err != nil {
+			return err
+		}
+	}
+
+	_, err := s.client.Apply(context, mutations)
+	return err
+}

@@ -186,6 +186,28 @@ func (s store) QueryAllTestResults(context context.Context, orgLogin string, rep
 	return err
 }
 
+func (s store) QueryTestResultsBySHA(context context.Context, orgLogin string, repoName string, sha string, cb func(*storage.TestResult) error) error {
+	sql := `SELECT * from TestResults
+	WHERE OrgLogin = @orgLogin AND
+	RepoName = @repoName AND
+	Sha = @sha`
+	stmt := spanner.NewStatement(sql)
+	stmt.Params["orgLogin"] = orgLogin
+	stmt.Params["repoName"] = repoName
+	stmt.Params["sha"] = sha
+	iter := s.client.Single().Query(context, stmt)
+	err := iter.Do(func(row *spanner.Row) error {
+		testResult := &storage.TestResult{}
+		if err := rowToStruct(row, testResult); err != nil {
+			return err
+		}
+
+		return cb(testResult)
+	})
+
+	return err
+}
+
 func (s store) QueryTestFlakeIssues(context context.Context, inactiveDays, createdDays int) ([]*storage.Issue, error) {
 	sql := `SELECT * from Issues
 	WHERE TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), UpdatedAt, DAY) > @inactiveDays AND

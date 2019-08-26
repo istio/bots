@@ -263,3 +263,16 @@ type IssueEvent struct {
 	Actor       string
 	Action      string
 }
+
+type CoverageData struct {
+	OrgLogin     string
+	RepoName     string
+	BranchName   string
+	PackageName  string
+	Sha          string
+	TestName     string
+	Type         string
+	CompletedAt  time.Time
+	StmtsCovered int64
+	StmtsTotal   int64
+}
