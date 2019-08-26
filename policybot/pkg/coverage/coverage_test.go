@@ -142,10 +142,11 @@ func TestClientGetCoverageDataFromProfiles(t *testing.T) {
 		},
 	}
 	if !reflect.DeepEqual(expected, data) {
-		t.Errorf("unexpected coverage output")
+		t.Errorf("unexpected coverage output. got:")
 		for _, c := range data {
 			t.Errorf("%+v", *c)
 		}
+		t.Errorf("but expected:")
 		for _, c := range expected {
 			t.Errorf("%+v", *c)
 		}

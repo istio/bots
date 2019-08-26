@@ -50,8 +50,8 @@ type profiles map[string]*cover.Profile
 
 const (
 	e2eType   = "e2e"
-	integType = "intPendingeg"
-	unitType  = "uniPendingt"
+	integType = "integ"
+	unitType  = "unit"
 )
 
 // Client handles all aspects of gathering and reporting code coverage.
