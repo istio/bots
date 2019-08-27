@@ -74,30 +74,30 @@ func (lm *LabelMaker) MakeConfiguredLabels(context context.Context) error {
 
 func (lm *LabelMaker) makeLabel(context context.Context, orgLogin string, repoName string, label config.Label) error {
 	_, _, err := lm.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
-		_, _, err := client.Issues.CreateLabel(context, orgLogin, repoName, &github.Label{
+		return client.Issues.CreateLabel(context, orgLogin, repoName, &github.Label{
 			Name:        &label.Name,
 			Color:       &label.Color,
 			Description: &label.Description,
 		})
-
-		if err == nil {
-			scope.Infof("Created label %s in repo %s/%s", label.Name, orgLogin, repoName)
-			return nil, nil, nil
-		}
-
-		_, _, err = client.Issues.EditLabel(context, orgLogin, repoName, label.Name, &github.Label{
-			Name:        &label.Name,
-			Color:       &label.Color,
-			Description: &label.Description,
-		})
-
-		if err == nil {
-			scope.Infof("Updated label %s in repo %s/%s", label.Name, orgLogin, repoName)
-			return nil, nil, nil
-		}
-
-		return nil, nil, err
 	})
+
+	if err == nil {
+		scope.Infof("Created label %s in repo %s/%s", label.Name, orgLogin, repoName)
+		return nil
+	}
+
+	_, _, err = lm.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+		return client.Issues.EditLabel(context, orgLogin, repoName, label.Name, &github.Label{
+			Name:        &label.Name,
+			Color:       &label.Color,
+			Description: &label.Description,
+		})
+	})
+
+	if err == nil {
+		scope.Infof("Updated label %s in repo %s/%s", label.Name, orgLogin, repoName)
+		return nil
+	}
 
 	return err
 }
