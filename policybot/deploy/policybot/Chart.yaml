@@ -8,3 +8,5 @@ keywords:
 sources:
   - https://github.com/istio/bots
 engine: gotpl
+version: "0.1.0"
+icon: https://github.com/istio/bots/raw/master/policybot/dashboard/static/img/logo.png

@@ -142,4 +142,3 @@ function convertUTCToLocalDate(el: HTMLElement): void {
         }
     });
 }
-

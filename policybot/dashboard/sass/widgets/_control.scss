@@ -1,6 +1,7 @@
 [aria-label=Control] {
     text-transform: uppercase;
     margin: 1.1em 0;
+    border-bottom: 1px solid $boxBorderColor;
 
     @media print {
         display: none;
@@ -9,6 +10,4 @@
     a:focus {
         outline: 0;
     }
-
-    border-bottom: 1px solid $boxBorderColor;
 }
