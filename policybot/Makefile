@@ -5,14 +5,11 @@ HUB ?= gcr.io/istio-testing/policybot
 IMG := $(HUB):$(TAG)
 export GO111MODULE=on
 
-dockerrun := docker run -t -i --sig-proxy=true --rm -v $(shell pwd):/site -w /site "gcr.io/istio-testing/build-tools:2019-08-22T16-27-38"
+dockerrun := docker run -t -i --sig-proxy=true --rm -v $(shell pwd):/site -w /site "gcr.io/istio-testing/build-tools:2019-08-29T13-57-48"
 
 gen:
 	@$(dockerrun) scripts/gen_dashboard.sh
 	@go generate ./...
-
-lint:
-	@$(dockerrun) scripts/lint_dashboard.sh
 
 clean:
 	@rm -fr policybot tmp generated */*.gen.go */*/*.gen.go */*/*/*.gen.go
@@ -29,7 +26,7 @@ deploy_only:
 		--set SENDGRID_APIKEY=$(SENDGRID_APIKEY) \
 		--set GITHUB_OAUTH_CLIENT_ID=$(GITHUB_OAUTH_CLIENT_ID) \
 		--set GITHUB_OAUTH_CLIENT_SECRET=$(GITHUB_OAUTH_CLIENT_SECRET) \
-		deploy/kube | kubectl apply -f -
+		deploy/policybot | kubectl apply -f -
 	@echo "Deployed policybot:$(IMG) to GKE"
 .PHONY: deploy_only
 

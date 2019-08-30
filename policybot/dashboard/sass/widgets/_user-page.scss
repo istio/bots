@@ -2,7 +2,7 @@
     display: grid;
     grid-template-columns: auto;
     grid-gap: 1rem;
-    margin: 2rem 0 0 0;
+    margin: 2rem 0 0;
 
     @media (min-width: $bp-xl) {
         grid-template-columns: auto auto;
@@ -57,13 +57,13 @@
 
             .name {
                 border-right: 1px solid $boxBorderColor;
-                padding-left: 0.5em;
-                padding-right: 0.5em;
+                padding-left: .5em;
+                padding-right: .5em;
             }
 
             .value {
-                padding-left: 0.5em;
-                padding-right: 0.5em;
+                padding-left: .5em;
+                padding-right: .5em;
                 grid-column: reviewed;
             }
 

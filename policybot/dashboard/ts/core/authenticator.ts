@@ -29,7 +29,7 @@ class Authenticator {
 
     constructor() {
         const urlParams = new URLSearchParams(window.location.search);
-        const token = urlParams.get('access_token');
+        const token = urlParams.get("access_token");
 
         if (token !== null) {
             this.gitHubToken = token;

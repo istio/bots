@@ -148,6 +148,13 @@ type AutoLabel struct {
 	LabelsToRemove []string
 }
 
+type Milestone struct {
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	DueDate     time.Time `json:"due_date"`
+	Closed      bool      `json:"closed"`
+}
+
 // Configuration for an individual repo.
 type Repo struct {
 	// Name of the repo
@@ -155,6 +162,9 @@ type Repo struct {
 
 	// Labels to create for this repo
 	LabelsToCreate []Label `json:"labels_to_create"`
+
+	// Milestones to create for this repo
+	MilestonesToCreate []Milestone `json:"milestones_to_create"`
 }
 
 // Configuration for an individual GitHub organization.
@@ -173,6 +183,9 @@ type Org struct {
 
 	// Labels to create in all repos being controlled in this organization
 	LabelsToCreate []Label `json:"labels_to_create"`
+
+	// Milestones to create in all repos being controlled in this organization
+	MilestonesToCreate []Milestone `json:"milestones_to_create"`
 
 	// BucketName to locate prow test output
 	BucketName string `json:"bucket_name"`
@@ -215,6 +228,9 @@ type Args struct {
 
 	// Labels to create in all repos being controlled
 	LabelsToCreate []Label `json:"labels_to_create"`
+
+	// Milestones to create in all repos being controlled
+	MilestonesToCreate []Milestone `json:"milestones_to_create"`
 
 	// Name of GCP project that holds the GCS test buckets
 	GCPProject string `json:"gcp_project"`

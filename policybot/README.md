@@ -30,11 +30,11 @@ also calls the GitHub API.
 The bot consists of a simple framework and distinct handlers that have specific isolated responsibilities.
 
 A handler is responsible for dealing with requests arriving at a specific path. A specialized form of handler is called
-a topic, which represents a top-level area in the dashboard UI. Topics are responsible for serving HTML and JSON traffic. 
-The existing handlers include: 
+a topic, which represents a top-level area in the dashboard UI. Topics are responsible for serving HTML and JSON traffic.
+The existing handlers include:
 
 - githubwebhook. Handles GitHub web hook events by dispatching to a set of filters (described below)
- 
+
 - zenhubwebhook. Handles ZenHub web hook events
 
 - topics. A number of handlers which each deliver the HTML and JSON to support the dashboard UI.
@@ -98,7 +98,7 @@ treated as a local file path within the bot's container.
 
 ## REST API
 
-The bot exposes a REST API at https://eng.istio.io:
+The bot exposes a REST API at <https://eng.istio.io>:
 
 - /githubwebhook - used to report events from GitHub. This is called by GitHub whenever anything interesting happens in
 the Istio repos.
@@ -133,4 +133,4 @@ Changes pushed to this file are automatically picked up by the bot.
 
 The bot needs a bunch of credentials to operate. As explained above, these credentials are supplied
 to the bot via environment variables or command-line flags. If you're a Googler, you can get access
-to the credentials at <https://go/valentine>.
+to the credentials at go/valentine.

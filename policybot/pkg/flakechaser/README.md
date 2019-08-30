@@ -1,6 +1,6 @@
 # Test Flakes Bot design
 
-Test flakes hurts our development velocity. This `flakechaser` bots automatically nags
+Test flakes hurts our development velocity. This `flakechaser` bot automatically nags
 flaky test issues owners if
 
 - Issue has a 'flaky' keyword in title or description.
@@ -13,4 +13,4 @@ work set, and then update the issues via Github API.
 Known Issue
 
 if the bot is triggered again before the /sync is invoked, due to the
-storage lag behind, the bot can nag flakey test issue again...
+storage lag behind, the bot can nag flaky test issue again...

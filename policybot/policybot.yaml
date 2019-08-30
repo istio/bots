@@ -111,6 +111,31 @@ orgs:
     bucket_name: istio-prow
     presubmit_path: pr-logs/pull/
 
+    milestones_to_create:
+      - name: "1.4"
+        due_date: 2019-11-13T00:00:00Z
+        closed: false
+
+      - name: "1.3"
+        due_date: 2019-09-11T00:00:00Z
+        closed: false
+
+      - name: "1.2"
+        date: 2019-06-20T00:00:00Z
+        closed: true
+
+      - name: "1.1"
+        date: 2019-03-20T00:00:00Z
+        closed: true
+
+      - name: "1.0"
+        date: 2018-08-01T00:00:00Z
+        closed: true
+
+      - name: "Nebulous Future"
+        description: "Issues unlikely to get addressed in the near term"
+        closed: false
+
     labels_to_create:
       - name: flag/needs-release-note
         color: e02642
@@ -177,6 +202,9 @@ orgs:
         description: Indicates a PR needs to be rebased before being merged
 
     repos:
+      - name: client-go
+      - name: tests
+      - name: gogo-genproto
       - name: test-infra
       - name: istio.io
       - name: tools
