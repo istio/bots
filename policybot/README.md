@@ -133,4 +133,4 @@ Changes pushed to this file are automatically picked up by the bot.
 
 The bot needs a bunch of credentials to operate. As explained above, these credentials are supplied
 to the bot via environment variables or command-line flags. If you're a Googler, you can get access
-to the credentials at go/valentine.
+to the credentials at `go/valentine`.

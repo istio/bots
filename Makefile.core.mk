@@ -16,7 +16,7 @@ build:
 	@go generate ./...
 	@go build ./...
 
-lint: lint-copyright-banner lint-go lint-scripts lint-dockerfiles lint-markdown lint-sass lint-typescript lint-helm lint-python
+lint: lint-all
 
 fmt: format-go
 
