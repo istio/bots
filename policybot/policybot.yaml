@@ -112,6 +112,10 @@ orgs:
     presubmit_path: pr-logs/pull/
 
     milestones_to_create:
+      - name: "1.5"
+        due_date: 2020-02-13T00:00:00Z
+        closed: false
+
       - name: "1.4"
         due_date: 2019-11-13T00:00:00Z
         closed: false
@@ -140,6 +144,10 @@ orgs:
       - name: flag/needs-release-note
         color: e02642
         description: Indicates a PR contains changes worthy of mentioning in customer-facing release notes.
+
+      - name: flag/needs-backport
+        color: e02642
+        description: Indicates an issue needs to be addressed in a patch release.
 
       - name: do-not-merge
         color: bfdadc
