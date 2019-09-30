@@ -5,11 +5,13 @@ go 1.12
 require (
 	cloud.google.com/go v0.38.0
 	github.com/ghodss/yaml v1.0.0
+	github.com/gogo/protobuf v1.2.0 // indirect
 	github.com/google/go-github/v26 v26.0.9
 	github.com/gorilla/mux v1.7.1
 	github.com/gorilla/websocket v1.2.0
 	github.com/hashicorp/golang-lru v0.5.1 // indirect
 	github.com/kr/pretty v0.1.0 // indirect
+	github.com/onsi/ginkgo v1.7.0 // indirect
 	github.com/prometheus/client_golang v0.9.3 // indirect
 	github.com/prometheus/common v0.4.1 // indirect
 	github.com/prometheus/procfs v0.0.1 // indirect
@@ -26,5 +28,6 @@ require (
 	google.golang.org/api v0.4.0
 	google.golang.org/grpc v1.20.1
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
+	gotest.tools v2.2.0+incompatible
 	istio.io/pkg v0.0.0-20190710182420-c26792dead42
 )
