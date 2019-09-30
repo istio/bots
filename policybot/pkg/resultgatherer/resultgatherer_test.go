@@ -21,6 +21,8 @@ import (
 	"testing"
 	"time"
 
+	"gotest.tools/assert"
+
 	"istio.io/bots/policybot/pkg/blobstorage/gcs"
 	"istio.io/bots/policybot/pkg/resultgatherer"
 	"istio.io/bots/policybot/pkg/storage"
@@ -59,7 +61,9 @@ func TestResultGatherer(t *testing.T) {
 	}
 
 	testResultGatherer := resultgatherer.TestResultGatherer{client, "istio-flakey-test", "pr-logs/pull/", ""}
-	testResults, _ := testResultGatherer.CheckTestResultsForPr(context, "istio", "istio", prNum)
+	testResults, err := testResultGatherer.CheckTestResultsForPr(context, "istio", "istio", prNum)
+	assert.NilError(t, err)
+	assert.Assert(t, len(testResults) >= 1, "Expected at least one test result from bucket istio-flakey-test")
 	test := testResults[0]
 	if !reflect.DeepEqual(test, correctInfo) {
 		t.Fail()
