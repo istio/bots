@@ -77,7 +77,7 @@ func getConfig(org, repo string) (Config, error) {
 func normalizeLabel(label string) string {
 	if strings.Contains(label, "+") {
 		parts := strings.Split(label, "+")
-		sort.Sort(sort.StringSlice(parts))
+		sort.Strings(parts)
 		label = strings.Join(parts, "+")
 	}
 	return label

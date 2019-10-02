@@ -42,7 +42,7 @@ func TestGetCustomLabels(t *testing.T) {
 		{Config{
 			"feature": &Feature{
 				Stages: map[string]*Stage{
-					"alpha": &Stage{
+					"alpha": {
 						Targets: map[string]int{
 							"unit":      90,
 							"e2e+integ": 90,
@@ -54,8 +54,8 @@ func TestGetCustomLabels(t *testing.T) {
 	}
 	for _, test := range tests {
 		actual := getCustomLabels(test.cfg)
-		sort.Sort(sort.StringSlice(actual))
-		sort.Sort(sort.StringSlice(test.expected))
+		sort.Strings(actual)
+		sort.Strings(test.expected)
 		if !eq(actual, test.expected) {
 			t.Errorf("expected %v but got %v", test.expected, actual)
 		}
