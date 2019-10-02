@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/ghodss/yaml"
+
 	"istio.io/pkg/cache"
 )
 
