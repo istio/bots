@@ -600,6 +600,34 @@ func (s *store) getIssueActivity(context context.Context, orgLogin string, repoN
 	return err
 }
 
+func (s store) QueryCoverageDataBySHA(
+	context context.Context,
+	orgLogin string,
+	repoName string,
+	sha string,
+	cb func(*storage.CoverageData) error,
+) error {
+	sql := `SELECT * from CoverageData
+	WHERE OrgLogin = @orgLogin AND
+	RepoName = @repoName AND
+	Sha = @sha`
+	stmt := spanner.NewStatement(sql)
+	stmt.Params["orgLogin"] = orgLogin
+	stmt.Params["repoName"] = repoName
+	stmt.Params["sha"] = sha
+	iter := s.client.Single().Query(context, stmt)
+	err := iter.Do(func(row *spanner.Row) error {
+		testResult := &storage.CoverageData{}
+		if err := rowToStruct(row, testResult); err != nil {
+			return err
+		}
+
+		return cb(testResult)
+	})
+
+	return err
+}
+
 func (s *store) getPRActivity(context context.Context, orgLogin string, repoName string, userLogin string,
 	info *storage.ActivityInfo, repoInfo *storage.RepoActivityInfo) error {
 
@@ -670,7 +698,7 @@ func (s *store) getPRActivity(context context.Context, orgLogin string, repoName
 
 	iter = s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
 		`SELECT * FROM PullRequestReviewCommentEvents
-			WHERE
+7			WHERE
 				OrgLogin = '%s'
 				AND RepoName = '%s'
 				AND Actor = '%s'
