@@ -40,7 +40,7 @@ type Stage struct {
 
 var cfgCache = cache.NewTTL(5*time.Minute, time.Minute)
 
-func getConfig(org, repo string) (Config, error) {
+func GetConfig(org, repo string) (Config, error) {
 	key := fmt.Sprintf("%s/%s/master", org, repo)
 	if cfg, ok := cfgCache.Get(key); ok {
 		return cfg.(Config), nil
