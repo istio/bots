@@ -52,6 +52,9 @@ const (
 	e2eType   = "e2e"
 	integType = "integ"
 	unitType  = "unit"
+	covPassed = "All coverage checks passed."
+
+	signature = "\n\nCoverage checks brought to you by your local testing bot."
 )
 
 // Client handles all aspects of gathering and reporting code coverage.
@@ -94,7 +97,7 @@ func (c *Client) CheckCoverage(ctx context.Context, pr *github.PullRequest, sha 
 	if !hasCoverageStatus {
 		scope.Infof("skipping coverage check for %s/%s commit %s, which has no coverage status",
 			c.OrgLogin, c.Repo, sha)
-		c.SetCoverageStatus(ctx, sha, Success)
+		c.SetCoverageStatus(ctx, sha, Success, covPassed)
 		return nil
 	}
 
@@ -109,7 +112,7 @@ func (c *Client) CheckCoverage(ctx context.Context, pr *github.PullRequest, sha 
 			return nil
 		})
 	if err != nil {
-		c.SetCoverageStatus(ctx, sha, Error)
+		c.SetCoverageStatus(ctx, sha, Error, "Could not fetch test results.")
 		return fmt.Errorf("coverage: error fetching test results for %s/%s commit %s: %v",
 			c.OrgLogin, c.Repo, sha, err)
 	}
@@ -120,7 +123,7 @@ func (c *Client) CheckCoverage(ctx context.Context, pr *github.PullRequest, sha 
 	b := c.BlobClient.Bucket(c.Bucket)
 	tmpDir, err := ioutil.TempDir("", "coverage")
 	if err != nil {
-		c.SetCoverageStatus(ctx, sha, Error)
+		c.SetCoverageStatus(ctx, sha, Error, "Could not create temp directory for coverage files.")
 		return fmt.Errorf("coverage: error creating temp dir for coverage files")
 	}
 	defer os.RemoveAll(tmpDir)
@@ -134,15 +137,20 @@ func (c *Client) CheckCoverage(ctx context.Context, pr *github.PullRequest, sha 
 
 	covData, err := c.getCoverageDataFromProfiles(sha, covMap, pr)
 	if err != nil {
-		c.SetCoverageStatus(ctx, sha, Error)
+		c.SetCoverageStatus(ctx, sha, Error, "Could not generate coverage data from profiles.")
 		return fmt.Errorf("coverage: error generating coverage data from profiles: %v", err)
 	}
 	err = c.StorageClient.WriteCoverageData(ctx, covData)
 	if err != nil {
-		c.SetCoverageStatus(ctx, sha, Error)
+		c.SetCoverageStatus(ctx, sha, Error, "Could not write coverage data to storage.")
 		return fmt.Errorf("coverage: error writing coverage data to storage: %v", err)
 	}
-	c.SetCoverageStatus(ctx, sha, Success)
+	res := c.checkCoverageDiff(ctx, pr, sha)
+	c.SetCoverageStatus(ctx, sha, res.GetGithubStatus(), res.GetDescription())
+	comment := res.GetComment()
+	if comment != "" {
+		gh.AddOrReplaceBotComment(ctx, c.GithubClient, c.OrgLogin, c.Repo, pr.GetNumber(), comment, signature)
+	}
 	return nil
 }
 
@@ -200,6 +208,13 @@ func (c *Client) getCoverageDataFromProfiles(
 		integType: {make(profiles), time.Time{}},
 		unitType:  {make(profiles), time.Time{}},
 	}
+	// Ignore errors, we just won't generate any extra aggregate profiles.
+	cfg, _ := GetConfig(c.OrgLogin, c.Repo)
+	addlLabels := getCustomLabels(cfg)
+	for _, label := range addlLabels {
+		testTypeCov[label] = &aggregate{make(profiles), time.Time{}}
+	}
+
 	// In theory, we can probably just use GetRef instead of operating over GetLabel, but
 	// there really is not documentation explaining the difference between the second part
 	// of the label and the ref. The best I can tell is that perhaps the PR can be based
@@ -210,13 +225,17 @@ func (c *Client) getCoverageDataFromProfiles(
 	// Create a merged profile for each test type and generate CoverageData entries for each
 	// individual test.
 	for r, profs := range covMap {
-		info := testTypeCov[getTestType(r.TestName)]
-		if err := mergeProfiles(info.p, profs); err != nil {
-			return nil, err
-		}
-		// Use the last finish time for a given test type as the aggregate finish time.
-		if r.FinishTime.After(info.c) {
-			info.c = r.FinishTime
+		testType := getTestType(r.TestName)
+		for label, info := range testTypeCov {
+			if strings.Contains(label, testType) {
+				if err := mergeProfiles(info.p, profs); err != nil {
+					return nil, err
+				}
+				// Use the last finish time for a given test type as the aggregate finish time.
+				if r.FinishTime.After(info.c) {
+					info.c = r.FinishTime
+				}
+			}
 		}
 		covs = append(covs,
 			getCoverageDataFromProfiles(c.OrgLogin, c.Repo, branch, sha, r.TestName, r.FinishTime, profs)...)
@@ -266,12 +285,13 @@ func getCoverageDataFromProfiles(
 }
 
 // SetCoverageStatus sets a pending coverage status for a given commit.
-func (c *Client) SetCoverageStatus(ctx context.Context, sha string, state string) {
+func (c *Client) SetCoverageStatus(ctx context.Context, sha, state, details string) {
 	_, _, err := c.GithubClient.ThrottledCall(
 		func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.Repositories.CreateStatus(ctx, c.OrgLogin, c.Repo, sha, &github.RepoStatus{
-				State:   &state,
-				Context: &statusName,
+				State:       &state,
+				Context:     &statusName,
+				Description: &details,
 			})
 		})
 	if err != nil {

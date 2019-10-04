@@ -95,7 +95,8 @@ func (r *TestResultFilter) Handle(context context.Context, event interface{}) {
 		orgLogin := p.GetOrganization().GetLogin()
 		prNum := p.GetNumber()
 		if p.GetAction() == "opened" || p.GetAction() == "synchronize" {
-			handlers.cov.SetCoverageStatus(context, p.GetPullRequest().GetHead().GetSHA(), coverage.Pending)
+			handlers.cov.SetCoverageStatus(context, p.GetPullRequest().GetHead().GetSHA(), coverage.Pending,
+				"Waiting for test results.")
 		}
 		testResults, err := handlers.trg.CheckTestResultsForPr(context, orgLogin, repoName, int64(prNum))
 		if err != nil {
