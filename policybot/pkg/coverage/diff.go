@@ -94,6 +94,37 @@ func (c *Client) checkCoverageDiff(
 		return &DiffResult{err: err}
 	}
 
+	return computeDiffResult(cfg, baseCoverage, coverage)
+}
+
+func (c *Client) getCoverageData(ctx context.Context, sha string) (map[string][]*storage.CoverageData, error) {
+	var data map[string][]*storage.CoverageData
+	err := c.StorageClient.QueryCoverageDataBySHA(
+		ctx, c.OrgLogin, c.Repo, sha,
+		func(result *storage.CoverageData) error {
+			data[result.PackageName] = append(data[result.PackageName], result)
+			return nil
+		})
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func updateCov(covs map[string]*cov, profs []*storage.CoverageData) {
+	for _, prof := range profs {
+		if _, ok := covs[prof.Type]; !ok {
+			covs[prof.Type] = &cov{}
+		}
+		covs[prof.Type].covered += prof.StmtsCovered
+		covs[prof.Type].total += prof.StmtsTotal
+	}
+}
+
+func computeDiffResult(
+	cfg Config,
+	baseCov, headCov map[string][]*storage.CoverageData,
+) *DiffResult {
 	result := &DiffResult{}
 	for featureName, feature := range cfg {
 		for stageName, stage := range feature.Stages {
@@ -101,12 +132,12 @@ func (c *Client) checkCoverageDiff(
 			curr := make(map[string]*cov)
 			for _, stagePkg := range stage.Packages {
 				// Perhaps we can do better than this.
-				for pkg, covs := range baseCoverage {
+				for pkg, covs := range baseCov {
 					if strings.HasPrefix(pkg, stagePkg) {
 						updateCov(base, covs)
 					}
 				}
-				for pkg, covs := range coverage {
+				for pkg, covs := range headCov {
 					if strings.HasPrefix(pkg, stagePkg) {
 						updateCov(curr, covs)
 					}
@@ -136,30 +167,5 @@ func (c *Client) checkCoverageDiff(
 			}
 		}
 	}
-
 	return result
-}
-
-func (c *Client) getCoverageData(ctx context.Context, sha string) (map[string][]*storage.CoverageData, error) {
-	var data map[string][]*storage.CoverageData
-	err := c.StorageClient.QueryCoverageDataBySHA(
-		ctx, c.OrgLogin, c.Repo, sha,
-		func(result *storage.CoverageData) error {
-			data[result.PackageName] = append(data[result.PackageName], result)
-			return nil
-		})
-	if err != nil {
-		return nil, err
-	}
-	return data, nil
-}
-
-func updateCov(covs map[string]*cov, profs []*storage.CoverageData) {
-	for _, prof := range profs {
-		if _, ok := covs[prof.Type]; !ok {
-			covs[prof.Type] = &cov{}
-		}
-		covs[prof.Type].covered += prof.StmtsCovered
-		covs[prof.Type].total += prof.StmtsTotal
-	}
 }
