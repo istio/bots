@@ -16,6 +16,7 @@ package coverage
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/google/go-github/v26/github"
@@ -67,7 +68,14 @@ func (d DiffResult) GetComment() string {
 		return ""
 	}
 	if s == Failure {
-
+		b := strings.Builder{}
+		b.WriteString("Coverage checks failed:\n\n")
+		for _, entry := range d.Entries {
+			b.WriteString(
+				fmt.Sprintf("* [%s.%s.%s]: Coverage for this PR is %f%%, which does not meet the coverage target of %f%% (base PR has %f%% coverage)\n",
+					entry.Feature, entry.Stage, entry.Label, entry.Actual, entry.Target, entry.Base))
+		}
+		return b.String()
 	}
 	return "An internal error occurred while computing coverage. Please file an issue for investigation."
 }
