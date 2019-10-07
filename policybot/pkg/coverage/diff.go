@@ -28,7 +28,7 @@ type cov struct {
 
 type DiffResultEntry struct {
 	Feature, Stage, Label string
-	Target, Actual        int
+	Target, Actual, Base  float64
 }
 
 type DiffResult struct {
@@ -144,24 +144,22 @@ func computeDiffResult(
 				}
 			}
 			for label, target := range stage.Targets {
+				pct := 0.0
 				if cov, ok := curr[label]; ok {
-					pct := cov.covered * 100 / cov.total
-					if pct < int64(target) {
-						result.Entries = append(result.Entries, &DiffResultEntry{
-							Feature: featureName,
-							Stage:   stageName,
-							Label:   label,
-							Target:  target,
-							Actual:  int(pct),
-						})
-					}
-				} else {
+					pct = float64(cov.covered) * 100 / float64(cov.total)
+				}
+				basePct := 0.0
+				if baseCov, ok := base[label]; ok {
+					basePct = float64(baseCov.covered) * 100 / float64(baseCov.total)
+				}
+				if pct < target {
 					result.Entries = append(result.Entries, &DiffResultEntry{
 						Feature: featureName,
 						Stage:   stageName,
 						Label:   label,
 						Target:  target,
-						Actual:  0,
+						Actual:  pct,
+						Base:    basePct,
 					})
 				}
 			}
