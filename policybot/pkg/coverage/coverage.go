@@ -149,7 +149,9 @@ func (c *Client) CheckCoverage(ctx context.Context, pr *github.PullRequest, sha 
 	c.SetCoverageStatus(ctx, sha, res.GetGithubStatus(), res.GetDescription())
 	comment := res.GetComment()
 	if comment != "" {
-		gh.AddOrReplaceBotComment(ctx, c.GithubClient, c.OrgLogin, c.Repo, pr.GetNumber(), comment, signature)
+		if err := gh.AddOrReplaceBotComment(ctx, c.GithubClient, c.OrgLogin, c.Repo, pr.GetNumber(), comment, signature); err != nil {
+			return fmt.Errorf("coverage: error writing Github comment: %v", err)
+		}
 	}
 	return nil
 }

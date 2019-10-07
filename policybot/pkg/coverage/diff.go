@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/google/go-github/v26/github"
+
 	"istio.io/bots/policybot/pkg/storage"
 )
 

@@ -26,7 +26,7 @@ var (
 	config = Config{
 		"all": &Feature{
 			Stages: map[string]*Stage{
-				"stable": &Stage{
+				"stable": {
 					Packages: []string{"istio.io/bots/policybot"},
 					Targets: map[string]float64{
 						"unit": 70,
@@ -75,7 +75,7 @@ func TestComputeDiffResult(t *testing.T) {
 			},
 			expected: &DiffResult{
 				Entries: []*DiffResultEntry{
-					&DiffResultEntry{
+					{
 						Feature: "all",
 						Stage:   "stable",
 						Label:   "unit",
@@ -101,7 +101,7 @@ func TestComputeDiffResult(t *testing.T) {
 			},
 			expected: &DiffResult{
 				Entries: []*DiffResultEntry{
-					&DiffResultEntry{
+					{
 						Feature: "all",
 						Stage:   "stable",
 						Label:   "unit",
@@ -148,7 +148,7 @@ func TestDiffResultGithubStatus(t *testing.T) {
 		{
 			DiffResult{
 				Entries: []*DiffResultEntry{
-					&DiffResultEntry{},
+					{},
 				},
 			},
 			Failure,
