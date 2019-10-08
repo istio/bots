@@ -34,7 +34,7 @@ type Feature struct {
 }
 
 type Stage struct {
-	Targets  map[string]int
+	Targets  map[string]float64
 	Packages []string
 }
 
@@ -63,7 +63,7 @@ func GetConfig(org, repo string) (Config, error) {
 	}
 	for _, f := range cfg {
 		for _, s := range f.Stages {
-			normalized := make(map[string]int)
+			normalized := make(map[string]float64)
 			for label, target := range s.Targets {
 				normalized[normalizeLabel(label)] = target
 			}

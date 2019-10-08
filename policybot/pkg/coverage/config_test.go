@@ -43,7 +43,7 @@ func TestGetCustomLabels(t *testing.T) {
 			"feature": &Feature{
 				Stages: map[string]*Stage{
 					"alpha": {
-						Targets: map[string]int{
+						Targets: map[string]float64{
 							"unit":      90,
 							"e2e+integ": 90,
 						},
