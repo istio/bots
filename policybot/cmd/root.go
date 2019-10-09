@@ -40,6 +40,7 @@ func GetRootCmd(args []string) *cobra.Command {
 	rootCmd.AddCommand(flakeChaserCmd())
 	rootCmd.AddCommand(labelMakerCmd())
 	rootCmd.AddCommand(milestoneMakerCmd())
+	rootCmd.AddCommand(userdataCmd())
 	rootCmd.AddCommand(version.CobraCommand())
 
 	return rootCmd

@@ -237,6 +237,31 @@ func (s store) WriteAllMaintainers(ctx1 context.Context, maintainers []*storage.
 	return err
 }
 
+func (s store) WriteAllUserAffiliations(ctx1 context.Context, affiliations []*storage.UserAffiliation) error {
+	scope.Debugf("Writing %d user affiliations", len(affiliations))
+
+	mutations := make([]*spanner.Mutation, len(affiliations))
+	for i, a := range affiliations {
+		var err error
+		if mutations[i], err = insertStruct(userAffiliationTable, a); err != nil {
+			return err
+		}
+	}
+
+	_, err := s.client.ReadWriteTransaction(ctx1, func(ctx2 context.Context, txn *spanner.ReadWriteTransaction) error {
+		// Remove all existing affiliations
+		iter := txn.Query(ctx2, spanner.Statement{SQL: "DELETE FROM UserAffiliation WHERE true;"})
+		if err := iter.Do(func(_ *spanner.Row) error { return nil }); err != nil {
+			return err
+		}
+
+		// write all the new members
+		return txn.BufferWrite(mutations)
+	})
+
+	return err
+}
+
 func (s store) WriteBotActivities(context context.Context, activities []*storage.BotActivity) error {
 	scope.Debugf("Writing %d activities", len(activities))
 
