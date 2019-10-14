@@ -45,6 +45,7 @@ type Store interface {
 	WritePullRequestReviewEvents(context context.Context, events []*PullRequestReviewEvent) error
 	WriteRepoCommentEvents(context context.Context, events []*RepoCommentEvent) error
 	WriteCoverageData(context context.Context, covs []*CoverageData) error
+	WriteAllUserAffiliations(context context.Context, affiliation []*UserAffiliation) error
 
 	UpdateBotActivity(context context.Context, orgLogin string, repoName string, cb func(*BotActivity) error) error
 

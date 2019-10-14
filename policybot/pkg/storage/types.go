@@ -276,3 +276,11 @@ type CoverageData struct {
 	StmtsCovered int64
 	StmtsTotal   int64
 }
+
+type UserAffiliation struct {
+	UserLogin    string
+	Counter      int64
+	Organization string
+	StartTime    time.Time
+	EndTime      time.Time
+}
