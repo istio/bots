@@ -16,7 +16,6 @@ package refresher
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/go-github/v26/github"
 
@@ -80,7 +79,7 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 			OrgLogin:    issue.OrgLogin,
 			RepoName:    issue.RepoName,
 			IssueNumber: issue.IssueNumber,
-			CreatedAt:   time.Now(),
+			CreatedAt:   p.GetIssue().GetUpdatedAt(),
 			Actor:       p.GetSender().GetLogin(),
 			Action:      p.GetAction(),
 		}
@@ -118,7 +117,7 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 			RepoName:       issueComment.RepoName,
 			IssueNumber:    issueComment.IssueNumber,
 			IssueCommentID: p.GetComment().GetID(),
-			CreatedAt:      time.Now(),
+			CreatedAt:      p.GetComment().GetUpdatedAt(),
 			Actor:          p.GetSender().GetLogin(),
 			Action:         p.GetAction(),
 		}
@@ -188,9 +187,10 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 			OrgLogin:          p.GetOrganization().GetLogin(),
 			RepoName:          p.GetRepo().GetName(),
 			PullRequestNumber: int64(p.GetPullRequest().GetNumber()),
-			CreatedAt:         time.Now(),
+			CreatedAt:         p.GetPullRequest().GetUpdatedAt(),
 			Actor:             p.GetSender().GetLogin(),
 			Action:            p.GetAction(),
+			Merged:            p.GetPullRequest().GetMerged(),
 		}
 
 		events := []*storage.PullRequestEvent{event}
@@ -225,7 +225,7 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 			RepoName:            review.RepoName,
 			PullRequestNumber:   review.PullRequestNumber,
 			PullRequestReviewID: p.GetReview().GetID(),
-			CreatedAt:           time.Now(),
+			CreatedAt:           p.GetReview().GetSubmittedAt(),
 			Actor:               p.GetSender().GetLogin(),
 			Action:              p.GetAction(),
 		}
@@ -262,7 +262,7 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 			RepoName:                   comment.RepoName,
 			PullRequestNumber:          comment.PullRequestNumber,
 			PullRequestReviewCommentID: p.GetComment().GetID(),
-			CreatedAt:                  time.Now(),
+			CreatedAt:                  p.GetComment().GetUpdatedAt(),
 			Actor:                      p.GetSender().GetLogin(),
 			Action:                     p.GetAction(),
 		}
@@ -296,7 +296,7 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 			OrgLogin:      comment.OrgLogin,
 			RepoName:      comment.RepoName,
 			RepoCommentID: p.GetComment().GetID(),
-			CreatedAt:     time.Now(),
+			CreatedAt:     p.GetComment().GetUpdatedAt(),
 			Actor:         p.GetSender().GetLogin(),
 			Action:        p.GetAction(),
 		}

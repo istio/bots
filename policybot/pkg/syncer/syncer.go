@@ -401,12 +401,16 @@ func (ss *syncState) handleEvents(repo *storage.Repo) error {
 
 	now := time.Now()
 
+	// TODO: we should look at what the latest event is in the DB and only update from there.
+	// TODO: there's a limit of 1000 days that can be queried at once, so this logic should take
+	//       that into account and issue multiple queries if needed
+
 	q := ss.syncer.bq.Query(fmt.Sprintf(`
 		SELECT * FROM (
 		  SELECT type as Type, payload as Payload, org.login as OrgLogin, repo.name as RepoName, actor.login as Actor, created_at as CreatedAt,
 			JSON_EXTRACT(payload, '$.action') as event
 		  FROM (TABLE_DATE_RANGE([githubarchive:day.],
-			TIMESTAMP('2016-12-01'),
+			TIMESTAMP('2019-07-01'),
 			TIMESTAMP('%4d-%2d-%2d')
 		  ))
 		  WHERE (type = 'IssuesEvent'
@@ -492,6 +496,7 @@ func (ss *syncState) handleEvents(repo *storage.Repo) error {
 				Actor:             r.Actor,
 				Action:            e.GetAction(),
 				PullRequestNumber: int64(e.GetPullRequest().GetNumber()),
+				Merged:            e.GetPullRequest().GetMerged(),
 			})
 
 		case "PullRequestReviewCommentEvent":

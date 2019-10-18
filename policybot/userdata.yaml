@@ -1,5 +1,725 @@
 users:
-  - github_login: geeknoid
-    affiliations:
-      - organization: Google
-        start: 2014-11-14
+  - affiliations:
+      - end: "9999-01-01"
+        organization: IBM
+        start: "2013-06-03"
+    email_addresses:
+      - gihanson@us.ibm.com
+    github_login: GregHanson
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2014-03-24"
+    email_addresses:
+      - yinjie@google.com
+    github_login: JimmyCYJ
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2015-07-13"
+    email_addresses:
+      - piotrsikora@google.com
+    github_login: PiotrSikora
+  - affiliations:
+      - end: "2018-04-15"
+        organization: Google
+        start: "2013-06-03"
+      - end: "9999-01-01"
+        organization: Tetrate
+        start: "2018-04-15"
+    github_login: ZackButcher
+  - affiliations:
+      - end: "9999-01-01"
+        organization: IBM
+        start: "2011-09-01"
+    github_login: aal80
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2017-02-03"
+    email_addresses:
+      - andracis@google.com
+    github_login: andraxylia
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2015-09-14"
+    email_addresses:
+      - jasonyoung@google.com
+    github_login: ayj
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2016-03-07"
+    email_addresses:
+      - bianpengyuan@google.com
+    github_login: bianpengyuan
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2019-07-29"
+    github_login: carolynhu
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2013-06-03"
+    github_login: chxchx
+  - affiliations:
+      - end: "9999-01-01"
+        organization: IBM
+        start: "2013-06-03"
+    email_addresses:
+      - clyang@cn.ibm.com
+    github_login: clyang82
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2013-06-03"
+    email_addresses:
+      - costin@google.com
+    github_login: costinm
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2018-11-12"
+    github_login: davidebbo
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2013-06-03"
+    email_addresses:
+      - diemvu@google.com
+    github_login: diemtvu
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2019-01-07"
+    github_login: djazayeri
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2013-06-03"
+    email_addresses:
+      - dougreid@google.com
+    github_login: douglas-reid
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2018-07-01"
+    email_addresses:
+      - jblatt@google.com
+    github_login: duderino
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2019-07-18"
+    github_login: elfinhe
+  - affiliations:
+      - end: "9999-01-01"
+        organization: IBM
+        start: "2019-01-01"
+    email_addresses:
+      - ericvn@us.ibm.com
+    github_login: ericvn
+  - affiliations:
+      - end: "9999-01-01"
+        organization: IBM
+        start: "1997-04-01"
+    email_addresses:
+      - snible@us.ibm.com
+    github_login: esnible
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2013-06-03"
+    email_addresses:
+      - fejta@google.com
+    github_login: fejta
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Huawei
+        start: "2013-06-03"
+    email_addresses:
+      - dustise@live.com
+    github_login: fleeto
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2013-06-03"
+    email_addresses:
+      - fpesce@google.com
+    github_login: fpesce
+  - affiliations:
+      - end: "9999-01-01"
+        organization: IBM
+        start: "2013-06-03"
+    email_addresses:
+      - frankb@ca.ibm.com
+    github_login: frankbu
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2016-01-25"
+    email_addresses:
+      - gargnupur@google.com
+    github_login: gargnupur
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2014-11-14"
+    email_addresses:
+      - mtail@google.com
+    github_login: geeknoid
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2013-06-03"
+    github_login: guptasu
+  - affiliations:
+      - end: "9999-01-01"
+        organization: IBM
+        start: "2013-06-03"
+    email_addresses:
+      - liugya@cn.ibm.com
+    github_login: gyliu513
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2013-06-03"
+    email_addresses:
+      - hklai@google.com
+    github_login: hklai
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2013-06-03"
+    email_addresses:
+      - howardjohn@google.com
+    github_login: howardjohn
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Huawei
+        start: "2013-06-03"
+    email_addresses:
+      - xuzhonghu@huawei.com
+    github_login: hzxuzhonghu
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2013-06-03"
+    email_addresses:
+      - angwar@google.com
+    github_login: icygalz
+  - affiliations:
+      - end: "9999-01-01"
+        organization: IBM
+        start: "2013-06-03"
+    email_addresses:
+      - ijsnellf@us.ibm.com
+    github_login: ijsnellf
+  - affiliations:
+      - end: "9999-01-01"
+        organization: ignore
+        start: "2013-06-03"
+    github_login: imgbot[bot]
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2013-06-03"
+    email_addresses:
+      - jianfeih@google.com
+    github_login: incfly
+  - affiliations:
+      - end: "9999-01-01"
+        organization: IBM
+        start: "2013-06-03"
+    email_addresses:
+      - irisdingbj@gmail.com
+    github_login: irisdingbj
+  - affiliations:
+      - end: "9999-01-01"
+        organization: ignore
+        start: "2013-06-03"
+    github_login: istio-testing
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2013-06-03"
+    email_addresses:
+      - jasonwzm@google.com
+    github_login: jasonwzm
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2013-06-03"
+    email_addresses:
+      - jeffmendoza@google.com
+    github_login: jeffmendoza
+  - affiliations:
+      - end: "9999-01-01"
+        organization: IBM
+        start: "1990-10-01"
+    email_addresses:
+      - jnativio@us.ibm.com
+    github_login: jnativio
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Cisco
+        start: "2013-06-03"
+    email_addresses:
+      - joycej@cisco.com
+    github_login: john-a-joyce
+  - affiliations:
+      - end: "9999-01-01"
+        organization: IBM
+        start: "2006-06-05"
+    github_login: johnma14
+  - affiliations:
+      - end: "9999-01-01"
+        organization: RedHat
+        start: "2015-12-07"
+    github_login: jwendell
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2016-06-01"
+    email_addresses:
+      - kuat@google.com
+    github_login: kyessenov
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2013-06-03"
+    github_login: ldemailly
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2013-06-03"
+    email_addresses:
+      - leitang@google.com
+    github_login: lei-tang
+  - affiliations:
+      - end: "2018-11-14"
+        organization: IBM
+        start: "2013-06-03"
+      - end: "9999-01-01"
+        organization: Tetrate
+        start: "2018-11-15"
+    email_addresses:
+      - liam@tetrate.io
+    github_login: liamawhite
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Huawei
+        start: "2013-06-03"
+    github_login: lichuqiang
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2013-06-03"
+    email_addresses:
+      - liminwang@google.com
+    github_login: liminw
+  - affiliations:
+      - end: "9999-01-01"
+        organization: IBM
+        start: "2013-06-03"
+    email_addresses:
+      - linsun@us.ibm.com
+    github_login: linsun
+  - affiliations:
+      - end: "2018-09-15"
+        organization: Google
+        start: "2013-06-03"
+      - end: "9999-01-01"
+        organization: Tetrate
+        start: "2018-09-15"
+    email_addresses:
+      - lizan@tetrate.io
+    github_login: lizan
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2007-05-17"
+    email_addresses:
+      - lryan@google.com
+    github_login: louiscryan
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Huawei
+        start: "2013-06-03"
+    email_addresses:
+      - 1045438139@qq.com
+    github_login: loverto
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2013-06-03"
+    email_addresses:
+      - mjog@google.com
+    github_login: mandarjog
+  - affiliations:
+      - end: "9999-01-01"
+        organization: IBM
+        start: "2000-12-01"
+    github_login: mbanikazemi
+  - affiliations:
+      - end: "9999-01-01"
+        organization: ignore
+        start: "2013-06-03"
+    github_login: mergify[bot]
+  - affiliations:
+      - end: "9999-01-01"
+        organization: IBM
+        start: "2013-06-03"
+    email_addresses:
+      - llcao@cn.ibm.com
+    github_login: morvencao
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2013-06-03"
+    email_addresses:
+      - yonggangl@google.com
+    github_login: myidpt
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2017-03-06"
+    github_login: navinger
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2017-02-03"
+    email_addresses:
+      - nathanmittler@google.com
+    github_login: nmittler
+  - affiliations:
+      - end: "9999-01-01"
+        organization: RedHat
+        start: "2013-06-03"
+    github_login: objectiser
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2013-06-03"
+    email_addresses:
+      - mostrowski@google.com
+    github_login: ostromart
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2013-06-03"
+    email_addresses:
+      - ozben@google.com
+    github_login: ozevren
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2013-06-03"
+    email_addresses:
+      - philliple@google.com
+    github_login: pitlv2109
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2013-06-03"
+    github_login: qiwzhang
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2013-06-03"
+    email_addresses:
+      - quanlin@google.com
+    github_login: quanjielin
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2013-06-03"
+    email_addresses:
+      - grca@google.com
+    github_login: rcaballeromx
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2019-04-08"
+    email_addresses:
+      - iamwen@google.com
+    github_login: richardwxn
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2013-06-03"
+    github_login: rkpagadala
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2018-10-22"
+    email_addresses:
+      - rlenglet@google.com
+    github_login: rlenglet
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Ant
+        start: "2013-06-03"
+    email_addresses:
+      - jimmysong@jimmysong.io
+    github_login: rootsongjc
+  - affiliations:
+      - end: "2018-02-15"
+        organization: IBM
+        start: "2013-06-03"
+      - end: "2019-03-15"
+        organization: VMWare
+        start: "2018-02-15"
+      - end: "9999-01-01"
+        organization: Tetrate
+        start: "2019-03-15"
+    email_addresses:
+      - rshriram@gmail.com
+    github_login: rshriram
+  - affiliations:
+      - end: "9999-01-01"
+        organization: IBM
+        start: "2018-06-01"
+    github_login: rvennam
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Cisco
+        start: "2005-11-25"
+    email_addresses:
+      - sbezverk@cisco.com
+    github_login: sbezverk
+  - affiliations:
+      - end: "2018-11-25"
+        organization: Cisco
+        start: "2015-02-07"
+      - end: "2019-05-15"
+        organization: NetApp
+        start: "2019-01-03"
+      - end: "9999-01-01"
+        organization: IBM
+        start: "2019-07-02"
+    email_addresses:
+      - steven.dake@gmail.com
+    github_login: sdake
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2013-06-03"
+    email_addresses:
+      - sebvas@google.com
+    github_login: sebastienvas
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2015-11-16"
+    github_login: selmanj
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2006-05-12"
+    email_addresses:
+      - sven@google.com
+    github_login: smawson
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2019-05-28"
+    email_addresses:
+      - crwilson@google.com
+    github_login: sushicw
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2011-08-01"
+    github_login: tangiel
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2016-11-16"
+    github_login: theganyo
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2013-06-03"
+    email_addresses:
+      - mitchconnors@google.com
+    github_login: therealmitchconnors
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Cisco
+        start: "2000-12-18"
+    email_addresses:
+      - tiswanso@cisco.com
+    github_login: tiswanso
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2013-06-03"
+    email_addresses:
+      - skidam@google.com
+    github_login: utka
+  - affiliations:
+      - end: "9999-01-01"
+        organization: IBM
+        start: "2013-06-03"
+    email_addresses:
+      - vadime@il.ibm.com
+    github_login: vadimeisenbergibm
+  - affiliations:
+      - end: "9999-01-01"
+        organization: VMWare
+        start: "2013-06-03"
+    email_addresses:
+      - veniln@vmware.com
+    github_login: venilnoronha
+  - affiliations:
+      - end: "9999-01-01"
+        organization: IBM
+        start: "2004-05-26"
+    github_login: vikramkhatri
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2013-06-03"
+    email_addresses:
+      - lita@google.com
+    github_login: wattli
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2013-06-03"
+    github_login: xiaolanz
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2016-01-05"
+    email_addresses:
+      - ymzhu@google.com
+    github_login: yangminzhu
+  - affiliations:
+      - end: "2019-03-15"
+        organization: IBM
+        start: "2013-06-03"
+      - end: "9999-01-01"
+        organization: DellEMC
+        start: "2019-03-15"
+    github_login: ymesika
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2013-06-03"
+    github_login: yutongz
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "2019-04-15"
+    email_addresses:
+      - yxyan@google.com
+    github_login: yxue
+  - affiliations:
+      - end: "0001-01-01"
+        organization: Pivotal
+        start: "2019-10-15"
+    github_login: xanderstrike
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "0001-01-01"
+    github_login: adammil2000
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Cisco
+        start: "0001-01-01"
+    github_login: baodongli
+  - affiliations:
+      - end: "9999-01-01"
+        organization: RedHat
+        start: "0001-01-01"
+    github_login: brian-avery
+  - affiliations:
+      - end: "9999-01-01"
+        organization: IBM
+        start: "0001-01-01"
+    github_login: cmluciano
+  - affiliations:
+      - end: "9999-01-01"
+        organization: RedHat
+        start: "0001-01-01"
+    github_login: dmitri-d
+  - affiliations:
+      - end: "9999-01-01"
+        organization: IBM
+        start: "0001-01-01"
+    github_login: elevran
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Banzai Cloud
+        start: "0001-01-01"
+    github_login: matyix
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "0001-01-01"
+    github_login: jasminejaksic
+  - affiliations:
+      - end: "9999-01-01"
+        organization: RedHat
+        start: "0001-01-01"
+    github_login: knrc
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Mercari
+        start: "0001-01-01"
+    github_login: zchee
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Banzai Cloud
+        start: "0001-01-01"
+    github_login: Laci21
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Banzai Cloud
+        start: "0001-01-01"
+    github_login: martonsereg
+  - affiliations:
+      - end: "9999-01-01"
+        organization: SUSE
+        start: "0001-01-01"
+    github_login: Nino-K
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Red Hat
+        start: "0001-01-01"
+    github_login: rcernich
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Tigera
+        start: "0001-01-01"
+    github_login: spikecurtis
+  - affiliations:
+      - end: "9999-01-01"
+        organization: IBM
+        start: "0001-01-01"
+    github_login: suryadu
+  - affiliations:
+      - end: "9999-01-01"
+        organization: RedHat
+        start: "0001-01-01"
+    github_login: tvieira
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Banzai Cloud
+        start: "0001-01-01"
+    github_login: waynz0r
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Google
+        start: "0001-01-01"
+    github_login: lambdai
+  - affiliations:
+      - end: "9999-01-01"
+        organization: Red Hat
+        start: "0001-01-01"
+    github_login: mwringe
