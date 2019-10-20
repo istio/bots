@@ -106,6 +106,68 @@ autolabels:
     labelstoapply:
       - kind/enhancement
 
+boilerplates_to_clean:
+  - regex: |
+      (.*)Please provide a description for what this PR is for.
+
+      (.*)And to help us figure out who should review this PR, please
+      put an X in all the areas that this PR affects.
+
+      (.*)\[.*\] +Configuration Infrastructure
+      \[.*\] +Docs
+      \[.*\] +Installation
+      \[.*\] +Networking
+      \[.*\] +Performance and Scalability
+      \[.*\] +Policies and Telemetry
+      \[.*\] +Security
+      \[.*\] +Test and Release
+      \[.*\] +User Experience
+      \[.*\] +Developer Infrastructure
+      (.*)
+    replacement: $1$2$3$4
+
+  - regex: |
+      (.*)\(NOTE: This is used to report product bugs:
+        To report a security vulnerability, please visit <https://istio.io/about/security-vulnerabilities/>
+        To ask questions about how to use Istio, please visit <https://discuss.istio.io>
+      \)
+
+      (.*)\*\*Affected product area \(please put an X in all that apply\)\*\*
+
+      (.*)\[.*\] +Configuration Infrastructure
+      \[.*\] +Docs
+      \[.*\] +Installation
+      \[.*\] +Networking
+      \[.*\] +Performance and Scalability
+      \[.*\] +Policies and Telemetry
+      \[.*\] +Security
+      \[.*\] +Test and Release
+      \[.*\] +User Experience
+      \[.*\] +Developer Infrastructure
+
+      (.*)Additionally, please consider attaching a \[cluster state archive\]\(http://istio.io/help/bugs/#generating-a-cluster-state-archive\) by attaching
+      the dump file to this issue.
+      (.*)
+    replacement: $1$2$3$4$5
+
+  - regex: |
+      (.*)\(This is used to request new product features, please visit <https://discuss.istio.io> for questions on using Istio\)
+
+      (.*)\*\*Affected product area \(please put an X in all that apply\)\*\*
+
+      (.*)\[.*\] +Configuration Infrastructure
+      \[.*\] +Docs
+      \[.*\] +Installation
+      \[.*\] +Networking
+      \[.*\] +Performance and Scalability
+      \[.*\] +Policies and Telemetry
+      \[.*\] +Security
+      \[.*\] +Test and Release
+      \[.*\] +User Experience
+      \[.*\] +Developer Infrastructure
+      (.*)
+    replacement: $1$2$3$4
+
 orgs:
   - name: istio
     bucket_name: istio-prow
