@@ -125,6 +125,7 @@ CREATE TABLE PullRequestEvents (
   CreatedAt TIMESTAMP NOT NULL,
   Action STRING(MAX) NOT NULL,
   Actor STRING(MAX) NOT NULL,
+  Merged BOOL NOT NULL,
 ) PRIMARY KEY(OrgLogin, RepoName, PullRequestNumber, CreatedAt),
   INTERLEAVE IN PARENT Repos ON DELETE CASCADE;
 
@@ -192,6 +193,7 @@ CREATE TABLE PullRequests (
   Body STRING(MAX) NOT NULL,
   HeadCommit STRING(MAX) NOT NULL,
   BranchName STRING(MAX) NOT NULL,
+  Merged BOOL NOT NULL,
 ) PRIMARY KEY(OrgLogin, RepoName, PullRequestNumber),
   INTERLEAVE IN PARENT Repos ON DELETE CASCADE;
 

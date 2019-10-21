@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"strings"
 	"time"
 
@@ -41,11 +42,11 @@ type Affiliation struct {
 type UserInfo struct {
 	GitHubLogin    string        `json:"github_login"`
 	Affiliations   []Affiliation `json:"affiliations"`
-	EmailAddresses []string      `json:"email_addresses"`
+	EmailAddresses []string      `json:"email_addresses,omitempty"`
 }
 
 type UserData struct {
-	Users []UserInfo `json:"users"`
+	Users []*UserInfo `json:"users"`
 }
 
 func Load(file string) (UserData, error) {
@@ -66,12 +67,19 @@ func (ud UserData) Store(store storage.Store) error {
 	var a []*storage.UserAffiliation
 
 	for _, user := range ud.Users {
-		for _, affiliation := range user.Affiliations {
+		u, err := store.ReadUser(context.Background(), user.GitHubLogin)
+		if u == nil || err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "User %s is not known to the PolicyBot infrastructure, skipping\n", user.GitHubLogin)
+			continue
+		}
+
+		for i, affiliation := range user.Affiliations {
 			a = append(a, &storage.UserAffiliation{
 				UserLogin:    user.GitHubLogin,
 				Organization: affiliation.Organization,
 				StartTime:    affiliation.Start.Time,
 				EndTime:      affiliation.End.Time,
+				Counter:      int64(i),
 			})
 		}
 	}
@@ -84,7 +92,14 @@ func (t *Time) MarshalJSON() ([]byte, error) {
 }
 
 func (t *Time) UnmarshalJSON(buf []byte) error {
-	tt, err := time.Parse("2006-01-02", strings.Trim(string(buf), `"`))
+	s := strings.Trim(string(buf), `"`)
+
+	if len(s) == 0 || s == "null" {
+		t.Time, _ = time.Parse("2006-01-02", "9999-01-01")
+		return nil
+	}
+
+	tt, err := time.Parse("2006-01-02", s)
 	if err != nil {
 		return err
 	}

@@ -133,9 +133,6 @@ func New(router *mux.Router, store storage.Store, cache *cache.Cache, a *config.
 		addEntry("Recently Inactive", "Maintainers that have not recently contributed to the project.").
 		addPageWithQuery("/maintainers", "filter", "inactive", maintainers.RenderList).
 		endEntry().
-		addEntry("Emeritus", "Maintainers that are no longer  involved with the project.").
-		addPageWithQuery("/maintainers", "filter", "emeritus", maintainers.RenderList).
-		endEntry().
 		addPage("/maintainers", maintainers.RenderList).
 		addPage("/maintainers/{login}", maintainers.RenderSingle).
 		endEntry()

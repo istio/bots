@@ -155,6 +155,11 @@ type Milestone struct {
 	Closed      bool      `json:"closed"`
 }
 
+type Boilerplate struct {
+	Regex       string
+	Replacement string
+}
+
 // Configuration for an individual repo.
 type Repo struct {
 	// Name of the repo
@@ -187,6 +192,9 @@ type Org struct {
 	// Milestones to create in all repos being controlled in this organization
 	MilestonesToCreate []Milestone `json:"milestones_to_create"`
 
+	// PR or issue boilerplate to remove in all repos being controlled in this organization
+	BoilerplatesToClean []Boilerplate `json:"boilerplates_to_clean"`
+
 	// BucketName to locate prow test output
 	BucketName string `json:"bucket_name"`
 
@@ -216,6 +224,9 @@ type Args struct {
 
 	// Global auto-labeling
 	AutoLabels []AutoLabel `json:"autolabels"`
+
+	// Global PR or issue boilerplate to remove
+	BoilerplatesToClean []Boilerplate `json:"boilerplates_to_clean"`
 
 	// Name to use as sender when sending emails
 	EmailFrom string `json:"email_from"`

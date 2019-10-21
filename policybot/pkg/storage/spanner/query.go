@@ -729,3 +729,19 @@ func (s *store) getPRActivity(context context.Context, orgLogin string, repoName
 
 	return err
 }
+
+func (s store) QueryAllUserAffiliations(context context.Context, cb func(affiliation *storage.UserAffiliation) error) error {
+	sql := `SELECT * from UserAffiliation WHERE true`
+	stmt := spanner.NewStatement(sql)
+	iter := s.client.Single().Query(context, stmt)
+	err := iter.Do(func(row *spanner.Row) error {
+		affiliation := &storage.UserAffiliation{}
+		if err := rowToStruct(row, affiliation); err != nil {
+			return err
+		}
+
+		return cb(affiliation)
+	})
+
+	return err
+}

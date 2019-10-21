@@ -29,6 +29,7 @@ import (
 	"istio.io/bots/policybot/dashboard"
 	"istio.io/bots/policybot/handlers/githubwebhook"
 	"istio.io/bots/policybot/handlers/githubwebhook/filters"
+	"istio.io/bots/policybot/handlers/githubwebhook/filters/boilerplatecleaner"
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/cfgmonitor"
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/labeler"
 	"istio.io/bots/policybot/handlers/githubwebhook/filters/nagger"
@@ -220,6 +221,11 @@ func runWithConfig(a *config.Args) error {
 		return fmt.Errorf("unable to create labeler: %v", err)
 	}
 
+	cleaner, err := boilerplatecleaner.NewCleaner(gc, cache, a.Orgs, a.BoilerplatesToClean)
+	if err != nil {
+		return fmt.Errorf("unable to create boilerplate cleaner: %v", err)
+	}
+
 	unstaler, err := unstaler.NewUnstaler(gc, a.Orgs)
 	if err != nil {
 		return fmt.Errorf("unable to create unstaler: %v", err)
@@ -255,6 +261,7 @@ func runWithConfig(a *config.Args) error {
 		nag,
 		unstaler,
 		labeler,
+		cleaner,
 		monitor,
 	}
 

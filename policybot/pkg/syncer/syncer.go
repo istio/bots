@@ -401,12 +401,16 @@ func (ss *syncState) handleEvents(repo *storage.Repo) error {
 
 	now := time.Now()
 
+	// TODO: we should look at what the latest event is in the DB and only update from there.
+	// TODO: there's a limit of 1000 days that can be queried at once, so this logic should take
+	//       that into account and issue multiple queries if needed
+
 	q := ss.syncer.bq.Query(fmt.Sprintf(`
 		SELECT * FROM (
 		  SELECT type as Type, payload as Payload, org.login as OrgLogin, repo.name as RepoName, actor.login as Actor, created_at as CreatedAt,
 			JSON_EXTRACT(payload, '$.action') as event
 		  FROM (TABLE_DATE_RANGE([githubarchive:day.],
-			TIMESTAMP('2016-12-01'),
+			TIMESTAMP('2019-07-01'),
 			TIMESTAMP('%4d-%2d-%2d')
 		  ))
 		  WHERE (type = 'IssuesEvent'
@@ -492,6 +496,7 @@ func (ss *syncState) handleEvents(repo *storage.Repo) error {
 				Actor:             r.Actor,
 				Action:            e.GetAction(),
 				PullRequestNumber: int64(e.GetPullRequest().GetNumber()),
+				Merged:            e.GetPullRequest().GetMerged(),
 			})
 
 		case "PullRequestReviewCommentEvent":
@@ -875,26 +880,66 @@ func (ss *syncState) handleCODEOWNERS(org *config.Org, repo *config.Repo, mainta
 			login = strings.TrimPrefix(login, "@")
 			login = strings.TrimSuffix(login, ",")
 
-			// add the path to this maintainer's list
-			path := strings.TrimPrefix(fields[0], "/")
-			path = strings.TrimSuffix(path, "/*")
-			if path == "*" {
-				path = ""
+			names, err := ss.expandTeam(org, login)
+			if err != nil {
+				return err
 			}
 
-			scope.Debugf("User '%s' can review path '%s/%s/%s'", login, org.Name, repo.Name, path)
+			for _, name := range names {
 
-			maintainer, err := ss.getMaintainer(org, maintainers, login)
-			if maintainer == nil || err != nil {
-				scope.Warnf("Couldn't get info on potential maintainer %s: %v", login, err)
-				continue
+				// add the path to this maintainer's list
+				path := strings.TrimPrefix(fields[0], "/")
+				path = strings.TrimSuffix(path, "/*")
+				if path == "*" {
+					path = ""
+				}
+
+				scope.Debugf("User '%s' can review path '%s/%s/%s'", name, org.Name, repo.Name, path)
+
+				maintainer, err := ss.getMaintainer(org, maintainers, name)
+				if maintainer == nil || err != nil {
+					scope.Warnf("Couldn't get info on potential maintainer %s: %v", name, err)
+					continue
+				}
+
+				maintainer.Paths = append(maintainer.Paths, repo.Name+"/"+path)
 			}
-
-			maintainer.Paths = append(maintainer.Paths, repo.Name+"/"+path)
 		}
 	}
 
 	return nil
+}
+
+func (ss *syncState) expandTeam(org *config.Org, login string) ([]string, error) {
+	index := strings.Index(login, "/")
+	if index < 0 {
+		return []string{login}, nil
+	}
+
+	team, _, err := ss.syncer.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+		return client.Teams.GetTeamBySlug(ss.ctx, org.Name, login[index+1:])
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("unable to get information on team %s: %v", login, err)
+	}
+
+	id := team.(*github.Team).GetID()
+
+	ghUsers, _, err := ss.syncer.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+		return client.Teams.ListTeamMembers(ss.ctx, id, nil)
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("unable to get members of team %s: %v", login, err)
+	}
+
+	var users []string
+	for _, u := range ghUsers.([]*github.User) {
+		users = append(users, u.GetLogin())
+	}
+
+	return users, nil
 }
 
 type ownersFile struct {

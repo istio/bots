@@ -102,6 +102,7 @@ type PullRequest struct {
 	State              string
 	BranchName         string
 	HeadCommit         string
+	Merged             bool
 }
 
 type PullRequestReviewComment struct {
@@ -233,6 +234,7 @@ type PullRequestEvent struct {
 	CreatedAt         time.Time
 	Actor             string
 	Action            string
+	Merged            bool
 }
 
 type PullRequestReviewCommentEvent struct {
