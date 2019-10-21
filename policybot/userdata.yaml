@@ -622,7 +622,7 @@ users:
       - end: "0001-01-01"
         organization: Pivotal
         start: "2019-10-15"
-    github_login: xanderstrike
+    github_login: XanderStrike
   - affiliations:
       - end: "9999-01-01"
         organization: Google
@@ -723,3 +723,201 @@ users:
         organization: Red Hat
         start: "0001-01-01"
     github_login: mwringe
+
+  - github_login: ramaraochavali
+    affiliations:
+      - organization: Salesforce
+        start: "0001-01-01"
+        end: "9999-01-01"
+
+  - github_login: supereagle
+    affiliations:
+      - organization: Caicloud
+        start: "0001-01-01"
+        end: "9999-01-01"
+
+  - github_login: michelle192837
+    affiliations:
+      - organization: Google
+        start: "0001-01-01"
+        end: "9999-01-01"
+
+  - github_login: ChristinaLyu0710
+    affiliations:
+      - organization: Google
+        start: "0001-01-01"
+        end: "9999-01-01"
+
+  - github_login: huang195
+    affiliations:
+      - organization: IBM
+        start: "0001-01-01"
+        end: "9999-01-01"
+
+  - github_login: kramerul
+    affiliations:
+      - organization: SAP
+        start: "0001-01-01"
+        end: "9999-01-01"
+
+  - github_login: AsCat
+    affiliations:
+      - organization: NetEase
+        start: "0001-01-01"
+        end: "9999-01-01"
+
+  - github_login: waret
+    affiliations:
+      - organization: BoCloud
+        start: "0001-01-01"
+        end: "9999-01-01"
+
+  - github_login: cjwagner
+    affiliations:
+      - organization: Google
+        start: "0001-01-01"
+        end: "9999-01-01"
+
+  - github_login: clarketm
+    affiliations:
+      - organization: Google
+        start: "0001-01-01"
+        end: "9999-01-01"
+
+  - github_login: jmazzitelli
+    affiliations:
+      - organization: Red Hat
+        start: "0001-01-01"
+        end: "9999-01-01"
+
+  - github_login: johscheuer
+    affiliations:
+      - organization: Inovex
+        start: "0001-01-01"
+        end: "9999-01-01"
+
+  - github_login: Monkeyanator
+    affiliations:
+      - organization: Google
+        start: "0001-01-01"
+        end: "9999-01-01"
+
+  - github_login: c0d1ngm0nk3y
+    affiliations:
+      - organization: SAP
+        start: "0001-01-01"
+        end: "9999-01-01"
+
+  - github_login: philrud
+    affiliations:
+      - organization: Google
+        start: "0001-01-01"
+        end: "9999-01-01"
+
+  - github_login: dwradcliffe
+    affiliations:
+      - organization: Shopify
+        start: "0001-01-01"
+        end: "9999-01-01"
+
+  - github_login: qfel
+    affiliations:
+      - organization: Google
+        start: "0001-01-01"
+        end: "9999-01-01"
+
+  - github_login: ibm-jason
+    affiliations:
+      - organization: IBM
+        start: "0001-01-01"
+        end: "9999-01-01"
+
+  - github_login: phil9909
+    affiliations:
+      - organization: SAP
+        start: "0001-01-01"
+        end: "9999-01-01"
+
+  - github_login: nrjpoddar
+    affiliations:
+      - organization: AspenMesh
+        start: "0001-01-01"
+        end: "9999-01-01"
+
+  - github_login: jplevyak
+    affiliations:
+      - organization: Google
+        start: "0001-01-01"
+        end: "9999-01-01"
+
+  - github_login: idouba
+    affiliations:
+      - organization: Huawei
+        start: "0001-01-01"
+        end: "9999-01-01"
+
+  - github_login: chases2
+    affiliations:
+      - organization: Google
+        start: "0001-01-01"
+        end: "9999-01-01"
+
+  - github_login: Katharine
+    affiliations:
+      - organization: Google
+        start: "0001-01-01"
+        end: "9999-01-01"
+
+  - github_login: utako
+    affiliations:
+      - organization: Pivotal
+        start: "0001-01-01"
+        end: "9999-01-01"
+
+  - github_login: cgilmour
+    affiliations:
+      - organization: Datadog
+        start: "0001-01-01"
+        end: "9999-01-01"
+
+  - github_login: jkbschmid
+    affiliations:
+      - organization: SAP
+        start: "0001-01-01"
+        end: "9999-01-01"
+
+  - github_login: askmeegs
+    affiliations:
+      - organization: Google
+        start: "0001-01-01"
+        end: "9999-01-01"
+
+  - github_login: SataQiu
+    affiliations:
+      - organization: Individual
+        start: "0001-01-01"
+        end: "9999-01-01"
+
+  - github_login: shakti-das
+    affiliations:
+      - organization: Salesforce
+        start: "0001-01-01"
+        end: "9999-01-01"
+
+  - github_login: gtaylor
+    affiliations:
+      - organization: Reddit
+        start: "0001-01-01"
+        end: "9999-01-01"
+
+  - github_login: joeyb
+    affiliations:
+      - organization: Salesforce
+        start: "0001-01-01"
+        end: "9999-01-01"
+
+  - github_login: jsPlachetka
+    affiliations:
+      - organization: SAP
+        start: "0001-01-01"
+        end: "9999-01-01"

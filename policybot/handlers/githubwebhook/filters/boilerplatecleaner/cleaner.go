@@ -77,9 +77,6 @@ func NewCleaner(gc *gh.ThrottledClient, cache *cache.Cache, orgs []config.Org, b
 
 // Precompile all the regexes
 func (l *Cleaner) processBoilerplateRegexes(b config.Boilerplate) error {
-	scope.Infof("REGEX STRING: %s", b.Regex)
-	scope.Infof("REGEX BYTES: %v", []byte(b.Regex))
-
 	r, err := regexp.Compile("(?mis)" + b.Regex)
 	if err != nil {
 		return fmt.Errorf("invalid regular expression %s: %v", b.Regex, err)
