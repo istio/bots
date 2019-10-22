@@ -22,8 +22,7 @@ import (
 	"istio.io/bots/policybot/pkg/storage"
 )
 
-// Maps from a GitHub issue to a storage issue. Also returns the set of
-// users discovered in the input.
+// Maps from a GitHub issue to a storage issue.
 func ConvertIssue(orgLogin string, repoName string, issue *github.Issue) *storage.Issue {
 	labels := make([]string, len(issue.Labels))
 	for i, label := range issue.Labels {
@@ -51,8 +50,7 @@ func ConvertIssue(orgLogin string, repoName string, issue *github.Issue) *storag
 	}
 }
 
-// Maps from a GitHub issue comment to a storage issue comment. Also returns the set of
-// users discovered in the input.
+// Maps from a GitHub issue comment to a storage issue comment.
 func ConvertIssueComment(orgLogin string, repoName string, issueNumber int, issueComment *github.IssueComment) *storage.IssueComment {
 	return &storage.IssueComment{
 		OrgLogin:       orgLogin,
@@ -66,8 +64,7 @@ func ConvertIssueComment(orgLogin string, repoName string, issueNumber int, issu
 	}
 }
 
-// Maps from a GitHub repo comment to a storage repo comment. Also returns the set of
-// users discovered in the input.
+// Maps from a GitHub repo comment to a storage repo comment.
 func ConvertRepoComment(orgLogin string, repoName string, comment *github.RepositoryComment) *storage.RepoComment {
 	return &storage.RepoComment{
 		OrgLogin:  orgLogin,
@@ -121,8 +118,7 @@ func ConvertLabel(orgLogin string, repoName string, l *github.Label) *storage.La
 	}
 }
 
-// Maps from a GitHub pr to a storage pr. Also returns the set of
-// users discovered in the input.
+// Maps from a GitHub pr to a storage pr.
 func ConvertPullRequest(orgLogin string, repoName string, pr *github.PullRequest, files []string) *storage.PullRequest {
 	labels := make([]string, len(pr.Labels))
 	for i, label := range pr.Labels {
@@ -168,8 +164,7 @@ func ConvertPullRequest(orgLogin string, repoName string, pr *github.PullRequest
 	}
 }
 
-// Maps from a GitHub pr comment to a storage pr comment. Also returns the set of
-// users discovered in the input.
+// Maps from a GitHub pr comment to a storage pr comment.
 func ConvertPullRequestReviewComment(orgLogin string, repoName string, prNumber int,
 	comment *github.PullRequestComment) *storage.PullRequestReviewComment {
 
@@ -185,8 +180,7 @@ func ConvertPullRequestReviewComment(orgLogin string, repoName string, prNumber 
 	}
 }
 
-// Maps from a GitHub pr review to a storage pr review. Also returns the set of
-// users discovered in the input.
+// Maps from a GitHub pr review to a storage pr review.
 func ConvertPullRequestReview(orgLogin string, repoName string, prNumber int, prr *github.PullRequestReview) *storage.PullRequestReview {
 	return &storage.PullRequestReview{
 		OrgLogin:            orgLogin,

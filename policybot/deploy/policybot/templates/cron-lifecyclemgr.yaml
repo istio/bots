@@ -1,9 +1,9 @@
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
-  name: policybot-flakechaser
+  name: policybot-lfecyclemgr
   labels:
-    app: policybot-flakechaser
+    app: policybot-lifecyclemgr
 spec:
   schedule: "0 0 * * *"
   jobTemplate:
@@ -16,9 +16,10 @@ spec:
               imagePullPolicy: "{{ .Values.imagePullPolicy }}"
               args:
                 - /policybot
-                - flakechaser
+                - lifecyclemgr
+                - --config_repo istio/bots/master
                 - --config_file
-                - ./policybot.yaml
+                - policybot/policybot.yaml
               envFrom:
                 - secretRef:
                     name: policybot

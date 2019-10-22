@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package syncer
+package syncmgr
 
 import (
 	"context"
@@ -24,9 +24,9 @@ import (
 	"istio.io/bots/policybot/pkg/storage"
 )
 
-func (s *Syncer) fetchOrgs(context context.Context, cb func(organization *github.Organization) error) error {
-	for _, o := range s.orgs {
-		org, _, err := s.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+func (sm *SyncMgr) fetchOrgs(context context.Context, cb func(organization *github.Organization) error) error {
+	for _, o := range sm.orgs {
+		org, _, err := sm.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.Organizations.Get(context, o.Name)
 		})
 
@@ -42,10 +42,10 @@ func (s *Syncer) fetchOrgs(context context.Context, cb func(organization *github
 	return nil
 }
 
-func (s *Syncer) fetchRepos(context context.Context, cb func(repo *github.Repository) error) error {
-	for _, o := range s.orgs {
+func (sm *SyncMgr) fetchRepos(context context.Context, cb func(repo *github.Repository) error) error {
+	for _, o := range sm.orgs {
 		for _, r := range o.Repos {
-			repo, _, err := s.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+			repo, _, err := sm.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 				return client.Repositories.Get(context, o.Name, r.Name)
 			})
 
@@ -62,13 +62,13 @@ func (s *Syncer) fetchRepos(context context.Context, cb func(repo *github.Reposi
 	return nil
 }
 
-func (s *Syncer) fetchRepoComments(context context.Context, repo *storage.Repo, cb func([]*github.RepositoryComment) error) error {
+func (sm *SyncMgr) fetchRepoComments(context context.Context, repo *storage.Repo, cb func([]*github.RepositoryComment) error) error {
 	opt := &github.ListOptions{
 		PerPage: 100,
 	}
 
 	for {
-		comments, resp, err := s.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+		comments, resp, err := sm.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.Repositories.ListComments(context, repo.OrgLogin, repo.RepoName, opt)
 		})
 
@@ -88,7 +88,7 @@ func (s *Syncer) fetchRepoComments(context context.Context, repo *storage.Repo, 
 	}
 }
 
-func (s *Syncer) fetchMembers(context context.Context, org *storage.Org, cb func([]*github.User) error) error {
+func (sm *SyncMgr) fetchMembers(context context.Context, org *storage.Org, cb func([]*github.User) error) error {
 	opt := &github.ListMembersOptions{
 		ListOptions: github.ListOptions{
 			PerPage: 100,
@@ -96,7 +96,7 @@ func (s *Syncer) fetchMembers(context context.Context, org *storage.Org, cb func
 	}
 
 	for {
-		members, resp, err := s.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+		members, resp, err := sm.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.Organizations.ListMembers(context, org.OrgLogin, opt)
 		})
 
@@ -116,13 +116,13 @@ func (s *Syncer) fetchMembers(context context.Context, org *storage.Org, cb func
 	}
 }
 
-func (s *Syncer) fetchLabels(context context.Context, repo *storage.Repo, cb func([]*github.Label) error) error {
+func (sm *SyncMgr) fetchLabels(context context.Context, repo *storage.Repo, cb func([]*github.Label) error) error {
 	opt := &github.ListOptions{
 		PerPage: 100,
 	}
 
 	for {
-		labels, resp, err := s.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+		labels, resp, err := sm.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.Issues.ListLabels(context, repo.OrgLogin, repo.RepoName, opt)
 		})
 
@@ -142,7 +142,7 @@ func (s *Syncer) fetchLabels(context context.Context, repo *storage.Repo, cb fun
 	}
 }
 
-func (s *Syncer) fetchIssues(context context.Context, repo *storage.Repo, startTime time.Time, cb func([]*github.Issue) error) error {
+func (sm *SyncMgr) fetchIssues(context context.Context, repo *storage.Repo, startTime time.Time, cb func([]*github.Issue) error) error {
 	opt := &github.IssueListByRepoOptions{
 		State: "all",
 		Since: startTime,
@@ -152,7 +152,7 @@ func (s *Syncer) fetchIssues(context context.Context, repo *storage.Repo, startT
 	}
 
 	for {
-		issues, resp, err := s.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+		issues, resp, err := sm.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.Issues.ListByRepo(context, repo.OrgLogin, repo.RepoName, opt)
 		})
 
@@ -172,7 +172,7 @@ func (s *Syncer) fetchIssues(context context.Context, repo *storage.Repo, startT
 	}
 }
 
-func (s *Syncer) fetchIssueComments(context context.Context, repo *storage.Repo, startTime time.Time,
+func (sm *SyncMgr) fetchIssueComments(context context.Context, repo *storage.Repo, startTime time.Time,
 	cb func([]*github.IssueComment) error) error {
 	opt := &github.IssueListCommentsOptions{
 		Since: startTime,
@@ -182,7 +182,7 @@ func (s *Syncer) fetchIssueComments(context context.Context, repo *storage.Repo,
 	}
 
 	for {
-		comments, resp, err := s.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+		comments, resp, err := sm.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.Issues.ListComments(context, repo.OrgLogin, repo.RepoName, 0, opt)
 		})
 
@@ -202,7 +202,7 @@ func (s *Syncer) fetchIssueComments(context context.Context, repo *storage.Repo,
 	}
 }
 
-func (s *Syncer) fetchPullRequestReviewComments(context context.Context, repo *storage.Repo, startTime time.Time,
+func (sm *SyncMgr) fetchPullRequestReviewComments(context context.Context, repo *storage.Repo, startTime time.Time,
 	cb func([]*github.PullRequestComment) error) error {
 	opt := &github.PullRequestListCommentsOptions{
 		Since: startTime,
@@ -212,7 +212,7 @@ func (s *Syncer) fetchPullRequestReviewComments(context context.Context, repo *s
 	}
 
 	for {
-		comments, resp, err := s.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+		comments, resp, err := sm.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.PullRequests.ListComments(context, repo.OrgLogin, repo.RepoName, 0, opt)
 		})
 
@@ -232,13 +232,13 @@ func (s *Syncer) fetchPullRequestReviewComments(context context.Context, repo *s
 	}
 }
 
-func (s *Syncer) fetchFiles(context context.Context, repo *storage.Repo, prNumber int, cb func([]string) error) error {
+func (sm *SyncMgr) fetchFiles(context context.Context, repo *storage.Repo, prNumber int, cb func([]string) error) error {
 	opt := &github.ListOptions{
 		PerPage: 100,
 	}
 
 	for {
-		files, resp, err := s.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+		files, resp, err := sm.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.PullRequests.ListFiles(context, repo.OrgLogin, repo.RepoName, prNumber, opt)
 		})
 
@@ -263,7 +263,7 @@ func (s *Syncer) fetchFiles(context context.Context, repo *storage.Repo, prNumbe
 	}
 }
 
-func (s *Syncer) fetchPullRequests(context context.Context, repo *storage.Repo, cb func([]*github.PullRequest) error) error {
+func (sm *SyncMgr) fetchPullRequests(context context.Context, repo *storage.Repo, cb func([]*github.PullRequest) error) error {
 	opt := &github.PullRequestListOptions{
 		State: "all",
 		ListOptions: github.ListOptions{
@@ -272,7 +272,7 @@ func (s *Syncer) fetchPullRequests(context context.Context, repo *storage.Repo, 
 	}
 
 	for {
-		prs, resp, err := s.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+		prs, resp, err := sm.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.PullRequests.List(context, repo.OrgLogin, repo.RepoName, opt)
 		})
 
@@ -294,13 +294,13 @@ func (s *Syncer) fetchPullRequests(context context.Context, repo *storage.Repo, 
 	return nil
 }
 
-func (s *Syncer) fetchReviews(context context.Context, repo *storage.Repo, prNumber int, cb func([]*github.PullRequestReview) error) error {
+func (sm *SyncMgr) fetchReviews(context context.Context, repo *storage.Repo, prNumber int, cb func([]*github.PullRequestReview) error) error {
 	opt := &github.ListOptions{
 		PerPage: 100,
 	}
 
 	for {
-		reviews, resp, err := s.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+		reviews, resp, err := sm.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.PullRequests.ListReviews(context, repo.OrgLogin, repo.RepoName, prNumber, opt)
 		})
 

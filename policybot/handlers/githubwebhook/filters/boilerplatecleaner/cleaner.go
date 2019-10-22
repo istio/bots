@@ -26,13 +26,11 @@ import (
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage"
-	"istio.io/bots/policybot/pkg/storage/cache"
 	"istio.io/pkg/log"
 )
 
 // Removes redundant boilerplate content from PRs and issues
 type Cleaner struct {
-	cache            *cache.Cache
 	gc               *gh.ThrottledClient
 	orgs             []config.Org
 	boilerplates     []config.Boilerplate
@@ -42,9 +40,8 @@ type Cleaner struct {
 
 var scope = log.RegisterScope("cleaner", "Issue and PR boilerplate cleaner", 0)
 
-func NewCleaner(gc *gh.ThrottledClient, cache *cache.Cache, orgs []config.Org, boilerplates []config.Boilerplate) (filters.Filter, error) {
+func New(gc *gh.ThrottledClient, orgs []config.Org, boilerplates []config.Boilerplate) (filters.Filter, error) {
 	l := &Cleaner{
-		cache:            cache,
 		gc:               gc,
 		orgs:             orgs,
 		boilerplates:     boilerplates,
@@ -158,12 +155,22 @@ func (l *Cleaner) processIssue(context context.Context, issue *storage.Issue, or
 
 	for _, b := range orgBoilerplates {
 		r := l.multiLineRegexes[b.Regex]
+
+		oldBody := body
 		body = r.ReplaceAllString(body, b.Replacement)
+		if oldBody != body {
+			scope.Infof("Removed the `%s` boilerplate from issue %d in repo %s/%s", b.Name, issue.IssueNumber, issue.OrgLogin, issue.RepoName)
+		}
 	}
 
 	for _, b := range l.boilerplates {
 		r := l.multiLineRegexes[b.Regex]
+
+		oldBody := body
 		body = r.ReplaceAllString(body, b.Replacement)
+		if oldBody != body {
+			scope.Infof("Removed the `%s` boilerplate from issue %d in repo %s/%s", b.Name, issue.IssueNumber, issue.OrgLogin, issue.RepoName)
+		}
 	}
 
 	if body != original {
@@ -176,7 +183,6 @@ func (l *Cleaner) processIssue(context context.Context, issue *storage.Issue, or
 			scope.Errorf("Unable to remove boilerplate from issue %d in repo %s/%s: %v", issue.IssueNumber, issue.OrgLogin, issue.RepoName, err)
 			return
 		}
-		scope.Infof("Removed boilerplate from issue %d in repo %s/%s", issue.IssueNumber, issue.OrgLogin, issue.RepoName)
 	} else {
 		scope.Infof("No boilerplate to remove from issue %d in repo %s/%s", issue.IssueNumber, issue.OrgLogin, issue.RepoName)
 	}
@@ -194,12 +200,22 @@ func (l *Cleaner) processPullRequest(context context.Context, pr *storage.PullRe
 
 	for _, b := range orgBoilerplates {
 		r := l.multiLineRegexes[b.Regex]
+
+		oldBody := body
 		body = r.ReplaceAllString(body, b.Replacement)
+		if oldBody != body {
+			scope.Infof("Removed the `%s` boilerplate from PR %d in repo %s/%s", b.Name, pr.PullRequestNumber, pr.OrgLogin, pr.RepoName)
+		}
 	}
 
 	for _, b := range l.boilerplates {
 		r := l.multiLineRegexes[b.Regex]
+
+		oldBody := body
 		body = r.ReplaceAllString(body, b.Replacement)
+		if oldBody != body {
+			scope.Infof("Removed the `%s` boilerplate from PR %d in repo %s/%s", b.Name, pr.PullRequestNumber, pr.OrgLogin, pr.RepoName)
+		}
 	}
 
 	if body != original {
@@ -212,7 +228,6 @@ func (l *Cleaner) processPullRequest(context context.Context, pr *storage.PullRe
 			scope.Errorf("Unable to remove boilerplate from PR %d in repo %s/%s: %v", pr.PullRequestNumber, pr.OrgLogin, pr.RepoName, err)
 			return
 		}
-		scope.Infof("Removed boilerplate from PR %d in repo %s/%s", pr.PullRequestNumber, pr.OrgLogin, pr.RepoName)
 	} else {
 		scope.Infof("No boilerplate to remove from PR %d in repo %s/%s", pr.PullRequestNumber, pr.OrgLogin, pr.RepoName)
 	}

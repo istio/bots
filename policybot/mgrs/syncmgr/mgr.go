@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package syncer
+package syncmgr
 
 import (
 	"context"
@@ -41,14 +41,15 @@ import (
 	"istio.io/pkg/log"
 )
 
-// Syncer is responsible for synchronizing state from GitHub and ZenHub into our local store
-type Syncer struct {
+// SyncMgr is responsible for synchronizing state from GitHub and ZenHub into our local store
+type SyncMgr struct {
 	bq        *bigquery.Client
 	gc        *gh.ThrottledClient
 	zc        *zh.ThrottledClient
 	store     storage.Store
 	orgs      []config.Org
 	blobstore blobstorage.Store
+	robots    map[string]bool
 }
 
 type FilterFlags int
@@ -64,37 +65,45 @@ const (
 	RepoComments             = 1 << 6
 	Events                   = 1 << 7
 	TestResults              = 1 << 8
+	Users                    = 1 << 9
 )
 
 // The state in Syncer is immutable once created. syncState on the other hand represents
 // the mutable state used during a single sync operation.
 type syncState struct {
-	syncer *Syncer
+	syncer *SyncMgr
 	users  map[string]bool
 	flags  FilterFlags
 	ctx    context.Context
 }
 
-var scope = log.RegisterScope("syncer", "The GitHub/ZenHub data syncer", 0)
+var scope = log.RegisterScope("syncmgr", "The GitHub/ZenHub data syncer", 0)
 
 func New(gc *gh.ThrottledClient, gcpCreds []byte, gcpProject string,
-	zc *zh.ThrottledClient, store storage.Store, orgs []config.Org) (*Syncer, error) {
+	zc *zh.ThrottledClient, store storage.Store, orgs []config.Org, robots []string) (*SyncMgr, error) {
 	bq, err := bigquery.NewClient(context.Background(), gcpProject, option.WithCredentialsJSON(gcpCreds))
 	if err != nil {
 		return nil, fmt.Errorf("unable to create BigQuery client: %v", err)
 	}
+
 	bs, err := gcs.NewStore(context.Background(), gcpCreds)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create gcs client: %v", err)
 	}
 
-	return &Syncer{
+	r := make(map[string]bool, len(robots))
+	for _, robot := range robots {
+		r[robot] = true
+	}
+
+	return &SyncMgr{
 		gc:        gc,
 		bq:        bq,
 		zc:        zc,
 		store:     store,
 		blobstore: bs,
 		orgs:      orgs,
+		robots:    r,
 	}, nil
 }
 
@@ -125,6 +134,8 @@ func ConvFilterFlags(filter string) (FilterFlags, error) {
 			result |= Events
 		case "testresults":
 			result |= TestResults
+		case "users":
+			result |= Users
 		default:
 			return 0, fmt.Errorf("unknown filter flag %s", f)
 		}
@@ -133,9 +144,9 @@ func ConvFilterFlags(filter string) (FilterFlags, error) {
 	return result, nil
 }
 
-func (s *Syncer) Sync(context context.Context, flags FilterFlags) error {
+func (sm *SyncMgr) Sync(context context.Context, flags FilterFlags) error {
 	ss := &syncState{
-		syncer: s,
+		syncer: sm,
 		users:  make(map[string]bool),
 		flags:  flags,
 		ctx:    context,
@@ -145,10 +156,10 @@ func (s *Syncer) Sync(context context.Context, flags FilterFlags) error {
 	var repos []*storage.Repo
 
 	// get all the org & repo info
-	if err := s.fetchOrgs(ss.ctx, func(org *github.Organization) error {
+	if err := sm.fetchOrgs(ss.ctx, func(org *github.Organization) error {
 		storageOrg := gh.ConvertOrg(org)
 		orgs = append(orgs, storageOrg)
-		return s.fetchRepos(ss.ctx, func(repo *github.Repository) error {
+		return sm.fetchRepos(ss.ctx, func(repo *github.Repository) error {
 			storageRepo := gh.ConvertRepo(repo)
 			repos = append(repos, storageRepo)
 			return nil
@@ -157,11 +168,11 @@ func (s *Syncer) Sync(context context.Context, flags FilterFlags) error {
 		return err
 	}
 
-	if err := s.store.WriteOrgs(ss.ctx, orgs); err != nil {
+	if err := sm.store.WriteOrgs(ss.ctx, orgs); err != nil {
 		return err
 	}
 
-	if err := s.store.WriteRepos(ss.ctx, repos); err != nil {
+	if err := sm.store.WriteRepos(ss.ctx, repos); err != nil {
 		return err
 	}
 	// persist data about storage.Orgs and related
@@ -181,7 +192,7 @@ func (s *Syncer) Sync(context context.Context, flags FilterFlags) error {
 	}
 
 	// process data to persist about config.orgs and related
-	for _, org := range s.orgs {
+	for _, org := range sm.orgs {
 
 		if flags&Maintainers != 0 {
 			if err := ss.handleMaintainers(&org); err != nil {
@@ -200,7 +211,33 @@ func (s *Syncer) Sync(context context.Context, flags FilterFlags) error {
 		return err
 	}
 
+	if flags&Users != 0 {
+		if err := ss.handleUsers(); err != nil {
+			return err
+		}
+	}
+
 	return nil
+}
+
+func (ss *syncState) handleUsers() error {
+	users := make([]*storage.User, 0, len(ss.users))
+
+	if err := ss.syncer.store.QueryAllUsers(ss.ctx, func(user *storage.User) error {
+		if ghUser, _, err := ss.syncer.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+			return client.Users.Get(ss.ctx, user.UserLogin)
+		}); err == nil {
+			users = append(users, gh.ConvertUser(ghUser.(*github.User)))
+		} else {
+			scope.Warnf("couldn't get information for user %s: %v", user.UserLogin, err)
+		}
+
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	return ss.syncer.store.WriteUsers(ss.ctx, users)
 }
 
 func (ss *syncState) pushUsers() error {
@@ -222,11 +259,7 @@ func (ss *syncState) pushUsers() error {
 		}
 	}
 
-	if err := ss.syncer.store.WriteUsers(ss.ctx, users); err != nil {
-		return err
-	}
-
-	return nil
+	return ss.syncer.store.WriteUsers(ss.ctx, users)
 }
 
 func (ss *syncState) handleOrg(org *storage.Org, repos []*storage.Repo) error {
@@ -336,6 +369,11 @@ func (ss *syncState) handleMembers(org *storage.Org, repos []*storage.Repo) erro
 	var storageMembers []*storage.Member
 	if err := ss.syncer.fetchMembers(ss.ctx, org, func(members []*github.User) error {
 		for _, member := range members {
+			if ss.syncer.robots[member.GetLogin()] {
+				// we don't tree robots as full members...
+				continue
+			}
+
 			ss.addUsers(member.GetLogin())
 			storageMembers = append(storageMembers, &storage.Member{OrgLogin: org.OrgLogin, UserLogin: member.GetLogin()})
 		}
@@ -345,7 +383,7 @@ func (ss *syncState) handleMembers(org *storage.Org, repos []*storage.Repo) erro
 		return err
 	}
 
-	// now compute the contribution info for each maintainer
+	// now compute the contribution info for each member
 
 	var repoNames []string
 	for _, repo := range repos {

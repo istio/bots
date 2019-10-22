@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package userdata
+package userdatamgr
 
 import (
 	"context"
@@ -45,28 +45,28 @@ type UserInfo struct {
 	EmailAddresses []string      `json:"email_addresses,omitempty"`
 }
 
-type UserData struct {
+type UserdataMgr struct {
 	Users []*UserInfo `json:"users"`
 }
 
-func Load(file string) (UserData, error) {
+func Load(file string) (UserdataMgr, error) {
 	b, err := ioutil.ReadFile(file)
 	if err != nil {
-		return UserData{}, fmt.Errorf("unable to read user data file %s: %v", file, err)
+		return UserdataMgr{}, fmt.Errorf("unable to read user data file %s: %v", file, err)
 	}
 
-	var ud UserData
-	if err = yaml.Unmarshal(b, &ud); err != nil {
-		return UserData{}, fmt.Errorf("unable to parse user data file %s: %v", file, err)
+	var um UserdataMgr
+	if err = yaml.Unmarshal(b, &um); err != nil {
+		return UserdataMgr{}, fmt.Errorf("unable to parse user data file %s: %v", file, err)
 	}
 
-	return ud, nil
+	return um, nil
 }
 
-func (ud UserData) Store(store storage.Store) error {
+func (um UserdataMgr) Store(store storage.Store) error {
 	var a []*storage.UserAffiliation
 
-	for _, user := range ud.Users {
+	for _, user := range um.Users {
 		u, err := store.ReadUser(context.Background(), user.GitHubLogin)
 		if u == nil || err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "User %s is not known to the PolicyBot infrastructure, skipping\n", user.GitHubLogin)

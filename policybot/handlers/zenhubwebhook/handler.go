@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"istio.io/bots/policybot/mgrs/lifecyclemgr"
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
 	"istio.io/pkg/log"
@@ -28,14 +29,16 @@ var scope = log.RegisterScope("zenhub", "The ZenHub webhook handler", 0)
 
 // Decodes and dispatches ZenHub webhook calls
 type handler struct {
-	store storage.Store
-	cache *cache.Cache
+	store      storage.Store
+	cache      *cache.Cache
+	lifecycler *lifecyclemgr.LifecycleMgr
 }
 
-func NewHandler(store storage.Store, cache *cache.Cache) http.Handler {
+func NewHandler(store storage.Store, cache *cache.Cache, lifecycler *lifecyclemgr.LifecycleMgr) http.Handler {
 	return &handler{
-		store: store,
-		cache: cache,
+		store:      store,
+		cache:      cache,
+		lifecycler: lifecycler,
 	}
 }
 
@@ -88,4 +91,11 @@ func (h *handler) storePipeline(context context.Context, orgLogin string, repoNa
 	if err := h.store.WriteIssuePipelines(context, []*storage.IssuePipeline{issuePipeline}); err != nil {
 		scope.Errorf("Unable to write pipeline to storage: %v", err)
 	}
+
+	issue, err := h.cache.ReadIssue(context, r.OrgLogin, r.RepoName, issueNumber)
+	if err != nil {
+		scope.Errorf("Unable to read information on issue %d in repo %s/%s: %v", issueNumber, r.OrgLogin, r.RepoName, err)
+	}
+
+	_ = h.lifecycler.ManageIssue(context, issue)
 }

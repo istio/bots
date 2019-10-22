@@ -1,11 +1,11 @@
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
-  name: policybot-syncer-zenhub
+  name: policybot-syncer-events
   labels:
-    app: policybot-syncer-zenhub
+    app: policybot-syncer-events
 spec:
-  schedule: "0 1 * * *"
+  schedule: "0 22 * * 0"
   jobTemplate:
     spec:
       template:
@@ -21,7 +21,7 @@ spec:
                 - --config_file
                 - policybot/policybot.yaml
                 - --filter
-                - zenhub
+                - users
               envFrom:
                 - secretRef:
                     name: policybot

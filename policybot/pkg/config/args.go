@@ -50,20 +50,15 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 	}
 }
 
-// StartupOptions are set when the process starts and cannot be updated afterwards.
-type StartupOptions struct {
-	ConfigFile              string
-	ConfigRepo              string
+// Secrets are typically only set when the process starts.
+type Secrets struct {
 	GitHubWebhookSecret     string
 	GitHubToken             string
 	GCPCredentials          string
 	SendGridAPIKey          string
 	ZenHubToken             string
-	Port                    int
 	GitHubOAuthClientSecret string
 	GitHubOAuthClientID     string
-	HTTPSOnly               bool
-	EnableTestResultFilter  bool
 }
 
 // Nag expresses some matching conditions against a PR, along with a message to inject into a PR
@@ -156,8 +151,9 @@ type Milestone struct {
 }
 
 type Boilerplate struct {
-	Regex       string
-	Replacement string
+	Name        string `json:"name"`
+	Regex       string `json:"regex"`
+	Replacement string `json:"replacement"`
 }
 
 // Configuration for an individual repo.
@@ -205,10 +201,41 @@ type Org struct {
 	PostSubmitTestPath string `json:"postsubmit_path"`
 }
 
+type Lifecycle struct {
+	FeatureRequestLabel string   `json:"feature_request_label"`
+	IgnoreLabels        []string `json:"ignore_labels"`
+	RealOldDelay        Duration `json:"real_old_delay"`
+
+	TriageDelay Duration `json:"triage_delay"`
+	TriageLabel string   `json:"triage_label"`
+
+	EscalationDelay Duration `json:"escalation_delay"`
+	EscalationLabel string   `json:"escalation_label"`
+
+	PullRequestStaleDelay    Duration `json:"pull_request_stale_delay"`
+	FeatureRequestStaleDelay Duration `json:"feature_request_stale_delay"`
+	IssueStaleDelay          Duration `json:"issue_stale_delay"`
+	StaleLabel               string   `json:"stale_label"`
+	StaleComment             string   `json:"stale_comment"`
+	CantBeStaleLabel         string   `json:"cant_be_stale_label"`
+
+	PullRequestCloseDelay    Duration `json:"pull_request_close_delay"`
+	FeatureRequestCloseDelay Duration `json:"feature_request_close_delay"`
+	IssueCloseDelay          Duration `json:"issue_close_delay"`
+	CloseLabel               string   `json:"close_label"`
+	CloseComment             string   `json:"close_comment"`
+}
+
 // Args represents the set of options that control the behavior of the bot.
 type Args struct {
-	// StartupOptions are set when the process starts and cannot be updated afterwards
-	StartupOptions StartupOptions
+	Secrets Secrets
+
+	ConfigFile             string
+	ConfigRepo             string
+	ServerPort             int
+	HTTPSOnly              bool
+	EnableTestResultFilter bool
+	SyncerFilter           string
 
 	// The path to the Google Cloud Spanner database to use
 	SpannerDatabase string `json:"spanner_db"`
@@ -235,7 +262,7 @@ type Args struct {
 	EmailOriginAddress string `json:"email_origin_address"`
 
 	// The amount of time cache state is kept around before being discarded
-	CacheTTL time.Duration `json:"cache_ttl"`
+	CacheTTL Duration `json:"cache_ttl"`
 
 	// Labels to create in all repos being controlled
 	LabelsToCreate []Label `json:"labels_to_create"`
@@ -252,16 +279,39 @@ type Args struct {
 	// Time window within which a member is considered active on the project
 	MemberActivityWindow Duration `json:"member_activity_window"`
 
+	// Users that are in fact robots
+	Robots []string `json:"robots"`
+
 	// Default GitHub org to use in the UI when none is specified
 	DefaultOrg string `json:"default_org"`
+
+	// Settings for issue and pr lifecycle
+	Lifecycle Lifecycle `json:"lifecycle"`
 }
 
 func DefaultArgs() *Args {
 	return &Args{
-		StartupOptions: StartupOptions{
-			Port: 8080,
+		ServerPort:               8080,
+		CacheTTL:                 Duration(15 * time.Minute),
+		MaintainerActivityWindow: Duration(90 * 24 * time.Hour),
+		MemberActivityWindow:     Duration(180 * 24 * time.Hour),
+		Lifecycle: Lifecycle{
+			TriageLabel:              "lifecycle/needs triage",
+			EscalationDelay:          Duration(7 * 24 * time.Hour),
+			EscalationLabel:          "lifecycle/needs escalation",
+			FeatureRequestLabel:      "enhancement",
+			PullRequestStaleDelay:    Duration(30 * 24 * time.Hour),
+			FeatureRequestStaleDelay: Duration(30 * 24 * time.Hour),
+			IssueStaleDelay:          Duration(30 * 24 * time.Hour),
+			StaleLabel:               "lifecycle/stale",
+			StaleComment:             "",
+			CantBeStaleLabel:         "lifecycle/staleproof",
+			PullRequestCloseDelay:    Duration(60 * 24 * time.Hour),
+			FeatureRequestCloseDelay: Duration(60 * 24 * time.Hour),
+			IssueCloseDelay:          Duration(60 * 24 * time.Hour),
+			CloseLabel:               "",
+			CloseComment:             "",
 		},
-		CacheTTL: 15 * time.Minute,
 	}
 }
 
@@ -270,28 +320,23 @@ func (a *Args) String() string {
 	var sb strings.Builder
 
 	// don't output secrets in the logs...
-	// _, _ = fmt.Fprintf(&sb, "GitHubWebhookSecret: %s\n", a.StartupOptions.GitHubWebhookSecret)
-	// _, _ = fmt.Fprintf(&sb, "GitHubToken: %s\n", a.StartupOptions.GitHubToken)
-	// _, _ = fmt.Fprintf(&sb, "GCPCredentials: %s\n", a.StartupOptions.GCPCredentials)
-	// _, _ = fmt.Fprintf(&sb, "SendGridAPIKey: %s\n", a.StartupOptions.SendGridAPIKey)
-	// _, _ = fmt.Fprintf(&sb, "ZenHubToken: %s\n", a.StartupOptions.ZenHubToken)
-	// _, _ = fmt.Fprintf(&sb, "GitHubOAuthClientSecret: %s\n", a.StartupOptions.GitHubOAuthClientSecret)
-	// _, _ = fmt.Fprintf(&sb, "GitHubOAuthClientID: %s\n", a.StartupOptions.GitHubOAuthClientID)
-
-	_, _ = fmt.Fprintf(&sb, "StartupOptions.ConfigFile: %s\n", a.StartupOptions.ConfigFile)
-	_, _ = fmt.Fprintf(&sb, "StartupOptions.ConfigRepo: %s\n", a.StartupOptions.ConfigRepo)
-	_, _ = fmt.Fprintf(&sb, "StartupOptions.Port: %d\n", a.StartupOptions.Port)
+	_, _ = fmt.Fprintf(&sb, "ConfigFile: %s\n", a.ConfigFile)
+	_, _ = fmt.Fprintf(&sb, "ConfigRepo: %s\n", a.ConfigRepo)
+	_, _ = fmt.Fprintf(&sb, "ServerPort: %d\n", a.ServerPort)
+	_, _ = fmt.Fprintf(&sb, "HTTPSOnly: %v\n", a.HTTPSOnly)
+	_, _ = fmt.Fprintf(&sb, "EnableTestResultFilter: %v\n", a.EnableTestResultFilter)
 	_, _ = fmt.Fprintf(&sb, "SpannerDatabase: %s\n", a.SpannerDatabase)
 	_, _ = fmt.Fprintf(&sb, "Orgs: %+v\n", a.Orgs)
 	_, _ = fmt.Fprintf(&sb, "Nags: %+v\n", a.Nags)
 	_, _ = fmt.Fprintf(&sb, "AutoLabels: %+v\n", a.AutoLabels)
 	_, _ = fmt.Fprintf(&sb, "EmailFrom: %s\n", a.EmailFrom)
 	_, _ = fmt.Fprintf(&sb, "EmailOriginAddress: %s\n", a.EmailOriginAddress)
-	_, _ = fmt.Fprintf(&sb, "CacheTTL: %s\n", a.CacheTTL)
+	_, _ = fmt.Fprintf(&sb, "CacheTTL: %s\n", time.Duration(a.CacheTTL))
 	_, _ = fmt.Fprintf(&sb, "GCPProject: %s\n", a.GCPProject)
-	_, _ = fmt.Fprintf(&sb, "MaintainerActivityWindow: %v\n", a.MaintainerActivityWindow)
-	_, _ = fmt.Fprintf(&sb, "MemberActivityWindow: %v\n", a.MemberActivityWindow)
+	_, _ = fmt.Fprintf(&sb, "MaintainerActivityWindow: %v\n", time.Duration(a.MaintainerActivityWindow))
+	_, _ = fmt.Fprintf(&sb, "MemberActivityWindow: %v\n", time.Duration(a.MemberActivityWindow))
 	_, _ = fmt.Fprintf(&sb, "DefaultOrg: %v\n", a.DefaultOrg)
+	_, _ = fmt.Fprintf(&sb, "Lifecycle: %v\n", a.Lifecycle)
 
 	return sb.String()
 }

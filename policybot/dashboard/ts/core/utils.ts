@@ -138,7 +138,10 @@ function convertUTCToLocalDate(el: HTMLElement): void {
         if (date.getFullYear() === 2000) {
             o.innerText = "<n/a>";
         } else {
-            o.innerText = date.toLocaleDateString();
+            const localeText = date.toLocaleDateString();
+            if (localeText.indexOf("Invalid") < 0) {
+                o.innerText = localeText;
+            }
         }
     });
 }

@@ -17,6 +17,7 @@ package storage
 import (
 	"context"
 	"io"
+	"time"
 )
 
 // Store defines how the bot interacts with the database
@@ -71,6 +72,7 @@ type Store interface {
 	QueryIssues(context context.Context, orgLogin string, cb func(*Issue) error) error
 	QueryIssuesByRepo(context context.Context, orgLogin string, repoName string, cb func(*Issue) error) error
 	QueryOpenIssues(context context.Context, orgLogin string, cb func(*Issue) error) error
+	QueryOpenIssuesByRepo(context context.Context, orgLogin string, repoName string, cb func(*Issue) error) error
 	QueryTestResultByPrNumber(context context.Context, orgLogin string, repoName string, pullRequestNumber int64, cb func(*TestResult) error) error
 	QueryTestResultByUndone(context context.Context, orgLogin string, repoName string, cb func(*TestResult) error) error
 	QueryAllTestResults(context context.Context, orgLogin string, repoName string, cb func(*TestResult) error) error
@@ -78,7 +80,11 @@ type Store interface {
 	QueryTestResultsBySHA(context context.Context, orgLogin string, repoName string, sha string, cb func(*TestResult) error) error
 	QueryCoverageDataBySHA(context context.Context, orgLogin string, repoName string, sha string, cb func(*CoverageData) error) error
 	QueryAllUserAffiliations(context context.Context, cb func(affiliation *UserAffiliation) error) error
+	QueryAllUsers(context context.Context, cb func(user *User) error) error
 
 	// TODO: needs to be org-specific and/or repo-specific, needs to use a callback instead of returning a slice
 	QueryTestFlakeIssues(context context.Context, inactiveDays, createdDays int) ([]*Issue, error)
+
+	GetLatestIssueMemberActivity(context context.Context, orgLogin string, repoName string, issueNumber int) (time.Time, error)
+	GetLatestIssueMemberComment(context context.Context, orgLogin string, repoName string, issueNumber int) (time.Time, error)
 }

@@ -17,8 +17,9 @@ spec:
               args:
                 - /policybot
                 - syncer
+                - --config_repo istio/bots/master
                 - --config_file
-                - ./policybot.yaml
+                - policybot/policybot.yaml
                 - --filter
                 - maintainers,members,labels
               envFrom:
