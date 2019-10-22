@@ -9,23 +9,56 @@ import (
 
 var Skip = errors.New("This iteration should be skipped")
 
-type StringProducer struct {
+type StringIterProducer struct {
 	Setup    func() error
 	Iterator func() (string, error)
 }
 
-type StringReslt struct {
-	Err    error
-	Result string
+type StringInResult interface {
+	Input() string
+	Err() error
 }
 
-func (sp *StringProducer) Start(ctx context.Context, bufferSize int) (resultChan chan StringReslt) {
-	resultChan = make(chan StringReslt, bufferSize)
+type StringOutResult interface {
+	Err() error
+	Output() string
+}
+
+type StringInOutResult interface {
+	Input() string
+	Err() error
+	Output() string
+}
+
+type simpleOut struct {
+	err error
+	out string
+}
+
+type simpleInOut struct {
+	simpleOut
+	in string
+}
+
+func (s simpleInOut) Input() string {
+	return s.in
+}
+
+func (s simpleOut) Err() error {
+	return s.err
+}
+
+func (s simpleOut) Output() string {
+	return s.out
+}
+
+func (sp *StringIterProducer) Start(ctx context.Context, bufferSize int) (resultChan chan StringOutResult) {
+	resultChan = make(chan StringOutResult, bufferSize)
 	go func() {
 		defer close(resultChan)
 		err := sp.Setup()
 		if err != nil {
-			resultChan <- StringReslt{err, ""}
+			resultChan <- simpleOut{err, ""}
 			return
 		}
 		for {
@@ -33,7 +66,7 @@ func (sp *StringProducer) Start(ctx context.Context, bufferSize int) (resultChan
 			case <-ctx.Done():
 				// attempt a non-blocking write of ctx.Error()
 				select {
-				case resultChan <- StringReslt{ctx.Err(), ""}:
+				case resultChan <- simpleOut{ctx.Err(), ""}:
 				default:
 					return
 				}
@@ -46,9 +79,9 @@ func (sp *StringProducer) Start(ctx context.Context, bufferSize int) (resultChan
 					if err == iterator.Done {
 						return
 					}
-					resultChan <- StringReslt{err, ""}
+					resultChan <- simpleOut{err, ""}
 				} else {
-					resultChan <- StringReslt{nil, result}
+					resultChan <- simpleOut{nil, result}
 				}
 			}
 		}
@@ -56,13 +89,30 @@ func (sp *StringProducer) Start(ctx context.Context, bufferSize int) (resultChan
 	return
 }
 
-func BuildSlice(resultChan chan StringReslt) ([]string, error) {
+func BuildSlice(resultChan chan StringOutResult) ([]string, error) {
 	var items = make([]string, 0)
 	for result := range resultChan {
-		if result.Err != nil {
-			return nil, result.Err
+		if result.Err() != nil {
+			return nil, result.Err()
 		}
-		items = append(items, result.Result)
+		items = append(items, result.Output())
 	}
 	return items, nil
+}
+
+func BuildProducer(ctx context.Context, input []string) chan StringOutResult {
+	var count int
+	sp := &StringIterProducer{
+		Setup: func() error {
+			return nil
+		},
+		Iterator: func() (string, error) {
+			if count > len(input)-1 {
+				return "", iterator.Done
+			}
+			count++
+			return input[count-1], nil
+		},
+	}
+	return sp.Start(ctx, 1)
 }

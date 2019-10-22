@@ -38,8 +38,8 @@ type Bucket interface {
 	// don't really exist.
 	ListPrefixes(ctx context.Context, prefix string) ([]string, error)
 
-	ListPrefixesProducer(ctx context.Context, prefix string) chan pipeline.StringReslt
-	ListItemsProducer(ctx context.Context, prefix string) chan pipeline.StringReslt
+	ListPrefixesProducer(ctx context.Context, prefix string) chan pipeline.StringOutResult
+	ListItemsProducer(ctx context.Context, prefix string) chan pipeline.StringOutResult
 
 	// ListItems returns a slice of GCS object names that begin with the input
 	// prefix.

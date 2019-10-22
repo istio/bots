@@ -17,12 +17,15 @@ package syncer
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"istio.io/bots/policybot/pkg/pipeline"
 
 	"istio.io/bots/policybot/pkg/blobstorage"
 	"istio.io/bots/policybot/pkg/blobstorage/gcs"
@@ -765,13 +768,29 @@ func (ss *syncState) handleTestResults(org *config.Org) error {
 	scope.Debugf("Getting test results for org %s", org.Name)
 	g := resultgatherer.TestResultGatherer{Client: ss.syncer.blobstore, BucketName: org.BucketName,
 		PreSubmitPrefix: org.PreSubmitTestPath, PostSubmitPrefix: org.PostSubmitTestPath}
+	slt := pipeline.StringLogTransformer{
+		ErrHandler: func(e error) {
+			scope.Warnf("error processing test: %s", e)
+		},
+		Parallelism: 5,
+	}
 	for _, repo := range org.Repos {
 		prPaths := g.GetAllPullRequestsChan(ss.ctx, org.Name, repo.Name)
-		for item := range prPaths {
-			if item.Err != nil {
-				return item.Err
+		_ = slt.Transform(ss.ctx, prPaths, func(prPath string) (prNum string, err error) {
+			prParts := strings.Split(prPath, "/")
+			if len(prParts) < 2 {
+				err = errors.New("too few segments in pr path")
+				return
 			}
-			prParts := strings.Split(item.Result, "/")
+			prNum = prParts[len(prParts)-2]
+			return
+		})
+		// I think a composition syntax would be better here...
+		for item := range prPaths {
+			if item.Err() != nil {
+				return item.Err()
+			}
+			prParts := strings.Split(item.Output(), "/")
 			prNum, err := strconv.ParseInt(prParts[len(prParts)-2], 10, 64)
 			if err != nil {
 				return err

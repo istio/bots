@@ -68,10 +68,10 @@ func (b *bucket) ListPrefixes(ctx context.Context, prefix string) ([]string, err
 	return pipeline.BuildSlice(resultChan)
 }
 
-func (b *bucket) ListPrefixesProducer(ctx context.Context, prefix string) (resultChan chan pipeline.StringReslt) {
+func (b *bucket) ListPrefixesProducer(ctx context.Context, prefix string) (resultChan chan pipeline.StringOutResult) {
 	var query *storage.Query
 	var it *storage.ObjectIterator
-	lp := pipeline.StringProducer{
+	lp := pipeline.StringIterProducer{
 		Setup: func() error {
 			query = &storage.Query{Prefix: prefix, Delimiter: "/"}
 			it = b.bucket.Objects(ctx, query)
@@ -97,10 +97,10 @@ func (b *bucket) ListItems(ctx context.Context, prefix string) ([]string, error)
 	return pipeline.BuildSlice(resultChan)
 }
 
-func (b *bucket) ListItemsProducer(ctx context.Context, prefix string) chan pipeline.StringReslt {
+func (b *bucket) ListItemsProducer(ctx context.Context, prefix string) chan pipeline.StringOutResult {
 	var query *storage.Query
 	var it *storage.ObjectIterator
-	lp := pipeline.StringProducer{
+	lp := pipeline.StringIterProducer{
 		Setup: func() error {
 			query = &storage.Query{Prefix: prefix}
 			it = b.bucket.Objects(ctx, query)

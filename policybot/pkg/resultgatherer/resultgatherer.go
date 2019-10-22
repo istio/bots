@@ -23,9 +23,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"istio.io/bots/policybot/pkg/pipeline"
 	"log"
 	"regexp"
+
+	"istio.io/bots/policybot/pkg/pipeline"
 
 	"cloud.google.com/go/storage"
 
@@ -107,10 +108,10 @@ func (trg *TestResultGatherer) getTests(ctx context.Context, pathPrefix string) 
 	testNames := bucket.ListPrefixesProducer(ctx, pathPrefix)
 	testMap := map[string][]string{}
 	for item := range testNames {
-		if item.Err != nil {
-			return nil, item.Err
+		if item.Err() != nil {
+			return nil, item.Err()
 		}
-		testPref := item.Result
+		testPref := item.Output()
 		testPrefSplit := strings.Split(testPref, "/")
 		testname := testPrefSplit[len(testPrefSplit)-2]
 		runs, err := bucket.ListPrefixes(ctx, testPref)
@@ -325,7 +326,7 @@ func (trg *TestResultGatherer) CheckTestResultsForPr(ctx context.Context, orgLog
 	return fullResult, nil
 }
 
-func (trg *TestResultGatherer) GetAllPullRequestsChan(ctx context.Context, orgLogin string, repoName string) chan pipeline.StringReslt {
+func (trg *TestResultGatherer) GetAllPullRequestsChan(ctx context.Context, orgLogin string, repoName string) chan pipeline.StringOutResult {
 	return trg.getBucket().ListPrefixesProducer(ctx, trg.getRepoPrPath(orgLogin, repoName))
 }
 
