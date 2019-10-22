@@ -165,38 +165,35 @@ func (l *Cleaner) processIssue(context context.Context, issue *storage.Issue, or
 		if _, _, err := l.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.Issues.Edit(context, issue.OrgLogin, issue.RepoName, int(issue.IssueNumber), ir)
 		}); err != nil {
-			scope.Errorf("Unable to remove boilerplate from comment on PR %d in repo %s/%s: %v", issue.IssueNumber, issue.OrgLogin, issue.RepoName, err)
+			scope.Errorf("Unable to remove boilerplate from issue %d in repo %s/%s: %v", issue.IssueNumber, issue.OrgLogin, issue.RepoName, err)
 			return
 		}
-		scope.Infof("Removed boilerplate from PR %d in repo %s/%s", issue.IssueNumber, issue.OrgLogin, issue.RepoName)
+		scope.Infof("Removed boilerplate from issue %d in repo %s/%s", issue.IssueNumber, issue.OrgLogin, issue.RepoName)
 	} else {
-		scope.Infof("No boilerplate to remove from PR %d in repo %s/%s", issue.IssueNumber, issue.OrgLogin, issue.RepoName)
+		scope.Infof("No boilerplate to remove from issue %d in repo %s/%s", issue.IssueNumber, issue.OrgLogin, issue.RepoName)
 	}
 }
 
 func (l *Cleaner) processPullRequest(context context.Context, pr *storage.PullRequest, orgBoilerplates []config.Boilerplate) {
-	body := pr.Body
-
-	scope.Infof("original body: %v", []byte(body))
+	original := strings.ReplaceAll(pr.Body, "\r\n", "\n")
+	body := original
 
 	for _, b := range orgBoilerplates {
 		r := l.multiLineRegexes[b.Regex]
 		body = r.ReplaceAllString(body, b.Replacement)
-		fmt.Printf("rep body: %v", []byte(body))
 	}
 
 	for _, b := range l.boilerplates {
 		r := l.multiLineRegexes[b.Regex]
 		body = r.ReplaceAllString(body, b.Replacement)
-		fmt.Printf("rep body: %v", []byte(body))
 	}
 
-	if body != pr.Body {
+	if body != original {
 		ir := &github.IssueRequest{Body: &body}
 		if _, _, err := l.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.Issues.Edit(context, pr.OrgLogin, pr.RepoName, int(pr.PullRequestNumber), ir)
 		}); err != nil {
-			scope.Errorf("Unable to remove boilerplate from comment on PR %d in repo %s/%s: %v", pr.PullRequestNumber, pr.OrgLogin, pr.RepoName, err)
+			scope.Errorf("Unable to remove boilerplate from PR %d in repo %s/%s: %v", pr.PullRequestNumber, pr.OrgLogin, pr.RepoName, err)
 			return
 		}
 		scope.Infof("Removed boilerplate from PR %d in repo %s/%s", pr.PullRequestNumber, pr.OrgLogin, pr.RepoName)
