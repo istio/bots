@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"istio.io/bots/policybot/pkg/pipeline"
 	"log"
 	"regexp"
 
@@ -103,30 +104,21 @@ func (trg *TestResultGatherer) getBucket() blobstorage.Bucket {
 // Return []Tests return a slice of Tests objects.
 func (trg *TestResultGatherer) getTests(ctx context.Context, pathPrefix string) (map[string][]string, error) {
 	bucket := trg.getBucket()
-	testNames, err := bucket.ListPrefixes(ctx, pathPrefix)
-	if err != nil {
-		return nil, err
-	}
+	testNames := bucket.ListPrefixesProducer(ctx, pathPrefix)
 	testMap := map[string][]string{}
-	var runs []string
-	for _, testPref := range testNames {
+	for item := range testNames {
+		if item.Err != nil {
+			return nil, item.Err
+		}
+		testPref := item.Result
 		testPrefSplit := strings.Split(testPref, "/")
 		testname := testPrefSplit[len(testPrefSplit)-2]
-		runs, err = bucket.ListPrefixes(ctx, testPref)
+		runs, err := bucket.ListPrefixes(ctx, testPref)
 		if err != nil {
 			return nil, err
 		}
-		var runPaths []string
-		var ok bool
-		if runPaths, ok = testMap[testname]; !ok {
-			runPaths = []string{}
-		}
-		for _, runPath := range runs {
-			if runPath != "" {
-				runPaths = append(runPaths, runPath)
-			}
-		}
-		testMap[testname] = runPaths
+		runPaths := testMap[testname]
+		testMap[testname] = append(runPaths, runs...)
 	}
 	return testMap, nil
 }
@@ -232,11 +224,7 @@ func (trg *TestResultGatherer) getEnvironmentalSignatures(ctx context.Context, t
 }
 
 func (trg *TestResultGatherer) getTestRunArtifacts(ctx context.Context, testRun string) ([]string, error) {
-	artifacts, err := trg.getBucket().ListItems(ctx, testRun+"artifacts/")
-	if err != nil {
-		return nil, err
-	}
-	return artifacts, nil
+	return trg.getBucket().ListItems(ctx, testRun+"artifacts/")
 }
 
 // getManyResults function return the status of test passing, clone failure, sha number, base sha for each test
@@ -337,8 +325,8 @@ func (trg *TestResultGatherer) CheckTestResultsForPr(ctx context.Context, orgLog
 	return fullResult, nil
 }
 
-func (trg *TestResultGatherer) GetAllPullRequests(ctx context.Context, orgLogin string, repoName string) (prs []string, err error) {
-	return trg.getBucket().ListPrefixes(ctx, trg.getRepoPrPath(orgLogin, repoName))
+func (trg *TestResultGatherer) GetAllPullRequestsChan(ctx context.Context, orgLogin string, repoName string) chan pipeline.StringReslt {
+	return trg.getBucket().ListPrefixesProducer(ctx, trg.getRepoPrPath(orgLogin, repoName))
 }
 
 // if any pattern is found in the object, return it's index

@@ -57,7 +57,7 @@ func (sp *StringProducer) Start(ctx context.Context, bufferSize int) (resultChan
 }
 
 func BuildSlice(resultChan chan StringReslt) ([]string, error) {
-	var items = make([]string, 1)
+	var items = make([]string, 0)
 	for result := range resultChan {
 		if result.Err != nil {
 			return nil, result.Err
