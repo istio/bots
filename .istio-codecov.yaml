@@ -1,0 +1,6 @@
+internal_tools:
+  alpha:
+    targets:
+      unit: 40
+    packages:
+      - istio.io/bots/policybot/pkg/coverage
