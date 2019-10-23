@@ -148,6 +148,12 @@ func (l *Cleaner) Handle(context context.Context, event interface{}) {
 
 func (l *Cleaner) processIssue(context context.Context, issue *storage.Issue, orgBoilerplates []config.Boilerplate) {
 	original := strings.ReplaceAll(issue.Body, "\r\n", "\n")
+
+	if !strings.HasSuffix(original, "\n") {
+		// makes the regex matches more reliable
+		original += "\n"
+	}
+
 	body := original
 
 	for _, b := range orgBoilerplates {
@@ -161,6 +167,8 @@ func (l *Cleaner) processIssue(context context.Context, issue *storage.Issue, or
 	}
 
 	if body != original {
+		body = strings.TrimRight(body, "\n")
+
 		ir := &github.IssueRequest{Body: &body}
 		if _, _, err := l.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.Issues.Edit(context, issue.OrgLogin, issue.RepoName, int(issue.IssueNumber), ir)
@@ -176,6 +184,12 @@ func (l *Cleaner) processIssue(context context.Context, issue *storage.Issue, or
 
 func (l *Cleaner) processPullRequest(context context.Context, pr *storage.PullRequest, orgBoilerplates []config.Boilerplate) {
 	original := strings.ReplaceAll(pr.Body, "\r\n", "\n")
+
+	if !strings.HasSuffix(original, "\n") {
+		// makes the regex matches more reliable
+		original += "\n"
+	}
+
 	body := original
 
 	for _, b := range orgBoilerplates {
@@ -189,6 +203,8 @@ func (l *Cleaner) processPullRequest(context context.Context, pr *storage.PullRe
 	}
 
 	if body != original {
+		body = strings.TrimRight(body, "\n")
+
 		ir := &github.IssueRequest{Body: &body}
 		if _, _, err := l.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.Issues.Edit(context, pr.OrgLogin, pr.RepoName, int(pr.PullRequestNumber), ir)
