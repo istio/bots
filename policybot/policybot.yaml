@@ -111,7 +111,7 @@ boilerplates_to_clean:
       Please provide a description for what this PR is for.
 
   - regex: |
-      And to help us figure out who should review this PR, please
+      And to help us figure out who should review this PR, please *
       put an X in all the areas that this PR affects.
 
   - regex: |
