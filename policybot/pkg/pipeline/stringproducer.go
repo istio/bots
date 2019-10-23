@@ -56,7 +56,10 @@ func (sp *StringIterProducer) Start(ctx context.Context, bufferSize int) (result
 	resultChan = make(chan StringOutResult, bufferSize)
 	go func() {
 		defer close(resultChan)
-		err := sp.Setup()
+		var err error
+		if sp.Setup != nil {
+			err = sp.Setup()
+		}
 		if err != nil {
 			resultChan <- simpleOut{err, ""}
 			return
