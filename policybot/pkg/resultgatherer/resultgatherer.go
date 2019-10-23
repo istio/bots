@@ -89,8 +89,7 @@ func (trg *TestResultGatherer) getRepoPrPath(orgLogin string, repoName string) s
 	return trg.PreSubmitPrefix + orgLogin + "_" + repoName + "/"
 }
 
-func (trg *TestResultGatherer) getTestsForPR(ctx context.Context, orgLogin string, repoName string, prNumInt int64) (map[string][]string, error) {
-	prNum := strconv.FormatInt(prNumInt, 10)
+func (trg *TestResultGatherer) getTestsForPR(ctx context.Context, orgLogin string, repoName string, prNum string) (map[string][]string, error) {
 	prefixForPr := trg.getRepoPrPath(orgLogin, repoName) + prNum + "/"
 	return trg.getTests(ctx, prefixForPr)
 }
@@ -313,7 +312,7 @@ func (trg *TestResultGatherer) getTestResult(ctx context.Context, testName strin
 }
 
 // Read in gcs the folder of the given pr number and write the result of each test runs into a slice of TestFlake struct.
-func (trg *TestResultGatherer) CheckTestResultsForPr(ctx context.Context, orgLogin string, repoName string, prNum int64) ([]*store.TestResult, error) {
+func (trg *TestResultGatherer) CheckTestResultsForPr(ctx context.Context, orgLogin string, repoName string, prNum string) ([]*store.TestResult, error) {
 	testSlice, err := trg.getTestsForPR(ctx, orgLogin, repoName, prNum)
 	if err != nil {
 		return nil, err

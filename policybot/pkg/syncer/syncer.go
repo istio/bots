@@ -25,6 +25,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
+
 	"istio.io/bots/policybot/pkg/pipeline"
 
 	"istio.io/bots/policybot/pkg/blobstorage"
@@ -768,15 +770,10 @@ func (ss *syncState) handleTestResults(org *config.Org) error {
 	scope.Debugf("Getting test results for org %s", org.Name)
 	g := resultgatherer.TestResultGatherer{Client: ss.syncer.blobstore, BucketName: org.BucketName,
 		PreSubmitPrefix: org.PreSubmitTestPath, PostSubmitPrefix: org.PostSubmitTestPath}
-	slt := pipeline.StringLogTransformer{
-		ErrHandler: func(e error) {
-			scope.Warnf("error processing test: %s", e)
-		},
-		Parallelism: 5,
-	}
 	for _, repo := range org.Repos {
 		prPaths := g.GetAllPullRequestsChan(ss.ctx, org.Name, repo.Name)
-		_ = slt.Transform(ss.ctx, prPaths, func(prPath string) (prNum string, err error) {
+		// I think a composition syntax would be better here...
+		errorChan := pipeline.FromChan(prPaths).Transform(func(prPath string) (prNum string, err error) {
 			prParts := strings.Split(prPath, "/")
 			if len(prParts) < 2 {
 				err = errors.New("too few segments in pr path")
@@ -784,26 +781,36 @@ func (ss *syncState) handleTestResults(org *config.Org) error {
 			}
 			prNum = prParts[len(prParts)-2]
 			return
-		})
-		// I think a composition syntax would be better here...
-		for item := range prPaths {
-			if item.Err() != nil {
-				return item.Err()
-			}
-			prParts := strings.Split(item.Output(), "/")
-			prNum, err := strconv.ParseInt(prParts[len(prParts)-2], 10, 64)
-			if err != nil {
-				return err
-			}
+		}).WithContext(ss.ctx).OnError(func(e error) {
+			// TODO: this should probably be reported out or something...
+			scope.Warnf("error processing test: %s", e)
+		}).WithParallelism(5).Transform(func(prNum string) (testResults string, err error) {
 			results, err := g.CheckTestResultsForPr(ss.ctx, org.Name, repo.Name, prNum)
 			if err != nil {
-				return err
+				return
 			}
-			err = ss.syncer.store.WriteTestResults(ss.ctx, results)
+			bytes, err := json.Marshal(results)
+			if err != nil {
+				return
+			}
+			return string(bytes), nil
+		}).To(func(input string) error {
+			testResults := make([]*storage.TestResult, 0)
+			err := json.Unmarshal([]byte(input), testResults)
 			if err != nil {
 				return err
 			}
+			err = ss.syncer.store.WriteTestResults(ss.ctx, testResults)
+			if err != nil {
+				return err
+			}
+			return nil
+		}).Go()
+		var result error
+		for err := range errorChan {
+			result = multierror.Append(err.Err())
 		}
+		return result
 		// TODO: check Post Submit tests as well.
 	}
 

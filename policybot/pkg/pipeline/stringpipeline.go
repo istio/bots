@@ -2,6 +2,8 @@ package pipeline
 
 import (
 	"context"
+
+	"google.golang.org/api/iterator"
 )
 
 type StringPipeline struct {
@@ -151,6 +153,28 @@ type PipelineEnd interface {
 	WithContext(ctx context.Context) PipelineEnd
 	WithBuffer(int) PipelineEnd
 	WithParallelism(int) PipelineEnd
+}
+
+func FromChan(in chan StringOutResult) Pipeline {
+	x := StringIterProducer{
+		Iterator: func() (s string, e error) {
+			select {
+			case res, ok := <-in:
+				if !ok {
+					return "", iterator.Done
+				}
+				return res.Output(), res.Err()
+			}
+		},
+	}
+
+	return &StringPipeline{
+		exec: func(_ chan StringOutResult, sp *StringPipeline) chan StringOutResult {
+			return x.Start(sp.ctx, sp.bufferSize)
+		},
+		ctx: context.Background(), // this is just the default
+	}
+
 }
 
 func From(f func() (string, error)) Pipeline {
