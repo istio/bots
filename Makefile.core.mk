@@ -18,7 +18,11 @@ build:
 
 lint: lint-all
 
-fmt: format-go
+fmt: format-go tidy-go
+
+gen: tidy-go mirror-licenses
+
+gen-check: gen check-clean-repo
 
 test:
 	@go test -race ./...
