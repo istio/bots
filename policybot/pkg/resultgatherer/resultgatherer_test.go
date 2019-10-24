@@ -48,7 +48,7 @@ func TestTestResultGatherer(t *testing.T) {
 		RunPath:           "pr-logs/pull/istio_istio/110/release-test/155/",
 		Artifacts:         nil,
 	}
-	var prNum int64 = 110
+	var prNum = "110"
 
 	client, err := gcs.NewStore(context, nil)
 	if err != nil {
