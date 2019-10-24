@@ -67,7 +67,6 @@ var (
 	maintainerColumns               []string
 	memberColumns                   []string
 	testResultColumns               []string
-	userAffiliationColumns          []string
 )
 
 // Bunch of functions to from keys for the tables and indices in the DB
@@ -128,10 +127,6 @@ func testResultKey(orgLogin string, repoName string, testName string, prNum int6
 	return spanner.Key{orgLogin, repoName, testName, prNum, runNumber}
 }
 
-//func userAffiliationKey(userLogin string, counter int64) spanner.Key {
-//	return spanner.Key{userLogin, counter}
-//}
-
 func init() {
 	orgColumns = getFields(storage.Org{})
 	repoColumns = getFields(storage.Repo{})
@@ -146,7 +141,6 @@ func init() {
 	maintainerColumns = getFields(storage.Maintainer{})
 	memberColumns = getFields(storage.Member{})
 	testResultColumns = getFields(storage.TestResult{})
-	userAffiliationColumns = getFields(storage.UserAffiliation{})
 }
 
 // Produces a string array representing all the fields in the input object
