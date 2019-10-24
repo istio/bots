@@ -23,10 +23,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"istio.io/bots/policybot/pkg/blobstorage/gcs"
 	"log"
 	"regexp"
 
 	"istio.io/bots/policybot/pkg/pipeline"
+	pipelinetwo "istio.io/bots/policybot/pkg/pipeline2"
 
 	"cloud.google.com/go/storage"
 
@@ -325,8 +327,9 @@ func (trg *TestResultGatherer) CheckTestResultsForPr(ctx context.Context, orgLog
 	return fullResult, nil
 }
 
-func (trg *TestResultGatherer) GetAllPullRequestsChan(ctx context.Context, orgLogin string, repoName string) chan pipeline.StringOutResult {
+func (trg *TestResultGatherer) GetAllPullRequestsChan(ctx context.Context, orgLogin string, repoName string) pipelinetwo.Pipeline {
 	return trg.getBucket().ListPrefixesProducer(ctx, trg.getRepoPrPath(orgLogin, repoName))
+	return nil
 }
 
 // if any pattern is found in the object, return it's index

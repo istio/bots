@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 
+	pipelinetwo "istio.io/bots/policybot/pkg/pipeline2"
 	"istio.io/bots/policybot/pkg/pipeline"
 
 	"cloud.google.com/go/storage"
@@ -68,7 +69,31 @@ func (b *bucket) ListPrefixes(ctx context.Context, prefix string) ([]string, err
 	return pipeline.BuildSlice(resultChan)
 }
 
-func (b *bucket) ListPrefixesProducer(ctx context.Context, prefix string) (resultChan chan pipeline.StringOutResult) {
+func (b *bucket) ListPrefixesProducer(ctx context.Context, prefix string) pipelinetwo.Pipeline {
+	var query *storage.Query
+	var it *storage.ObjectIterator
+	lp := pipelinetwo.IterProducer{
+		Setup: func() error {
+			query = &storage.Query{Prefix: prefix, Delimiter: "/"}
+			it = b.bucket.Objects(ctx, query)
+			return nil
+		},
+		Iterator: func() (res interface{}, err error) {
+			attrs, err := it.Next()
+			if err == nil {
+				if attrs.Prefix == "" {
+					err = pipeline.Skip
+				} else {
+					res = attrs.Prefix
+				}
+			}
+			return
+		},
+	}
+	return pipelinetwo.FromIter(lp)
+}
+
+func (b *bucket) ListPrefixesProducers(ctx context.Context, prefix string) (resultChan chan pipeline.StringOutResult) {
 	var query *storage.Query
 	var it *storage.ObjectIterator
 	lp := pipeline.StringIterProducer{

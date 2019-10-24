@@ -26,8 +26,9 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-multierror"
+	"github.com/eapache/channels"
 
-	"istio.io/bots/policybot/pkg/pipeline"
+	pipeline "istio.io/bots/policybot/pkg/pipeline2"
 
 	"istio.io/bots/policybot/pkg/blobstorage"
 	"istio.io/bots/policybot/pkg/blobstorage/gcs"
@@ -773,7 +774,8 @@ func (ss *syncState) handleTestResults(org *config.Org) error {
 	for _, repo := range org.Repos {
 		prPaths := g.GetAllPullRequestsChan(ss.ctx, org.Name, repo.Name)
 		// I think a composition syntax would be better here...
-		errorChan := pipeline.FromChan(prPaths).Transform(func(prPath string) (prNum string, err error) {
+		errorChan := prPaths.Transform(func(prPathi interface{}) (prNum interface{}, err error) {
+			prPath := prPathi.(string)
 			prParts := strings.Split(prPath, "/")
 			if len(prParts) < 2 {
 				err = errors.New("too few segments in pr path")
@@ -784,23 +786,17 @@ func (ss *syncState) handleTestResults(org *config.Org) error {
 		}).WithContext(ss.ctx).OnError(func(e error) {
 			// TODO: this should probably be reported out or something...
 			scope.Warnf("error processing test: %s", e)
-		}).WithParallelism(5).Transform(func(prNum string) (testResults string, err error) {
+		}).WithParallelism(5).Transform(func(prNumi interface{}) (testResults interface{}, err error) {
+			prNum := prNumi.(string)
 			results, err := g.CheckTestResultsForPr(ss.ctx, org.Name, repo.Name, prNum)
+			scope.Infof("Got results for pr %s", prNum)
 			if err != nil {
 				return
 			}
-			bytes, err := json.Marshal(results)
-			if err != nil {
-				return
-			}
-			return string(bytes), nil
-		}).To(func(input string) error {
-			testResults := make([]*storage.TestResult, 0)
-			err := json.Unmarshal([]byte(input), testResults)
-			if err != nil {
-				return err
-			}
-			err = ss.syncer.store.WriteTestResults(ss.ctx, testResults)
+			return results, nil
+		}).Expand().To(func(input interface{}) error {
+			testResults := input.([]*storage.TestResult)
+			err := ss.syncer.store.WriteTestResults(ss.ctx, testResults)
 			if err != nil {
 				return err
 			}
