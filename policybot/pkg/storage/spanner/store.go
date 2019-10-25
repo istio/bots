@@ -33,6 +33,8 @@ type store struct {
 var scope = log.RegisterScope("spanner", "Spanner abstraction layer", 0)
 
 func NewStore(context context.Context, database string, gcpCreds []byte) (storage.Store, error) {
+	foo := string(gcpCreds)
+	fmt.Printf(foo)
 	client, err := spanner.NewClient(context, database, option.WithCredentialsJSON(gcpCreds))
 	if err != nil {
 		return nil, fmt.Errorf("unable to create Spanner client: %v", err)

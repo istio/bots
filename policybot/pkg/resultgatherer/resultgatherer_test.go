@@ -16,6 +16,8 @@ package resultgatherer
 
 import (
 	"context"
+	"fmt"
+	"istio.io/bots/policybot/pkg/pipeline"
 	"reflect"
 	"testing"
 	"time"
@@ -55,7 +57,8 @@ func TestTestResultGatherer(t *testing.T) {
 		t.Fatalf("unable to create GCS client: %v", err)
 	}
 
-	testResultGatherer := TestResultGatherer{client, "istio-flakey-test", "pr-logs/pull/", ""}
+	start := time.Now()
+	testResultGatherer := resultgatherer.TestResultGatherer{client, "istio-flakey-test", "pr-logs/pull/", ""}
 	testResults, err := testResultGatherer.CheckTestResultsForPr(context, "istio", "istio", prNum)
 	if err != nil {
 		t.Errorf("Expecting no error, got %v", err)
@@ -71,5 +74,65 @@ func TestTestResultGatherer(t *testing.T) {
 
 	if !reflect.DeepEqual(test, correctInfo) {
 		t.Errorf("Wanted %#v, got %#v", correctInfo, test)
+	}
+	duration := time.Since(start)
+	t.Log(duration)
+	fmt.Printf("%v\n", duration)
+	t.Fail()
+}
+
+func BenchmarkOldWay(b *testing.B) {
+	t:= time.NewTicker(time.Millisecond)
+	var data []time.Time
+	//build array
+	var count int
+	for i := range t.C {
+		count++
+		data = append(data, i)
+		if count >= b.N {
+			t.Stop()
+			break
+		}
+	}
+	for _ = range data {
+		time.Sleep(time.Second)
+	}
+}
+
+type simpleOut struct {
+	err error
+	out string
+}
+
+func (s simpleOut) Err() error {
+	return s.err
+}
+
+func (s simpleOut) Output() string {
+	return s.out
+}
+
+func BenchmarkNewWay(b *testing.B) {
+	b.N = 100000
+	t:= time.NewTicker(time.Microsecond)
+	in := make(chan pipeline.StringOutResult)
+	go func(){
+		i := 0
+		for _ = range t.C {
+			i++
+			in <- simpleOut{out:""}
+			if i >= b.N {
+				t.Stop()
+				close(in)
+				break
+			}
+		}
+	}()
+	out:=pipeline.FromChan(in).WithParallelism(1000).Transform(func(_ string) (s string, e error) {
+		time.Sleep(time.Second)
+		return "", nil
+	}).Go()
+	for _ = range out {
+		// just waiting for channel to be closed
 	}
 }
