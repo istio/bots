@@ -921,3 +921,15 @@ users:
       - organization: SAP
         start: "0001-01-01"
         end: "9999-01-01"
+
+  - github_login: ruigulala
+    affiliations:
+      - organization: Google
+        start: "2019-10-20"
+        end: "9999-01-01"
+
+  - github_login: ChangyuWang
+    affiliations:
+      - organization: UCloud
+        start: "2019-01-01"
+        end: "9999-01-01"
