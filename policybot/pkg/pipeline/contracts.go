@@ -3,18 +3,18 @@ package pipeline
 import (
 	"context"
 )
-type ScalarPipeline interface {
+type Pipeline interface {
 
-	Transform(func(interface{}) (interface{}, error)) ScalarPipeline
+	Transform(func(interface{}) (interface{}, error)) Pipeline
 	To(func(interface{}) error) PipelineEnd
-	Batch(size int) ScalarPipeline
+	Batch(size int) Pipeline
 	Go() chan OutResult
-	Expand() ScalarPipeline
+	Expand() Pipeline
 
-	OnError(func(error)) ScalarPipeline
-	WithContext(ctx context.Context) ScalarPipeline
-	WithBuffer(int) ScalarPipeline
-	WithParallelism(int) ScalarPipeline
+	OnError(func(error)) Pipeline
+	WithContext(ctx context.Context) Pipeline
+	WithBuffer(int) Pipeline
+	WithParallelism(int) Pipeline
 }
 
 type PipelineEnd interface {

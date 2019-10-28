@@ -20,16 +20,14 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"istio.io/bots/policybot/pkg/pipeline"
+	"istio.io/pkg/env"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
-	"github.com/eapache/channels"
-
-	pipeline "istio.io/bots/policybot/pkg/pipeline2"
-
 	"istio.io/bots/policybot/pkg/blobstorage"
 	"istio.io/bots/policybot/pkg/blobstorage/gcs"
 
@@ -771,6 +769,8 @@ func (ss *syncState) handleTestResults(org *config.Org) error {
 	scope.Debugf("Getting test results for org %s", org.Name)
 	g := resultgatherer.TestResultGatherer{Client: ss.syncer.blobstore, BucketName: org.BucketName,
 		PreSubmitPrefix: org.PreSubmitTestPath, PostSubmitPrefix: org.PostSubmitTestPath}
+	prMin := env.RegisterIntVar("PR_MIN", 0, "The minimum PR to scan for test results").Get()
+	prMax := env.RegisterIntVar("PR_MAX", -1, "The maximum PR to scan for test results").Get()
 	for _, repo := range org.Repos {
 		prPaths := g.GetAllPullRequestsChan(ss.ctx, org.Name, repo.Name)
 		// I think a composition syntax would be better here...
@@ -782,6 +782,12 @@ func (ss *syncState) handleTestResults(org *config.Org) error {
 				return
 			}
 			prNum = prParts[len(prParts)-2]
+			if prInt, err := strconv.Atoi(prParts[len(prParts)-2]); err == nil {
+				// skip this PR if it's outside the min and max inclusive
+				if prInt < prMin || (prMax>-1 && prInt > prMax) {
+					err = pipeline.Skip
+				}
+			}
 			return
 		}).WithContext(ss.ctx).OnError(func(e error) {
 			// TODO: this should probably be reported out or something...
@@ -794,9 +800,9 @@ func (ss *syncState) handleTestResults(org *config.Org) error {
 				return
 			}
 			return results, nil
-		}).Expand().To(func(input interface{}) error {
-			testResults := input.([]*storage.TestResult)
-			err := ss.syncer.store.WriteTestResults(ss.ctx, testResults)
+		}).Expand().Batch(100).To(func(input interface{}) error {
+			testResult := input.([]*storage.TestResult)
+			err := ss.syncer.store.WriteTestResults(ss.ctx, testResult)
 			if err != nil {
 				return err
 			}

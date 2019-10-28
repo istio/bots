@@ -23,12 +23,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"istio.io/bots/policybot/pkg/blobstorage/gcs"
 	"log"
 	"regexp"
 
-	"istio.io/bots/policybot/pkg/pipeline"
-	pipelinetwo "istio.io/bots/policybot/pkg/pipeline2"
+	pipelinetwo "istio.io/bots/policybot/pkg/pipeline"
 
 	"cloud.google.com/go/storage"
 
@@ -106,16 +104,16 @@ func (trg *TestResultGatherer) getBucket() blobstorage.Bucket {
 // Return []Tests return a slice of Tests objects.
 func (trg *TestResultGatherer) getTests(ctx context.Context, pathPrefix string) (map[string][]string, error) {
 	bucket := trg.getBucket()
-	testNames := bucket.ListPrefixesProducer(ctx, pathPrefix)
+	testNames := bucket.ListPrefixesProducer(ctx, pathPrefix).Go()
 	testMap := map[string][]string{}
 	for item := range testNames {
 		if item.Err() != nil {
 			return nil, item.Err()
 		}
 		testPref := item.Output()
-		testPrefSplit := strings.Split(testPref, "/")
+		testPrefSplit := strings.Split(testPref.(string), "/")
 		testname := testPrefSplit[len(testPrefSplit)-2]
-		runs, err := bucket.ListPrefixes(ctx, testPref)
+		runs, err := bucket.ListPrefixes(ctx, testPref.(string))
 		if err != nil {
 			return nil, err
 		}

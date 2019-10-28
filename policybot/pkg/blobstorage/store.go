@@ -19,7 +19,6 @@ import (
 	"io"
 
 	"istio.io/bots/policybot/pkg/pipeline"
-	pipelinetwo "istio.io/bots/policybot/pkg/pipeline2"
 )
 
 // Store defines how the bot interacts with a blob store
@@ -39,8 +38,8 @@ type Bucket interface {
 	// don't really exist.
 	ListPrefixes(ctx context.Context, prefix string) ([]string, error)
 
-	ListPrefixesProducer(ctx context.Context, prefix string) pipelinetwo.Pipeline
-	ListItemsProducer(ctx context.Context, prefix string) chan pipeline.StringOutResult
+	ListPrefixesProducer(ctx context.Context, prefix string) pipeline.Pipeline
+	ListItemsProducer(ctx context.Context, prefix string) chan pipeline.OutResult
 
 	// ListItems returns a slice of GCS object names that begin with the input
 	// prefix.

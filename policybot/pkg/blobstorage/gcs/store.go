@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"io"
 
-	pipelinetwo "istio.io/bots/policybot/pkg/pipeline2"
 	"istio.io/bots/policybot/pkg/pipeline"
 
 	"cloud.google.com/go/storage"
@@ -66,13 +65,19 @@ func (b *bucket) Reader(ctx context.Context, path string) (io.ReadCloser, error)
 
 func (b *bucket) ListPrefixes(ctx context.Context, prefix string) ([]string, error) {
 	resultChan := b.ListPrefixesProducer(ctx, prefix)
-	return pipeline.BuildSlice(resultChan)
+	out, err := pipeline.BuildSlice(resultChan.Go())
+	// cast to slice of string
+	var result []string
+	for _, o := range out {
+		result = append(result, o.(string))
+	}
+	return result, err
 }
 
-func (b *bucket) ListPrefixesProducer(ctx context.Context, prefix string) pipelinetwo.Pipeline {
+func (b *bucket) ListPrefixesProducer(ctx context.Context, prefix string) pipeline.Pipeline {
 	var query *storage.Query
 	var it *storage.ObjectIterator
-	lp := pipelinetwo.IterProducer{
+	lp := pipeline.IterProducer{
 		Setup: func() error {
 			query = &storage.Query{Prefix: prefix, Delimiter: "/"}
 			it = b.bucket.Objects(ctx, query)
@@ -90,19 +95,19 @@ func (b *bucket) ListPrefixesProducer(ctx context.Context, prefix string) pipeli
 			return
 		},
 	}
-	return pipelinetwo.FromIter(lp)
+	return pipeline.FromIter(lp)
 }
 
-func (b *bucket) ListPrefixesProducers(ctx context.Context, prefix string) (resultChan chan pipeline.StringOutResult) {
+func (b *bucket) ListPrefixesProducers(ctx context.Context, prefix string) (resultChan chan pipeline.OutResult) {
 	var query *storage.Query
 	var it *storage.ObjectIterator
-	lp := pipeline.StringIterProducer{
+	lp := pipeline.IterProducer{
 		Setup: func() error {
 			query = &storage.Query{Prefix: prefix, Delimiter: "/"}
 			it = b.bucket.Objects(ctx, query)
 			return nil
 		},
-		Iterator: func() (res string, err error) {
+		Iterator: func() (res interface{}, err error) {
 			attrs, err := it.Next()
 			if err == nil {
 				if attrs.Prefix == "" {
@@ -119,19 +124,25 @@ func (b *bucket) ListPrefixesProducers(ctx context.Context, prefix string) (resu
 
 func (b *bucket) ListItems(ctx context.Context, prefix string) ([]string, error) {
 	resultChan := b.ListItemsProducer(ctx, prefix)
-	return pipeline.BuildSlice(resultChan)
+	out, err := pipeline.BuildSlice(resultChan)
+	// cast to slice of string
+	var result []string
+	for _, o := range out {
+		result = append(result, o.(string))
+	}
+	return result, err
 }
 
-func (b *bucket) ListItemsProducer(ctx context.Context, prefix string) chan pipeline.StringOutResult {
+func (b *bucket) ListItemsProducer(ctx context.Context, prefix string) chan pipeline.OutResult {
 	var query *storage.Query
 	var it *storage.ObjectIterator
-	lp := pipeline.StringIterProducer{
+	lp := pipeline.IterProducer{
 		Setup: func() error {
 			query = &storage.Query{Prefix: prefix}
 			it = b.bucket.Objects(ctx, query)
 			return nil
 		},
-		Iterator: func() (res string, err error) {
+		Iterator: func() (res interface{}, err error) {
 			attrs, err := it.Next()
 			if err == nil {
 				if attrs.Name == "" {

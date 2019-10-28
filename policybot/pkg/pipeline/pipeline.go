@@ -13,13 +13,13 @@ type PipelineImpl struct {
 	ctx         context.Context
 	bufferSize  int
 	parallelism int
-	priorStep   ScalarPipeline
+	priorStep   Pipeline
 	// exec acts like a receiver function, but is late bound
 	exec         func(chan OutResult, *PipelineImpl) chan OutResult
 	errorHandler func(error)
 }
 
-func (sp *PipelineImpl) Expand() ScalarPipeline {
+func (sp *PipelineImpl) Expand() Pipeline {
 	next := sp.makeChild()
 	next.exec = func(in chan OutResult, nx *PipelineImpl) chan OutResult {
 		outChan := make(chan OutResult, nx.bufferSize)
@@ -97,17 +97,17 @@ func (sp *PipelineImpl) Expand() ScalarPipeline {
 }
 
 // TODO: the With and On functions need clarification around chaining
-func (sp *PipelineImpl) WithContext(ctx context.Context) ScalarPipeline {
+func (sp *PipelineImpl) WithContext(ctx context.Context) Pipeline {
 	sp.ctx = ctx
 	return sp
 }
 
-func (sp *PipelineImpl) WithBuffer(i int) ScalarPipeline {
+func (sp *PipelineImpl) WithBuffer(i int) Pipeline {
 	sp.bufferSize = i
 	return sp
 }
 
-func (sp *PipelineImpl) WithParallelism(i int) ScalarPipeline {
+func (sp *PipelineImpl) WithParallelism(i int) Pipeline {
 	sp.parallelism = i
 	return sp
 }
@@ -116,7 +116,7 @@ type StringPipelineEnder struct {
 	ctx          context.Context
 	bufferSize   int
 	parallelism  int
-	priorStep    ScalarPipeline
+	priorStep    Pipeline
 	exec         func(chan OutResult, *StringPipelineEnder) chan InResult
 	errorHandler func(error)
 }
@@ -155,7 +155,7 @@ func (sp *PipelineImpl) Go() chan OutResult {
 	return sp.exec(priorOut, sp)
 }
 
-func (sp *PipelineImpl) OnError(f func(error)) ScalarPipeline {
+func (sp *PipelineImpl) OnError(f func(error)) Pipeline {
 	sp.errorHandler = f
 	return sp
 }
@@ -167,7 +167,7 @@ func (sp *PipelineImpl) makeChild() PipelineImpl {
 	return child
 }
 
-func (sp *PipelineImpl) Batch(size int) ScalarPipeline {
+func (sp *PipelineImpl) Batch(size int) Pipeline {
 	next := sp.makeChild()
 	next.exec = func(in chan OutResult, nx *PipelineImpl) (out chan OutResult) {
 		wrapper := channels.Wrap(in)
@@ -199,7 +199,7 @@ func (sp *PipelineImpl) Batch(size int) ScalarPipeline {
 	return &next
 }
 
-func (sp *PipelineImpl) Transform(f func(result interface{}) (interface{}, error)) ScalarPipeline {
+func (sp *PipelineImpl) Transform(f func(result interface{}) (interface{}, error)) Pipeline {
 	next := sp.makeChild()
 	next.exec = func(in chan OutResult, nx *PipelineImpl) chan OutResult {
 		result := make(chan OutResult, sp.bufferSize)
@@ -251,7 +251,7 @@ func (sp *PipelineImpl) To(f func(result interface{}) error) PipelineEnd {
 
 
 
-func FromChan(in chan OutResult) ScalarPipeline {
+func FromChan(in chan OutResult) Pipeline {
 	x := IterProducer{
 		Iterator: func() (s interface{}, e error) {
 			select {
@@ -273,7 +273,7 @@ func FromChan(in chan OutResult) ScalarPipeline {
 
 }
 
-func FromIter(x IterProducer) ScalarPipeline {
+func FromIter(x IterProducer) Pipeline {
 	return &PipelineImpl{
 		exec: func(_ chan OutResult, sp *PipelineImpl) chan OutResult {
 			return x.Start(sp.ctx, sp.bufferSize)
@@ -282,7 +282,7 @@ func FromIter(x IterProducer) ScalarPipeline {
 	}
 }
 
-func From(f func() (interface{}, error)) ScalarPipeline {
+func From(f func() (interface{}, error)) Pipeline {
 	x := IterProducer{
 		Iterator: f,
 	}
