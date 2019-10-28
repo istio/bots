@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"istio.io/bots/policybot/pkg/pipeline"
@@ -774,6 +775,20 @@ func (ss *syncState) handleTestResults(org *config.Org) error {
 	prMin := env.RegisterIntVar("PR_MIN", 0, "The minimum PR to scan for test results").Get()
 	prMax := env.RegisterIntVar("PR_MAX", -1, "The maximum PR to scan for test results").Get()
 	for _, repo := range org.Repos {
+		var completedTests map[string]bool
+		ctLock := sync.RWMutex{}
+		wg := sync.WaitGroup{}
+		wg.Add(1)
+		go func() {
+			ctLock.Lock()
+			defer ctLock.Unlock()
+			_ = ss.syncer.store.QueryTestResultByDone(ss.ctx, org.Name, repo.Name,
+				func(result *storage.TestResult) error {
+					completedTests[result.RunPath] = true
+					return nil
+				})
+			wg.Done()
+		}()
 		prPaths := g.GetAllPullRequestsChan(ss.ctx, org.Name, repo.Name)
 		// I think a composition syntax would be better here...
 		errorChan := prPaths.Transform(func(prPathi interface{}) (prNum interface{}, err error) {
@@ -794,15 +809,32 @@ func (ss *syncState) handleTestResults(org *config.Org) error {
 		}).WithContext(ss.ctx).OnError(func(e error) {
 			// TODO: this should probably be reported out or something...
 			scope.Warnf("error processing test: %s", e)
-		}).WithParallelism(5).Transform(func(prNumi interface{}) (testResults interface{}, err error) {
+		}).WithParallelism(5).Transform(func(prNumi interface{}) (testRunPaths interface{}, err error) {
 			prNum := prNumi.(string)
-			results, err := g.CheckTestResultsForPr(ss.ctx, org.Name, repo.Name, prNum)
-			scope.Infof("Got results for pr %s", prNum)
-			if err != nil {
-				return
+			tests, err := g.GetTestsForPR(ss.ctx, org.Name, repo.Name, prNum)
+			var result [][]string
+
+			// Wait for a comprehensive list of completed tests
+			wg.Wait()
+			ctLock.RLock()
+			defer ctLock.RUnlock()
+
+			for testName, runPaths := range tests {
+				for _, runPath := range runPaths {
+					if _, ok := completedTests[runPath]; !ok {
+						result = append(result, []string{testName, runPath})
+					}
+				}
 			}
-			return results, nil
-		}).Expand().Batch(100).To(func(input interface{}) error {
+			testRunPaths = result
+			return
+		}).Expand().Transform(func(testRunPathi interface{}) (i interface{}, err error) {
+			inputArray := testRunPathi.([]string)
+			testRunPath := inputArray[1]
+			testName := inputArray[0]
+			fmt.Printf("doing stuff: %v\n", inputArray)
+			return g.GetTestResult(ss.ctx, testName, testRunPath)
+		}).Batch(100).To(func(input interface{}) error {
 			testResult := input.([]*storage.TestResult)
 			err := ss.syncer.store.WriteTestResults(ss.ctx, testResult)
 			if err != nil {
