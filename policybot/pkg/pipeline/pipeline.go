@@ -19,10 +19,6 @@ type PipelineImpl struct {
 	errorHandler func(error)
 }
 
-func (sp *PipelineImpl) TransformToSlice(func(interface{}) (interface{}, error)) SlicePipeline {
-	panic("implement me")
-}
-
 func (sp *PipelineImpl) Expand() ScalarPipeline {
 	next := sp.makeChild()
 	next.exec = func(in chan OutResult, nx *PipelineImpl) chan OutResult {

@@ -14,17 +14,17 @@ type StringLogTransformer struct {
 	BufferSize  int
 }
 
-func (slt *StringLogTransformer) Transform(ctx context.Context, in chan StringOutResult, transformer func(string) (string, error)) chan StringInOutResult {
-	return StringTransform(ctx, slt.Parallelism, slt.BufferSize, in, transformer, slt.ErrHandler)
+func (slt *StringLogTransformer) Transform(ctx context.Context, in chan OutResult, transformer func(interface{}) (interface{}, error)) chan InOutResult {
+	return Transform(ctx, slt.Parallelism, slt.BufferSize, in, transformer, slt.ErrHandler)
 }
 
-// StringTransform consumes a channel of string or errors and produces a channel of string or errors.
+// Transform consumes a channel of string or errors and produces a channel of string or errors.
 // All incoming errors will be passed to the error handler, which returns nothing.
 // All incoming errorless strings will be passed to the tranform function, whose results will be written to the
 // resulting channel *unless* the returned error is Skip, in which case that element is skipped.
-func StringTransform(ctx context.Context, parallelism int, bufferSize int, in chan StringOutResult, transformer func(string) (string, error), errhandler func(error)) chan StringInOutResult {
+func Transform(ctx context.Context, parallelism int, bufferSize int, in chan OutResult, transformer func(interface{}) (interface{}, error), errhandler func(error)) chan InOutResult {
 	// TODO: can we have a channel factory to do this?
-	outChan := make(chan StringInOutResult)
+	outChan := make(chan InOutResult, bufferSize)
 	var wg sync.WaitGroup
 	if parallelism < 1 {
 		parallelism = 1
