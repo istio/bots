@@ -17,6 +17,12 @@ nags:
     absentfiles:
       - ".*_test.go$"
     message: "🤔 🐛 You appear to be fixing a bug in Go code, yet your PR doesn't include updates to any test files. Did you forget to add a test?"
+  - name: CRD Update
+    matchfiles:
+      - ".*kubernetes/customresourcedefinitions.gen.yaml$"
+    message: |
+      🤔 The generated Custom Resource Definitions file seems to be updated. 
+      Please remember to update the CRD files in [istio/istio](https://www.github.com/istio/istio) repo with `make update-crds` and submit a PR there."
 
 flakechaser:
   name: flakey-test
