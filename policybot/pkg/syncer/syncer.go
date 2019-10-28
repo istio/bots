@@ -20,14 +20,16 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"istio.io/bots/policybot/pkg/pipeline"
-	"istio.io/pkg/env"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
+	"istio.io/bots/policybot/pkg/pipeline"
+	"istio.io/pkg/env"
+
 	"github.com/hashicorp/go-multierror"
+
 	"istio.io/bots/policybot/pkg/blobstorage"
 	"istio.io/bots/policybot/pkg/blobstorage/gcs"
 
@@ -784,7 +786,7 @@ func (ss *syncState) handleTestResults(org *config.Org) error {
 			prNum = prParts[len(prParts)-2]
 			if prInt, err := strconv.Atoi(prParts[len(prParts)-2]); err == nil {
 				// skip this PR if it's outside the min and max inclusive
-				if prInt < prMin || (prMax>-1 && prInt > prMax) {
+				if prInt < prMin || (prMax > -1 && prInt > prMax) {
 					err = pipeline.Skip
 				}
 			}

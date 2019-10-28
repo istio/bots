@@ -3,8 +3,8 @@ package pipeline
 import (
 	"context"
 )
-type Pipeline interface {
 
+type Pipeline interface {
 	Transform(func(interface{}) (interface{}, error)) Pipeline
 	To(func(interface{}) error) PipelineEnd
 	Batch(size int) Pipeline

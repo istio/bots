@@ -2,11 +2,12 @@ package pipeline
 
 import (
 	"context"
+	"reflect"
+	"sync"
+
 	"github.com/eapache/channels"
 	"github.com/hashicorp/go-multierror"
 	"google.golang.org/api/iterator"
-	"reflect"
-	"sync"
 )
 
 type PipelineImpl struct {
@@ -248,8 +249,6 @@ func (sp *PipelineImpl) To(f func(result interface{}) error) PipelineEnd {
 	}
 	return &next
 }
-
-
 
 func FromChan(in chan OutResult) Pipeline {
 	x := IterProducer{

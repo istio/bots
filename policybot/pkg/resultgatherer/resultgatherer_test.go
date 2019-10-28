@@ -17,10 +17,13 @@ package resultgatherer
 import (
 	"context"
 	"fmt"
-	"istio.io/bots/policybot/pkg/pipeline"
 	"reflect"
 	"testing"
 	"time"
+
+	"istio.io/bots/policybot/pkg/pipeline"
+
+	"gotest.tools/assert"
 
 	"istio.io/bots/policybot/pkg/blobstorage/gcs"
 	"istio.io/bots/policybot/pkg/storage"
@@ -82,7 +85,7 @@ func TestTestResultGatherer(t *testing.T) {
 }
 
 func BenchmarkOldWay(b *testing.B) {
-	t:= time.NewTicker(time.Millisecond)
+	t := time.NewTicker(time.Millisecond)
 	var data []time.Time
 	//build array
 	var count int
@@ -114,13 +117,13 @@ func (s simpleOut) Output() string {
 
 func BenchmarkNewWay(b *testing.B) {
 	b.N = 100000
-	t:= time.NewTicker(time.Microsecond)
+	t := time.NewTicker(time.Microsecond)
 	in := make(chan pipeline.StringOutResult)
-	go func(){
+	go func() {
 		i := 0
 		for _ = range t.C {
 			i++
-			in <- simpleOut{out:""}
+			in <- simpleOut{out: ""}
 			if i >= b.N {
 				t.Stop()
 				close(in)
@@ -128,7 +131,7 @@ func BenchmarkNewWay(b *testing.B) {
 			}
 		}
 	}()
-	out:=pipeline.FromChan(in).WithParallelism(1000).Transform(func(_ string) (s string, e error) {
+	out := pipeline.FromChan(in).WithParallelism(1000).Transform(func(_ string) (s string, e error) {
 		time.Sleep(time.Second)
 		return "", nil
 	}).Go()
