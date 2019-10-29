@@ -199,7 +199,7 @@ func (s store) QueryTestResultByDone(context context.Context, orgLogin string, r
 	sql := `SELECT * from TestResults
 	WHERE OrgLogin = @orgLogin AND
 	RepoName = @repoName AND
-	Done = true;`
+	FinishTime IS NOT NULL;`
 	stmt := spanner.NewStatement(sql)
 	stmt.Params["orgLogin"] = orgLogin
 	stmt.Params["repoName"] = repoName

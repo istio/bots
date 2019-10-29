@@ -20,6 +20,7 @@ package resultgatherer
 import (
 	"bufio"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -263,7 +264,10 @@ func (trg *TestResultGatherer) GetTestResult(ctx context.Context, testName strin
 	}
 
 	record := records[0]
-	testResult.Sha = record.Refs.Pulls[0].Sha
+	testResult.Sha, err = hex.DecodeString(record.Refs.Pulls[0].Sha)
+	if err != nil {
+		return
+	}
 	testResult.BaseSha = record.Refs.BaseSha
 	testResult.CloneFailed = record.Failed
 

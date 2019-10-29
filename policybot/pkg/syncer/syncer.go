@@ -775,18 +775,21 @@ func (ss *syncState) handleTestResults(org *config.Org) error {
 	prMin := env.RegisterIntVar("PR_MIN", 0, "The minimum PR to scan for test results").Get()
 	prMax := env.RegisterIntVar("PR_MAX", -1, "The maximum PR to scan for test results").Get()
 	for _, repo := range org.Repos {
-		var completedTests map[string]bool
+		var completedTests = make(map[string]bool)
 		ctLock := sync.RWMutex{}
 		wg := sync.WaitGroup{}
 		wg.Add(1)
 		go func() {
 			ctLock.Lock()
 			defer ctLock.Unlock()
-			_ = ss.syncer.store.QueryTestResultByDone(ss.ctx, org.Name, repo.Name,
+			err := ss.syncer.store.QueryTestResultByDone(ss.ctx, org.Name, repo.Name,
 				func(result *storage.TestResult) error {
 					completedTests[result.RunPath] = true
 					return nil
 				})
+			if err != nil {
+				scope.Warnf("Unable to fetch previous tests: %s", err)
+			}
 			wg.Done()
 		}()
 		prPaths := g.GetAllPullRequestsChan(ss.ctx, org.Name, repo.Name).WithBuffer(100)
@@ -850,7 +853,7 @@ func (ss *syncState) handleTestResults(org *config.Org) error {
 				return err
 			}
 			return nil
-		}).WithParallelism(2).Go()
+		}).WithParallelism(1).Go()
 		var result *multierror.Error
 		for err := range errorChan {
 			result = multierror.Append(err.Err())

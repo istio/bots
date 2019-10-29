@@ -179,14 +179,15 @@ type ActivityInfo struct {
 }
 
 type TestResult struct {
-	StartTime         time.Time
-	FinishTime        time.Time
-	Signatures        []string
-	OrgLogin          string
-	RepoName          string
-	TestName          string
-	Sha               string
-	Result            string
+	StartTime  time.Time
+	FinishTime time.Time
+	Signatures []string
+	OrgLogin   string
+	RepoName   string
+	TestName   string
+	Sha        []byte
+	Result     string
+	// TODO: why is Sha bytes and basesha string?
 	BaseSha           string
 	RunPath           string
 	PullRequestNumber int64
