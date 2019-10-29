@@ -188,24 +188,23 @@ func (trg *TestResultGatherer) getInformationFromCloneFile(ctx context.Context, 
 	return records, nil
 }
 
-var knownSignatures map[string]map[string]string
+var knownSignatures = map[string]map[string]string{
+	"build-log.txt": {
+		"error parsing HTTP 408 response body":      "Docker Push 408",
+		"failed to get a Boskos resource":           "Boskos resource failure",
+		"recipe for target '.*docker.*' failed":     "Docker Build Failure",
+		"Entrypoint received interrupt: terminated": "interrupted",
+		"release istio failed: Service \"istio-ingressgateway\" is invalid: spec\\.ports\\[\\d\\]\\.nodePort\\: Invalid value\\:":          "invalid nodePort",
+		"The connection to the server \\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\ was refused - did you specify the right host or port\\?": "host or port",
+		"gzip: stdin: unexpected end of file": "curl download premature termination",
+		"Process did not finish before":       "Process did not finish before",
+		"No cluster named ":                   "boskos refers to non-existent cluster or project",
+		"API Server failed to come up":        "No API Server",
+		"^PASS$":                              "passed but failed",
+	},
+}
 
-// = {
-// 	"build-log.txt": {
-// 		"error parsing HTTP 408 response body": "",
-// 		"failed to get a Boskos resource": "",
-// 		"recipe for target '.*docker.*' failed": "",
-// 		"Entrypoint received interrupt: terminated": "",
-// 		"release istio failed: Service \"istio-ingressgateway\" is invalid: spec\\.ports\\[\\d\\]\\.nodePort\\: Invalid value\\:": "",
-// 		"The connection to the server \\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\ was refused - did you specify the right host or port\\?": "",
-// 		"gzip: stdin: unexpected end of file": "",
-// 		"Process did not finish before": "",
-// 		"No cluster named ": "boskos refers to non-existent cluster or project"
-// 		"API Server failed to come up": "",
-// 	}
-// }
-
-func (trg *TestResultGatherer) getEnvironmentalSignatures(ctx context.Context, testRun string) (result []string) {
+func (trg *TestResultGatherer) GetEnvironmentalSignatures(ctx context.Context, testRun string) (result []string) {
 	bucket := trg.getBucket()
 	for filename, sigmap := range knownSignatures {
 		r, err := bucket.Reader(ctx, testRun+filename)
@@ -310,7 +309,7 @@ func (trg *TestResultGatherer) GetTestResult(ctx context.Context, testName strin
 
 	if !testResult.TestPassed && !testResult.HasArtifacts {
 		// this is almost certainly an environmental failure, check for known sigs
-		testResult.Signatures = trg.getEnvironmentalSignatures(ctx, testRun)
+		testResult.Signatures = trg.GetEnvironmentalSignatures(ctx, testRun)
 	}
 	return
 }

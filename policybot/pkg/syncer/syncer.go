@@ -62,15 +62,16 @@ type FilterFlags int
 
 // the things to sync
 const (
-	Issues       FilterFlags = 1 << 0
-	Prs                      = 1 << 1
-	Maintainers              = 1 << 2
-	Members                  = 1 << 3
-	Labels                   = 1 << 4
-	ZenHub                   = 1 << 5
-	RepoComments             = 1 << 6
-	Events                   = 1 << 7
-	TestResults              = 1 << 8
+	Issues        FilterFlags = 1 << 0
+	Prs                       = 1 << 1
+	Maintainers               = 1 << 2
+	Members                   = 1 << 3
+	Labels                    = 1 << 4
+	ZenHub                    = 1 << 5
+	RepoComments              = 1 << 6
+	Events                    = 1 << 7
+	TestResults               = 1 << 8
+	TestRootCause             = 1 << 9
 )
 
 // The state in Syncer is immutable once created. syncState on the other hand represents
@@ -108,7 +109,8 @@ func New(gc *gh.ThrottledClient, gcpCreds []byte, gcpProject string,
 func ConvFilterFlags(filter string) (FilterFlags, error) {
 	if filter == "" {
 		// defaults to everything
-		return Issues | Prs | Maintainers | Members | Labels | ZenHub | RepoComments | Events | TestResults, nil
+		return Issues | Prs | Maintainers | Members | Labels | ZenHub | RepoComments | Events | TestResults |
+			TestRootCause, nil
 	}
 
 	var result FilterFlags
@@ -132,6 +134,8 @@ func ConvFilterFlags(filter string) (FilterFlags, error) {
 			result |= Events
 		case "testresults":
 			result |= TestResults
+		case "testrootcause":
+			result |= TestRootCause
 		default:
 			return 0, fmt.Errorf("unknown filter flag %s", f)
 		}
@@ -198,6 +202,12 @@ func (s *Syncer) Sync(context context.Context, flags FilterFlags) error {
 
 		if flags&TestResults != 0 {
 			if err := ss.handleTestResults(&org); err != nil {
+				return err
+			}
+		}
+
+		if flags&TestRootCause != 0 {
+			if err := ss.handleTestRootCause(&org); err != nil {
 				return err
 			}
 		}
@@ -767,6 +777,43 @@ func (ss *syncState) handlePullRequestReviewComments(repo *storage.Repo, start t
 		return ss.syncer.store.WritePullRequestReviewComments(ss.ctx, storagePRComments)
 	})
 }
+func (ss *syncState) handleTestRootCause(org *config.Org) error {
+
+	scope.Debugf("Getting test results for org %s", org.Name)
+	g := resultgatherer.TestResultGatherer{Client: ss.syncer.blobstore, BucketName: org.BucketName,
+		PreSubmitPrefix: org.PreSubmitTestPath, PostSubmitPrefix: org.PostSubmitTestPath}
+	prMin := env.RegisterIntVar("PR_MIN", 0, "The minimum PR to scan for test results").Get()
+	prMax := env.RegisterIntVar("PR_MAX", 1<<63-1, "The maximum PR to scan for test results").Get()
+	for _, repo := range org.Repos {
+		failedTests := make(chan pipeline.OutResult, 1)
+		go func() {
+			err := ss.syncer.store.QueryFailedTests(ss.ctx, org.Name, repo.Name, prMin, prMax,
+				func(result *storage.TestResult) error {
+					failedTests <- pipeline.NewOutResult(nil, result)
+					return nil
+				})
+			if err != nil {
+				scope.Warnf("Unable to fetch previous tests: %s", err)
+			}
+		}()
+		errorChan := pipeline.FromChan(failedTests).Transform(func(i2 interface{}) (i interface{}, e error) {
+			sr := i2.(*storage.TestResult)
+			sr.Signatures = g.GetEnvironmentalSignatures(ss.ctx, sr.RunPath)
+			return sr, nil
+		}).WithParallelism(50).To(func(i interface{}) error {
+			testResult := i.(*storage.TestResult)
+			return ss.syncer.store.WriteTestResults(ss.ctx, []*storage.TestResult{testResult})
+		}).Go()
+		var result *multierror.Error
+		for err := range errorChan {
+			result = multierror.Append(err.Err())
+		}
+		if result != nil {
+			return result
+		}
+	}
+	return nil
+}
 
 func (ss *syncState) handleTestResults(org *config.Org) error {
 	scope.Debugf("Getting test results for org %s", org.Name)
@@ -858,7 +905,9 @@ func (ss *syncState) handleTestResults(org *config.Org) error {
 		for err := range errorChan {
 			result = multierror.Append(err.Err())
 		}
-		return result.ErrorOrNil()
+		if result != nil {
+			return result
+		}
 		// TODO: check Post Submit tests as well.
 	}
 
