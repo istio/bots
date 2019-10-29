@@ -171,21 +171,22 @@ func (sp *PipelineImpl) makeChild() PipelineImpl {
 func (sp *PipelineImpl) Batch(size int) Pipeline {
 	next := sp.makeChild()
 	next.exec = func(in chan OutResult, nx *PipelineImpl) (out chan OutResult) {
+		out = make(chan OutResult, nx.bufferSize)
 		wrapper := channels.Wrap(in)
 		f := channels.NewBatchingChannel(channels.BufferCap(size))
 		channels.Pipe(wrapper, f)
 		go func() {
+			defer close(out)
 			for x := range f.Out() {
+				iter := x.([]interface{})
 				var outSlice []interface{}
 				var errSlice error
-				switch t := x.(type) {
-				case []OutResult:
-					for _, i := range t {
-						if i.Err() == nil {
-							outSlice = append(outSlice, i.Output())
-						} else {
-							errSlice = multierror.Append(errSlice, i.Err())
-						}
+				for _, itf := range iter {
+					res := itf.(OutResult)
+					if res.Err() == nil {
+						outSlice = append(outSlice, res.Output())
+					} else {
+						errSlice = multierror.Append(errSlice, res.Err())
 					}
 				}
 				batchOut := simpleOut{

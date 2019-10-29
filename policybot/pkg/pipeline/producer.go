@@ -3,6 +3,8 @@ package pipeline
 import (
 	"context"
 	"errors"
+	"fmt"
+	"sync/atomic"
 
 	"google.golang.org/api/iterator"
 )
@@ -88,6 +90,7 @@ func (sp *IterProducer) Start(ctx context.Context, bufferSize int) (resultChan c
 				}
 			}
 		}
+		fmt.Print("closing IterProducer")
 	}()
 	return
 }
@@ -104,16 +107,17 @@ func BuildSlice(resultChan chan OutResult) ([]interface{}, error) {
 }
 
 func BuildProducer(ctx context.Context, input []interface{}) chan OutResult {
-	var count int
+	var count int32
 	sp := &IterProducer{
 		Setup: func() error {
 			return nil
 		},
 		Iterator: func() (interface{}, error) {
-			if count > len(input)-1 {
+			if count > int32(len(input)-1) {
+				fmt.Print("sending done")
 				return "", iterator.Done
 			}
-			count++
+			atomic.AddInt32(&count, 1)
 			return input[count-1], nil
 		},
 	}

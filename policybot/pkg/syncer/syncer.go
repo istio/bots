@@ -789,7 +789,7 @@ func (ss *syncState) handleTestResults(org *config.Org) error {
 				})
 			wg.Done()
 		}()
-		prPaths := g.GetAllPullRequestsChan(ss.ctx, org.Name, repo.Name)
+		prPaths := g.GetAllPullRequestsChan(ss.ctx, org.Name, repo.Name).WithBuffer(100)
 		// I think a composition syntax would be better here...
 		errorChan := prPaths.Transform(func(prPathi interface{}) (prNum interface{}, err error) {
 			prPath := prPathi.(string)
@@ -799,7 +799,7 @@ func (ss *syncState) handleTestResults(org *config.Org) error {
 				return
 			}
 			prNum = prParts[len(prParts)-2]
-			if prInt, err := strconv.Atoi(prParts[len(prParts)-2]); err == nil {
+			if prInt, ierr := strconv.Atoi(prParts[len(prParts)-2]); ierr == nil {
 				// skip this PR if it's outside the min and max inclusive
 				if prInt < prMin || (prMax > -1 && prInt > prMax) {
 					err = pipeline.Skip
@@ -809,7 +809,7 @@ func (ss *syncState) handleTestResults(org *config.Org) error {
 		}).WithContext(ss.ctx).OnError(func(e error) {
 			// TODO: this should probably be reported out or something...
 			scope.Warnf("error processing test: %s", e)
-		}).WithParallelism(5).Transform(func(prNumi interface{}) (testRunPaths interface{}, err error) {
+		}).WithParallelism(50).Transform(func(prNumi interface{}) (testRunPaths interface{}, err error) {
 			prNum := prNumi.(string)
 			tests, err := g.GetTestsForPR(ss.ctx, org.Name, repo.Name, prNum)
 			var result [][]string
@@ -832,21 +832,30 @@ func (ss *syncState) handleTestResults(org *config.Org) error {
 			inputArray := testRunPathi.([]string)
 			testRunPath := inputArray[1]
 			testName := inputArray[0]
-			fmt.Printf("doing stuff: %v\n", inputArray)
+			if strings.Contains(testRunPath, "00") {
+				fmt.Printf("checking test %s\n", testRunPath)
+			}
 			return g.GetTestResult(ss.ctx, testName, testRunPath)
-		}).Batch(100).To(func(input interface{}) error {
-			testResult := input.([]*storage.TestResult)
-			err := ss.syncer.store.WriteTestResults(ss.ctx, testResult)
+		}).Batch(50).To(func(input interface{}) error {
+			var testResults []*storage.TestResult
+			for _, i := range input.([]interface{}) {
+				singleResult := i.(*storage.TestResult)
+				singleResult.OrgLogin = org.Name
+				singleResult.RepoName = repo.Name
+				testResults = append(testResults, singleResult)
+			}
+			fmt.Printf("saving TestResult batch of size %d\n", len(testResults))
+			err := ss.syncer.store.WriteTestResults(ss.ctx, testResults)
 			if err != nil {
 				return err
 			}
 			return nil
-		}).Go()
-		var result error
+		}).WithParallelism(2).Go()
+		var result *multierror.Error
 		for err := range errorChan {
 			result = multierror.Append(err.Err())
 		}
-		return result
+		return result.ErrorOrNil()
 		// TODO: check Post Submit tests as well.
 	}
 
