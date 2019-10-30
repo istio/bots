@@ -174,34 +174,6 @@ func (s store) QueryTestResultByPrNumber(
 	return err
 }
 
-func (s store) QueryFailedTests(context context.Context, orgLogin string, repoName string, prMin, prMax int,
-	cb func(*storage.TestResult) error) error {
-
-	sql := `SELECT * from TestResults
-	WHERE OrgLogin = @orgLogin AND
-	RepoName = @repoName AND
-	Result = "FAILURE"
-	WHERE PullRequestNumber >= @prMin
-	AND PullRequestNumber <= @prMax
-	ORDER BY StartTime DESC;`
-	stmt := spanner.NewStatement(sql)
-	stmt.Params["orgLogin"] = orgLogin
-	stmt.Params["repoName"] = repoName
-	stmt.Params["prMin"] = prMin
-	stmt.Params["prMax"] = prMax
-	iter := s.client.Single().Query(context, stmt)
-	err := iter.Do(func(row *spanner.Row) error {
-		testResult := &storage.TestResult{}
-		if err := rowToStruct(row, testResult); err != nil {
-			return err
-		}
-
-		return cb(testResult)
-	})
-
-	return err
-}
-
 func (s store) QueryTestResultByUndone(context context.Context, orgLogin string, repoName string, cb func(*storage.TestResult) error) error {
 	sql := `SELECT * from TestResults
 	WHERE OrgLogin = @orgLogin AND

@@ -32,13 +32,6 @@ type InOutResult interface {
 	Output() interface{}
 }
 
-func NewOutResult(err error, out interface{}) OutResult {
-	return simpleOut{
-		err: err,
-		out: out,
-	}
-}
-
 type simpleOut struct {
 	err error
 	out interface{}
