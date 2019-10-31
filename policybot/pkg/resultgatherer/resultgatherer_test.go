@@ -16,6 +16,7 @@ package resultgatherer
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"reflect"
 	"testing"
@@ -47,12 +48,15 @@ func TestTestResultGatherer(t *testing.T) {
 		FinishTime:        t2,
 		TestPassed:        true,
 		CloneFailed:       false,
-		Sha:               "fee4aae74eb4debaf621d653abe8bfcf0ce6a4ea",
 		Result:            "SUCCESS",
 		BaseSha:           "d995c19aefe6b5ff0748b783e8b69c59963bc8ae",
 		RunPath:           "pr-logs/pull/istio_istio/110/release-test/155/",
 		Artifacts:         nil,
 	}
+	shaBytes, err := hex.DecodeString("fee4aae74eb4debaf621d653abe8bfcf0ce6a4ea")
+	assert.NilError(t, err)
+	correctInfo.Sha = shaBytes
+
 	var prNum = "110"
 
 	client, err := gcs.NewStore(context, nil)
@@ -80,8 +84,6 @@ func TestTestResultGatherer(t *testing.T) {
 	}
 	duration := time.Since(start)
 	t.Log(duration)
-	fmt.Printf("%v\n", duration)
-	t.Fail()
 }
 
 func BenchmarkOldWay(b *testing.B) {
@@ -102,28 +104,15 @@ func BenchmarkOldWay(b *testing.B) {
 	}
 }
 
-type simpleOut struct {
-	err error
-	out string
-}
-
-func (s simpleOut) Err() error {
-	return s.err
-}
-
-func (s simpleOut) Output() string {
-	return s.out
-}
-
 func BenchmarkNewWay(b *testing.B) {
 	b.N = 100000
 	t := time.NewTicker(time.Microsecond)
-	in := make(chan pipeline.StringOutResult)
+	in := make(chan pipeline.OutResult)
 	go func() {
 		i := 0
 		for _ = range t.C {
 			i++
-			in <- simpleOut{out: ""}
+			in <- pipeline.NewOut("", nil)
 			if i >= b.N {
 				t.Stop()
 				close(in)
@@ -131,7 +120,7 @@ func BenchmarkNewWay(b *testing.B) {
 			}
 		}
 	}()
-	out := pipeline.FromChan(in).WithParallelism(1000).Transform(func(_ string) (s string, e error) {
+	out := pipeline.FromChan(in).WithParallelism(1000).Transform(func(_ interface{}) (s interface{}, e error) {
 		time.Sleep(time.Second)
 		return "", nil
 	}).Go()
