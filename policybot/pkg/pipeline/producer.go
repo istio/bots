@@ -70,6 +70,13 @@ func (s simpleOut) Output() interface{} {
 	return s.out
 }
 
+func NewOut(out interface{}, err error) OutResult {
+	return simpleOut{
+		err: err,
+		out: out,
+	}
+}
+
 func (sp *IterProducer) Start(ctx context.Context, bufferSize int) (resultChan chan OutResult) {
 	resultChan = make(chan OutResult, bufferSize)
 	go func() {
