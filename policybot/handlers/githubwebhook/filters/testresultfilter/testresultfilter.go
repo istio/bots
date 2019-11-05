@@ -131,11 +131,11 @@ func (r *TestResultFilter) Handle(context context.Context, event interface{}) {
 			return
 		}
 		prNum := string(pr.GetNumber())
-		scope.Infof("Commit %s corresponds to pull request %d.", sha, prNum)
+		scope.Infof("Commit %v corresponds to pull request %s.", sha, prNum)
 
 		testResults, err := val.trg.CheckTestResultsForPr(context, orgLogin, repoName, string(prNum))
 		if err != nil {
-			scope.Errorf("Error: Unable to get test result for PR %d in repo %s: %v", prNum, repoName, err)
+			scope.Errorf("Error: Unable to get test result for PR %s in repo %s: %v", prNum, repoName, err)
 			return
 		}
 
