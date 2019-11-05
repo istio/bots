@@ -127,15 +127,16 @@ func (r *TestResultFilter) Handle(context context.Context, event interface{}) {
 		sha := p.GetCommit().GetSHA()
 		pr, err := gh.GetPRForSHA(context, r.gc, orgLogin, repoName, sha)
 		if err != nil {
-			scope.Errorf("Error fetching pull request info for commit %s: %v", sha, err)
+			scope.Errorf("Error fetching pull request info for commit %s in org %s: %v", sha, orgLogin, err)
 			return
 		}
 		prNum := string(pr.GetNumber())
-		scope.Infof("Commit %v corresponds to pull request %s.", sha, prNum)
+		scope.Infof("Commit %v corresponds to pull request %s for org %s.", sha, prNum, orgLogin)
 
 		testResults, err := val.trg.CheckTestResultsForPr(context, orgLogin, repoName, prNum)
 		if err != nil {
-			scope.Errorf("Error: Unable to get test result for PR %s in repo %s: %v", prNum, repoName, err)
+			scope.Errorf("Error: Unable to get test result for PR %s in repo %s for org %s: %v", prNum,
+				repoName, orgLogin, err)
 			return
 		}
 
