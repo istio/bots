@@ -50,7 +50,7 @@ func TestPipeline(t *testing.T) {
 	// it will skip emitting "two" to demonstrate that feature
 	d := testDataSource{
 		source: []interface{}{"zero", "one", "two", "three", "four", "five"},
-		errMap: map[int]error{2: Skip, 5: errors.New("foo")},
+		errMap: map[int]error{2: ErrSkip, 5: errors.New("foo")},
 	}
 	// this is an async test, so if it hasn't finished in a minute, exit
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)

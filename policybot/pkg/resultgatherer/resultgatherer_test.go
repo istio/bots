@@ -99,18 +99,18 @@ func BenchmarkOldWay(b *testing.B) {
 			break
 		}
 	}
-	for _ = range data {
+	for range data {
 		time.Sleep(time.Second)
 	}
 }
 
 func BenchmarkNewWay(b *testing.B) {
-	b.N = 100000
+	//b.N = 100000
 	t := time.NewTicker(time.Microsecond)
 	in := make(chan pipeline.OutResult)
 	go func() {
 		i := 0
-		for _ = range t.C {
+		for range t.C {
 			i++
 			in <- pipeline.NewOut("", nil)
 			if i >= b.N {
@@ -124,7 +124,7 @@ func BenchmarkNewWay(b *testing.B) {
 		time.Sleep(time.Second)
 		return "", nil
 	}).Go()
-	for _ = range out {
+	for range out {
 		// just waiting for channel to be closed
 	}
 }

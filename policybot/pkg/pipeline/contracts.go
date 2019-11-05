@@ -22,7 +22,7 @@ import (
 
 type Pipeline interface {
 	Transform(func(interface{}) (interface{}, error)) Pipeline
-	To(func(interface{}) error) PipelineEnd
+	To(func(interface{}) error) End
 	Batch(size int) Pipeline
 	Go() chan OutResult
 	Expand() Pipeline
@@ -33,10 +33,10 @@ type Pipeline interface {
 	WithParallelism(int) Pipeline
 }
 
-type PipelineEnd interface {
-	WithContext(ctx context.Context) PipelineEnd
-	WithBuffer(int) PipelineEnd
-	WithParallelism(int) PipelineEnd
-	OnError(func(error)) PipelineEnd
+type End interface {
+	WithContext(ctx context.Context) End
+	WithBuffer(int) End
+	WithParallelism(int) End
+	OnError(func(error)) End
 	Go() chan InResult
 }

@@ -87,7 +87,7 @@ func (b *bucket) ListPrefixesProducer(ctx context.Context, prefix string) pipeli
 			attrs, err := it.Next()
 			if err == nil {
 				if attrs.Prefix == "" {
-					err = pipeline.Skip
+					err = pipeline.ErrSkip
 				} else {
 					res = attrs.Prefix
 				}
@@ -111,7 +111,7 @@ func (b *bucket) ListPrefixesProducers(ctx context.Context, prefix string) (resu
 			attrs, err := it.Next()
 			if err == nil {
 				if attrs.Prefix == "" {
-					err = pipeline.Skip
+					err = pipeline.ErrSkip
 				} else {
 					res = attrs.Prefix
 				}
@@ -146,7 +146,7 @@ func (b *bucket) ListItemsProducer(ctx context.Context, prefix string) chan pipe
 			attrs, err := it.Next()
 			if err == nil {
 				if attrs.Name == "" {
-					err = pipeline.Skip
+					err = pipeline.ErrSkip
 				} else {
 					res = attrs.Name
 				}

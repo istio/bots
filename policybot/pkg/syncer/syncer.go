@@ -805,7 +805,7 @@ func (ss *syncState) handleTestResults(org *config.Org) error {
 			if prInt, ierr := strconv.Atoi(prParts[len(prParts)-2]); ierr == nil {
 				// skip this PR if it's outside the min and max inclusive
 				if prInt < prMin || (prMax > -1 && prInt > prMax) {
-					err = pipeline.Skip
+					err = pipeline.ErrSkip
 				}
 			}
 			return
@@ -858,7 +858,9 @@ func (ss *syncState) handleTestResults(org *config.Org) error {
 		for err := range errorChan {
 			result = multierror.Append(err.Err())
 		}
-		return result.ErrorOrNil()
+		if result != nil {
+			return result
+		}
 		// TODO: check Post Submit tests as well.
 	}
 

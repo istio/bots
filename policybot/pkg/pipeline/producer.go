@@ -25,7 +25,7 @@ import (
 	"google.golang.org/api/iterator"
 )
 
-var Skip = errors.New("This iteration should be skipped")
+var ErrSkip = errors.New("this iteration should be skipped")
 
 type IterProducer struct {
 	Setup    func() error
@@ -101,7 +101,7 @@ func (sp *IterProducer) Start(ctx context.Context, bufferSize int) (resultChan c
 			default:
 				result, err := sp.Iterator()
 				if err != nil {
-					if err == Skip {
+					if err == ErrSkip {
 						continue
 					}
 					if err == iterator.Done {
@@ -113,7 +113,6 @@ func (sp *IterProducer) Start(ctx context.Context, bufferSize int) (resultChan c
 				}
 			}
 		}
-		fmt.Print("closing IterProducer")
 	}()
 	return
 }

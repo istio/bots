@@ -39,13 +39,12 @@ func TestSetupError(t *testing.T) {
 	result, ok := <-resultChan
 	assert.Assert(t, ok)
 	assert.ErrorType(t, result.Err(), expectedError)
-	result, ok = <-resultChan
+	_, ok = <-resultChan
 	assert.Assert(t, !ok)
 }
 
 func TestFake(t *testing.T) {
-	var a []string
-	a = nil
+	var a []string = nil
 	b := []string{"foo"}
 	c := append(a, b...)
 	assert.Assert(t, c != nil)
@@ -78,7 +77,7 @@ func TestTransform(t *testing.T) {
 			prNum = prParts[len(prParts)-2]
 			return
 		}
-		err = Skip
+		err = ErrSkip
 		return
 	})
 	for element := range resultChan {

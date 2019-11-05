@@ -26,19 +26,19 @@ import (
 	"google.golang.org/api/iterator"
 )
 
-type PipelineImpl struct {
+type Impl struct {
 	ctx         context.Context
 	bufferSize  int
 	parallelism int
 	priorStep   Pipeline
 	// exec acts like a receiver function, but is late bound
-	exec         func(chan OutResult, *PipelineImpl) chan OutResult
+	exec         func(chan OutResult, *Impl) chan OutResult
 	errorHandler func(error)
 }
 
-func (sp *PipelineImpl) Expand() Pipeline {
+func (sp *Impl) Expand() Pipeline {
 	next := sp.makeChild()
-	next.exec = func(in chan OutResult, nx *PipelineImpl) chan OutResult {
+	next.exec = func(in chan OutResult, nx *Impl) chan OutResult {
 		outChan := make(chan OutResult, nx.bufferSize)
 		var wg sync.WaitGroup
 
@@ -114,17 +114,17 @@ func (sp *PipelineImpl) Expand() Pipeline {
 }
 
 // TODO: the With and On functions need clarification around chaining
-func (sp *PipelineImpl) WithContext(ctx context.Context) Pipeline {
+func (sp *Impl) WithContext(ctx context.Context) Pipeline {
 	sp.ctx = ctx
 	return sp
 }
 
-func (sp *PipelineImpl) WithBuffer(i int) Pipeline {
+func (sp *Impl) WithBuffer(i int) Pipeline {
 	sp.bufferSize = i
 	return sp
 }
 
-func (sp *PipelineImpl) WithParallelism(i int) Pipeline {
+func (sp *Impl) WithParallelism(i int) Pipeline {
 	sp.parallelism = i
 	return sp
 }
@@ -138,22 +138,22 @@ type StringPipelineEnder struct {
 	errorHandler func(error)
 }
 
-func (spe *StringPipelineEnder) WithContext(ctx context.Context) PipelineEnd {
+func (spe *StringPipelineEnder) WithContext(ctx context.Context) End {
 	spe.ctx = ctx
 	return spe
 }
 
-func (spe *StringPipelineEnder) WithBuffer(i int) PipelineEnd {
+func (spe *StringPipelineEnder) WithBuffer(i int) End {
 	spe.bufferSize = i
 	return spe
 }
 
-func (spe *StringPipelineEnder) WithParallelism(i int) PipelineEnd {
+func (spe *StringPipelineEnder) WithParallelism(i int) End {
 	spe.parallelism = i
 	return spe
 }
 
-func (spe *StringPipelineEnder) OnError(f func(error)) PipelineEnd {
+func (spe *StringPipelineEnder) OnError(f func(error)) End {
 	spe.errorHandler = f
 	return spe
 }
@@ -164,7 +164,7 @@ func (spe *StringPipelineEnder) Go() chan InResult {
 	return spe.exec(priorOut, spe)
 }
 
-func (sp *PipelineImpl) Go() chan OutResult {
+func (sp *Impl) Go() chan OutResult {
 	var priorOut chan OutResult
 	if sp.priorStep != nil {
 		priorOut = sp.priorStep.Go() // TODO: handle errors here?
@@ -172,21 +172,21 @@ func (sp *PipelineImpl) Go() chan OutResult {
 	return sp.exec(priorOut, sp)
 }
 
-func (sp *PipelineImpl) OnError(f func(error)) Pipeline {
+func (sp *Impl) OnError(f func(error)) Pipeline {
 	sp.errorHandler = f
 	return sp
 }
 
-func (sp *PipelineImpl) makeChild() PipelineImpl {
+func (sp *Impl) makeChild() Impl {
 	child := *sp
 	child.priorStep = sp
 	child.exec = nil
 	return child
 }
 
-func (sp *PipelineImpl) Batch(size int) Pipeline {
+func (sp *Impl) Batch(size int) Pipeline {
 	next := sp.makeChild()
-	next.exec = func(in chan OutResult, nx *PipelineImpl) (out chan OutResult) {
+	next.exec = func(in chan OutResult, nx *Impl) (out chan OutResult) {
 		out = make(chan OutResult, nx.bufferSize)
 		wrapper := channels.Wrap(in)
 		f := channels.NewBatchingChannel(channels.BufferCap(size))
@@ -217,9 +217,9 @@ func (sp *PipelineImpl) Batch(size int) Pipeline {
 	return &next
 }
 
-func (sp *PipelineImpl) Transform(f func(result interface{}) (interface{}, error)) Pipeline {
+func (sp *Impl) Transform(f func(result interface{}) (interface{}, error)) Pipeline {
 	next := sp.makeChild()
-	next.exec = func(in chan OutResult, nx *PipelineImpl) chan OutResult {
+	next.exec = func(in chan OutResult, nx *Impl) chan OutResult {
 		result := make(chan OutResult, sp.bufferSize)
 		t := StringLogTransformer{
 			ErrHandler:  nx.errorHandler,
@@ -239,7 +239,7 @@ func (sp *PipelineImpl) Transform(f func(result interface{}) (interface{}, error
 	return &next
 }
 
-func (sp *PipelineImpl) To(f func(result interface{}) error) PipelineEnd {
+func (sp *Impl) To(f func(result interface{}) error) End {
 	next := StringPipelineEnder{
 		ctx:         sp.ctx,
 		bufferSize:  sp.bufferSize,
@@ -270,18 +270,16 @@ func (sp *PipelineImpl) To(f func(result interface{}) error) PipelineEnd {
 func FromChan(in chan OutResult) Pipeline {
 	x := IterProducer{
 		Iterator: func() (s interface{}, e error) {
-			select {
-			case res, ok := <-in:
-				if !ok {
-					return "", iterator.Done
-				}
-				return res.Output(), res.Err()
+			res, ok := <-in
+			if !ok {
+				return "", iterator.Done
 			}
+			return res.Output(), res.Err()
 		},
 	}
 
-	return &PipelineImpl{
-		exec: func(_ chan OutResult, sp *PipelineImpl) chan OutResult {
+	return &Impl{
+		exec: func(_ chan OutResult, sp *Impl) chan OutResult {
 			return x.Start(sp.ctx, sp.bufferSize)
 		},
 		ctx: context.Background(), // this is just the default
@@ -290,8 +288,8 @@ func FromChan(in chan OutResult) Pipeline {
 }
 
 func FromIter(x IterProducer) Pipeline {
-	return &PipelineImpl{
-		exec: func(_ chan OutResult, sp *PipelineImpl) chan OutResult {
+	return &Impl{
+		exec: func(_ chan OutResult, sp *Impl) chan OutResult {
 			return x.Start(sp.ctx, sp.bufferSize)
 		},
 		ctx: context.Background(), // this is just the default

@@ -331,7 +331,6 @@ func (trg *TestResultGatherer) CheckTestResultsForPr(ctx context.Context, orgLog
 
 func (trg *TestResultGatherer) GetAllPullRequestsChan(ctx context.Context, orgLogin string, repoName string) pipelinetwo.Pipeline {
 	return trg.getBucket().ListPrefixesProducer(ctx, trg.getRepoPrPath(orgLogin, repoName))
-	return nil
 }
 
 // if any pattern is found in the object, return it's index
