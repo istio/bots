@@ -17,7 +17,10 @@ spec:
               args:
                 - /policybot
                 - userdatamgr
+                - --config_repo
+                - istio/bots/master
                 - --config_file
+                - policybot/policybot.yaml
                 - ./userdata.yaml
               envFrom:
                 - secretRef:

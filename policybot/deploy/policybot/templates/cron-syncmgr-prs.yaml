@@ -17,7 +17,8 @@ spec:
               args:
                 - /policybot
                 - syncmgr
-                - --config_repo istio/bots/master
+                - --config_repo
+                - istio/bots/master
                 - --config_file
                 - policybot/policybot.yaml
                 - --filter
