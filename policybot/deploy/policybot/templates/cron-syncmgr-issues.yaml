@@ -1,11 +1,11 @@
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
-  name: policybot-syncer-testresults
+  name: policybot-syncmgr-issues
   labels:
-    app: policybot-syncer-testresults
+    app: policybot-syncmgr-issues
 spec:
-  schedule: "0 3 * * *"
+  schedule: "0 2 * * *"
   jobTemplate:
     spec:
       template:
@@ -16,12 +16,12 @@ spec:
               imagePullPolicy: "{{ .Values.imagePullPolicy }}"
               args:
                 - /policybot
-                - syncer
+                - syncmgr
                 - --config_repo istio/bots/master
                 - --config_file
                 - policybot/policybot.yaml
                 - --filter
-                - testresults
+                - issues
               envFrom:
                 - secretRef:
                     name: policybot

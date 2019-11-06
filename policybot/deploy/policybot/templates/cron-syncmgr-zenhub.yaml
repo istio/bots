@@ -1,9 +1,9 @@
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
-  name: policybot-syncer-zenhub
+  name: policybot-syncmgr-zenhub
   labels:
-    app: policybot-syncer-zenhub
+    app: policybot-syncmgr-zenhub
 spec:
   schedule: "0 1 * * *"
   jobTemplate:
@@ -16,7 +16,7 @@ spec:
               imagePullPolicy: "{{ .Values.imagePullPolicy }}"
               args:
                 - /policybot
-                - syncer
+                - syncmgr
                 - --config_repo istio/bots/master
                 - --config_file
                 - policybot/policybot.yaml
