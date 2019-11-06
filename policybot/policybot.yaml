@@ -6,6 +6,45 @@ maintainer_activity_window: 2160h
 member_activity_window: 4320h
 default_org: istio
 
+robots:
+  - google-admin
+  - googlebot
+  - istio-policy-bot
+  - istio-release-robot
+  - istio-testing
+
+lifecycle:
+  triage_label: lifecycle/needs-triage
+  stale_label: lifecycle/stale
+  cant_be_stale_label: lifecycle/staleproof
+  escalation_label: lifecycle/needs-escalation
+  feature_request_label: kind/enhancement
+  close_label: lifecycle/automatically-closed
+  ignore_labels: [Epic]
+
+  real_old_delay: 5000h
+  triage_delay: 72h
+  escalation_delay: 168h
+  feature_request_stale_delay: 4320h
+  issue_stale_delay: 2160h
+  pull_request_stale_delay: 720h
+
+  feature_request_close_delay: 4680h
+  issue_close_delay: 2520h
+  pull_request_close_delay: 1080h
+
+  stale_comment: >
+    🧭 This issue or pull request has been automatically marked as stale because it has not had activity
+    from an Istio team member in the last %d days. It will be closed on %s unless an Istio team member takes
+    action. Please see [this wiki page](https://github.com/istio/istio/wiki/Issue-and-Pull-Request-Lifecycle-Manager) for more information.
+    Thank you for your contributions.
+
+  close_comment: >
+    🚧 This issue or pull request has been closed due to not having had activity from an Istio team member
+    in the last %d days. If you feel this issue or pull request deserves attention, please reopen
+    the issue. Please see [this wiki page](https://github.com/istio/istio/wiki/Issue-and-Pull-Request-Lifecycle-Manager) for more information.
+    Thank you for your contributions.
+
 nags:
   - name: Go
     matchtitle:
@@ -107,15 +146,18 @@ autolabels:
       - kind/enhancement
 
 boilerplates_to_clean:
-  - regex: |
-      Please provide a description for what this PR is for.
+  - name: Please provide
+    regex: |
+      Please provide a description for what this PR is for\.
 
-  - regex: |
+  - name: To help us
+    regex: |
       And to help us figure out who should review this PR, please *
-      put an X in all the areas that this PR affects.
+      put an X in all the areas that this PR affects\.
 
-  - regex: |
-      \[.*\] +Configuration Infrastructure
+  - name: Area selection
+    regex: |
+      ^\[.*\] +Configuration Infrastructure
       \[.*\] +Docs
       \[.*\] +Installation
       \[.*\] +Networking
@@ -126,21 +168,25 @@ boilerplates_to_clean:
       \[.*\] +User Experience
       \[.*\] +Developer Infrastructure
 
-  - regex: |
+  - name: Note about bugs
+    regex: |
       \(NOTE: This is used to report product bugs:
         To report a security vulnerability, please visit <https://istio.io/about/security-vulnerabilities/>
-        To ask questions about how to use Istio, please visit <https://discuss.istio.io>
+        To ask questions about how to use Istio, please visit <https://discuss\.istio\.io>
       \)
 
-  - regex: |
+  - name: Area selection banner
+    regex: |
       \*\*Affected product area \(please put an X in all that apply\)\*\*
 
-  - regex: |
+  - name: Please consider
+    regex: |
       Additionally, please consider attaching a \[cluster state archive\]\(http://istio.io/help/bugs/#generating-a-cluster-state-archive\) by attaching
-      the dump file to this issue.
+      the dump file to this issue\.
 
-  - regex: |
-      \(This is used to request new product features, please visit <https://discuss.istio.io> for questions on using Istio\)
+  - name: Feature banner
+    regex: |
+      \(This is used to request new product features, please visit <https://discuss\.istio\.io> for questions on using Istio\)
 
 orgs:
   - name: istio
@@ -249,7 +295,32 @@ orgs:
         color: bfdadc
         description: Indicates a PR needs to be rebased before being merged
 
+      - name: 'lifecycle/needs-escalation'
+        color: 922992
+        description: Indicates a critical PR or issue needs attention
+
+      - name: 'lifecycle/needs-triage'
+        color: 922992
+        description: Indicates a new PR or issue needs to be triaged
+
+      - name: 'lifecycle/stale'
+        color: 922992
+        description: Indicates a PR or issue hasn't been manipulated by an Istio team member for a while
+
+      - name: 'lifecycle/staleproof'
+        color: 922992
+        description: Indicates a PR or issue has been deemed to be immune from becoming stale and/or automatically closed
+
+      - name: 'lifecycle/automatically-closed'
+        color: 922992
+        description: Indicates a PR or issue that has been automatically closed due to inactivity
+
+      - name: 'lifecycle/automatically-closed'
+        color: 922992
+        description: Indicates a PR or issue that has been closed automatically.
+
     repos:
+      - name: istio.io
       - name: proxy
       - name: istio
       - name: release-builder
@@ -257,10 +328,8 @@ orgs:
       - name: tests
       - name: gogo-genproto
       - name: test-infra
-      - name: istio.io
       - name: tools
       - name: api
-      - name: bottestrepo
       - name: cni
       - name: operator
       - name: installer

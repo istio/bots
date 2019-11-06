@@ -57,8 +57,27 @@ var _listHtml = []byte(`<aside class="callout warning">
   </div>
 </aside>
 
+{{ if .AreaCounts }}
+    <table>
+        <thead>
+        <tr>
+            <th>Area</th>
+            <th>Count</th>
+        </tr>
+        </thead>
+        <tbody>
+            {{ range .AreaCounts }}
+                <tr>
+                    <td>{{ .Area }}</td>
+                    <td>{{ .Count }}</td>
+                </tr>
+            {{ end }}
+        </tbody>
+    </table>
+{{ end }}
+
 <table>
-  <caption>All Open Issues</caption>
+  <caption>{{ .Title }}</caption>
   <thead>
   <tr>
       <th>Repository</th>
@@ -70,10 +89,10 @@ var _listHtml = []byte(`<aside class="callout warning">
   </tr>
   </thead>
   <tbody>
-      {{ range . }}
+      {{ range .Issues }}
           <tr>
               <td>{{ .RepoName }}</td>
-              <td>{{ .IssueNumber }}</td>
+              <td><a href="https://github.com/istio/{{ .RepoName }}/issues/{{ .IssueNumber }}">{{ .IssueNumber }}</a></td>
               <td>{{ .Title }}</td>
               <td>{{ .CreatedAt }}</td>
               <td>{{ .UpdatedAt }}</td>

@@ -53,6 +53,20 @@ func (s store) QueryMaintainersByOrg(context context.Context, orgLogin string, c
 	return err
 }
 
+func (s store) QueryAllUsers(context context.Context, cb func(*storage.User) error) error {
+	iter := s.client.Single().Query(context, spanner.Statement{SQL: "SELECT * FROM Users"})
+	err := iter.Do(func(row *spanner.Row) error {
+		user := &storage.User{}
+		if err := rowToStruct(row, user); err != nil {
+			return err
+		}
+
+		return cb(user)
+	})
+
+	return err
+}
+
 func (s store) QueryIssues(context context.Context, orgLogin string, cb func(*storage.Issue) error) error {
 	iter := s.client.Single().Query(context,
 		spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM Issues WHERE OrgLogin = '%s';", orgLogin)})
@@ -97,6 +111,22 @@ func (s store) QueryOpenIssues(context context.Context, orgLogin string, cb func
 
 	return err
 }
+
+func (s store) QueryOpenIssuesByRepo(context context.Context, orgLogin string, repoName string, cb func(*storage.Issue) error) error {
+	iter := s.client.Single().Query(context,
+		spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM Issues WHERE OrgLogin = '%s' AND RepoName = '%s' AND State = '%s';", orgLogin, repoName, "open")})
+	err := iter.Do(func(row *spanner.Row) error {
+		issue := &storage.Issue{}
+		if err := rowToStruct(row, issue); err != nil {
+			return err
+		}
+
+		return cb(issue)
+	})
+
+	return err
+}
+
 func (s store) QueryTestResultByTestName(context context.Context, orgLogin string, repoName string, testName string, cb func(*storage.TestResult) error) error {
 	sql := `SELECT * from TestResults
 	WHERE OrgLogin = @orgLogin AND
@@ -698,7 +728,7 @@ func (s *store) getPRActivity(context context.Context, orgLogin string, repoName
 
 	iter = s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
 		`SELECT * FROM PullRequestReviewCommentEvents
-7			WHERE
+			WHERE
 				OrgLogin = '%s'
 				AND RepoName = '%s'
 				AND Actor = '%s'

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package milestonemaker
+package milestonemgr
 
 import (
 	"context"
@@ -26,27 +26,27 @@ import (
 	"istio.io/pkg/log"
 )
 
-// MilestoneMaker creates milestones in GitHub repos
-type MilestoneMaker struct {
+// MilestoneMgr creates milestones in GitHub repos
+type MilestoneMgr struct {
 	gc   *gh.ThrottledClient
 	args *config.Args
 }
 
-var scope = log.RegisterScope("milestonemaker", "The milestone maker", 0)
+var scope = log.RegisterScope("milestonemgr", "The GitHub milestone manager", 0)
 
-func New(gc *gh.ThrottledClient, args *config.Args) *MilestoneMaker {
-	return &MilestoneMaker{
+func New(gc *gh.ThrottledClient, args *config.Args) *MilestoneMgr {
+	return &MilestoneMgr{
 		gc:   gc,
 		args: args,
 	}
 }
 
-func (lm *MilestoneMaker) MakeConfiguredMilestones(context context.Context) error {
-	for _, org := range lm.args.Orgs {
+func (mm *MilestoneMgr) MakeConfiguredMilestones(context context.Context) error {
+	for _, org := range mm.args.Orgs {
 		for _, repo := range org.Repos {
 			// global
-			for _, milestone := range lm.args.MilestonesToCreate {
-				err := lm.makeMilestone(context, org.Name, repo.Name, milestone)
+			for _, milestone := range mm.args.MilestonesToCreate {
+				err := mm.makeMilestone(context, org.Name, repo.Name, milestone)
 				if err != nil {
 					return fmt.Errorf("unable to create milestone %s in repo %s/%s: %v", milestone.Name, org.Name, repo.Name, err)
 				}
@@ -54,7 +54,7 @@ func (lm *MilestoneMaker) MakeConfiguredMilestones(context context.Context) erro
 
 			// org-level
 			for _, milestone := range org.MilestonesToCreate {
-				err := lm.makeMilestone(context, org.Name, repo.Name, milestone)
+				err := mm.makeMilestone(context, org.Name, repo.Name, milestone)
 				if err != nil {
 					return fmt.Errorf("unable to create milestone %s in repo %s/%s: %v", milestone.Name, org.Name, repo.Name, err)
 				}
@@ -62,7 +62,7 @@ func (lm *MilestoneMaker) MakeConfiguredMilestones(context context.Context) erro
 
 			// repo-level
 			for _, milestone := range repo.MilestonesToCreate {
-				err := lm.makeMilestone(context, org.Name, repo.Name, milestone)
+				err := mm.makeMilestone(context, org.Name, repo.Name, milestone)
 				if err != nil {
 					return fmt.Errorf("unable to create milestone %s in repo %s/%s: %v", milestone.Name, org.Name, repo.Name, err)
 				}
@@ -76,7 +76,7 @@ func (lm *MilestoneMaker) MakeConfiguredMilestones(context context.Context) erro
 var open = "open"
 var closed = "closed"
 
-func (lm *MilestoneMaker) makeMilestone(context context.Context, orgLogin string, repoName string, milestone config.Milestone) error {
+func (mm *MilestoneMgr) makeMilestone(context context.Context, orgLogin string, repoName string, milestone config.Milestone) error {
 	ms := &github.Milestone{
 		State:       &open,
 		Title:       &milestone.Name,
@@ -92,7 +92,7 @@ func (lm *MilestoneMaker) makeMilestone(context context.Context, orgLogin string
 		ms.DueOn = &milestone.DueDate
 	}
 
-	_, _, err := lm.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+	_, _, err := mm.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 		return client.Issues.CreateMilestone(context, orgLogin, repoName, ms)
 	})
 
@@ -101,7 +101,7 @@ func (lm *MilestoneMaker) makeMilestone(context context.Context, orgLogin string
 		return nil
 	}
 
-	num, err := findMilestone(context, lm.gc, orgLogin, repoName, milestone.Name)
+	num, err := findMilestone(context, mm.gc, orgLogin, repoName, milestone.Name)
 	if num < 0 {
 		if err == nil {
 			return fmt.Errorf("unable to create or edit milestone %s in repo %s/%s", milestone.Name, orgLogin, repoName)
@@ -109,7 +109,7 @@ func (lm *MilestoneMaker) makeMilestone(context context.Context, orgLogin string
 		return err
 	}
 
-	_, _, err = lm.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+	_, _, err = mm.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 		return client.Issues.EditMilestone(context, orgLogin, repoName, num, ms)
 	})
 

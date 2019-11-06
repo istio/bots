@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package flakechaser
+package flakemgr
 
 import (
 	"context"
@@ -27,10 +27,10 @@ import (
 	"istio.io/pkg/log"
 )
 
-var scope = log.RegisterScope("flakechaser", "The GitHub flaky test chaser.", 0)
+var scope = log.RegisterScope("flakemgr", "The GitHub flaky test chaser.", 0)
 
-// Chaser scans the test flakiness issues and neg issuer assignee when no updates occur for a while.
-type Chaser struct {
+// FlakeManager scans the test flakiness issues and neg issuer assignee when no updates occur for a while.
+type FlakeManager struct {
 	gc    *gh.ThrottledClient
 	cache *cache.Cache
 	store storage.Store
@@ -45,13 +45,14 @@ type Chaser struct {
 	message string
 }
 
-// New creates a flake chaser.
-func New(gc *gh.ThrottledClient, store storage.Store, cache *cache.Cache, config config.FlakeChaser) *Chaser {
+// New creates a flake manager.
+func New(gc *gh.ThrottledClient, store storage.Store, cache *cache.Cache, config config.FlakeChaser) *FlakeManager {
 	enabledRepo := map[string]bool{}
 	for _, repo := range config.Repos {
 		enabledRepo[repo] = true
 	}
-	return &Chaser{
+
+	return &FlakeManager{
 		gc:           gc,
 		store:        store,
 		cache:        cache,
@@ -64,8 +65,8 @@ func New(gc *gh.ThrottledClient, store storage.Store, cache *cache.Cache, config
 }
 
 // Chase does the nagging
-func (c *Chaser) Chase(context context.Context) {
-	issues, err := c.store.QueryTestFlakeIssues(context, c.inactiveDays, c.createdDays)
+func (fm *FlakeManager) Chase(context context.Context) {
+	issues, err := fm.store.QueryTestFlakeIssues(context, fm.inactiveDays, fm.createdDays)
 	if err != nil {
 		scope.Errorf("Failed to read issue from storage: %v", err)
 		return
@@ -74,30 +75,30 @@ func (c *Chaser) Chase(context context.Context) {
 	scope.Infof("Found %v potential issues", len(issues))
 	for _, issue := range issues {
 		comment := &github.IssueComment{
-			Body: &c.message,
+			Body: &fm.message,
 		}
-		repo, err := c.cache.ReadRepo(context, issue.OrgLogin, issue.RepoName)
+		repo, err := fm.cache.ReadRepo(context, issue.OrgLogin, issue.RepoName)
 		if err != nil {
 			scope.Errorf("Failed to look up the repo: %v", err)
 			continue
 		}
-		org, err := c.cache.ReadOrg(context, issue.OrgLogin)
+		org, err := fm.cache.ReadOrg(context, issue.OrgLogin)
 		if err != nil {
 			scope.Errorf("Failed to read the repo: %v", err)
 			continue
 		}
 		repoURI := fmt.Sprintf("%v/%v", org.OrgLogin, repo.RepoName)
-		if _, ok := c.repos[repoURI]; !ok {
+		if _, ok := fm.repos[repoURI]; !ok {
 			scope.Infof("Uninterested repo %v, skipping...", repoURI)
 			continue
 		}
 		url := fmt.Sprintf("https://github.com/%v/%v/issues/%v", org.OrgLogin, repo.RepoName, issue.IssueNumber)
 		scope.Infof("About to nag test flaky issue with %v", url)
-		if c.dryRun {
+		if fm.dryRun {
 			continue
 		}
 
-		_, _, err = c.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+		_, _, err = fm.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.Issues.CreateComment(
 				context, org.OrgLogin, repo.RepoName, int(issue.IssueNumber), comment)
 		})

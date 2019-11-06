@@ -75,7 +75,7 @@ func New(router *mux.Router, store storage.Store, cache *cache.Cache, a *config.
 		errorTemplates:   template.Must(template.New("base").Parse(layout.BaseTemplate)),
 		router:           router,
 		options:          Options{"istio"}, // TODO: get rid of Istio default
-		oauthHandler:     newOAuthHandler(a.StartupOptions.GitHubOAuthClientID, a.StartupOptions.GitHubOAuthClientSecret),
+		oauthHandler:     newOAuthHandler(a.Secrets.GitHubOAuthClientID, a.Secrets.GitHubOAuthClientSecret),
 		entryMap:         make(map[*mux.Route]*sidebarEntry),
 	}
 
@@ -114,8 +114,8 @@ func New(router *mux.Router, store storage.Store, cache *cache.Cache, a *config.
 	d.registerStaticDir("dashboard/static/favicons", "/favicons/")
 
 	// topics
-	maintainers := maintainers.New(store, cache, a.CacheTTL, time.Duration(a.MaintainerActivityWindow), a.DefaultOrg)
-	members := members.New(store, cache, a.CacheTTL, time.Duration(a.MemberActivityWindow), a.DefaultOrg, a.Orgs)
+	maintainers := maintainers.New(store, cache, time.Duration(a.CacheTTL), time.Duration(a.MaintainerActivityWindow), a.DefaultOrg)
+	members := members.New(store, cache, time.Duration(a.CacheTTL), time.Duration(a.MemberActivityWindow), a.DefaultOrg, a.Orgs)
 	issues := issues.New(store, cache, a.DefaultOrg)
 	pullRequests := pullrequests.New(store, cache)
 	perf := perf.New(store, cache)
@@ -158,6 +158,15 @@ func New(router *mux.Router, store storage.Store, cache *cache.Cache, a *config.
 		endEntry().
 		addEntry("Open Issues", "List of all open issues").
 		addPageWithQuery("/issues", "option", "list", issues.RenderList).
+		endEntry().
+		addEntry("Issues Needing Escalation", "List of all open issues needing escalation").
+		addPageWithQuery("/issues", "option", "escalation", issues.RenderNeedsEscalation).
+		endEntry().
+		addEntry("Issues Needing Triage", "List of all open issues needing triage").
+		addPageWithQuery("/issues", "option", "triage", issues.RenderTriage).
+		endEntry().
+		addEntry("Stale Issues", "List of all open issues marked stale").
+		addPageWithQuery("/issues", "option", "stale", issues.RenderStale).
 		endEntry().
 		addPage("/issues", issues.RenderSummary).
 		endEntry()

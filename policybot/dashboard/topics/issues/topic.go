@@ -19,16 +19,15 @@ package issues
 import (
 	"context"
 	"net/http"
+	"sort"
 	"strings"
 	"text/template"
 	"time"
 
 	"istio.io/bots/policybot/dashboard/types"
-
-	"istio.io/bots/policybot/pkg/util"
-
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
+	"istio.io/bots/policybot/pkg/util"
 )
 
 // Issues lets users visualize critical information about outstanding issues.
@@ -62,6 +61,17 @@ type issueCountByMonth struct {
 	Counts   []int
 }
 
+type listInfo struct {
+	Title      string
+	Issues     []issueInfo
+	AreaCounts []areaCount
+}
+
+type areaCount struct {
+	Area  string
+	Count int
+}
+
 // New creates a new Issues instance.
 func New(store storage.Store, cache *cache.Cache, defaultOrg string) *Issues {
 	return &Issues{
@@ -79,13 +89,100 @@ func (i *Issues) RenderList(req *http.Request) (types.RenderInfo, error) {
 		orgLogin = i.defaultOrg
 	}
 
-	mi, err := i.getOpenIssues(req.Context(), orgLogin)
+	mi, ac, err := i.getOpenIssues(req.Context(), orgLogin, "all")
 	if err != nil {
 		return types.RenderInfo{}, err
 	}
 
+	li := &listInfo{
+		Title:      "All Open Issues",
+		Issues:     mi,
+		AreaCounts: ac,
+	}
+
 	var sb strings.Builder
-	if err := i.list.Execute(&sb, mi); err != nil {
+	if err := i.list.Execute(&sb, li); err != nil {
+		return types.RenderInfo{}, err
+	}
+
+	return types.RenderInfo{
+		Content: sb.String(),
+	}, nil
+}
+
+func (i *Issues) RenderNeedsEscalation(req *http.Request) (types.RenderInfo, error) {
+	orgLogin := req.URL.Query().Get("org")
+	if orgLogin == "" {
+		orgLogin = i.defaultOrg
+	}
+
+	mi, ac, err := i.getOpenIssues(req.Context(), orgLogin, "escalation")
+	if err != nil {
+		return types.RenderInfo{}, err
+	}
+
+	li := &listInfo{
+		Title:      "All Issues Needing Escalation",
+		Issues:     mi,
+		AreaCounts: ac,
+	}
+
+	var sb strings.Builder
+	if err := i.list.Execute(&sb, li); err != nil {
+		return types.RenderInfo{}, err
+	}
+
+	return types.RenderInfo{
+		Content: sb.String(),
+	}, nil
+}
+
+func (i *Issues) RenderTriage(req *http.Request) (types.RenderInfo, error) {
+	orgLogin := req.URL.Query().Get("org")
+	if orgLogin == "" {
+		orgLogin = i.defaultOrg
+	}
+
+	mi, ac, err := i.getOpenIssues(req.Context(), orgLogin, "triage")
+	if err != nil {
+		return types.RenderInfo{}, err
+	}
+
+	li := &listInfo{
+		Title:      "All Issues Needing Triage",
+		Issues:     mi,
+		AreaCounts: ac,
+	}
+
+	var sb strings.Builder
+	if err := i.list.Execute(&sb, li); err != nil {
+		return types.RenderInfo{}, err
+	}
+
+	return types.RenderInfo{
+		Content: sb.String(),
+	}, nil
+}
+
+func (i *Issues) RenderStale(req *http.Request) (types.RenderInfo, error) {
+	orgLogin := req.URL.Query().Get("org")
+	if orgLogin == "" {
+		orgLogin = i.defaultOrg
+	}
+
+	mi, ac, err := i.getOpenIssues(req.Context(), orgLogin, "stale")
+	if err != nil {
+		return types.RenderInfo{}, err
+	}
+
+	li := &listInfo{
+		Title:      "All Stale Issues",
+		Issues:     mi,
+		AreaCounts: ac,
+	}
+
+	var sb strings.Builder
+	if err := i.list.Execute(&sb, li); err != nil {
 		return types.RenderInfo{}, err
 	}
 
@@ -115,16 +212,65 @@ func (i *Issues) RenderSummary(req *http.Request) (types.RenderInfo, error) {
 	}, nil
 }
 
-func (i *Issues) getOpenIssues(context context.Context, orgLogin string) ([]issueInfo, error) {
+func (i *Issues) getOpenIssues(context context.Context, orgLogin string, kind string) ([]issueInfo, []areaCount, error) {
 	org, err := i.cache.ReadOrg(context, orgLogin)
 	if err != nil {
-		return nil, util.HTTPErrorf(http.StatusInternalServerError, "unable to get information on organization %s: %v", orgLogin, err)
+		return nil, nil, util.HTTPErrorf(http.StatusInternalServerError, "unable to get information on organization %s: %v", orgLogin, err)
 	} else if org == nil {
-		return nil, util.HTTPErrorf(http.StatusNotFound, "no information available on organization %s", orgLogin)
+		return nil, nil, util.HTTPErrorf(http.StatusNotFound, "no information available on organization %s", orgLogin)
 	}
+
+	areas := make(map[string]int)
 
 	var issues []issueInfo
 	if err = i.store.QueryOpenIssues(context, org.OrgLogin, func(issue *storage.Issue) error {
+
+		keep := false
+		switch kind {
+		case "escalation":
+			for _, lb := range issue.Labels {
+				if lb == "lifecycle/needs-escalation" {
+					keep = true
+					break
+				}
+			}
+
+		case "triage":
+			for _, lb := range issue.Labels {
+				if lb == "lifecycle/needs-triage" {
+					keep = true
+					break
+				}
+			}
+
+		case "stale":
+			for _, lb := range issue.Labels {
+				if lb == "lifecycle/stale" {
+					keep = true
+					break
+				}
+			}
+		}
+
+		if !keep {
+			return nil
+		}
+
+		foundArea := false
+		for _, lb := range issue.Labels {
+			if strings.HasPrefix(lb, "area/") {
+				name := lb[5:]
+				count := areas[name]
+				areas[name] = count + 1
+				foundArea = true
+			}
+		}
+
+		if !foundArea {
+			count := areas["unassigned"]
+			areas["unassigned"] = count + 1
+		}
+
 		assignees := ""
 		for _, assignee := range issue.Assignees {
 			if assignees != "" {
@@ -148,10 +294,18 @@ func (i *Issues) getOpenIssues(context context.Context, orgLogin string) ([]issu
 
 		return nil
 	}); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return issues, nil
+	ac := make([]areaCount, 0, len(areas))
+	for name, count := range areas {
+		ac = append(ac, areaCount{Area: name, Count: count})
+	}
+	sort.Slice(ac, func(i, j int) bool {
+		return strings.Compare(ac[i].Area, ac[j].Area) < 0
+	})
+
+	return issues, ac, nil
 }
 
 func (i *Issues) getIssuesSummary(context context.Context, orgLogin string) (issuesSummary, error) {

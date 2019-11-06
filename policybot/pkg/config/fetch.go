@@ -23,26 +23,26 @@ import (
 	"github.com/ghodss/yaml"
 )
 
-// Given a partially initialize config arg, load a local file or GitHub-based file
+// Given a partially initialized config arg, load a local file or GitHub-based file
 // to fill in the rest. Any data not specified in the input file will be left intact.
 func (a *Args) Fetch() error {
-	if a.StartupOptions.ConfigFile == "" {
+	if a.ConfigFile == "" {
 		return errors.New("no configuration file supplied")
 	}
 
 	var b []byte
 	var err error
 
-	if a.StartupOptions.ConfigRepo == "" {
-		if b, err = ioutil.ReadFile(a.StartupOptions.ConfigFile); err != nil {
-			return fmt.Errorf("unable to read configuration file %s: %v", a.StartupOptions.ConfigFile, err)
+	if a.ConfigRepo == "" {
+		if b, err = ioutil.ReadFile(a.ConfigFile); err != nil {
+			return fmt.Errorf("unable to read configuration file %s: %v", a.ConfigFile, err)
 		}
 
 		if err = yaml.Unmarshal(b, &a); err != nil {
-			return fmt.Errorf("unable to parse configuration file %s: %v", a.StartupOptions.ConfigFile, err)
+			return fmt.Errorf("unable to parse configuration file %s: %v", a.ConfigFile, err)
 		}
 	} else {
-		url := "https://raw.githubusercontent.com/" + a.StartupOptions.ConfigRepo + "/" + a.StartupOptions.ConfigFile
+		url := "https://raw.githubusercontent.com/" + a.ConfigRepo + "/" + a.ConfigFile
 		r, err := http.Get(url)
 		if err != nil {
 			return fmt.Errorf("unable to fetch configuration file from %s: %v", url, err)

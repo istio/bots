@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package labelmaker
+package labelmgr
 
 import (
 	"context"
@@ -25,22 +25,22 @@ import (
 	"istio.io/pkg/log"
 )
 
-// LabelMaker creates labels in GitHub repos
-type LabelMaker struct {
+// LabelMgr creates labels in GitHub repos
+type LabelMgr struct {
 	gc   *gh.ThrottledClient
 	args *config.Args
 }
 
-var scope = log.RegisterScope("labelmaker", "The label maker", 0)
+var scope = log.RegisterScope("labelmgr", "The GitHub label manager", 0)
 
-func New(gc *gh.ThrottledClient, args *config.Args) *LabelMaker {
-	return &LabelMaker{
+func New(gc *gh.ThrottledClient, args *config.Args) *LabelMgr {
+	return &LabelMgr{
 		gc:   gc,
 		args: args,
 	}
 }
 
-func (lm *LabelMaker) MakeConfiguredLabels(context context.Context) error {
+func (lm *LabelMgr) MakeConfiguredLabels(context context.Context) error {
 	for _, org := range lm.args.Orgs {
 		for _, repo := range org.Repos {
 			// global
@@ -72,7 +72,7 @@ func (lm *LabelMaker) MakeConfiguredLabels(context context.Context) error {
 	return nil
 }
 
-func (lm *LabelMaker) makeLabel(context context.Context, orgLogin string, repoName string, label config.Label) error {
+func (lm *LabelMgr) makeLabel(context context.Context, orgLogin string, repoName string, label config.Label) error {
 	_, _, err := lm.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 		return client.Issues.CreateLabel(context, orgLogin, repoName, &github.Label{
 			Name:        &label.Name,

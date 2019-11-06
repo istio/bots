@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package unstaler
+package lifecyclerfilter
 
 import (
 	"context"
@@ -20,26 +20,26 @@ import (
 	"github.com/google/go-github/v26/github"
 
 	"istio.io/bots/policybot/handlers/githubwebhook/filters"
+	"istio.io/bots/policybot/mgrs/lifecyclemgr"
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
+	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/pkg/log"
 )
 
-// Removes the staleness label and comments from issues and prs when activity is detected
-type Unstaler struct {
-	gc    *gh.ThrottledClient
-	repos map[string]bool
+type LifecyclerFilter struct {
+	gc         *gh.ThrottledClient
+	repos      map[string]bool
+	lifecycler *lifecyclemgr.LifecycleMgr
 }
 
-const stalenessLabel = "stale"
-const stalenessSignature = "\n\n_Courtesy of your friendly freshness tracker_."
+var scope = log.RegisterScope("lifecyclerFilter", "Handles lifecycle events for PRs or issues", 0)
 
-var scope = log.RegisterScope("unstale", "Removes the stale label when activity is detected on a PR or issue", 0)
-
-func NewUnstaler(gc *gh.ThrottledClient, orgs []config.Org) (filters.Filter, error) {
-	u := &Unstaler{
-		gc:    gc,
-		repos: make(map[string]bool),
+func NewLifecyclerFilter(gc *gh.ThrottledClient, orgs []config.Org, lifecycler *lifecyclemgr.LifecycleMgr) filters.Filter {
+	u := &LifecyclerFilter{
+		gc:         gc,
+		repos:      make(map[string]bool),
+		lifecycler: lifecycler,
 	}
 
 	for _, org := range orgs {
@@ -48,24 +48,30 @@ func NewUnstaler(gc *gh.ThrottledClient, orgs []config.Org) (filters.Filter, err
 		}
 	}
 
-	return u, nil
+	return u
 }
 
 // process an event arriving from GitHub
-func (u *Unstaler) Handle(context context.Context, event interface{}) {
+func (lf *LifecyclerFilter) Handle(context context.Context, event interface{}) {
 	action := ""
 	orgLogin := ""
 	repoName := ""
 	number := 0
+
+	var issue *storage.Issue
+	var pr *storage.PullRequest
 
 	switch p := event.(type) {
 	case *github.IssuesEvent:
 		scope.Infof("Received IssuesEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetIssue().GetNumber(), p.GetAction())
 
 		action = p.GetAction()
-		orgLogin = p.GetRepo().GetOwner().GetLogin()
-		repoName = p.GetRepo().GetName()
+		repoName = p.GetRepo().GetFullName()
 		number = p.GetIssue().GetNumber()
+		issue = gh.ConvertIssue(
+			p.GetRepo().GetOwner().GetLogin(),
+			p.GetRepo().GetName(),
+			p.GetIssue())
 
 	case *github.IssueCommentEvent:
 		scope.Infof("Received IssueCommentEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetIssue().GetNumber(), p.GetAction())
@@ -74,14 +80,22 @@ func (u *Unstaler) Handle(context context.Context, event interface{}) {
 		orgLogin = p.GetRepo().GetOwner().GetLogin()
 		repoName = p.GetRepo().GetName()
 		number = p.GetIssue().GetNumber()
+		issue = gh.ConvertIssue(
+			p.GetRepo().GetOwner().GetLogin(),
+			p.GetRepo().GetName(),
+			p.GetIssue())
 
 	case *github.PullRequestEvent:
 		scope.Infof("Received PullRequestEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetPullRequest().GetNumber(), p.GetAction())
 
 		action = p.GetAction()
-		orgLogin = p.GetRepo().GetOwner().GetLogin()
-		repoName = p.GetRepo().GetName()
+		repoName = p.GetRepo().GetFullName()
 		number = p.GetPullRequest().GetNumber()
+		pr = gh.ConvertPullRequest(
+			p.GetRepo().GetOwner().GetLogin(),
+			p.GetRepo().GetName(),
+			p.GetPullRequest(),
+			nil)
 
 	case *github.PullRequestReviewEvent:
 		scope.Infof("Received PullRequestReviewEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetPullRequest().GetNumber(), p.GetAction())
@@ -90,6 +104,11 @@ func (u *Unstaler) Handle(context context.Context, event interface{}) {
 		orgLogin = p.GetRepo().GetOwner().GetLogin()
 		repoName = p.GetRepo().GetName()
 		number = p.GetPullRequest().GetNumber()
+		pr = gh.ConvertPullRequest(
+			p.GetRepo().GetOwner().GetLogin(),
+			p.GetRepo().GetName(),
+			p.GetPullRequest(),
+			nil)
 
 	case *github.PullRequestReviewCommentEvent:
 		scope.Infof("Received PullRequestReviewCommentEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetPullRequest().GetNumber(), p.GetAction())
@@ -98,6 +117,11 @@ func (u *Unstaler) Handle(context context.Context, event interface{}) {
 		orgLogin = p.GetRepo().GetOwner().GetLogin()
 		repoName = p.GetRepo().GetName()
 		number = p.GetPullRequest().GetNumber()
+		pr = gh.ConvertPullRequest(
+			p.GetRepo().GetOwner().GetLogin(),
+			p.GetRepo().GetName(),
+			p.GetPullRequest(),
+			nil)
 
 	default:
 		// not what we're looking for
@@ -106,21 +130,19 @@ func (u *Unstaler) Handle(context context.Context, event interface{}) {
 	}
 
 	// see if the event is in a repo we're monitoring
-	if !u.repos[repoName+"/"+orgLogin] {
+	if !lf.repos[orgLogin+"/"+repoName] {
 		scope.Infof("Ignoring event for issue/PR %d from repo %s/%s since it's not in a monitored repo", number, orgLogin, repoName)
 		return
 	}
 
-	scope.Infof("Processing event for issue/PR %d from repo %s/%s, %s", number, repoName, orgLogin, action)
+	if issue != nil {
+		scope.Infof("Processing event for issue %d from repo %s/%s, %s", number, repoName, orgLogin, action)
 
-	if _, err := u.gc.ThrottledCallNoResult(func(client *github.Client) (*github.Response, error) {
-		return client.Issues.RemoveLabelForIssue(context, orgLogin, repoName, number, stalenessLabel)
-	}); err != nil {
-		scope.Errorf("Unable to remove staleness label on issue/PR %d in repo %s/%s: %v", number, orgLogin, repoName, err)
-		return
-	}
-
-	if err := gh.RemoveBotComment(context, u.gc, orgLogin, repoName, number, stalenessSignature); err != nil {
-		scope.Error(err.Error())
+		if err := lf.lifecycler.ManageIssue(context, issue); err != nil {
+			scope.Errorf("%v", err)
+		}
+	} else if pr != nil {
+		// TODO
+		_ = pr
 	}
 }

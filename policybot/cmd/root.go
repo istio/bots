@@ -36,11 +36,12 @@ func GetRootCmd(args []string) *cobra.Command {
 	rootCmd.PersistentFlags().AddGoFlagSet(flag.CommandLine)
 
 	rootCmd.AddCommand(serverCmd())
-	rootCmd.AddCommand(syncerCmd())
-	rootCmd.AddCommand(flakeChaserCmd())
-	rootCmd.AddCommand(labelMakerCmd())
-	rootCmd.AddCommand(milestoneMakerCmd())
-	rootCmd.AddCommand(userdataCmd())
+	rootCmd.AddCommand(syncMgrCmd())
+	rootCmd.AddCommand(flakeMgrCmd())
+	rootCmd.AddCommand(labelMgrCmd())
+	rootCmd.AddCommand(milestoneMgrCmd())
+	rootCmd.AddCommand(userdataMgrCmd())
+	rootCmd.AddCommand(lifecycleMgrCmd())
 	rootCmd.AddCommand(version.CobraCommand())
 
 	return rootCmd
