@@ -66,6 +66,12 @@ flakechaser:
     - "istio/istio"
 
 autolabels:
+  - name: Chinese
+    matchtitle:
+      - "^zh:.*"
+    labelstoapply:
+      - translation/chinese
+
   - name: Config
     matchbody:
       - "\\[ ?x ?\\] ?Configuration"
