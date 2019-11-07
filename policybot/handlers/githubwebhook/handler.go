@@ -15,11 +15,11 @@
 package githubwebhook
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/google/go-github/v26/github"
 
-	"istio.io/bots/policybot/handlers/githubwebhook/filters"
 	"istio.io/bots/policybot/pkg/util"
 	"istio.io/pkg/log"
 )
@@ -29,10 +29,18 @@ var scope = log.RegisterScope("githubwebhook", "GitHub webhook handler", 0)
 // Decodes and dispatches GitHub webhook calls
 type handler struct {
 	secret  []byte
-	filters []filters.Filter
+	filters []Filter
 }
 
-func NewHandler(githubWebhookSecret string, filters ...filters.Filter) http.Handler {
+// The interface to a GitHub webhook filter.
+//
+// Note that individual filters are invoked for any events incoming to the
+// bot.
+type Filter interface {
+	Handle(context context.Context, event interface{})
+}
+
+func NewHandler(githubWebhookSecret string, filters ...Filter) http.Handler {
 	return &handler{
 		secret:  []byte(githubWebhookSecret),
 		filters: filters,

@@ -130,6 +130,8 @@ func (lm *LifecycleMgr) manageIssue(context context.Context, issue *storage.Issu
 	}
 
 	if issue.State == "closed" {
+		scope.Infof("Issue/PR %d in repo %s/%s is closed, doing label cleanup and returning", issue.IssueNumber, issue.OrgLogin, issue.RepoName)
+
 		if hasTriageLabel {
 			_ = lm.removeLabel(context, issue, lm.config.TriageLabel)
 		}
@@ -268,6 +270,18 @@ func (lm *LifecycleMgr) manageIssue(context context.Context, issue *storage.Issu
 		if err := lm.addLabel(context, issue, lm.config.StaleLabel); err != nil {
 			return err
 		}
+	} else {
+		// remove stale label
+		if hasStaleLabel {
+			if err := lm.removeLabel(context, issue, lm.config.StaleLabel); err != nil {
+				return err
+			}
+		}
+
+		// remove staleness comment
+		if err := lm.removeComment(context, issue); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -386,7 +400,7 @@ func needsTriage(pipeline *storage.IssuePipeline, latestMemberComment time.Time,
 
 func (lm *LifecycleMgr) needsEscalation(pipeline *storage.IssuePipeline, latestMemberCommentDelta time.Duration) bool {
 	if highPriority(pipeline) {
-		// needs ecalation is no team member has commented on the item in the allowed escalation delay
+		// needs escalation if no team member has commented on the item in the allowed escalation delay
 		if latestMemberCommentDelta > time.Duration(lm.config.EscalationDelay) {
 			return true
 		}

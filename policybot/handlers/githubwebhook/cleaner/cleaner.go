@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package boilerplatecleaner
+package cleaner
 
 import (
 	"context"
@@ -20,9 +20,10 @@ import (
 	"regexp"
 	"strings"
 
+	"istio.io/bots/policybot/handlers/githubwebhook"
+
 	"github.com/google/go-github/v26/github"
 
-	"istio.io/bots/policybot/handlers/githubwebhook/filters"
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage"
@@ -40,7 +41,7 @@ type Cleaner struct {
 
 var scope = log.RegisterScope("cleaner", "Issue and PR boilerplate cleaner", 0)
 
-func New(gc *gh.ThrottledClient, orgs []config.Org, boilerplates []config.Boilerplate) (filters.Filter, error) {
+func New(gc *gh.ThrottledClient, orgs []config.Org, boilerplates []config.Boilerplate) (githubwebhook.Filter, error) {
 	l := &Cleaner{
 		gc:               gc,
 		orgs:             orgs,

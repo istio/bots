@@ -12,34 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package lifecyclerfilter
+package lifecycler
 
 import (
 	"context"
 
 	"github.com/google/go-github/v26/github"
 
-	"istio.io/bots/policybot/handlers/githubwebhook/filters"
+	"istio.io/bots/policybot/handlers/githubwebhook"
 	"istio.io/bots/policybot/mgrs/lifecyclemgr"
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage"
+	"istio.io/bots/policybot/pkg/storage/cache"
 	"istio.io/pkg/log"
 )
 
-type LifecyclerFilter struct {
+type Lifecycler struct {
 	gc         *gh.ThrottledClient
 	repos      map[string]bool
 	lifecycler *lifecyclemgr.LifecycleMgr
+	cache      *cache.Cache
 }
 
-var scope = log.RegisterScope("lifecyclerFilter", "Handles lifecycle events for PRs or issues", 0)
+var scope = log.RegisterScope("lifecycler", "Handles lifecycle events for PRs or issues", 0)
 
-func NewLifecyclerFilter(gc *gh.ThrottledClient, orgs []config.Org, lifecycler *lifecyclemgr.LifecycleMgr) filters.Filter {
-	u := &LifecyclerFilter{
+func New(gc *gh.ThrottledClient, orgs []config.Org, lifecycler *lifecyclemgr.LifecycleMgr, cache *cache.Cache) githubwebhook.Filter {
+	u := &Lifecycler{
 		gc:         gc,
 		repos:      make(map[string]bool),
 		lifecycler: lifecycler,
+		cache:      cache,
 	}
 
 	for _, org := range orgs {
@@ -52,7 +55,7 @@ func NewLifecyclerFilter(gc *gh.ThrottledClient, orgs []config.Org, lifecycler *
 }
 
 // process an event arriving from GitHub
-func (lf *LifecyclerFilter) Handle(context context.Context, event interface{}) {
+func (l *Lifecycler) Handle(context context.Context, event interface{}) {
 	action := ""
 	orgLogin := ""
 	repoName := ""
@@ -60,11 +63,13 @@ func (lf *LifecyclerFilter) Handle(context context.Context, event interface{}) {
 
 	var issue *storage.Issue
 	var pr *storage.PullRequest
+	var sender *github.User
 
 	switch p := event.(type) {
 	case *github.IssuesEvent:
 		scope.Infof("Received IssuesEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetIssue().GetNumber(), p.GetAction())
 
+		sender = p.GetSender()
 		action = p.GetAction()
 		repoName = p.GetRepo().GetFullName()
 		number = p.GetIssue().GetNumber()
@@ -76,6 +81,7 @@ func (lf *LifecyclerFilter) Handle(context context.Context, event interface{}) {
 	case *github.IssueCommentEvent:
 		scope.Infof("Received IssueCommentEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetIssue().GetNumber(), p.GetAction())
 
+		sender = p.GetSender()
 		action = p.GetAction()
 		orgLogin = p.GetRepo().GetOwner().GetLogin()
 		repoName = p.GetRepo().GetName()
@@ -88,6 +94,7 @@ func (lf *LifecyclerFilter) Handle(context context.Context, event interface{}) {
 	case *github.PullRequestEvent:
 		scope.Infof("Received PullRequestEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetPullRequest().GetNumber(), p.GetAction())
 
+		sender = p.GetSender()
 		action = p.GetAction()
 		repoName = p.GetRepo().GetFullName()
 		number = p.GetPullRequest().GetNumber()
@@ -100,6 +107,7 @@ func (lf *LifecyclerFilter) Handle(context context.Context, event interface{}) {
 	case *github.PullRequestReviewEvent:
 		scope.Infof("Received PullRequestReviewEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetPullRequest().GetNumber(), p.GetAction())
 
+		sender = p.GetSender()
 		action = p.GetAction()
 		orgLogin = p.GetRepo().GetOwner().GetLogin()
 		repoName = p.GetRepo().GetName()
@@ -113,6 +121,7 @@ func (lf *LifecyclerFilter) Handle(context context.Context, event interface{}) {
 	case *github.PullRequestReviewCommentEvent:
 		scope.Infof("Received PullRequestReviewCommentEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetPullRequest().GetNumber(), p.GetAction())
 
+		sender = p.GetSender()
 		action = p.GetAction()
 		orgLogin = p.GetRepo().GetOwner().GetLogin()
 		repoName = p.GetRepo().GetName()
@@ -130,15 +139,31 @@ func (lf *LifecyclerFilter) Handle(context context.Context, event interface{}) {
 	}
 
 	// see if the event is in a repo we're monitoring
-	if !lf.repos[orgLogin+"/"+repoName] {
+	if !l.repos[orgLogin+"/"+repoName] {
 		scope.Infof("Ignoring event for issue/PR %d from repo %s/%s since it's not in a monitored repo", number, orgLogin, repoName)
 		return
 	}
 
 	if issue != nil {
-		scope.Infof("Processing event for issue %d from repo %s/%s, %s", number, repoName, orgLogin, action)
+		if sender != nil {
+			user := sender.GetLogin()
 
-		if err := lf.lifecycler.ManageIssue(context, issue); err != nil {
+			member, err := l.cache.ReadMember(context, issue.OrgLogin, user)
+			if err != nil {
+				scope.Errorf("Unable to read member information about %s from org %s: %v", user, issue.OrgLogin, err)
+				return
+			}
+
+			if member == nil {
+				// if event is not from a member, it won't affect the lifecycle so return promptly
+				scope.Infof("Ignoring event for issue/PR %d from repo %s/%s since it wasn't caused by an org member", number, orgLogin, repoName)
+				return
+			}
+		}
+
+		scope.Infof("Processing event for issue %d from repo %s/%s, %s, labels %v", number, repoName, orgLogin, action, issue.Labels)
+
+		if err := l.lifecycler.ManageIssue(context, issue); err != nil {
 			scope.Errorf("%v", err)
 		}
 	} else if pr != nil {

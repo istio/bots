@@ -21,7 +21,7 @@ import (
 
 	"github.com/google/go-github/v26/github"
 
-	"istio.io/bots/policybot/handlers/githubwebhook/filters"
+	"istio.io/bots/policybot/handlers/githubwebhook"
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage"
@@ -44,7 +44,7 @@ const nagSignature = "\n\n_Courtesy of your friendly test nag_."
 
 var scope = log.RegisterScope("nagger", "The GitHub test nagger", 0)
 
-func NewNagger(gc *gh.ThrottledClient, cache *cache.Cache, orgs []config.Org, nags []config.Nag) (filters.Filter, error) {
+func NewNagger(gc *gh.ThrottledClient, cache *cache.Cache, orgs []config.Org, nags []config.Nag) (githubwebhook.Filter, error) {
 	n := &Nagger{
 		cache:             cache,
 		gc:                gc,
