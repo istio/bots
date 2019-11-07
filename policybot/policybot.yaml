@@ -336,3 +336,4 @@ orgs:
       - name: pkg
       - name: bots
       - name: common-files
+      - name: bottestrepo

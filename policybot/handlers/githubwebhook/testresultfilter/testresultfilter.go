@@ -17,6 +17,8 @@ package testresultfilter
 import (
 	"context"
 
+	"istio.io/bots/policybot/handlers/githubwebhook"
+
 	"istio.io/bots/policybot/pkg/blobstorage"
 	"istio.io/bots/policybot/pkg/coverage"
 	"istio.io/bots/policybot/pkg/gh"
@@ -24,7 +26,6 @@ import (
 
 	"github.com/google/go-github/v26/github"
 
-	"istio.io/bots/policybot/handlers/githubwebhook/filters"
 	"istio.io/bots/policybot/pkg/config"
 	gatherer "istio.io/bots/policybot/pkg/resultgatherer"
 	"istio.io/bots/policybot/pkg/storage/cache"
@@ -45,13 +46,7 @@ type TestResultFilter struct {
 
 var scope = log.RegisterScope("testresultfilter", "Result filter for each pr test run", 0)
 
-func NewTestResultFilter(
-	cache *cache.Cache,
-	orgs []config.Org,
-	gc *gh.ThrottledClient,
-	client blobstorage.Store,
-	storageClient storage.Store,
-) filters.Filter {
+func New(cache *cache.Cache, orgs []config.Org, gc *gh.ThrottledClient, client blobstorage.Store, storageClient storage.Store) githubwebhook.Filter {
 	r := &TestResultFilter{
 		repos: make(map[string]testHandlers),
 		cache: cache,

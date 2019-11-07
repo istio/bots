@@ -21,7 +21,7 @@ import (
 
 	"github.com/google/go-github/v26/github"
 
-	"istio.io/bots/policybot/handlers/githubwebhook/filters"
+	"istio.io/bots/policybot/handlers/githubwebhook"
 	"istio.io/pkg/log"
 )
 
@@ -36,7 +36,7 @@ type Monitor struct {
 
 var scope = log.RegisterScope("monitor", "Listens for changes in policybot config", 0)
 
-func NewMonitor(repo string, file string, notify func()) (filters.Filter, error) {
+func NewMonitor(repo string, file string, notify func()) (githubwebhook.Filter, error) {
 	if repo == "" {
 		// disable everything if we don't have a repo
 		return &Monitor{}, nil

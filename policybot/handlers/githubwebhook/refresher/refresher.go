@@ -17,9 +17,10 @@ package refresher
 import (
 	"context"
 
+	"istio.io/bots/policybot/handlers/githubwebhook"
+
 	"github.com/google/go-github/v26/github"
 
-	"istio.io/bots/policybot/handlers/githubwebhook/filters"
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage"
@@ -37,7 +38,7 @@ type Refresher struct {
 
 var scope = log.RegisterScope("refresher", "Dynamic database refresher", 0)
 
-func NewRefresher(cache *cache.Cache, store storage.Store, gc *gh.ThrottledClient, orgs []config.Org) filters.Filter {
+func NewRefresher(cache *cache.Cache, store storage.Store, gc *gh.ThrottledClient, orgs []config.Org) githubwebhook.Filter {
 	r := &Refresher{
 		repos: make(map[string]bool),
 		cache: cache,

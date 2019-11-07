@@ -27,14 +27,13 @@ import (
 
 	"istio.io/bots/policybot/dashboard"
 	"istio.io/bots/policybot/handlers/githubwebhook"
-	"istio.io/bots/policybot/handlers/githubwebhook/filters"
-	"istio.io/bots/policybot/handlers/githubwebhook/filters/boilerplatecleaner"
-	"istio.io/bots/policybot/handlers/githubwebhook/filters/cfgmonitor"
-	"istio.io/bots/policybot/handlers/githubwebhook/filters/labeler"
-	"istio.io/bots/policybot/handlers/githubwebhook/filters/lifecyclerfilter"
-	"istio.io/bots/policybot/handlers/githubwebhook/filters/nagger"
-	"istio.io/bots/policybot/handlers/githubwebhook/filters/refresher"
-	"istio.io/bots/policybot/handlers/githubwebhook/filters/testresultfilter"
+	"istio.io/bots/policybot/handlers/githubwebhook/cfgmonitor"
+	"istio.io/bots/policybot/handlers/githubwebhook/cleaner"
+	"istio.io/bots/policybot/handlers/githubwebhook/labeler"
+	"istio.io/bots/policybot/handlers/githubwebhook/lifecycler"
+	"istio.io/bots/policybot/handlers/githubwebhook/nagger"
+	"istio.io/bots/policybot/handlers/githubwebhook/refresher"
+	"istio.io/bots/policybot/handlers/githubwebhook/testresultfilter"
 	"istio.io/bots/policybot/handlers/zenhubwebhook"
 	"istio.io/bots/policybot/mgrs/lifecyclemgr"
 	"istio.io/bots/policybot/pkg/blobstorage/gcs"
@@ -154,7 +153,7 @@ func runWithConfig(a *config.Args) error {
 		return fmt.Errorf("unable to create labeler: %v", err)
 	}
 
-	cleaner, err := boilerplatecleaner.New(gc, a.Orgs, a.BoilerplatesToClean)
+	cleaner, err := cleaner.New(gc, a.Orgs, a.BoilerplatesToClean)
 	if err != nil {
 		return fmt.Errorf("unable to create boilerplate cleaner: %v", err)
 	}
@@ -186,17 +185,17 @@ func runWithConfig(a *config.Args) error {
 	lf := lifecyclemgr.New(gc, store, a)
 
 	// github webhook filters (keep refresher first in the list such that other filter see an up-to-date view in storage)
-	filters := []filters.Filter{
+	filters := []githubwebhook.Filter{
 		refresher.NewRefresher(cache, store, gc, a.Orgs),
 		nag,
-		lifecyclerfilter.NewLifecyclerFilter(gc, a.Orgs, lf),
+		lifecycler.New(gc, a.Orgs, lf, cache),
 		labeler,
 		cleaner,
 		monitor,
 	}
 
 	if a.EnableTestResultFilter {
-		testFilter := testresultfilter.NewTestResultFilter(cache, a.Orgs, gc, bs, store)
+		testFilter := testresultfilter.New(cache, a.Orgs, gc, bs, store)
 		filters = append(filters, testFilter)
 	}
 
