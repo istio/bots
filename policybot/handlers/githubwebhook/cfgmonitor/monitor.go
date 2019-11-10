@@ -59,7 +59,7 @@ func NewMonitor(repo string, file string, notify func()) (githubwebhook.Filter, 
 
 // monitor for changes to policybot's config file
 func (m *Monitor) Handle(context context.Context, event interface{}) {
-	pp, ok := event.(github.PushEvent)
+	pp, ok := event.(*github.PushEvent)
 	if !ok {
 		// not what we're looking for
 		return
@@ -101,5 +101,5 @@ func (m *Monitor) Handle(context context.Context, event interface{}) {
 		}
 	}
 
-	scope.Infof("No changes detected to a monitored file '%s'", m.file)
+	scope.Infof("No changes detected to the monitored file '%s'", m.file)
 }
