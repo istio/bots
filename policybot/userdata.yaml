@@ -945,3 +945,9 @@ users:
       - organization: Inspur
         start: "2019-01-01"
         end: "9999-01-01"
+
+  - github_login: anilutcs
+    affiliations:
+      - organization: Intuit
+        start: "2019-01-01"
+        end: "9999-01-01"

@@ -69,6 +69,8 @@ autolabels:
   - name: Chinese
     matchtitle:
       - "^zh:.*"
+      - "^zh-trans:.*"
+      - "^zh-translation:.*"
     labelstoapply:
       - translation/chinese
 
