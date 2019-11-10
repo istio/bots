@@ -18,12 +18,14 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"time"
 
 	"github.com/spf13/cobra"
 
 	"istio.io/bots/policybot/mgrs/lifecyclemgr"
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
+	"istio.io/bots/policybot/pkg/storage/cache"
 	"istio.io/bots/policybot/pkg/storage/spanner"
 )
 
@@ -48,6 +50,8 @@ func runLifecycleMgr(a *config.Args, _ []string) error {
 	}
 	defer store.Close()
 
-	mgr := lifecyclemgr.New(gc, store, a)
+	cache := cache.New(store, time.Duration(a.CacheTTL))
+
+	mgr := lifecyclemgr.New(gc, store, cache, a)
 	return mgr.ManageAll(context.Background())
 }

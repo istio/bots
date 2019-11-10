@@ -24,6 +24,7 @@ import (
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage"
+	"istio.io/bots/policybot/pkg/storage/cache"
 	"istio.io/pkg/log"
 )
 
@@ -31,6 +32,7 @@ import (
 type LifecycleMgr struct {
 	gc     *gh.ThrottledClient
 	store  storage.Store
+	cache  *cache.Cache
 	orgs   []config.Org
 	config *config.Lifecycle
 	dryrun bool
@@ -47,10 +49,11 @@ var scope = log.RegisterScope("lifecyclemgr", "The issue and pull request lifecy
 
 const botSignature = "\n\n_Created by the issue and PR lifecycle manager_."
 
-func New(gc *gh.ThrottledClient, store storage.Store, a *config.Args) *LifecycleMgr {
+func New(gc *gh.ThrottledClient, store storage.Store, cache *cache.Cache, a *config.Args) *LifecycleMgr {
 	return &LifecycleMgr{
 		gc:     gc,
 		store:  store,
+		cache:  cache,
 		orgs:   a.Orgs,
 		config: &a.Lifecycle,
 		dryrun: false,
@@ -158,12 +161,12 @@ func (lm *LifecycleMgr) manageIssue(context context.Context, issue *storage.Issu
 		latestMemberCommentDelta = now.Sub(issue.CreatedAt)
 	}
 
-	pipeline, err := lm.store.ReadIssuePipeline(context, issue.OrgLogin, issue.RepoName, int(issue.IssueNumber))
+	pipeline, err := lm.cache.ReadIssuePipeline(context, issue.OrgLogin, issue.RepoName, int(issue.IssueNumber))
 	if err != nil {
 		return fmt.Errorf("could not get issue pipeline data for issue/PR %d in repo %s/%s: %v", issue.IssueNumber, issue.OrgLogin, issue.RepoName, err)
 	}
 
-	pull, err := lm.store.ReadPullRequest(context, issue.OrgLogin, issue.RepoName, int(issue.IssueNumber))
+	pull, err := lm.cache.ReadPullRequest(context, issue.OrgLogin, issue.RepoName, int(issue.IssueNumber))
 	if err != nil {
 		return fmt.Errorf("could not get pr info for issue/PR %d in repo %s/%s: %v", issue.IssueNumber, issue.OrgLogin, issue.RepoName, err)
 	}
@@ -245,7 +248,7 @@ func (lm *LifecycleMgr) manageIssue(context context.Context, issue *storage.Issu
 		}
 
 		// add closing comment
-		if err := lm.addComment(context, issue, fmt.Sprintf(lm.config.CloseComment, closeDelay/(time.Hour*24)), "closing"); err != nil {
+		if err := lm.addComment(context, issue, fmt.Sprintf(lm.config.CloseComment, latestMemberComment), "closing"); err != nil {
 			return err
 		}
 
@@ -262,7 +265,7 @@ func (lm *LifecycleMgr) manageIssue(context context.Context, issue *storage.Issu
 		st.markedStale++
 
 		// add staleness comment
-		if err := lm.addComment(context, issue, fmt.Sprintf(lm.config.StaleComment, staleDelay/(time.Hour*24), closeDate), "staleness"); err != nil {
+		if err := lm.addComment(context, issue, fmt.Sprintf(lm.config.StaleComment, latestMemberComment, closeDate), "staleness"); err != nil {
 			return err
 		}
 

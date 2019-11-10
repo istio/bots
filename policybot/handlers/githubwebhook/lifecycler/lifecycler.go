@@ -57,8 +57,7 @@ func New(gc *gh.ThrottledClient, orgs []config.Org, lifecycler *lifecyclemgr.Lif
 // process an event arriving from GitHub
 func (l *Lifecycler) Handle(context context.Context, event interface{}) {
 	action := ""
-	orgLogin := ""
-	repoName := ""
+	repo := ""
 	number := 0
 
 	var issue *storage.Issue
@@ -71,7 +70,7 @@ func (l *Lifecycler) Handle(context context.Context, event interface{}) {
 
 		sender = p.GetSender()
 		action = p.GetAction()
-		repoName = p.GetRepo().GetFullName()
+		repo = p.GetRepo().GetFullName()
 		number = p.GetIssue().GetNumber()
 		issue = gh.ConvertIssue(
 			p.GetRepo().GetOwner().GetLogin(),
@@ -83,8 +82,7 @@ func (l *Lifecycler) Handle(context context.Context, event interface{}) {
 
 		sender = p.GetSender()
 		action = p.GetAction()
-		orgLogin = p.GetRepo().GetOwner().GetLogin()
-		repoName = p.GetRepo().GetName()
+		repo = p.GetRepo().GetFullName()
 		number = p.GetIssue().GetNumber()
 		issue = gh.ConvertIssue(
 			p.GetRepo().GetOwner().GetLogin(),
@@ -96,7 +94,7 @@ func (l *Lifecycler) Handle(context context.Context, event interface{}) {
 
 		sender = p.GetSender()
 		action = p.GetAction()
-		repoName = p.GetRepo().GetFullName()
+		repo = p.GetRepo().GetFullName()
 		number = p.GetPullRequest().GetNumber()
 		pr = gh.ConvertPullRequest(
 			p.GetRepo().GetOwner().GetLogin(),
@@ -109,8 +107,7 @@ func (l *Lifecycler) Handle(context context.Context, event interface{}) {
 
 		sender = p.GetSender()
 		action = p.GetAction()
-		orgLogin = p.GetRepo().GetOwner().GetLogin()
-		repoName = p.GetRepo().GetName()
+		repo = p.GetRepo().GetFullName()
 		number = p.GetPullRequest().GetNumber()
 		pr = gh.ConvertPullRequest(
 			p.GetRepo().GetOwner().GetLogin(),
@@ -123,8 +120,7 @@ func (l *Lifecycler) Handle(context context.Context, event interface{}) {
 
 		sender = p.GetSender()
 		action = p.GetAction()
-		orgLogin = p.GetRepo().GetOwner().GetLogin()
-		repoName = p.GetRepo().GetName()
+		repo = p.GetRepo().GetFullName()
 		number = p.GetPullRequest().GetNumber()
 		pr = gh.ConvertPullRequest(
 			p.GetRepo().GetOwner().GetLogin(),
@@ -139,35 +135,48 @@ func (l *Lifecycler) Handle(context context.Context, event interface{}) {
 	}
 
 	// see if the event is in a repo we're monitoring
-	if !l.repos[orgLogin+"/"+repoName] {
-		scope.Infof("Ignoring event for issue/PR %d from repo %s/%s since it's not in a monitored repo", number, orgLogin, repoName)
+	if !l.repos[repo] {
+		scope.Infof("Ignoring event for issue/PR %d from repo %s since it's not in a monitored repo", number, repo)
 		return
 	}
 
-	if issue != nil {
-		if sender != nil {
-			user := sender.GetLogin()
+	if pr != nil {
+		// we turn PR objects into Issue objects, since for the sake of lifecycle management they're the same
+		issue = &storage.Issue{
+			OrgLogin:    pr.OrgLogin,
+			RepoName:    pr.RepoName,
+			IssueNumber: pr.PullRequestNumber,
+			Title:       pr.Title,
+			Body:        pr.Body,
+			Labels:      pr.Labels,
+			CreatedAt:   pr.CreatedAt,
+			UpdatedAt:   pr.UpdatedAt,
+			ClosedAt:    pr.ClosedAt,
+			State:       pr.State,
+			Author:      pr.Author,
+			Assignees:   pr.Assignees,
+		}
+	}
 
-			member, err := l.cache.ReadMember(context, issue.OrgLogin, user)
-			if err != nil {
-				scope.Errorf("Unable to read member information about %s from org %s: %v", user, issue.OrgLogin, err)
-				return
-			}
+	if sender != nil {
+		user := sender.GetLogin()
 
-			if member == nil {
-				// if event is not from a member, it won't affect the lifecycle so return promptly
-				scope.Infof("Ignoring event for issue/PR %d from repo %s/%s since it wasn't caused by an org member", number, orgLogin, repoName)
-				return
-			}
+		member, err := l.cache.ReadMember(context, issue.OrgLogin, user)
+		if err != nil {
+			scope.Errorf("Unable to read member information about %s from org %s: %v", user, issue.OrgLogin, err)
+			return
 		}
 
-		scope.Infof("Processing event for issue %d from repo %s/%s, %s, labels %v", number, repoName, orgLogin, action, issue.Labels)
-
-		if err := l.lifecycler.ManageIssue(context, issue); err != nil {
-			scope.Errorf("%v", err)
+		if member == nil {
+			// if event is not from a member, it won't affect the lifecycle so return promptly
+			scope.Infof("Ignoring event for issue/PR %d from repo %s since it wasn't caused by an org member", number, repo)
+			return
 		}
-	} else if pr != nil {
-		// TODO
-		_ = pr
+	}
+
+	scope.Infof("Processing event for issue/PR %d from repo %s, %s, labels %v", number, repo, action, issue.Labels)
+
+	if err := l.lifecycler.ManageIssue(context, issue); err != nil {
+		scope.Errorf("%v", err)
 	}
 }

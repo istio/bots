@@ -35,13 +35,13 @@ lifecycle:
 
   stale_comment: >
     🧭 This issue or pull request has been automatically marked as stale because it has not had activity
-    from an Istio team member in the last %d days. It will be closed on %s unless an Istio team member takes
+    from an Istio team member since %v. It will be closed on %s unless an Istio team member takes
     action. Please see [this wiki page](https://github.com/istio/istio/wiki/Issue-and-Pull-Request-Lifecycle-Manager) for more information.
     Thank you for your contributions.
 
   close_comment: >
     🚧 This issue or pull request has been closed due to not having had activity from an Istio team member
-    in the last %d days. If you feel this issue or pull request deserves attention, please reopen
+    since %v. If you feel this issue or pull request deserves attention, please reopen
     the issue. Please see [this wiki page](https://github.com/istio/istio/wiki/Issue-and-Pull-Request-Lifecycle-Manager) for more information.
     Thank you for your contributions.
 
