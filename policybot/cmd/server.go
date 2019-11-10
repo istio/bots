@@ -182,7 +182,7 @@ func runWithConfig(a *config.Args) error {
 		return fmt.Errorf("unable to create config monitor: %v", err)
 	}
 
-	lf := lifecyclemgr.New(gc, store, a)
+	lf := lifecyclemgr.New(gc, store, cache, a)
 
 	// github webhook filters (keep refresher first in the list such that other filter see an up-to-date view in storage)
 	filters := []githubwebhook.Filter{

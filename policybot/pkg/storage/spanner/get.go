@@ -22,8 +22,6 @@ import (
 	"cloud.google.com/go/spanner"
 )
 
-// TODO: deal with istio-policy-bot
-
 type getActivityResults struct {
 	LastIssueEvent time.Time
 	Actor          string
@@ -63,9 +61,51 @@ func (s store) GetLatestIssueMemberComment(context context.Context, orgLogin str
 		LIMIT 1;`, issueNumber, orgLogin, repoName)})
 
 	var result getCommentResults
+	var result2 getCommentResults
+
 	err := iter.Do(func(row *spanner.Row) error {
 		return rowToStruct(row, &result)
 	})
+
+	if err == nil {
+		iter = s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
+			`SELECT CreatedAt as LastIssueCommentEvent, Actor FROM
+			(SELECT CreatedAt, Actor FROM PullRequestReviewEvents WHERE PullRequestNumber = %d AND OrgLogin = "%s" AND RepoName = "%s")
+			LEFT JOIN Members ON Actor = UserLogin
+			WHERE OrgLogin is not null
+			ORDER BY LastIssueCommentEvent DESC
+			LIMIT 1;`, issueNumber, orgLogin, repoName)})
+
+		err = iter.Do(func(row *spanner.Row) error {
+			return rowToStruct(row, &result2)
+		})
+
+		if err == nil {
+			if result2.LastIssueCommentEvent.After(result.LastIssueCommentEvent) {
+				result = result2
+			}
+		}
+	}
+
+	if err == nil {
+		iter = s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
+			`SELECT CreatedAt as LastIssueCommentEvent, Actor FROM
+			(SELECT CreatedAt, Actor FROM PullRequestReviewCommentEvents WHERE PullRequestNumber = %d AND OrgLogin = "%s" AND RepoName = "%s")
+			LEFT JOIN Members ON Actor = UserLogin
+			WHERE OrgLogin is not null
+			ORDER BY LastIssueCommentEvent DESC
+			LIMIT 1;`, issueNumber, orgLogin, repoName)})
+
+		err = iter.Do(func(row *spanner.Row) error {
+			return rowToStruct(row, &result2)
+		})
+
+		if err == nil {
+			if result2.LastIssueCommentEvent.After(result.LastIssueCommentEvent) {
+				result = result2
+			}
+		}
+	}
 
 	return result.LastIssueCommentEvent, err
 }
