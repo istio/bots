@@ -345,3 +345,4 @@ orgs:
       - name: bots
       - name: common-files
       - name: bottestrepo
+      - name: foo

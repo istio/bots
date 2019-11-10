@@ -65,8 +65,11 @@ func (m *Monitor) Handle(context context.Context, event interface{}) {
 		return
 	}
 
+	scope.Infof("Received push event in repo %s", pp.GetRepo().GetFullName())
+
 	if pp.GetRepo().GetOwner().GetLogin() != m.org || pp.GetRepo().GetName() != m.repo {
 		// not the org/repo we care about
+		scope.Info("Not the desired repo, ignoring")
 		return
 	}
 
@@ -75,7 +78,7 @@ func (m *Monitor) Handle(context context.Context, event interface{}) {
 	for _, commit := range pp.Commits {
 		for _, s := range commit.Modified {
 			if s == m.file {
-				scope.Infof("Detected modification to config file %s in repo %s", m.file, m.repo)
+				scope.Infof("Detected modification to config file %s in repo %s/%s", m.file, m.org, m.repo)
 				m.notify()
 				return
 			}
@@ -83,7 +86,7 @@ func (m *Monitor) Handle(context context.Context, event interface{}) {
 
 		for _, s := range commit.Added {
 			if s == m.file {
-				scope.Infof("Detected addition of config file %s in repo %s", m.file, m.repo)
+				scope.Infof("Detected addition of config file %s in repo %s/%s", m.file, m.org, m.repo)
 				m.notify()
 				return
 			}
@@ -91,10 +94,12 @@ func (m *Monitor) Handle(context context.Context, event interface{}) {
 
 		for _, s := range commit.Removed {
 			if s == m.file {
-				scope.Infof("Detected removal of config file %s in repo %s", m.file, m.repo)
+				scope.Infof("Detected removal of config file %s in repo %s/%s", m.file, m.org, m.repo)
 				m.notify()
 				return
 			}
 		}
 	}
+
+	scope.Infof("No changes detected to a monitored file '%s'", m.file)
 }
