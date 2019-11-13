@@ -248,7 +248,8 @@ func (lm *LifecycleMgr) manageIssue(context context.Context, issue *storage.Issu
 		}
 
 		// add closing comment
-		if err := lm.addComment(context, issue, fmt.Sprintf(lm.config.CloseComment, latestMemberComment), "closing"); err != nil {
+		commentDate := latestMemberComment.Format("2006-01-02")
+		if err := lm.addComment(context, issue, fmt.Sprintf(lm.config.CloseComment, commentDate), "closing"); err != nil {
 			return err
 		}
 
@@ -261,11 +262,12 @@ func (lm *LifecycleMgr) manageIssue(context context.Context, issue *storage.Issu
 	} else if latestMemberCommentDelta > staleDelay {
 		when := now.Add(closeDelay - staleDelay)
 		closeDate := when.Format("2006-01-02")
+		commentDate := latestMemberComment.Format("2006-01-02")
 
 		st.markedStale++
 
 		// add staleness comment
-		if err := lm.addComment(context, issue, fmt.Sprintf(lm.config.StaleComment, latestMemberComment, closeDate), "staleness"); err != nil {
+		if err := lm.addComment(context, issue, fmt.Sprintf(lm.config.StaleComment, commentDate, closeDate), "staleness"); err != nil {
 			return err
 		}
 

@@ -97,7 +97,7 @@ func FindBotComment(context context.Context, gc *ThrottledClient, orgLogin strin
 		for _, comment := range comments.([]*github.IssueComment) {
 			body := comment.GetBody()
 			if strings.Contains(body, signature) {
-				return body, comment.GetID(), nil
+				return strings.ReplaceAll(body, "\r\n", "\n"), comment.GetID(), nil
 			}
 		}
 
