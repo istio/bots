@@ -22,5 +22,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY policybot /policybot
 COPY policybot.yaml /policybot.yaml
+COPY userdata.yaml /userdata.yaml
 COPY generated /generated
 COPY dashboard/static /dashboard/static
