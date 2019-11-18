@@ -260,9 +260,8 @@ func (lm *LifecycleMgr) manageIssue(context context.Context, issue *storage.Issu
 			}
 		}
 	} else if latestMemberCommentDelta > staleDelay {
-		when := now.Add(closeDelay - staleDelay)
-		closeDate := when.Format("2006-01-02")
 		commentDate := latestMemberComment.Format("2006-01-02")
+		closeDate := latestMemberComment.Add(closeDelay).Format("2006-01-02")
 
 		st.markedStale++
 
