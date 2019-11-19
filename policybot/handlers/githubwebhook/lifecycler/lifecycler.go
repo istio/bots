@@ -16,6 +16,9 @@ package lifecycler
 
 import (
 	"context"
+	"fmt"
+
+	"istio.io/bots/policybot/pkg/zh"
 
 	"github.com/google/go-github/v26/github"
 
@@ -30,6 +33,7 @@ import (
 
 type Lifecycler struct {
 	gc         *gh.ThrottledClient
+	zc         *zh.ThrottledClient
 	repos      map[string]bool
 	lifecycler *lifecyclemgr.LifecycleMgr
 	cache      *cache.Cache
@@ -37,9 +41,10 @@ type Lifecycler struct {
 
 var scope = log.RegisterScope("lifecycler", "Handles lifecycle events for PRs or issues", 0)
 
-func New(gc *gh.ThrottledClient, orgs []config.Org, lifecycler *lifecyclemgr.LifecycleMgr, cache *cache.Cache) githubwebhook.Filter {
+func New(gc *gh.ThrottledClient, zc *zh.ThrottledClient, orgs []config.Org, lifecycler *lifecyclemgr.LifecycleMgr, cache *cache.Cache) githubwebhook.Filter {
 	u := &Lifecycler{
 		gc:         gc,
+		zc:         zc,
 		repos:      make(map[string]bool),
 		lifecycler: lifecycler,
 		cache:      cache,
@@ -58,6 +63,7 @@ func New(gc *gh.ThrottledClient, orgs []config.Org, lifecycler *lifecyclemgr.Lif
 func (l *Lifecycler) Handle(context context.Context, event interface{}) {
 	action := ""
 	repo := ""
+	var repoNumber int64
 	number := 0
 
 	var issue *storage.Issue
@@ -71,6 +77,7 @@ func (l *Lifecycler) Handle(context context.Context, event interface{}) {
 		sender = p.GetSender()
 		action = p.GetAction()
 		repo = p.GetRepo().GetFullName()
+		repoNumber = p.GetRepo().GetID()
 		number = p.GetIssue().GetNumber()
 		issue = gh.ConvertIssue(
 			p.GetRepo().GetOwner().GetLogin(),
@@ -83,6 +90,7 @@ func (l *Lifecycler) Handle(context context.Context, event interface{}) {
 		sender = p.GetSender()
 		action = p.GetAction()
 		repo = p.GetRepo().GetFullName()
+		repoNumber = p.GetRepo().GetID()
 		number = p.GetIssue().GetNumber()
 		issue = gh.ConvertIssue(
 			p.GetRepo().GetOwner().GetLogin(),
@@ -95,6 +103,7 @@ func (l *Lifecycler) Handle(context context.Context, event interface{}) {
 		sender = p.GetSender()
 		action = p.GetAction()
 		repo = p.GetRepo().GetFullName()
+		repoNumber = p.GetRepo().GetID()
 		number = p.GetPullRequest().GetNumber()
 		pr = gh.ConvertPullRequest(
 			p.GetRepo().GetOwner().GetLogin(),
@@ -108,6 +117,7 @@ func (l *Lifecycler) Handle(context context.Context, event interface{}) {
 		sender = p.GetSender()
 		action = p.GetAction()
 		repo = p.GetRepo().GetFullName()
+		repoNumber = p.GetRepo().GetID()
 		number = p.GetPullRequest().GetNumber()
 		pr = gh.ConvertPullRequest(
 			p.GetRepo().GetOwner().GetLogin(),
@@ -121,6 +131,7 @@ func (l *Lifecycler) Handle(context context.Context, event interface{}) {
 		sender = p.GetSender()
 		action = p.GetAction()
 		repo = p.GetRepo().GetFullName()
+		repoNumber = p.GetRepo().GetID()
 		number = p.GetPullRequest().GetNumber()
 		pr = gh.ConvertPullRequest(
 			p.GetRepo().GetOwner().GetLogin(),
@@ -176,7 +187,55 @@ func (l *Lifecycler) Handle(context context.Context, event interface{}) {
 
 	scope.Infof("Processing event for issue/PR %d from repo %s, %s, labels %v", number, repo, action, issue.Labels)
 
+	if err := l.fetchPipeline(context, issue.OrgLogin, issue.RepoName, int(repoNumber), number); err != nil {
+		scope.Errorf("%v", err)
+	}
+
 	if err := l.lifecycler.ManageIssue(context, issue); err != nil {
 		scope.Errorf("%v", err)
 	}
+}
+
+func (l *Lifecycler) fetchPipeline(context context.Context, orgLogin string, repoName string, repoNumber int, issueNumber int) error {
+	// do we have pipeline info in our store?
+	pipeline, err := l.cache.ReadIssuePipeline(context, orgLogin, repoName, issueNumber)
+	if err != nil {
+		return fmt.Errorf("could not get issue pipeline data for issue/PR %d in repo %s/%s: %v", issueNumber, orgLogin, repoName, err)
+	}
+
+	if pipeline != nil && pipeline.Pipeline != "" && pipeline.Pipeline != "New Issue" {
+		// already have issue data
+		return nil
+	}
+
+	// we don't have any useful local info, query ZenHub directly
+	issueData, err := l.zc.ThrottledCall(func(client *zh.Client) (interface{}, error) {
+		return client.GetIssueData(repoNumber, issueNumber)
+	})
+
+	if err != nil {
+		if err == zh.ErrNotFound {
+			// not found, so nothing to do...
+			return nil
+		}
+
+		return fmt.Errorf("unable to get issue data from ZenHub for issue/PR %d in repo %s/%s: %v", issueNumber, orgLogin, repoName, err)
+	}
+
+	// now store the pipeline info in our store
+	pipelines := []*storage.IssuePipeline{
+		{
+			OrgLogin:    orgLogin,
+			RepoName:    repoName,
+			IssueNumber: int64(issueNumber),
+			Pipeline:    issueData.(*zh.IssueData).Pipeline.Name,
+		},
+	}
+
+	err = l.cache.WriteIssuePipelines(context, pipelines)
+	if err != nil {
+		return fmt.Errorf("unable to update issue pipeline for issue/PR %d in repo %s/%s: %v", issueNumber, orgLogin, repoName, err)
+	}
+
+	return nil
 }

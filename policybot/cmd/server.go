@@ -22,6 +22,8 @@ import (
 	"net/http"
 	"time"
 
+	"istio.io/bots/policybot/pkg/zh"
+
 	"github.com/gorilla/mux"
 	"github.com/spf13/cobra"
 
@@ -127,6 +129,7 @@ func runWithConfig(a *config.Args) error {
 	}
 
 	gc := gh.NewThrottledClient(context.Background(), a.Secrets.GitHubToken)
+	zc := zh.NewThrottledClient(a.Secrets.ZenHubToken)
 	_ = util.NewMailer(a.Secrets.SendGridAPIKey, a.EmailFrom, a.EmailOriginAddress)
 
 	store, err := spanner.NewStore(context.Background(), a.SpannerDatabase, creds)
@@ -188,7 +191,7 @@ func runWithConfig(a *config.Args) error {
 	filters := []githubwebhook.Filter{
 		refresher.NewRefresher(cache, store, gc, a.Orgs),
 		nag,
-		lifecycler.New(gc, a.Orgs, lf, cache),
+		lifecycler.New(gc, zc, a.Orgs, lf, cache),
 		labeler,
 		cleaner,
 		monitor,

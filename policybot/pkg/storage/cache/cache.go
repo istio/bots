@@ -316,6 +316,20 @@ func (c *Cache) ReadIssuePipeline(context context.Context, orgLogin string, repo
 	return result, err
 }
 
+// Writes to DB and if successful, updates the cache
+func (c *Cache) WriteIssuePipelines(context context.Context, pipelines []*storage.IssuePipeline) error {
+	err := c.store.WriteIssuePipelines(context, pipelines)
+	if err == nil {
+		for _, pipeline := range pipelines {
+			c.pipelineCache.Set(pipeline.OrgLogin+
+				pipeline.RepoName+
+				strconv.Itoa(int(pipeline.IssueNumber)), pipeline)
+		}
+	}
+
+	return err
+}
+
 func (c *Cache) ReadTestResult(context context.Context,
 	orgLogin string, repoName string, testName string, prNum int64, runNumber int64) (*storage.TestResult, error) {
 	key := orgLogin + repoName + testName + strconv.FormatInt(prNum, 10) + strconv.FormatInt(runNumber, 10)
