@@ -239,6 +239,11 @@ func (lm *LifecycleMgr) manageIssue(context context.Context, issue *storage.Issu
 		closeDelay = time.Duration(lm.config.IssueCloseDelay)
 	}
 
+	from := latestMemberComment
+	if from == (time.Time{}) {
+		from = issue.CreatedAt
+	}
+
 	if latestMemberCommentDelta > closeDelay {
 		st.closed++
 
@@ -248,7 +253,7 @@ func (lm *LifecycleMgr) manageIssue(context context.Context, issue *storage.Issu
 		}
 
 		// add closing comment
-		commentDate := latestMemberComment.Format("2006-01-02")
+		commentDate := from.Format("2006-01-02")
 		if err := lm.addComment(context, issue, fmt.Sprintf(lm.config.CloseComment, commentDate), "closing"); err != nil {
 			return err
 		}
@@ -260,8 +265,8 @@ func (lm *LifecycleMgr) manageIssue(context context.Context, issue *storage.Issu
 			}
 		}
 	} else if latestMemberCommentDelta > staleDelay {
-		commentDate := latestMemberComment.Format("2006-01-02")
-		closeDate := latestMemberComment.Add(closeDelay).Format("2006-01-02")
+		commentDate := from.Format("2006-01-02")
+		closeDate := from.Add(closeDelay).Format("2006-01-02")
 
 		st.markedStale++
 
