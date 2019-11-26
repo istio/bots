@@ -88,6 +88,58 @@ func (sm *SyncMgr) fetchRepoComments(context context.Context, repo *storage.Repo
 	}
 }
 
+func (sm *SyncMgr) fetchRepoEvents(context context.Context, repo *storage.Repo, cb func([]*github.Event) error) error {
+	opt := &github.ListOptions{
+		PerPage: 100,
+	}
+
+	for {
+		events, resp, err := sm.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+			return client.Activity.ListRepositoryEvents(context, repo.OrgLogin, repo.RepoName, opt)
+		})
+
+		if err != nil {
+			return fmt.Errorf("unable to list events for repo %s/%s: %v", repo.OrgLogin, repo.RepoName, err)
+		}
+
+		if err := cb(events.([]*github.Event)); err != nil {
+			return err
+		}
+
+		if resp.NextPage == 0 {
+			return nil
+		}
+
+		opt.Page = resp.NextPage
+	}
+}
+
+func (sm *SyncMgr) fetchIssueEvents(context context.Context, repo *storage.Repo, cb func([]*github.IssueEvent) error) error {
+	opt := &github.ListOptions{
+		PerPage: 100,
+	}
+
+	for {
+		events, resp, err := sm.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+			return client.Activity.ListIssueEventsForRepository(context, repo.OrgLogin, repo.RepoName, opt)
+		})
+
+		if err != nil {
+			return fmt.Errorf("unable to list issue events for repo %s/%s: %v", repo.OrgLogin, repo.RepoName, err)
+		}
+
+		if err := cb(events.([]*github.IssueEvent)); err != nil {
+			return err
+		}
+
+		if resp.NextPage == 0 {
+			return nil
+		}
+
+		opt.Page = resp.NextPage
+	}
+}
+
 func (sm *SyncMgr) fetchMembers(context context.Context, org *storage.Org, cb func([]*github.User) error) error {
 	opt := &github.ListMembersOptions{
 		ListOptions: github.ListOptions{
