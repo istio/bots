@@ -1,0 +1,8 @@
+name: flakey-test
+type: flakenag
+repos:
+  - "istio/istio"
+
+inactivedays: 3
+createddays: 180
+message: "🤔 ❄️ Hey there's been no update for this test flakes for 3 days."

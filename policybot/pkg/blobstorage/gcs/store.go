@@ -35,10 +35,12 @@ func NewStore(ctx context.Context, gcpCreds []byte) (blobstorage.Store, error) {
 	if gcpCreds != nil {
 		opts = append(opts, option.WithCredentialsJSON(gcpCreds))
 	}
+
 	client, err := storage.NewClient(ctx, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create GCS client: %v", err)
 	}
+
 	return &store{
 		client: client,
 	}, nil
@@ -82,7 +84,7 @@ func (b *bucket) ListPrefixes(ctx context.Context, prefix string) ([]string, err
 func (b *bucket) ListItems(ctx context.Context, prefix string) ([]string, error) {
 	query := &storage.Query{Prefix: prefix}
 	it := b.bucket.Objects(ctx, query)
-	names := []string{}
+	var names []string
 	for {
 		attrs, err := it.Next()
 		if err == iterator.Done {

@@ -1,0 +1,4 @@
+name: 'lifecycle/staleproof'
+type: label
+color: 922992
+description: Indicates a PR or issue has been deemed to be immune from becoming stale and/or automatically closed

@@ -1,0 +1,4 @@
+name: 'lifecycle/needs-triage'
+type: label
+color: 922992
+description: Indicates a new PR or issue needs to be triaged

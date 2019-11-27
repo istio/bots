@@ -1,0 +1,35 @@
+name: PolicyBot
+type: core
+repos:
+  - istio/istio.io
+  - istio/proxy
+  - istio/istio
+  - istio/release-builder
+  - istio/client-go
+  - istio/gogo-genproto
+  - istio/test-infra
+  - istio/tools
+  - istio/api
+  - istio/cni
+  - istio/cri
+  - istio/operator
+  - istio/installer
+  - istio/pkg
+  - istio/bots
+  - istio/common-files
+  - istio/bottestrepo
+
+robots:
+  - google-admin
+  - googlebot
+  - istio-policy-bot
+  - istio-release-robot
+  - istio-testing
+
+spanner_db: projects/istio-testing/instances/istio-policy-bot/databases/main
+gcp_project: istio-testing
+email_from: Istio Policy Bot
+email_origin_address: noreply@istio.io
+maintainer_activity_window: 2160h
+member_activity_window: 4320h
+default_org: istio

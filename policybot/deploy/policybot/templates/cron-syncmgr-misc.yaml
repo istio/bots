@@ -19,8 +19,8 @@ spec:
                 - syncmgr
                 - --config_repo
                 - istio/bots/master
-                - --config_file
-                - policybot/policybot.yaml
+                - --config_path
+                - policybot/config
                 - --filter
                 - maintainers,members,labels
               envFrom:

@@ -1,0 +1,4 @@
+name: 'lifecycle/stale'
+type: label
+color: 922992
+description: Indicates a PR or issue hasn't been manipulated by an Istio team member for a while

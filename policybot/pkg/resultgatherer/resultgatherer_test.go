@@ -12,24 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package resultgatherer_test
+package resultgatherer
 
 import (
 	"context"
-	"fmt"
 	"reflect"
 	"testing"
 	"time"
 
-	"gotest.tools/assert"
-
 	"istio.io/bots/policybot/pkg/blobstorage/gcs"
-	"istio.io/bots/policybot/pkg/resultgatherer"
 	"istio.io/bots/policybot/pkg/storage"
 )
 
 // the 110 pr directory in istio-flakey-test/pr-logs/pull/istio-istio only has a release-test folder
-func TestResultGatherer(t *testing.T) {
+func TestTestResultGatherer(t *testing.T) {
 	context := context.Background()
 	const layout = "1/2/2006 15:04:05"
 	time1, _ := time.Parse(layout, "11/16/2018 07:03:22")
@@ -50,22 +46,30 @@ func TestResultGatherer(t *testing.T) {
 		Result:            "SUCCESS",
 		BaseSha:           "d995c19aefe6b5ff0748b783e8b69c59963bc8ae",
 		RunPath:           "pr-logs/pull/istio_istio/110/release-test/155/",
-		Artifacts:         []string{},
+		Artifacts:         nil,
 	}
 	var prNum int64 = 110
 
 	client, err := gcs.NewStore(context, nil)
 	if err != nil {
-		fmt.Println(err)
+		t.Fatalf("unable to create GCS client: %v", err)
+	}
+
+	testResultGatherer := TestResultGatherer{client, "istio-flakey-test", "pr-logs/pull/", ""}
+	testResults, err := testResultGatherer.CheckTestResultsForPr(context, "istio", "istio", prNum)
+	if err != nil {
+		t.Errorf("Expecting no error, got %v", err)
 		return
 	}
 
-	testResultGatherer := resultgatherer.TestResultGatherer{client, "istio-flakey-test", "pr-logs/pull/", ""}
-	testResults, err := testResultGatherer.CheckTestResultsForPr(context, "istio", "istio", prNum)
-	assert.NilError(t, err)
-	assert.Assert(t, len(testResults) >= 1, "Expected at least one test result from bucket istio-flakey-test")
+	if len(testResults) == 0 {
+		t.Errorf("Expected at least one test result from bucket istio-flakey-test")
+		return
+	}
+
 	test := testResults[0]
+
 	if !reflect.DeepEqual(test, correctInfo) {
-		t.Fail()
+		t.Errorf("Wanted %#v, got %#v", correctInfo, test)
 	}
 }

@@ -1,0 +1,8 @@
+name: Installation
+type: autolabel
+matchbody:
+  - "\\[ ?x ?\\] ?Installation"
+absentlabels:
+  - "area/.?"
+labelstoapply:
+  - area/environments

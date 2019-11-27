@@ -18,8 +18,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/google/go-github/v26/github"
-
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage"
@@ -34,77 +32,56 @@ type FlakeManager struct {
 	gc    *gh.ThrottledClient
 	cache *cache.Cache
 	store storage.Store
-	repos map[string]bool
-	// we select issues hasn't bee updated for last `inactiveDays`
-	inactiveDays int
-	// we only consider issues that are created within last `createdDays`.
-	createdDays int
-	// dryRun if true, will not make comments on the github.
-	dryRun bool
-	// message is what the bot will post on the github issue.
-	message string
+	reg   *config.Registry
 }
+
+const nagSignature = "\n\n_Courtesy of your friendly test flake nag_."
 
 // New creates a flake manager.
-func New(gc *gh.ThrottledClient, store storage.Store, cache *cache.Cache, config config.FlakeChaser) *FlakeManager {
-	enabledRepo := map[string]bool{}
-	for _, repo := range config.Repos {
-		enabledRepo[repo] = true
-	}
-
+func New(gc *gh.ThrottledClient, store storage.Store, cache *cache.Cache, reg *config.Registry) *FlakeManager {
 	return &FlakeManager{
-		gc:           gc,
-		store:        store,
-		cache:        cache,
-		repos:        enabledRepo,
-		inactiveDays: config.InactiveDays,
-		createdDays:  config.CreatedDays,
-		dryRun:       config.DryRun,
-		message:      config.Message,
+		gc:    gc,
+		cache: cache,
+		store: store,
+		reg:   reg,
 	}
 }
 
-// Chase does the nagging
-func (fm *FlakeManager) Chase(context context.Context) {
-	issues, err := fm.store.QueryTestFlakeIssues(context, fm.inactiveDays, fm.createdDays)
+// Nag does the nagging
+func (fm *FlakeManager) Nag(context context.Context, dryRun bool) error {
+	for _, repo := range fm.reg.Repos() {
+		for _, r := range fm.reg.Records(recordType, repo.OrgAndRepo) {
+			nag := r.(*flakeNagRecord)
+
+			if err := fm.handleNag(context, repo, nag, dryRun); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (fm *FlakeManager) handleNag(context context.Context, repo gh.RepoDesc, nag *flakeNagRecord, dryRun bool) error {
+	issues, err := fm.store.QueryTestFlakeIssues(context, repo.OrgLogin, repo.RepoName, nag.InactiveDays, nag.CreatedDays)
 	if err != nil {
-		scope.Errorf("Failed to read issue from storage: %v", err)
-		return
+		return fmt.Errorf("unable to read test flake issues from storage: %v", err)
 	}
 
-	scope.Infof("Found %v potential issues", len(issues))
+	scope.Infof("Found %v potential flake issues for repo %v", len(issues), repo)
+
 	for _, issue := range issues {
-		comment := &github.IssueComment{
-			Body: &fm.message,
-		}
-		repo, err := fm.cache.ReadRepo(context, issue.OrgLogin, issue.RepoName)
-		if err != nil {
-			scope.Errorf("Failed to look up the repo: %v", err)
-			continue
-		}
-		org, err := fm.cache.ReadOrg(context, issue.OrgLogin)
-		if err != nil {
-			scope.Errorf("Failed to read the repo: %v", err)
-			continue
-		}
-		repoURI := fmt.Sprintf("%v/%v", org.OrgLogin, repo.RepoName)
-		if _, ok := fm.repos[repoURI]; !ok {
-			scope.Infof("Uninterested repo %v, skipping...", repoURI)
-			continue
-		}
-		url := fmt.Sprintf("https://github.com/%v/%v/issues/%v", org.OrgLogin, repo.RepoName, issue.IssueNumber)
-		scope.Infof("About to nag test flaky issue with %v", url)
-		if fm.dryRun {
+		if dryRun {
+			scope.Infof("Would have nagged issue %d from repo %v", issue.IssueNumber, repo)
 			continue
 		}
 
-		_, _, err = fm.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
-			return client.Issues.CreateComment(
-				context, org.OrgLogin, repo.RepoName, int(issue.IssueNumber), comment)
-		})
-
-		if err != nil {
-			scope.Errorf("Failed to create flakes nagging comments: %v", err)
+		if err := fm.gc.AddOrReplaceBotComment(context, repo.OrgLogin, repo.RepoName, int(issue.IssueNumber), nag.Message, nagSignature); err != nil {
+			return fmt.Errorf("unable to create nagging comment for issue %d in repo %v: %v", issue.IssueNumber, repo, err)
 		}
+
+		scope.Infof("Nagged issue %d from repo %v", issue.IssueNumber, repo)
 	}
+
+	return nil
 }

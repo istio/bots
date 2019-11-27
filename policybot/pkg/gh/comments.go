@@ -24,14 +24,14 @@ import (
 
 // AddOrReplaceBotComment injects a comment from the bot into an issue or PR. It first removes any other
 // comment it finds with the same signature
-func AddOrReplaceBotComment(context context.Context, gc *ThrottledClient, orgLogin string, repoName string, number int, message string,
+func (tc *ThrottledClient) AddOrReplaceBotComment(context context.Context, orgLogin string, repoName string, number int, message string,
 	signature string) error {
 	msg := message + signature
 	pc := &github.IssueComment{
 		Body: &msg,
 	}
 
-	existing, id, err := FindBotComment(context, gc, orgLogin, repoName, number, signature)
+	existing, id, err := tc.FindBotComment(context, orgLogin, repoName, number, signature)
 	if err != nil {
 		return err
 	}
@@ -41,14 +41,14 @@ func AddOrReplaceBotComment(context context.Context, gc *ThrottledClient, orgLog
 		return nil
 	} else if existing != "" {
 		// try to delete the previous version
-		if _, err := gc.ThrottledCallNoResult(func(client *github.Client) (*github.Response, error) {
+		if _, err := tc.ThrottledCallNoResult(func(client *github.Client) (*github.Response, error) {
 			return client.Issues.DeleteComment(context, orgLogin, repoName, id)
 		}); err != nil {
 			return fmt.Errorf("unable to delete comment in issue/PR %d from repo %s/%s: %v", number, orgLogin, repoName, err)
 		}
 	}
 
-	_, _, err = gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+	_, _, err = tc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 		return client.Issues.CreateComment(context, orgLogin, repoName, number, pc)
 	})
 
@@ -60,14 +60,14 @@ func AddOrReplaceBotComment(context context.Context, gc *ThrottledClient, orgLog
 }
 
 // RemoveBotComment removes a comment from the bot in an issue or PR
-func RemoveBotComment(context context.Context, gc *ThrottledClient, orgLogin string, repoName string, number int, signature string) error {
-	existing, id, err := FindBotComment(context, gc, orgLogin, repoName, number, signature)
+func (tc *ThrottledClient) RemoveBotComment(context context.Context, orgLogin string, repoName string, number int, signature string) error {
+	existing, id, err := tc.FindBotComment(context, orgLogin, repoName, number, signature)
 	if err != nil {
 		return err
 	}
 
 	if existing != "" {
-		if _, err = gc.ThrottledCallNoResult(func(client *github.Client) (*github.Response, error) {
+		if _, err = tc.ThrottledCallNoResult(func(client *github.Client) (*github.Response, error) {
 			return client.Issues.DeleteComment(context, orgLogin, repoName, id)
 		}); err != nil {
 			return fmt.Errorf("unable to delete bot comment in issue/PR %d from repo %s/%s: %v", number, orgLogin, repoName, err)
@@ -78,7 +78,7 @@ func RemoveBotComment(context context.Context, gc *ThrottledClient, orgLogin str
 }
 
 // FindBotComment looks for a bot comment in an issue or PR
-func FindBotComment(context context.Context, gc *ThrottledClient, orgLogin string, repoName string, number int, signature string) (string, int64, error) {
+func (tc *ThrottledClient) FindBotComment(context context.Context, orgLogin string, repoName string, number int, signature string) (string, int64, error) {
 	opt := &github.IssueListCommentsOptions{
 		ListOptions: github.ListOptions{
 			PerPage: 100,
@@ -86,7 +86,7 @@ func FindBotComment(context context.Context, gc *ThrottledClient, orgLogin strin
 	}
 
 	for {
-		comments, resp, err := gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+		comments, resp, err := tc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.Issues.ListComments(context, orgLogin, repoName, number, opt)
 		})
 

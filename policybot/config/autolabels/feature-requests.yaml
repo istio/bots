@@ -1,0 +1,6 @@
+name: Feature Request
+type: autolabel
+matchbody:
+  - "feature request"
+labelstoapply:
+  - kind/enhancement

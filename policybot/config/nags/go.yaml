@@ -1,0 +1,12 @@
+name: Go
+type: nag
+
+matchtitle:
+  - ".*Fix.*"
+matchbody:
+  - ".*Fix.*"
+matchfiles:
+  - ".*.go$"
+absentfiles:
+  - ".*_test.go$"
+message: "🤔 🐛 You appear to be fixing a bug in Go code, yet your PR doesn't include updates to any test files. Did you forget to add a test?"

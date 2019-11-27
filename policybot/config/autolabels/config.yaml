@@ -1,0 +1,8 @@
+name: Config
+type: autolabel
+matchbody:
+  - "\\[ ?x ?\\] ?Configuration"
+absentlabels:
+  - "area/.?"
+labelstoapply:
+  - area/config

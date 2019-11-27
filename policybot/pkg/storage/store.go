@@ -82,8 +82,7 @@ type Store interface {
 	QueryAllUserAffiliations(context context.Context, cb func(affiliation *UserAffiliation) error) error
 	QueryAllUsers(context context.Context, cb func(user *User) error) error
 
-	// TODO: needs to be org-specific and/or repo-specific, needs to use a callback instead of returning a slice
-	QueryTestFlakeIssues(context context.Context, inactiveDays, createdDays int) ([]*Issue, error)
+	QueryTestFlakeIssues(context context.Context, orgLogin string, repoName string, inactiveDays, createdDays int) ([]*Issue, error)
 
 	GetLatestIssueMemberActivity(context context.Context, orgLogin string, repoName string, issueNumber int) (time.Time, error)
 	GetLatestIssueMemberComment(context context.Context, orgLogin string, repoName string, issueNumber int) (time.Time, error)

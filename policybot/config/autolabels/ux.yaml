@@ -1,0 +1,8 @@
+name: UX
+type: autolabel
+matchbody:
+  - "\\[ ?x ?\\] ?User ?Experience"
+absentlabels:
+  - "area/.?"
+labelstoapply:
+  - "area/user experience"

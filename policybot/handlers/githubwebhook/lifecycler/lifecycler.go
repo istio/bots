@@ -18,13 +18,14 @@ import (
 	"context"
 	"fmt"
 
+	"istio.io/bots/policybot/pkg/config"
+
 	"istio.io/bots/policybot/pkg/zh"
 
 	"github.com/google/go-github/v26/github"
 
 	"istio.io/bots/policybot/handlers/githubwebhook"
 	"istio.io/bots/policybot/mgrs/lifecyclemgr"
-	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
@@ -34,26 +35,20 @@ import (
 type Lifecycler struct {
 	gc         *gh.ThrottledClient
 	zc         *zh.ThrottledClient
-	repos      map[string]bool
 	lifecycler *lifecyclemgr.LifecycleMgr
 	cache      *cache.Cache
+	reg        *config.Registry
 }
 
 var scope = log.RegisterScope("lifecycler", "Handles lifecycle events for PRs or issues", 0)
 
-func New(gc *gh.ThrottledClient, zc *zh.ThrottledClient, orgs []config.Org, lifecycler *lifecyclemgr.LifecycleMgr, cache *cache.Cache) githubwebhook.Filter {
+func New(gc *gh.ThrottledClient, zc *zh.ThrottledClient, reg *config.Registry, lifecycler *lifecyclemgr.LifecycleMgr, cache *cache.Cache) githubwebhook.Filter {
 	u := &Lifecycler{
 		gc:         gc,
 		zc:         zc,
-		repos:      make(map[string]bool),
 		lifecycler: lifecycler,
 		cache:      cache,
-	}
-
-	for _, org := range orgs {
-		for _, repo := range org.Repos {
-			u.repos[org.Name+"/"+repo.Name] = true
-		}
+		reg:        reg,
 	}
 
 	return u
@@ -146,7 +141,8 @@ func (l *Lifecycler) Handle(context context.Context, event interface{}) {
 	}
 
 	// see if the event is in a repo we're monitoring
-	if !l.repos[repo] {
+	_, ok := l.reg.SingleRecord(lifecyclemgr.RecordType, repo)
+	if !ok {
 		scope.Infof("Ignoring event for issue/PR %d from repo %s since it's not in a monitored repo", number, repo)
 		return
 	}

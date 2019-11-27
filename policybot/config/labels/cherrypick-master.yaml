@@ -1,0 +1,4 @@
+name: cherrypick/master
+type: label
+color: ff0000
+description: Set this label on a PR to auto-merge from a release branch to master

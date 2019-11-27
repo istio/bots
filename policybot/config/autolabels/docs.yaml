@@ -1,0 +1,8 @@
+name: Docs
+type: autolabel
+matchbody:
+  - "\\[ ?x ?\\] ?Docs"
+absentlabels:
+  - "kind/.?"
+labelstoapply:
+  - kind/docs

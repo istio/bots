@@ -92,11 +92,10 @@ tracked by ZenHub.
 
 - /api/* - topic-specific API available to query information that the bot generates.
 
-## Configuration file
+## Configuration
 
-The bot's behavior is controlled entirely through its configuration file. The
-format of the configuration file is described by the `Args` struct in
-`pkg/config/args.go`.
+The bot's behavior is controlled entirely through a series of configuration files, stored
+in GitHub in the config directory.
 
 The configuration file used by the bot is controlled by options given to the bot at startup via either
 environment variable or command-line option:
@@ -106,9 +105,12 @@ changes are made to the repository, the bot automatically refreshes its configur
 you indicate the GitHub organization, repository, and branch where the configuration file can be found.
 This is specified as a single string in the form of org/repo/branch.
 
-- CONFIG_FILE / --config_file. Indicates the path to the bot's YAML configuration file. If the config
-repo is specified as a startup option, then this file path is relative to the repo. Otherwise, it is
-treated as a local file path within the bot's container.
+- CONFIG_PATH / --config_path. Indicates the path to the bot's YAML configuration files. If the config
+repo is specified as a startup option, then this path is relative to the repo. Otherwise, it is
+treated as a local path within the bot's container.
+
+As the bot is running, you can push updated configuration files to GitHub, and the bot will pick that new
+configuration up automatically.
 
 ## Deployment
 
@@ -122,7 +124,7 @@ with GCP. Once a new revision is deployed to GKE, it immediately starts receivin
 - The bot depends on having a configured Google Cloud Spanner database. The schema of the database
 is described by `spanner.ddl`
 
-- The bot's configuration is maintained in the file `policybot/policybot.yaml` in the <https://github.com/istio/test-infra> repo.
+- The bot's configuration is maintained in the file `policybot/config` in the <https://github.com/istio/test-infra> repo.
 Changes pushed to this file are automatically picked up by the bot.
 
 - There are a number of cron jobs to trigger the managers on a regular basis.

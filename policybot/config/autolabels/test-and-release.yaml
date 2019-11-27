@@ -1,0 +1,9 @@
+name: Test and Release
+type: autolabel
+matchbody:
+  - "\\[ ?x ?\\] ?Test and Release"
+  - "\\[ ?x ?\\] ?Developer Infrastructure"
+absentlabels:
+  - "area/.?"
+labelstoapply:
+  - "area/test and release"

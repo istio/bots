@@ -1,0 +1,8 @@
+name: Policies and Telemetry
+type: autolabel
+matchbody:
+  - "\\[ ?x ?\\] ?Policies"
+absentlabels:
+  - "area/.?"
+labelstoapply:
+  - "area/policies and telemetry"

@@ -1,0 +1,4 @@
+name: 'ok-to-test'
+type: label
+color: bfdadc
+description: Set this label allow normal testing to take place for a PR not submitted by an Istio org member.

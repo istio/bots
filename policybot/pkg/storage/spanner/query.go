@@ -238,18 +238,22 @@ func (s store) QueryTestResultsBySHA(context context.Context, orgLogin string, r
 	return err
 }
 
-func (s store) QueryTestFlakeIssues(context context.Context, inactiveDays, createdDays int) ([]*storage.Issue, error) {
+func (s store) QueryTestFlakeIssues(context context.Context, orgLogin string, repoName string, inactiveDays, createdDays int) ([]*storage.Issue, error) {
 	sql := `SELECT * from Issues
-	WHERE TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), UpdatedAt, DAY) > @inactiveDays AND
+	WHERE OrgLogin = @orgLogin AND
+		  RepoName = @repoName AND
+			TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), UpdatedAt, DAY) > @inactiveDays AND
 				TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), CreatedAt, DAY) < @createdDays AND
 				State = 'open' AND
 				( REGEXP_CONTAINS(title, 'flak[ey]') OR
   				  REGEXP_CONTAINS(body, 'flake[ey]')
 				);`
 	stmt := spanner.NewStatement(sql)
+	stmt.Params["orgLogin"] = orgLogin
+	stmt.Params["repoName"] = repoName
 	stmt.Params["inactiveDays"] = inactiveDays
 	stmt.Params["createdDays"] = createdDays
-	scope.Infof("QueryTestFlakeIssues SQL\n%v", stmt.SQL)
+
 	var issues []*storage.Issue
 	getIssue := func(row *spanner.Row) error {
 		issue := storage.Issue{}
@@ -261,7 +265,7 @@ func (s store) QueryTestFlakeIssues(context context.Context, inactiveDays, creat
 	}
 	iter := s.client.Single().Query(context, stmt)
 	if err := iter.Do(getIssue); err != nil {
-		return nil, fmt.Errorf("error in fetching flaky test issues, %v", err)
+		return nil, fmt.Errorf("unable to fetching flaky test issues: %v", err)
 	}
 	return issues, nil
 }

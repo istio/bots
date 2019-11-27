@@ -17,57 +17,42 @@ package userdatamgr
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
-	"strings"
-	"time"
 
-	"github.com/ghodss/yaml"
+	"istio.io/pkg/log"
+
+	"istio.io/bots/policybot/pkg/config"
 
 	"istio.io/bots/policybot/pkg/storage"
 )
 
-type Time struct {
-	time.Time
-}
-
-// A company a user is associated with
-type Affiliation struct {
-	Organization string `json:"organization"`
-	Start        Time   `json:"start"`
-	End          Time   `json:"end"`
-}
-
-// Additional info about an Istio contributor
-type UserInfo struct {
-	GitHubLogin    string        `json:"github_login"`
-	Affiliations   []Affiliation `json:"affiliations"`
-	EmailAddresses []string      `json:"email_addresses,omitempty"`
-}
-
+// UserdataMgr populates Spanner with the set of known affiliated users
 type UserdataMgr struct {
-	Users []*UserInfo `json:"users"`
+	store storage.Store
+	reg   *config.Registry
 }
 
-func Load(file string) (UserdataMgr, error) {
-	b, err := ioutil.ReadFile(file)
-	if err != nil {
-		return UserdataMgr{}, fmt.Errorf("unable to read user data file %s: %v", file, err)
-	}
+var scope = log.RegisterScope("userdatamgr", "Populates the bot's store with the set of known affiliated users", 0)
 
-	var um UserdataMgr
-	if err = yaml.Unmarshal(b, &um); err != nil {
-		return UserdataMgr{}, fmt.Errorf("unable to parse user data file %s: %v", file, err)
+func New(store storage.Store, reg *config.Registry) *UserdataMgr {
+	return &UserdataMgr{
+		store: store,
+		reg:   reg,
 	}
-
-	return um, nil
 }
 
-func (um UserdataMgr) Store(store storage.Store) error {
+func (um UserdataMgr) Store(dryRun bool) error {
+	r, ok := um.reg.GlobalRecord(recordType)
+	if !ok {
+		scope.Infof("No user data configuration record found, exiting")
+		return nil
+	}
+
+	ur := r.(*userdataRecord)
+
 	var a []*storage.UserAffiliation
-
-	for _, user := range um.Users {
-		u, err := store.ReadUser(context.Background(), user.GitHubLogin)
+	for _, user := range ur.Users {
+		u, err := um.store.ReadUser(context.Background(), user.GitHubLogin)
 		if u == nil || err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "User %s is not known to the PolicyBot infrastructure, skipping\n", user.GitHubLogin)
 			continue
@@ -84,25 +69,12 @@ func (um UserdataMgr) Store(store storage.Store) error {
 		}
 	}
 
-	return store.WriteAllUserAffiliations(context.Background(), a)
-}
-
-func (t *Time) MarshalJSON() ([]byte, error) {
-	return []byte(`"` + t.Time.Format("2006-01-02") + `"`), nil
-}
-
-func (t *Time) UnmarshalJSON(buf []byte) error {
-	s := strings.Trim(string(buf), `"`)
-
-	if len(s) == 0 || s == "null" {
-		t.Time, _ = time.Parse("2006-01-02", "9999-01-01")
+	if dryRun {
+		scope.Infof("Would have written %d affiliated users to storage", len(a))
 		return nil
 	}
 
-	tt, err := time.Parse("2006-01-02", s)
-	if err != nil {
-		return err
-	}
-	t.Time = tt
-	return nil
+	scope.Infof("Writing %d affiliated users to storage", len(a))
+
+	return um.store.WriteAllUserAffiliations(context.Background(), a)
 }
