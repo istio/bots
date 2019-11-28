@@ -23,6 +23,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"istio.io/bots/policybot/mgrs/flakemgr"
+	"istio.io/bots/policybot/pkg/cmdutil"
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage/cache"
@@ -30,30 +31,29 @@ import (
 )
 
 func flakeMgrCmd() *cobra.Command {
-	cmd, _ := config.Run("flakemgr", "Run the test flake manager", 0,
-		config.ConfigFile|config.ConfigRepo|config.GitHubToken|config.GCPCreds, runFlakeMgr)
+	cmd, _ := cmdutil.Run("flakemgr", "Run the test flake manager", 0,
+		cmdutil.ConfigPath|cmdutil.ConfigRepo|cmdutil.GitHubToken|cmdutil.GCPCreds, runFlakeMgr)
 
 	return cmd
 }
 
 // Runs the flake manager.
-func runFlakeMgr(a *config.Args, _ []string) error {
-	creds, err := base64.StdEncoding.DecodeString(a.Secrets.GCPCredentials)
+func runFlakeMgr(reg *config.Registry, secrets *cmdutil.Secrets) error {
+	creds, err := base64.StdEncoding.DecodeString(secrets.GCPCredentials)
 	if err != nil {
 		return fmt.Errorf("unable to decode GCP credentials: %v", err)
 	}
 
-	gc := gh.NewThrottledClient(context.Background(), a.Secrets.GitHubToken)
+	core := reg.Core()
 
-	store, err := spanner.NewStore(context.Background(), a.SpannerDatabase, creds)
+	store, err := spanner.NewStore(context.Background(), core.SpannerDatabase, creds)
 	if err != nil {
 		return fmt.Errorf("unable to create storage layer: %v", err)
 	}
 	defer store.Close()
 
-	cache := cache.New(store, time.Duration(a.CacheTTL))
-
-	mgr := flakemgr.New(gc, store, cache, a.FlakeChaser)
-	mgr.Chase(context.Background())
-	return nil
+	gc := gh.NewThrottledClient(context.Background(), secrets.GitHubToken)
+	c := cache.New(store, time.Duration(core.CacheTTL))
+	mgr := flakemgr.New(gc, store, c, reg)
+	return mgr.Nag(context.Background(), false)
 }

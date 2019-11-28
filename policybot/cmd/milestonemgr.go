@@ -20,20 +20,20 @@ import (
 	"github.com/spf13/cobra"
 
 	"istio.io/bots/policybot/mgrs/milestonemgr"
+	"istio.io/bots/policybot/pkg/cmdutil"
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
 )
 
 func milestoneMgrCmd() *cobra.Command {
-	cmd, _ := config.Run("milestonemgr", "Run the milestone manager", 0,
-		config.ConfigFile|config.ConfigRepo|config.GitHubToken, runMilestoneMgr)
+	cmd, _ := cmdutil.Run("milestonemgr", "Run the milestone manager", 0,
+		cmdutil.ConfigPath|cmdutil.ConfigRepo|cmdutil.GitHubToken, runMilestoneMgr)
 
 	return cmd
 }
 
-func runMilestoneMgr(a *config.Args, _ []string) error {
-	gc := gh.NewThrottledClient(context.Background(), a.Secrets.GitHubToken)
-
-	mgr := milestonemgr.New(gc, a)
-	return mgr.MakeConfiguredMilestones(context.Background())
+func runMilestoneMgr(reg *config.Registry, secrets *cmdutil.Secrets) error {
+	gc := gh.NewThrottledClient(context.Background(), secrets.GitHubToken)
+	mgr := milestonemgr.New(gc, reg)
+	return mgr.MakeConfiguredMilestones(context.Background(), false)
 }

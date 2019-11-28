@@ -1,0 +1,8 @@
+name: Perf & Scalability
+type: autolabel
+matchbody:
+  - "\\[ ?x ?\\] ?Performance"
+absentlabels:
+  - "area/.?"
+labelstoapply:
+  - "area/perf and scalability"

@@ -1,0 +1,33 @@
+name: Main
+type: lifecycle
+
+triage_label: lifecycle/needs-triage
+stale_label: lifecycle/stale
+cant_be_stale_label: lifecycle/staleproof
+escalation_label: lifecycle/needs-escalation
+feature_request_label: kind/enhancement
+close_label: lifecycle/automatically-closed
+ignore_labels: [Epic]
+
+real_old_delay: 5000h
+triage_delay: 72h
+escalation_delay: 168h
+feature_request_stale_delay: 4320h
+issue_stale_delay: 2160h
+pull_request_stale_delay: 720h
+
+feature_request_close_delay: 4680h
+issue_close_delay: 2520h
+pull_request_close_delay: 1080h
+
+stale_comment: >
+  🧭 This issue or pull request has been automatically marked as stale because it has not had activity
+  from an Istio team member since %v. It will be closed on %s unless an Istio team member takes
+  action. Please see [this wiki page](https://github.com/istio/istio/wiki/Issue-and-Pull-Request-Lifecycle-Manager) for more information.
+  Thank you for your contributions.
+
+close_comment: >
+  🚧 This issue or pull request has been closed due to not having had activity from an Istio team member
+  since %v. If you feel this issue or pull request deserves attention, please reopen
+  the issue. Please see [this wiki page](https://github.com/istio/istio/wiki/Issue-and-Pull-Request-Lifecycle-Manager) for more information.
+  Thank you for your contributions.

@@ -1,0 +1,4 @@
+name: size/L
+type: label
+color: 77bb00
+description: Denotes a PR that changes 100-499 lines, ignoring generated files.

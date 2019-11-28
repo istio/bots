@@ -22,35 +22,32 @@ import (
 	"github.com/spf13/cobra"
 
 	"istio.io/bots/policybot/mgrs/userdatamgr"
+	"istio.io/bots/policybot/pkg/cmdutil"
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/storage/spanner"
 )
 
 func userdataMgrCmd() *cobra.Command {
-	cmd, _ := config.Run("userdatamgr <file>", "Runs the user data manager, which loads user data into the bot's store", 1,
-		config.ConfigFile|config.ConfigRepo|config.GCPCreds, runUserdataMgr)
+	cmd, _ := cmdutil.Run("userdatamgr", "Runs the user data manager, which loads user data into the bot's store", 0,
+		cmdutil.ConfigPath|cmdutil.ConfigRepo|cmdutil.GCPCreds, runUserdataMgr)
 
 	return cmd
 }
 
-func runUserdataMgr(a *config.Args, args []string) error {
-	file := args[0]
-
-	creds, err := base64.StdEncoding.DecodeString(a.Secrets.GCPCredentials)
+func runUserdataMgr(reg *config.Registry, secrets *cmdutil.Secrets) error {
+	creds, err := base64.StdEncoding.DecodeString(secrets.GCPCredentials)
 	if err != nil {
 		return fmt.Errorf("unable to decode GCP credentials: %v", err)
 	}
 
-	store, err := spanner.NewStore(context.Background(), a.SpannerDatabase, creds)
+	core := reg.Core()
+
+	store, err := spanner.NewStore(context.Background(), core.SpannerDatabase, creds)
 	if err != nil {
 		return fmt.Errorf("unable to create storage layer: %v", err)
 	}
 	defer store.Close()
 
-	ud, err := userdatamgr.Load(file)
-	if err != nil {
-		return err
-	}
-
-	return ud.Store(store)
+	mgr := userdatamgr.New(store, reg)
+	return mgr.Store(false)
 }

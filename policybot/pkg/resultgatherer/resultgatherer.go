@@ -219,8 +219,8 @@ func (trg *TestResultGatherer) getEnvironmentalSignatures(ctx context.Context, t
 		if err != nil {
 			log.Fatal("foo")
 		}
-		signatures := []string{}
-		names := []string{}
+		var signatures []string
+		var names []string
 		for signature, name := range sigmap {
 			signatures = append(signatures, signature)
 			names = append(names, name)
@@ -247,7 +247,7 @@ func (trg *TestResultGatherer) getTestRunArtifacts(ctx context.Context, testRun 
 func (trg *TestResultGatherer) getManyResults(ctx context.Context, testSlice map[string][]string,
 	orgLogin string, repoName string) ([]*store.TestResult, error) {
 
-	var allTestRuns = []*store.TestResult{}
+	var allTestRuns []*store.TestResult
 
 	for testName, runPaths := range testSlice {
 		for _, runPath := range runPaths {

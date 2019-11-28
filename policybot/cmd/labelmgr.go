@@ -20,20 +20,20 @@ import (
 	"github.com/spf13/cobra"
 
 	"istio.io/bots/policybot/mgrs/labelmgr"
+	"istio.io/bots/policybot/pkg/cmdutil"
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
 )
 
 func labelMgrCmd() *cobra.Command {
-	cmd, _ := config.Run("labelmgr", "Run the label manager", 0,
-		config.ConfigFile|config.ConfigRepo|config.GitHubToken, runLabelMgr)
+	cmd, _ := cmdutil.Run("labelmgr", "Run the label manager", 0,
+		cmdutil.ConfigPath|cmdutil.ConfigRepo|cmdutil.GitHubToken, runLabelMgr)
 
 	return cmd
 }
 
-func runLabelMgr(a *config.Args, _ []string) error {
-	gc := gh.NewThrottledClient(context.Background(), a.Secrets.GitHubToken)
-
-	mgr := labelmgr.New(gc, a)
-	return mgr.MakeConfiguredLabels(context.Background())
+func runLabelMgr(reg *config.Registry, secrets *cmdutil.Secrets) error {
+	gc := gh.NewThrottledClient(context.Background(), secrets.GitHubToken)
+	mgr := labelmgr.New(gc, reg)
+	return mgr.MakeConfiguredLabels(context.Background(), false)
 }

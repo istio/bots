@@ -26,7 +26,7 @@ import (
 func GetRootCmd(args []string) *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:   "policybot",
-		Short: "A GitHub bot that implement Istio policies around issues, pull requests, and test flakes.",
+		Short: "A GitHub bot that implements Istio policies around issues, pull requests, and test flakes.",
 		Args:  cobra.ExactArgs(0),
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			return nil

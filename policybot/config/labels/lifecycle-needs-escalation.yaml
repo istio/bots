@@ -1,0 +1,4 @@
+name: 'lifecycle/needs-escalation'
+type: label
+color: 922992
+description: Indicates a critical PR or issue needs attention

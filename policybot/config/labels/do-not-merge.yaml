@@ -1,0 +1,4 @@
+name: do-not-merge
+type: label
+color: bfdadc
+description: Block automatic merging of a PR.

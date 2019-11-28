@@ -1,0 +1,4 @@
+name: Main
+type: testoutputs
+bucket_name: istio-prow
+presubmit_path: pr-logs/pull/

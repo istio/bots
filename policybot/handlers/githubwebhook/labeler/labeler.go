@@ -30,47 +30,30 @@ import (
 	"istio.io/pkg/log"
 )
 
-// Generates nagging messages in PRs based on regex matches on the title, body, and affected files
+// Attaches labels to issues and PRs based on regex matches on the title, body, etc.
 type Labeler struct {
 	cache             *cache.Cache
 	gc                *gh.ThrottledClient
-	orgs              []config.Org
-	autoLabels        []config.AutoLabel
 	singleLineRegexes map[string]*regexp.Regexp
 	multiLineRegexes  map[string]*regexp.Regexp
-	repos             map[string][]config.AutoLabel // index is org/repo, value is org-level auto-labels
+	reg               *config.Registry
 }
 
 var scope = log.RegisterScope("labeler", "Issue and PR auto-labeler", 0)
 
-func NewLabeler(gc *gh.ThrottledClient, cache *cache.Cache, orgs []config.Org, autoLabels []config.AutoLabel) (githubwebhook.Filter, error) {
+func NewLabeler(gc *gh.ThrottledClient, cache *cache.Cache, reg *config.Registry) (githubwebhook.Filter, error) {
 	l := &Labeler{
 		cache:             cache,
 		gc:                gc,
-		orgs:              orgs,
-		autoLabels:        autoLabels,
 		singleLineRegexes: make(map[string]*regexp.Regexp),
 		multiLineRegexes:  make(map[string]*regexp.Regexp),
-		repos:             make(map[string][]config.AutoLabel),
+		reg:               reg,
 	}
 
-	for _, al := range autoLabels {
+	for _, r := range reg.Records(recordType, "*") {
+		al := r.(*autoLabelRecord)
 		if err := l.processAutoLabelRegexes(al); err != nil {
 			return nil, err
-		}
-	}
-
-	for _, org := range orgs {
-		for _, al := range org.AutoLabels {
-			if err := l.processAutoLabelRegexes(al); err != nil {
-				return nil, err
-			}
-		}
-	}
-
-	for _, org := range orgs {
-		for _, repo := range org.Repos {
-			l.repos[org.Name+"/"+repo.Name] = org.AutoLabels
 		}
 	}
 
@@ -78,7 +61,7 @@ func NewLabeler(gc *gh.ThrottledClient, cache *cache.Cache, orgs []config.Org, a
 }
 
 // Precompile all the regexes
-func (l *Labeler) processAutoLabelRegexes(al config.AutoLabel) error {
+func (l *Labeler) processAutoLabelRegexes(al *autoLabelRecord) error {
 	for _, expr := range al.MatchTitle {
 		r, err := regexp.Compile("(?i)" + expr)
 		if err != nil {
@@ -159,9 +142,9 @@ func (l *Labeler) Handle(context context.Context, event interface{}) {
 	}
 
 	// see if the event is in a repo we're monitoring
-	autoLabels, ok := l.repos[repo]
-	if !ok {
-		scope.Infof("Ignoring event for issue/PR %d from repo %s since it's not in a monitored repo", number, repo)
+	autoLabels := l.reg.Records(recordType, repo)
+	if len(autoLabels) == 0 {
+		scope.Infof("Ignoring event for issue/PR %d from repo %s since there are no matching auto labels", number, repo)
 		return
 	}
 
@@ -174,7 +157,7 @@ func (l *Labeler) Handle(context context.Context, event interface{}) {
 	}
 }
 
-func (l *Labeler) processIssue(context context.Context, issue *storage.Issue, orgALs []config.AutoLabel) {
+func (l *Labeler) processIssue(context context.Context, issue *storage.Issue, als []config.Record) {
 	// get all the issue's labels
 	var labels []*storage.Label
 	for _, labelName := range issue.Labels {
@@ -190,15 +173,11 @@ func (l *Labeler) processIssue(context context.Context, issue *storage.Issue, or
 	// find any matching global auto labels
 	var toApply []string
 	var toRemove []string
-	for _, al := range l.autoLabels {
-		if l.matchAutoLabel(al, issue.Title, issue.Body, labels) {
-			toApply = append(toApply, al.LabelsToApply...)
-			toRemove = append(toRemove, al.LabelsToRemove...)
-		}
-	}
 
-	// find any matching org-level auto labels
-	for _, al := range orgALs {
+	// find any matching auto labels
+	for _, r := range als {
+		al := r.(*autoLabelRecord)
+
 		if l.matchAutoLabel(al, issue.Title, issue.Body, labels) {
 			toApply = append(toApply, al.LabelsToApply...)
 			toRemove = append(toRemove, al.LabelsToRemove...)
@@ -230,7 +209,7 @@ func (l *Labeler) processIssue(context context.Context, issue *storage.Issue, or
 	scope.Infof("Removed %d label(s) from issue/PR %d from repo %s/%s", len(toRemove), issue.IssueNumber, issue.OrgLogin, issue.RepoName)
 }
 
-func (l *Labeler) processPullRequest(context context.Context, pr *storage.PullRequest, orgALs []config.AutoLabel) {
+func (l *Labeler) processPullRequest(context context.Context, pr *storage.PullRequest, als []config.Record) {
 	// get all the pr's labels
 	var labels []*storage.Label
 	for _, labelName := range pr.Labels {
@@ -243,16 +222,11 @@ func (l *Labeler) processPullRequest(context context.Context, pr *storage.PullRe
 		}
 	}
 
-	// find any matching global auto labels
+	// find any matching auto labels
 	var toApply []string
-	for _, al := range l.autoLabels {
-		if l.matchAutoLabel(al, pr.Title, pr.Body, labels) {
-			toApply = append(toApply, al.LabelsToApply...)
-		}
-	}
+	for _, r := range als {
+		al := r.(*autoLabelRecord)
 
-	// find any matching org-level auto labels
-	for _, al := range orgALs {
 		if l.matchAutoLabel(al, pr.Title, pr.Body, labels) {
 			toApply = append(toApply, al.LabelsToApply...)
 		}
@@ -270,7 +244,7 @@ func (l *Labeler) processPullRequest(context context.Context, pr *storage.PullRe
 	scope.Infof("Applied %d label(s) to PR %d from repo %s/%s", len(toApply), pr.PullRequestNumber, pr.OrgLogin, pr.RepoName)
 }
 
-func (l *Labeler) matchAutoLabel(al config.AutoLabel, title string, body string, labels []*storage.Label) bool {
+func (l *Labeler) matchAutoLabel(al *autoLabelRecord, title string, body string, labels []*storage.Label) bool {
 	// if both the title and body don't match, we're done
 	if !l.titleMatch(al, title) && !l.bodyMatch(al, body) {
 		return false
@@ -306,7 +280,7 @@ func (l *Labeler) matchAutoLabel(al config.AutoLabel, title string, body string,
 	return true
 }
 
-func (l *Labeler) titleMatch(al config.AutoLabel, title string) bool {
+func (l *Labeler) titleMatch(al *autoLabelRecord, title string) bool {
 	for _, expr := range al.MatchTitle {
 		r := l.singleLineRegexes[expr]
 		if r.MatchString(title) {
@@ -317,7 +291,7 @@ func (l *Labeler) titleMatch(al config.AutoLabel, title string) bool {
 	return false
 }
 
-func (l *Labeler) bodyMatch(al config.AutoLabel, body string) bool {
+func (l *Labeler) bodyMatch(al *autoLabelRecord, body string) bool {
 	for _, expr := range al.MatchBody {
 		r := l.multiLineRegexes[expr]
 		if r.MatchString(body) {

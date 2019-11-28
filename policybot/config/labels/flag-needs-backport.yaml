@@ -1,0 +1,4 @@
+name: flag/needs-backport
+type: label
+color: e02642
+description: Indicates an issue needs to be addressed in a patch release.

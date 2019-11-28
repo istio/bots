@@ -1,3 +1,5 @@
+name: PolicyBot
+type: userdata
 users:
   - affiliations:
       - end: "9999-01-01"

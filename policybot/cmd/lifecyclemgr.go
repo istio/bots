@@ -23,6 +23,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"istio.io/bots/policybot/mgrs/lifecyclemgr"
+	"istio.io/bots/policybot/pkg/cmdutil"
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage/cache"
@@ -30,28 +31,28 @@ import (
 )
 
 func lifecycleMgrCmd() *cobra.Command {
-	cmd, _ := config.Run("lifecyclemgr", "Runs the issue and pull request lifecycle manager", 0,
-		config.ConfigFile|config.ConfigRepo|config.GitHubToken|config.GCPCreds, runLifecycleMgr)
+	cmd, _ := cmdutil.Run("lifecyclemgr", "Runs the issue and pull request lifecycle manager", 0,
+		cmdutil.ConfigPath|cmdutil.ConfigRepo|cmdutil.GitHubToken|cmdutil.GCPCreds, runLifecycleMgr)
 
 	return cmd
 }
 
-func runLifecycleMgr(a *config.Args, _ []string) error {
-	creds, err := base64.StdEncoding.DecodeString(a.Secrets.GCPCredentials)
+func runLifecycleMgr(reg *config.Registry, secrets *cmdutil.Secrets) error {
+	creds, err := base64.StdEncoding.DecodeString(secrets.GCPCredentials)
 	if err != nil {
 		return fmt.Errorf("unable to decode GCP credentials: %v", err)
 	}
 
-	gc := gh.NewThrottledClient(context.Background(), a.Secrets.GitHubToken)
+	core := reg.Core()
 
-	store, err := spanner.NewStore(context.Background(), a.SpannerDatabase, creds)
+	store, err := spanner.NewStore(context.Background(), core.SpannerDatabase, creds)
 	if err != nil {
 		return fmt.Errorf("unable to create storage layer: %v", err)
 	}
 	defer store.Close()
 
-	cache := cache.New(store, time.Duration(a.CacheTTL))
-
-	mgr := lifecyclemgr.New(gc, store, cache, a)
-	return mgr.ManageAll(context.Background())
+	gc := gh.NewThrottledClient(context.Background(), secrets.GitHubToken)
+	c := cache.New(store, time.Duration(core.CacheTTL))
+	mgr := lifecyclemgr.New(gc, store, c, reg)
+	return mgr.ManageAll(context.Background(), false)
 }

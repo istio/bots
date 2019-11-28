@@ -33,45 +33,28 @@ import (
 type Nagger struct {
 	cache             *cache.Cache
 	gc                *gh.ThrottledClient
-	orgs              []config.Org
-	nags              []config.Nag
 	multiLineRegexes  map[string]*regexp.Regexp
 	singleLineRegexes map[string]*regexp.Regexp
-	repos             map[string][]config.Nag // index is org/repo, value is org-level nags
+	reg               *config.Registry
 }
 
 const nagSignature = "\n\n_Courtesy of your friendly test nag_."
 
 var scope = log.RegisterScope("nagger", "The GitHub test nagger", 0)
 
-func NewNagger(gc *gh.ThrottledClient, cache *cache.Cache, orgs []config.Org, nags []config.Nag) (githubwebhook.Filter, error) {
+func NewNagger(gc *gh.ThrottledClient, cache *cache.Cache, reg *config.Registry) (githubwebhook.Filter, error) {
 	n := &Nagger{
 		cache:             cache,
 		gc:                gc,
-		orgs:              orgs,
-		nags:              nags,
 		multiLineRegexes:  make(map[string]*regexp.Regexp),
 		singleLineRegexes: make(map[string]*regexp.Regexp),
-		repos:             make(map[string][]config.Nag),
+		reg:               reg,
 	}
 
-	for _, nag := range nags {
+	for _, r := range reg.Records(recordType, "*") {
+		nag := r.(*nagRecord)
 		if err := n.processNagRegexes(nag); err != nil {
 			return nil, err
-		}
-	}
-
-	for _, org := range orgs {
-		for _, nag := range org.Nags {
-			if err := n.processNagRegexes(nag); err != nil {
-				return nil, err
-			}
-		}
-	}
-
-	for _, org := range orgs {
-		for _, repo := range org.Repos {
-			n.repos[org.Name+"/"+repo.Name] = org.Nags
 		}
 	}
 
@@ -79,7 +62,7 @@ func NewNagger(gc *gh.ThrottledClient, cache *cache.Cache, orgs []config.Org, na
 }
 
 // Precompile all the regexes
-func (n *Nagger) processNagRegexes(nag config.Nag) error {
+func (n *Nagger) processNagRegexes(nag *nagRecord) error {
 	for _, expr := range nag.MatchTitle {
 		r, err := regexp.Compile("(?i)" + expr)
 		if err != nil {
@@ -133,9 +116,9 @@ func (n *Nagger) Handle(context context.Context, event interface{}) {
 	}
 
 	// see if the PR is in a repo we're monitoring
-	nags, ok := n.repos[prp.GetRepo().GetFullName()]
-	if !ok {
-		scope.Infof("Ignoring event for PR %d from repo %s since it's not in a monitored repo", prp.GetNumber(), prp.GetRepo().GetFullName())
+	nags := n.reg.Records(recordType, prp.GetRepo().GetFullName())
+	if len(nags) == 0 {
+		scope.Infof("Ignoring event for PR %d from repo %s since there are no matching nags", prp.GetNumber(), prp.GetRepo().GetFullName())
 		return
 	}
 
@@ -152,18 +135,13 @@ func (n *Nagger) Handle(context context.Context, event interface{}) {
 }
 
 // process a PR
-func (n *Nagger) processPR(context context.Context, pr *storage.PullRequest, orgNags []config.Nag) {
+func (n *Nagger) processPR(context context.Context, pr *storage.PullRequest, nags []config.Record) {
 	body := pr.Body
 	title := pr.Title
 
-	contentMatches := make([]config.Nag, 0)
-	for _, nag := range n.nags {
-		if n.titleMatch(nag, title) || n.bodyMatch(nag, body) {
-			contentMatches = append(contentMatches, nag)
-		}
-	}
-
-	for _, nag := range orgNags {
+	contentMatches := make([]*nagRecord, 0)
+	for _, r := range nags {
+		nag := r.(*nagRecord)
 		if n.titleMatch(nag, title) || n.bodyMatch(nag, body) {
 			contentMatches = append(contentMatches, nag)
 		}
@@ -173,13 +151,13 @@ func (n *Nagger) processPR(context context.Context, pr *storage.PullRequest, org
 		scope.Infof("Nothing to nag about for PR %d from repo %s/%s since its title and body don't match any nags",
 			pr.PullRequestNumber, pr.OrgLogin, pr.RepoName)
 
-		if err := gh.RemoveBotComment(context, n.gc, pr.OrgLogin, pr.RepoName, int(pr.PullRequestNumber), nagSignature); err != nil {
+		if err := n.gc.RemoveBotComment(context, pr.OrgLogin, pr.RepoName, int(pr.PullRequestNumber), nagSignature); err != nil {
 			scope.Error(err.Error())
 		}
 		return
 	}
 
-	fileMatches := make([]config.Nag, 0)
+	fileMatches := make([]*nagRecord, 0)
 	for _, nag := range contentMatches {
 		if n.fileMatch(nag.MatchFiles, pr.Files) {
 			fileMatches = append(fileMatches, nag)
@@ -189,7 +167,7 @@ func (n *Nagger) processPR(context context.Context, pr *storage.PullRequest, org
 	if len(fileMatches) == 0 {
 		scope.Infof("Nothing to nag about for PR %d from repo %s/%s since its affected files don't match any nags",
 			pr.PullRequestNumber, pr.OrgLogin, pr.RepoName)
-		if err := gh.RemoveBotComment(context, n.gc, pr.OrgLogin, pr.RepoName, int(pr.PullRequestNumber), nagSignature); err != nil {
+		if err := n.gc.RemoveBotComment(context, pr.OrgLogin, pr.RepoName, int(pr.PullRequestNumber), nagSignature); err != nil {
 			scope.Error(err.Error())
 		}
 		return
@@ -201,7 +179,7 @@ func (n *Nagger) processPR(context context.Context, pr *storage.PullRequest, org
 	for _, nag := range fileMatches {
 		if !n.fileMatch(nag.AbsentFiles, pr.Files) {
 			scope.Infof("Nagging PR %d from repo %s/%s (nag: %s)", pr.PullRequestNumber, pr.OrgLogin, pr.RepoName, nag.Name)
-			if err := gh.AddOrReplaceBotComment(context, n.gc, pr.OrgLogin, pr.RepoName, int(pr.PullRequestNumber), nag.Message, nagSignature); err != nil {
+			if err := n.gc.AddOrReplaceBotComment(context, pr.OrgLogin, pr.RepoName, int(pr.PullRequestNumber), nag.Message, nagSignature); err != nil {
 				scope.Error(err.Error())
 			}
 
@@ -212,12 +190,12 @@ func (n *Nagger) processPR(context context.Context, pr *storage.PullRequest, org
 
 	scope.Infof("Nothing to nag about for PR %d from repo %s/%s since it contains required files", pr.PullRequestNumber, pr.OrgLogin, pr.RepoName)
 
-	if err := gh.RemoveBotComment(context, n.gc, pr.OrgLogin, pr.RepoName, int(pr.PullRequestNumber), nagSignature); err != nil {
+	if err := n.gc.RemoveBotComment(context, pr.OrgLogin, pr.RepoName, int(pr.PullRequestNumber), nagSignature); err != nil {
 		scope.Error(err.Error())
 	}
 }
 
-func (n *Nagger) titleMatch(nag config.Nag, title string) bool {
+func (n *Nagger) titleMatch(nag *nagRecord, title string) bool {
 	for _, expr := range nag.MatchTitle {
 		r := n.singleLineRegexes[expr]
 		if r.MatchString(title) {
@@ -228,7 +206,7 @@ func (n *Nagger) titleMatch(nag config.Nag, title string) bool {
 	return false
 }
 
-func (n *Nagger) bodyMatch(nag config.Nag, body string) bool {
+func (n *Nagger) bodyMatch(nag *nagRecord, body string) bool {
 	for _, expr := range nag.MatchBody {
 		r := n.multiLineRegexes[expr]
 		if r.MatchString(body) {

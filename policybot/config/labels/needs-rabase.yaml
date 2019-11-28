@@ -1,0 +1,4 @@
+name: 'needs-rebase'
+type: label
+color: bfdadc
+description: Indicates a PR needs to be rebased before being merged

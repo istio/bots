@@ -1,0 +1,4 @@
+name: 'cla: yes'
+type: label
+color: bfdadc
+description: Set by the Google CLA bot to indicate the author of a PR has signed the Google CLA.

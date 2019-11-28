@@ -34,16 +34,12 @@ var shaToPRCache = cache.NewTTL(time.Hour, time.Minute)
 // the Github Search API. This method can return a cached pull request object,
 // so it is only useful for fairly static in formation, such as the pull
 // request number, the PR base information, etc.
-func GetPRForSHA(
-	context context.Context,
-	gc *ThrottledClient,
-	orgLogin, repoName, sha string,
-) (*github.PullRequest, error) {
+func (tc *ThrottledClient) GetPRForSHA(context context.Context, orgLogin, repoName, sha string) (*github.PullRequest, error) {
 	val, ok := shaToPRCache.Get(sha)
 	if ok {
 		return val.(*github.PullRequest), nil
 	}
-	resp, _, err := gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+	resp, _, err := tc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 		return client.Search.Issues(context, sha, nil)
 	})
 	if err != nil {
@@ -62,7 +58,7 @@ func GetPRForSHA(
 		if orgLogin != owner || repoName != repo {
 			continue
 		}
-		resp, _, err = gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
+		resp, _, err = tc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.PullRequests.Get(context, owner, repo, issues[0].GetNumber())
 		})
 		if err != nil {

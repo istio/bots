@@ -19,9 +19,8 @@ spec:
                 - userdatamgr
                 - --config_repo
                 - istio/bots/master
-                - --config_file
-                - policybot/policybot.yaml
-                - ./userdata.yaml
+                - --config_path
+                - policybot/config
               envFrom:
                 - secretRef:
                     name: policybot

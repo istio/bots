@@ -1,0 +1,4 @@
+name: 'lifecycle/automatically-closed'
+type: label
+color: 922992
+description: Indicates a PR or issue that has been closed automatically.

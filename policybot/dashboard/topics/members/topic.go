@@ -49,7 +49,7 @@ type Members struct {
 	list           *template.Template
 	activityWindow time.Duration
 	defaultOrg     string
-	orgs           []config.Org
+	reg            *config.Registry
 }
 
 type combo struct {
@@ -68,7 +68,7 @@ const (
 )
 
 // New creates a new Members instance
-func New(store storage.Store, cache *cache.Cache, cacheTTL time.Duration, activityWindow time.Duration, defaultOrg string, orgs []config.Org) *Members {
+func New(store storage.Store, cache *cache.Cache, cacheTTL time.Duration, activityWindow time.Duration, defaultOrg string, reg *config.Registry) *Members {
 	// purge the cache every 10 seconds
 	evictionInterval := 10 * time.Second
 	if cacheTTL < 20*time.Second {
@@ -86,7 +86,7 @@ func New(store storage.Store, cache *cache.Cache, cacheTTL time.Duration, activi
 		list:           template.Must(template.New("list").Parse(string(MustAsset("list.html")))),
 		activityWindow: activityWindow,
 		defaultOrg:     defaultOrg,
-		orgs:           orgs,
+		reg:            reg,
 	}
 }
 
@@ -299,11 +299,10 @@ func (m *Members) getCombo(context context.Context, member *storage.Member, skip
 	var info *storage.ActivityInfo
 	if member.CachedInfo == "" {
 		var repoNames []string
-		for _, configOrg := range m.orgs {
-			if configOrg.Name == org.OrgLogin {
-				for _, configRepo := range configOrg.Repos {
-					repoNames = append(repoNames, configRepo.Name)
-				}
+
+		for _, repo := range m.reg.Repos() {
+			if repo.OrgLogin == org.OrgLogin {
+				repoNames = append(repoNames, repo.RepoName)
 			}
 		}
 

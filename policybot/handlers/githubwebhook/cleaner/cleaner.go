@@ -33,40 +33,23 @@ import (
 // Removes redundant boilerplate content from PRs and issues
 type Cleaner struct {
 	gc               *gh.ThrottledClient
-	orgs             []config.Org
-	boilerplates     []config.Boilerplate
 	multiLineRegexes map[string]*regexp.Regexp
-	repos            map[string][]config.Boilerplate // index is org/repo, value is org-level boilerplate
+	reg              *config.Registry
 }
 
 var scope = log.RegisterScope("cleaner", "Issue and PR boilerplate cleaner", 0)
 
-func New(gc *gh.ThrottledClient, orgs []config.Org, boilerplates []config.Boilerplate) (githubwebhook.Filter, error) {
+func New(gc *gh.ThrottledClient, reg *config.Registry) (githubwebhook.Filter, error) {
 	l := &Cleaner{
 		gc:               gc,
-		orgs:             orgs,
-		boilerplates:     boilerplates,
 		multiLineRegexes: make(map[string]*regexp.Regexp),
-		repos:            make(map[string][]config.Boilerplate),
+		reg:              reg,
 	}
 
-	for _, al := range boilerplates {
-		if err := l.processBoilerplateRegexes(al); err != nil {
+	for _, r := range reg.Records(recordType, "*") {
+		b := r.(*boilerplateRecord)
+		if err := l.processBoilerplateRegexes(b); err != nil {
 			return nil, err
-		}
-	}
-
-	for _, org := range orgs {
-		for _, al := range org.BoilerplatesToClean {
-			if err := l.processBoilerplateRegexes(al); err != nil {
-				return nil, err
-			}
-		}
-	}
-
-	for _, org := range orgs {
-		for _, repo := range org.Repos {
-			l.repos[org.Name+"/"+repo.Name] = org.BoilerplatesToClean
 		}
 	}
 
@@ -74,7 +57,7 @@ func New(gc *gh.ThrottledClient, orgs []config.Org, boilerplates []config.Boiler
 }
 
 // Precompile all the regexes
-func (l *Cleaner) processBoilerplateRegexes(b config.Boilerplate) error {
+func (l *Cleaner) processBoilerplateRegexes(b *boilerplateRecord) error {
 	r, err := regexp.Compile("(?mis)" + b.Regex)
 	if err != nil {
 		return fmt.Errorf("invalid regular expression %s: %v", b.Regex, err)
@@ -129,9 +112,9 @@ func (l *Cleaner) Handle(context context.Context, event interface{}) {
 	}
 
 	// see if the event is in a repo we're monitoring
-	boilerplates, ok := l.repos[repo]
-	if !ok {
-		scope.Infof("Ignoring event for issue/PR %d from repo %s since it's not in a monitored repo", number, repo)
+	boilerplates := l.reg.Records(recordType, repo)
+	if len(boilerplates) == 0 {
+		scope.Infof("Ignoring event for issue/PR %d from repo %s since there are no matching boilerplates", number, repo)
 		return
 	}
 
@@ -144,7 +127,7 @@ func (l *Cleaner) Handle(context context.Context, event interface{}) {
 	}
 }
 
-func (l *Cleaner) processIssue(context context.Context, issue *storage.Issue, orgBoilerplates []config.Boilerplate) {
+func (l *Cleaner) processIssue(context context.Context, issue *storage.Issue, boilerplates []config.Record) {
 	original := strings.ReplaceAll(issue.Body, "\r\n", "\n")
 
 	if !strings.HasSuffix(original, "\n") {
@@ -154,17 +137,8 @@ func (l *Cleaner) processIssue(context context.Context, issue *storage.Issue, or
 
 	body := original
 
-	for _, b := range orgBoilerplates {
-		r := l.multiLineRegexes[b.Regex]
-
-		oldBody := body
-		body = r.ReplaceAllString(body, b.Replacement)
-		if oldBody != body {
-			scope.Infof("Removed the `%s` boilerplate from issue %d in repo %s/%s", b.Name, issue.IssueNumber, issue.OrgLogin, issue.RepoName)
-		}
-	}
-
-	for _, b := range l.boilerplates {
+	for _, rec := range boilerplates {
+		b := rec.(*boilerplateRecord)
 		r := l.multiLineRegexes[b.Regex]
 
 		oldBody := body
@@ -189,7 +163,7 @@ func (l *Cleaner) processIssue(context context.Context, issue *storage.Issue, or
 	}
 }
 
-func (l *Cleaner) processPullRequest(context context.Context, pr *storage.PullRequest, orgBoilerplates []config.Boilerplate) {
+func (l *Cleaner) processPullRequest(context context.Context, pr *storage.PullRequest, boilerplates []config.Record) {
 	original := strings.ReplaceAll(pr.Body, "\r\n", "\n")
 
 	if !strings.HasSuffix(original, "\n") {
@@ -199,17 +173,8 @@ func (l *Cleaner) processPullRequest(context context.Context, pr *storage.PullRe
 
 	body := original
 
-	for _, b := range orgBoilerplates {
-		r := l.multiLineRegexes[b.Regex]
-
-		oldBody := body
-		body = r.ReplaceAllString(body, b.Replacement)
-		if oldBody != body {
-			scope.Infof("Removed the `%s` boilerplate from PR %d in repo %s/%s", b.Name, pr.PullRequestNumber, pr.OrgLogin, pr.RepoName)
-		}
-	}
-
-	for _, b := range l.boilerplates {
+	for _, rec := range boilerplates {
+		b := rec.(*boilerplateRecord)
 		r := l.multiLineRegexes[b.Regex]
 
 		oldBody := body

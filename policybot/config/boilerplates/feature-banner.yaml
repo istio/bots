@@ -1,0 +1,4 @@
+name: Feature banner
+type: boilerplate
+regex: |
+  \(This is used to request new product features, please visit <https://discuss\.istio\.io> for questions on using Istio\)

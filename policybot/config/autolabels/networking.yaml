@@ -1,0 +1,8 @@
+name: Networking
+type: autolabel
+matchbody:
+  - "\\[ ?x ?\\] ?Networking"
+absentlabels:
+  - "area/.?"
+labelstoapply:
+  - area/networking

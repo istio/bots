@@ -1,0 +1,4 @@
+name: do-not-merge/work-in-progress
+type: label
+color: bfdadc
+description: Block merging of a PR because it isn't ready yet.

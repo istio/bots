@@ -1,0 +1,13 @@
+name: Area selection
+type: boilerplate
+regex: |
+  ^\[.*\] +Configuration Infrastructure
+  \[.*\] +Docs
+  \[.*\] +Installation
+  \[.*\] +Networking
+  \[.*\] +Performance and Scalability
+  \[.*\] +Policies and Telemetry
+  \[.*\] +Security
+  \[.*\] +Test and Release
+  \[.*\] +User Experience
+  \[.*\] +Developer Infrastructure

@@ -27,44 +27,31 @@ import (
 
 // LabelMgr creates labels in GitHub repos
 type LabelMgr struct {
-	gc   *gh.ThrottledClient
-	args *config.Args
+	gc  *gh.ThrottledClient
+	reg *config.Registry
 }
 
 var scope = log.RegisterScope("labelmgr", "The GitHub label manager", 0)
 
-func New(gc *gh.ThrottledClient, args *config.Args) *LabelMgr {
+func New(gc *gh.ThrottledClient, reg *config.Registry) *LabelMgr {
 	return &LabelMgr{
-		gc:   gc,
-		args: args,
+		gc:  gc,
+		reg: reg,
 	}
 }
 
-func (lm *LabelMgr) MakeConfiguredLabels(context context.Context) error {
-	for _, org := range lm.args.Orgs {
-		for _, repo := range org.Repos {
-			// global
-			for _, label := range lm.args.LabelsToCreate {
-				err := lm.makeLabel(context, org.Name, repo.Name, label)
-				if err != nil {
-					return fmt.Errorf("unable to create label %s in repo %s/%s: %v", label.Name, org.Name, repo.Name, err)
-				}
+func (lm *LabelMgr) MakeConfiguredLabels(context context.Context, dryRun bool) error {
+	for _, repo := range lm.reg.Repos() {
+		for _, r := range lm.reg.Records(recordType, repo.OrgAndRepo) {
+			label := r.(*labelRecord)
+
+			if dryRun {
+				scope.Infof("Would have created or updated label %s in repo %s", label.Name, repo)
+				continue
 			}
 
-			// org-level
-			for _, label := range org.LabelsToCreate {
-				err := lm.makeLabel(context, org.Name, repo.Name, label)
-				if err != nil {
-					return fmt.Errorf("unable to create label %s in repo %s/%s: %v", label.Name, org.Name, repo.Name, err)
-				}
-			}
-
-			// repo-level
-			for _, label := range repo.LabelsToCreate {
-				err := lm.makeLabel(context, org.Name, repo.Name, label)
-				if err != nil {
-					return fmt.Errorf("unable to create label %s in repo %s/%s: %v", label.Name, org.Name, repo.Name, err)
-				}
+			if err := lm.makeLabel(context, repo, label); err != nil {
+				return fmt.Errorf("unable to create label %s in repo %s: %v", label.Name, repo, err)
 			}
 		}
 	}
@@ -72,9 +59,9 @@ func (lm *LabelMgr) MakeConfiguredLabels(context context.Context) error {
 	return nil
 }
 
-func (lm *LabelMgr) makeLabel(context context.Context, orgLogin string, repoName string, label config.Label) error {
+func (lm *LabelMgr) makeLabel(context context.Context, repo gh.RepoDesc, label *labelRecord) error {
 	_, _, err := lm.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
-		return client.Issues.CreateLabel(context, orgLogin, repoName, &github.Label{
+		return client.Issues.CreateLabel(context, repo.OrgLogin, repo.RepoName, &github.Label{
 			Name:        &label.Name,
 			Color:       &label.Color,
 			Description: &label.Description,
@@ -82,12 +69,12 @@ func (lm *LabelMgr) makeLabel(context context.Context, orgLogin string, repoName
 	})
 
 	if err == nil {
-		scope.Infof("Created label %s in repo %s/%s", label.Name, orgLogin, repoName)
+		scope.Infof("Created label %s in repo %s", label.Name, repo)
 		return nil
 	}
 
 	_, _, err = lm.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
-		return client.Issues.EditLabel(context, orgLogin, repoName, label.Name, &github.Label{
+		return client.Issues.EditLabel(context, repo.OrgLogin, repo.RepoName, label.Name, &github.Label{
 			Name:        &label.Name,
 			Color:       &label.Color,
 			Description: &label.Description,
@@ -95,7 +82,7 @@ func (lm *LabelMgr) makeLabel(context context.Context, orgLogin string, repoName
 	})
 
 	if err == nil {
-		scope.Infof("Updated label %s in repo %s/%s", label.Name, orgLogin, repoName)
+		scope.Infof("Updated label %s in repo %s", label.Name, repo)
 		return nil
 	}
 

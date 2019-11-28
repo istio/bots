@@ -27,8 +27,8 @@ spec:
             - server
             - --config_repo
             - istio/bots/master
-            - --config_file
-            - policybot/policybot.yaml
+            - --config_path
+            - policybot/config
             - --https_only
           envFrom:
           - secretRef:

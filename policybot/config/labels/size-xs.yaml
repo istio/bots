@@ -1,0 +1,4 @@
+name: size/XS
+type: label
+color: 77bb00
+description: Denotes a PR that changes 0-9 lines, ignoring generated files.

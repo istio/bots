@@ -1,0 +1,8 @@
+name: Chinese
+type: autolabel
+matchtitle:
+  - "^zh:.*"
+  - "^zh-trans:.*"
+  - "^zh-translation:.*"
+labelstoapply:
+  - translation/chinese

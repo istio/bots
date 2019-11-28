@@ -1,0 +1,5 @@
+name: Please consider
+type: boilerplate
+regex: |
+  Additionally, please consider attaching a \[cluster state archive\]\(http://istio.io/help/bugs/#generating-a-cluster-state-archive\) by attaching
+  the dump file to this issue\.

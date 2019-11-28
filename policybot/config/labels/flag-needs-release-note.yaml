@@ -1,0 +1,4 @@
+name: flag/needs-release-note
+type: label
+color: e02642
+description: Indicates a PR contains changes worthy of mentioning in customer-facing release notes.

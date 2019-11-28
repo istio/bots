@@ -22,6 +22,8 @@ import (
 	"text/template"
 	"time"
 
+	"istio.io/bots/policybot/pkg/cmdutil"
+
 	"istio.io/bots/policybot/dashboard/topics/workinggroups"
 
 	"github.com/gorilla/mux"
@@ -69,13 +71,13 @@ type templateInfo struct {
 
 var scope = log.RegisterScope("dashboard", "The UI layer", 0)
 
-func New(router *mux.Router, store storage.Store, cache *cache.Cache, a *config.Args) *Dashboard {
+func New(router *mux.Router, store storage.Store, cache *cache.Cache, reg *config.Registry, secrets *cmdutil.Secrets) *Dashboard {
 	d := &Dashboard{
 		primaryTemplates: template.Must(template.New("base").Parse(layout.BaseTemplate)),
 		errorTemplates:   template.Must(template.New("base").Parse(layout.BaseTemplate)),
 		router:           router,
-		options:          Options{"istio"}, // TODO: get rid of Istio default
-		oauthHandler:     newOAuthHandler(a.Secrets.GitHubOAuthClientID, a.Secrets.GitHubOAuthClientSecret),
+		options:          Options{reg.Core().DefaultOrg},
+		oauthHandler:     newOAuthHandler(secrets.GitHubOAuthClientID, secrets.GitHubOAuthClientSecret),
 		entryMap:         make(map[*mux.Route]*sidebarEntry),
 	}
 
@@ -113,10 +115,12 @@ func New(router *mux.Router, store storage.Store, cache *cache.Cache, a *config.
 	d.registerStaticDir("dashboard/static/img", "/img/")
 	d.registerStaticDir("dashboard/static/favicons", "/favicons/")
 
+	core := reg.Core()
+
 	// topics
-	maintainers := maintainers.New(store, cache, time.Duration(a.CacheTTL), time.Duration(a.MaintainerActivityWindow), a.DefaultOrg)
-	members := members.New(store, cache, time.Duration(a.CacheTTL), time.Duration(a.MemberActivityWindow), a.DefaultOrg, a.Orgs)
-	issues := issues.New(store, cache, a.DefaultOrg)
+	maintainers := maintainers.New(store, cache, time.Duration(core.CacheTTL), time.Duration(core.MaintainerActivityWindow), core.DefaultOrg)
+	members := members.New(store, cache, time.Duration(core.CacheTTL), time.Duration(core.MemberActivityWindow), core.DefaultOrg, reg)
+	issues := issues.New(store, cache, core.DefaultOrg)
 	pullRequests := pullrequests.New(store, cache)
 	perf := perf.New(store, cache)
 	commitHub := commithub.New(store, cache)

@@ -17,12 +17,14 @@ package refresher
 import (
 	"context"
 
-	"istio.io/bots/policybot/handlers/githubwebhook"
-
 	"github.com/google/go-github/v26/github"
 
+	"istio.io/bots/policybot/handlers/githubwebhook"
+	"istio.io/bots/policybot/pkg/blobstorage"
 	"istio.io/bots/policybot/pkg/config"
+	"istio.io/bots/policybot/pkg/coverage"
 	"istio.io/bots/policybot/pkg/gh"
+	gatherer "istio.io/bots/policybot/pkg/resultgatherer"
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
 	"istio.io/pkg/log"
@@ -30,29 +32,23 @@ import (
 
 // Updates the DB based on incoming GitHub webhook events.
 type Refresher struct {
-	repos map[string]bool
 	cache *cache.Cache
 	store storage.Store
 	gc    *gh.ThrottledClient
+	bs    blobstorage.Store
+	reg   *config.Registry
 }
 
 var scope = log.RegisterScope("refresher", "Dynamic database refresher", 0)
 
-func NewRefresher(cache *cache.Cache, store storage.Store, gc *gh.ThrottledClient, orgs []config.Org) githubwebhook.Filter {
-	r := &Refresher{
-		repos: make(map[string]bool),
+func NewRefresher(cache *cache.Cache, store storage.Store, bs blobstorage.Store, gc *gh.ThrottledClient, reg *config.Registry) githubwebhook.Filter {
+	return &Refresher{
 		cache: cache,
 		store: store,
+		bs:    bs,
 		gc:    gc,
+		reg:   reg,
 	}
-
-	for _, org := range orgs {
-		for _, repo := range org.Repos {
-			r.repos[org.Name+"/"+repo.Name] = true
-		}
-	}
-
-	return r
 }
 
 // accept an event arriving from GitHub
@@ -61,8 +57,8 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 	case *github.IssuesEvent:
 		scope.Infof("Received IssuesEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetIssue().GetNumber(), p.GetAction())
 
-		if !r.repos[p.GetRepo().GetFullName()] {
-			scope.Infof("Ignoring issue %d from repo %s since it's not in a monitored repo", p.GetIssue().GetNumber(), p.GetRepo().GetFullName())
+		if _, ok := r.reg.SingleRecord(RecordType, p.GetRepo().GetFullName()); !ok {
+			scope.Infof("Ignoring issue %d from repo %s since there aren't matching refreshers", p.GetIssue().GetNumber(), p.GetRepo().GetFullName())
 			return
 		}
 
@@ -97,8 +93,8 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 	case *github.IssueCommentEvent:
 		scope.Infof("Received IssueCommentEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetIssue().GetNumber(), p.GetAction())
 
-		if !r.repos[p.GetRepo().GetFullName()] {
-			scope.Infof("Ignoring issue comment for issue %d from repo %s since it's not in a monitored repo", p.GetIssue().GetNumber(), p.GetRepo().GetFullName())
+		if _, ok := r.reg.SingleRecord(RecordType, p.GetRepo().GetFullName()); !ok {
+			scope.Infof("Ignoring issue comment for issue %d from repo %s since there are no matching refreshers", p.GetIssue().GetNumber(), p.GetRepo().GetFullName())
 			return
 		}
 
@@ -134,12 +130,47 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 	case *github.PullRequestEvent:
 		scope.Infof("Received PullRequestEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetNumber(), p.GetAction())
 
-		if !r.repos[p.GetRepo().GetFullName()] {
-			scope.Infof("Ignoring PR %d from repo %s since it's not in a monitored repo", p.GetNumber(), p.GetRepo().GetFullName())
-			return
+		action := p.GetAction()
+
+		rec, ok := r.reg.SingleRecord(RecordType, p.GetRepo().GetFullName())
+		if ok {
+			ref := rec.(*TestOutputRecord)
+			orgLogin := p.GetRepo().GetOwner().GetLogin()
+			repoName := p.GetRepo().GetName()
+			prNum := p.GetNumber()
+
+			if action == "opened" || p.GetAction() == "synchronize" {
+				_, err := coverage.GetConfig(orgLogin, repoName)
+				if err != nil {
+					scope.Errorf("Unable to fetch coverage config for repo %s/%s: %v", orgLogin, repoName, err)
+				} else {
+					cov := coverage.Client{
+						OrgLogin:      orgLogin,
+						Repo:          repoName,
+						BlobClient:    r.bs,
+						StorageClient: r.store,
+						GithubClient:  r.gc,
+					}
+					cov.SetCoverageStatus(context, p.GetPullRequest().GetHead().GetSHA(), coverage.Pending,
+						"Waiting for test results.")
+				}
+			}
+
+			tg := gatherer.TestResultGatherer{
+				Client:           r.bs,
+				BucketName:       ref.BucketName,
+				PreSubmitPrefix:  ref.PreSubmitTestPath,
+				PostSubmitPrefix: ref.PostSubmitTestPath,
+			}
+
+			testResults, err := tg.CheckTestResultsForPr(context, orgLogin, repoName, int64(prNum))
+			if err != nil {
+				scope.Errorf("Unable to get test result for PR %d in repo %s: %v", prNum, p.GetRepo().GetFullName(), err)
+			} else if err = r.cache.WriteTestResults(context, testResults); err != nil {
+				scope.Errorf("Unable to write test results: %v", err)
+			}
 		}
 
-		action := p.GetAction()
 		if action == "opened" || action == "edited" {
 			opt := &github.ListOptions{
 				PerPage: 100,
@@ -205,8 +236,8 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 	case *github.PullRequestReviewEvent:
 		scope.Infof("Received PullRequestReviewEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetPullRequest().GetNumber(), p.GetAction())
 
-		if !r.repos[p.GetRepo().GetFullName()] {
-			scope.Infof("Ignoring PR review for PR %d from repo %s since it's not in a monitored repo", p.GetPullRequest().GetNumber(), p.GetRepo().GetFullName())
+		if _, ok := r.reg.SingleRecord(RecordType, p.GetRepo().GetFullName()); !ok {
+			scope.Infof("Ignoring PR review for PR %d from repo %s since there are no matching refreshers", p.GetPullRequest().GetNumber(), p.GetRepo().GetFullName())
 			return
 		}
 
@@ -242,8 +273,8 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 	case *github.PullRequestReviewCommentEvent:
 		scope.Infof("Received PullRequestReviewCommentEvent: %s, %d, %s", p.GetRepo().GetFullName(), p.GetPullRequest().GetNumber(), p.GetAction())
 
-		if !r.repos[p.GetRepo().GetFullName()] {
-			scope.Infof("Ignoring PR review comment for PR %d from repo %s since it's not in a monitored repo",
+		if _, ok := r.reg.SingleRecord(RecordType, p.GetRepo().GetFullName()); !ok {
+			scope.Infof("Ignoring PR review comment for PR %d from repo %s since there are no matching refreshers",
 				p.GetPullRequest().GetNumber(), p.GetRepo().GetFullName())
 			return
 		}
@@ -279,8 +310,8 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 	case *github.CommitCommentEvent:
 		scope.Infof("Received CommitCommentEvent: %s, %s", p.GetRepo().GetFullName(), p.GetAction())
 
-		if !r.repos[p.GetRepo().GetFullName()] {
-			scope.Infof("Ignoring repo comment from repo %s since it's not in a monitored repo", p.GetRepo().GetFullName())
+		if _, ok := r.reg.SingleRecord(RecordType, p.GetRepo().GetFullName()); !ok {
+			scope.Infof("Ignoring repo comment from repo %s since there are no matching refreshers", p.GetRepo().GetFullName())
 			return
 		}
 
@@ -309,6 +340,65 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 		}
 
 		r.syncUsers(context, comment.Author)
+
+	case *github.StatusEvent:
+		scope.Infof("Received StatusEvent: %s", p.GetRepo().GetFullName())
+
+		if p.GetState() == "pending" {
+			scope.Infof("Ignoring StatusEvent from repo %s because it's pending", p.GetRepo().GetFullName())
+			return
+		}
+
+		rec, ok := r.reg.SingleRecord(RecordType, p.GetRepo().GetFullName())
+		if !ok {
+			scope.Infof("Ignoring status event from repo %s since there are no matching refreshers", p.GetRepo().GetFullName())
+			return
+		}
+
+		ref := rec.(*TestOutputRecord)
+		orgLogin := p.GetRepo().GetOwner().GetLogin()
+		repoName := p.GetRepo().GetName()
+
+		sha := p.GetCommit().GetSHA()
+		pr, err := r.gc.GetPRForSHA(context, orgLogin, repoName, sha)
+		if err != nil {
+			scope.Errorf("Unable to fetch pull request info for commit %s in repo %s: %v", sha, p.GetRepo().GetFullName(), err)
+			return
+		}
+
+		prNum := int64(pr.GetNumber())
+		scope.Debugf("Commit %s corresponds to pull request %d", sha, prNum)
+
+		tg := gatherer.TestResultGatherer{
+			Client:           r.bs,
+			BucketName:       ref.BucketName,
+			PreSubmitPrefix:  ref.PreSubmitTestPath,
+			PostSubmitPrefix: ref.PostSubmitTestPath,
+		}
+
+		testResults, err := tg.CheckTestResultsForPr(context, orgLogin, repoName, prNum)
+		if err != nil {
+			scope.Errorf("Unable to get test result for PR %d in repo %s: %v", prNum, p.GetRepo().GetFullName(), err)
+			return
+		}
+
+		if err = r.cache.WriteTestResults(context, testResults); err != nil {
+			scope.Errorf("Unable to write test results: %v", err)
+			return
+		}
+
+		cov := coverage.Client{
+			OrgLogin:      orgLogin,
+			Repo:          repoName,
+			BlobClient:    r.bs,
+			StorageClient: r.store,
+			GithubClient:  r.gc,
+		}
+
+		if err = cov.CheckCoverage(context, pr, sha); err != nil {
+			scope.Errorf("unable to check coverage for PR %d in repo %s: %v", prNum, err, p.GetRepo().GetFullName())
+			return
+		}
 
 	default:
 		// not what we're looking for
