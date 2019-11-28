@@ -54,13 +54,13 @@ var recordTypes = make(map[string]recordTypeInfo)
 type recordSet map[string][]Record
 
 type Registry struct {
-	recordsToProcess recordSet
-	repos            map[string]recordSet
-	globalRecords    map[string]Record
-	allRepos         []gh.RepoDesc
-	core             *CoreRecord
-	originRepo       gh.RepoDesc
-	originPath       string
+	records       recordSet
+	repos         map[string]recordSet
+	globalRecords map[string]Record
+	allRepos      []gh.RepoDesc
+	core          *CoreRecord
+	originRepo    gh.RepoDesc
+	originPath    string
 }
 
 func RegisterType(recordType string, card RecordCardinality, factory RecordFactory) {
@@ -72,11 +72,11 @@ func RegisterType(recordType string, card RecordCardinality, factory RecordFacto
 
 func LoadRegistryFromRepo(gc *gh.ThrottledClient, repo gh.RepoDesc, path string) (*Registry, error) {
 	reg := &Registry{
-		repos:            make(map[string]recordSet),
-		recordsToProcess: make(recordSet),
-		globalRecords:    make(map[string]Record),
-		originRepo:       repo,
-		originPath:       path,
+		repos:         make(map[string]recordSet),
+		records:       make(recordSet),
+		globalRecords: make(map[string]Record),
+		originRepo:    repo,
+		originPath:    path,
 	}
 
 	t, _, err := gc.ThrottledCall(func(client *github.Client) (i interface{}, response *github.Response, e error) {
@@ -92,10 +92,14 @@ func LoadRegistryFromRepo(gc *gh.ThrottledClient, repo gh.RepoDesc, path string)
 	for _, entry := range tree.Entries {
 		if strings.HasPrefix(entry.GetPath(), path) && strings.HasSuffix(entry.GetPath(), ".yaml") && entry.GetType() == "blob" {
 
-			url := "https://raw.githubusercontent.com/" + repo.OrgAndRepo + "/master/" + entry.GetPath()
+			url := "https://raw.githubusercontent.com/" + repo.OrgAndRepo + "/" + repo.Branch + "/" + entry.GetPath()
 			r, err := http.Get(url)
 			if err != nil {
 				return nil, fmt.Errorf("unable to fetch configuration file from %s: %v", url, err)
+			}
+
+			if r.StatusCode != 200 {
+				return nil, fmt.Errorf("unable to fetch configuration file from %s: HTTP error %v", url, r.StatusCode)
 			}
 
 			var b []byte
@@ -103,13 +107,11 @@ func LoadRegistryFromRepo(gc *gh.ThrottledClient, repo gh.RepoDesc, path string)
 				_ = r.Body.Close()
 				return nil, fmt.Errorf("unable to read configuration file from %s: %v", url, err)
 			}
+			_ = r.Body.Close()
 
 			if err := reg.processRecord(b); err != nil {
-				_ = r.Body.Close()
 				return nil, fmt.Errorf("unable to parse configuration file %s in repo %s: %v", entry.GetPath(), repo, err)
 			}
-
-			_ = r.Body.Close()
 		}
 	}
 
@@ -122,11 +124,11 @@ func LoadRegistryFromRepo(gc *gh.ThrottledClient, repo gh.RepoDesc, path string)
 
 func LoadRegistryFromDirectory(path string) (*Registry, error) {
 	reg := &Registry{
-		repos:            make(map[string]recordSet),
-		recordsToProcess: make(recordSet),
-		globalRecords:    make(map[string]Record),
-		originRepo:       gh.RepoDesc{},
-		originPath:       path,
+		repos:         make(map[string]recordSet),
+		records:       make(recordSet),
+		globalRecords: make(map[string]Record),
+		originRepo:    gh.RepoDesc{},
+		originPath:    path,
 	}
 
 	err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
@@ -196,7 +198,7 @@ func (reg *Registry) processRecord(b []byte) error {
 
 		reg.globalRecords[r.Type] = o
 	} else {
-		reg.recordsToProcess[r.Type] = append(reg.recordsToProcess[r.Type], o)
+		reg.records[r.Type] = append(reg.records[r.Type], o)
 	}
 
 	return nil
@@ -217,7 +219,7 @@ func (reg *Registry) postProcessAfterLoad() error {
 		reg.repos[repo] = make(recordSet)
 	}
 
-	for recType, recs := range reg.recordsToProcess {
+	for recType, recs := range reg.records {
 		card := recordTypes[recType].card
 		for _, rec := range recs {
 
@@ -255,6 +257,11 @@ func (reg *Registry) postProcessAfterLoad() error {
 }
 
 func (reg *Registry) Records(recordType string, orgAndRepo string) []Record {
+	if orgAndRepo == "*" {
+		// return the records for all the repos
+		return reg.records[recordType]
+	}
+
 	recSet := reg.repos[orgAndRepo]
 	if recSet == nil {
 		return nil

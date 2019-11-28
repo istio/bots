@@ -32,7 +32,7 @@ func NewRepoDesc(orgAndRepo string) RepoDesc {
 	}
 
 	return RepoDesc{
-		OrgAndRepo: orgAndRepo,
+		OrgAndRepo: splits[0] + "/" + splits[1],
 		OrgLogin:   splits[0],
 		RepoName:   splits[1],
 		Branch:     branch,
