@@ -199,7 +199,7 @@ func (l *Lifecycler) fetchPipeline(context context.Context, orgLogin string, rep
 		return fmt.Errorf("could not get issue pipeline data for issue/PR %d in repo %s/%s: %v", issueNumber, orgLogin, repoName, err)
 	}
 
-	if pipeline != nil && pipeline.Pipeline != "" && pipeline.Pipeline != "New Issue" {
+	if pipeline != nil && pipeline.Pipeline != "" && pipeline.Pipeline != "New Issues" {
 		// already have issue data
 		return nil
 	}

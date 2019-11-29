@@ -1,0 +1,26 @@
+name: istio.io
+type: welcome
+repos:
+  - "istio/bottestrepo"
+
+resenddays: 5
+message: |
+  😊 Welcome! This is either your first contribution to the Istio documentation repo, or it's been awhile since
+  you've been here. A few things you should know:
+
+  - You can learn about how we write and maintain documentation, about our style guidelines,
+  and about all the available web site features by visiting [Contributing to the Docs](https://istio.io/about/contribute).
+
+  - In the next few minutes, an automatic preview of your change will be
+  built as a full copy of the istio.io website. You can find this preview by clicking on
+  the **Details** link next to the `deploy/netlify` entry in the Status section of this
+  page.
+
+  - We care about quality, so we've put in place a number of checks to ensure our documentation
+  is top notch. We do spell checking, we sanitize the markdown, we ensure all hyperlinks point
+  to valid location, and more. If your PR doesn't pass one of these checks, you'll see a red X in the
+  status section of the page. Click on the **Details** link to get a list of the problems with your PR.
+  Fix those problems and push an update to your PR. This will automatically rerun the tests and
+  hopefully this time everything will be perfect.
+
+  Thanks for contributing!

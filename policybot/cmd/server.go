@@ -33,6 +33,7 @@ import (
 	"istio.io/bots/policybot/handlers/githubwebhook/nagger"
 	"istio.io/bots/policybot/handlers/githubwebhook/refresher"
 	"istio.io/bots/policybot/handlers/githubwebhook/watcher"
+	"istio.io/bots/policybot/handlers/githubwebhook/welcomer"
 	"istio.io/bots/policybot/handlers/zenhubwebhook"
 	"istio.io/bots/policybot/mgrs/lifecyclemgr"
 	"istio.io/bots/policybot/pkg/blobstorage/gcs"
@@ -184,6 +185,7 @@ func runWithConfig(reg *config.Registry, secrets *cmdutil.Secrets, httpsOnly boo
 		lifecycler.New(gc, zc, reg, lf, c),
 		labeler,
 		cleaner,
+		welcomer.NewWelcomer(gc, store, c, reg),
 		watcher.NewRepoWatcher(reg.OriginRepo(), reg.OriginPath(), s.Close),
 	}
 
