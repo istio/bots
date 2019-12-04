@@ -22,7 +22,6 @@ import (
 	"istio.io/bots/policybot/handlers/githubwebhook"
 	"istio.io/bots/policybot/pkg/blobstorage"
 	"istio.io/bots/policybot/pkg/config"
-	"istio.io/bots/policybot/pkg/coverage"
 	"istio.io/bots/policybot/pkg/gh"
 	gatherer "istio.io/bots/policybot/pkg/resultgatherer"
 	"istio.io/bots/policybot/pkg/storage"
@@ -138,23 +137,6 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 			orgLogin := p.GetRepo().GetOwner().GetLogin()
 			repoName := p.GetRepo().GetName()
 			prNum := p.GetNumber()
-
-			if action == "opened" || p.GetAction() == "synchronize" {
-				_, err := coverage.GetConfig(orgLogin, repoName)
-				if err != nil {
-					scope.Errorf("Unable to fetch coverage config for repo %s/%s: %v", orgLogin, repoName, err)
-				} else {
-					cov := coverage.Client{
-						OrgLogin:      orgLogin,
-						Repo:          repoName,
-						BlobClient:    r.bs,
-						StorageClient: r.store,
-						GithubClient:  r.gc,
-					}
-					cov.SetCoverageStatus(context, p.GetPullRequest().GetHead().GetSHA(), coverage.Pending,
-						"Waiting for test results.")
-				}
-			}
 
 			tg := gatherer.TestResultGatherer{
 				Client:           r.bs,
@@ -384,19 +366,6 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 
 		if err = r.cache.WriteTestResults(context, testResults); err != nil {
 			scope.Errorf("Unable to write test results: %v", err)
-			return
-		}
-
-		cov := coverage.Client{
-			OrgLogin:      orgLogin,
-			Repo:          repoName,
-			BlobClient:    r.bs,
-			StorageClient: r.store,
-			GithubClient:  r.gc,
-		}
-
-		if err = cov.CheckCoverage(context, pr, sha); err != nil {
-			scope.Errorf("unable to check coverage for PR %d in repo %s: %v", prNum, err, p.GetRepo().GetFullName())
 			return
 		}
 
