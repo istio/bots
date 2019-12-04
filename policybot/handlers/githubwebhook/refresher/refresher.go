@@ -138,25 +138,6 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 			repoName := p.GetRepo().GetName()
 			prNum := p.GetNumber()
 
-			/*
-				if action == "opened" || p.GetAction() == "synchronize" {
-					_, err := coverage.GetConfig(orgLogin, repoName)
-					if err != nil {
-						scope.Errorf("Unable to fetch coverage config for repo %s/%s: %v", orgLogin, repoName, err)
-					} else {
-						cov := coverage.Client{
-							OrgLogin:      orgLogin,
-							Repo:          repoName,
-							BlobClient:    r.bs,
-							StorageClient: r.store,
-							GithubClient:  r.gc,
-						}
-						cov.SetCoverageStatus(context, p.GetPullRequest().GetHead().GetSHA(), coverage.Pending,
-							"Waiting for test results.")
-					}
-				}
-			*/
-
 			tg := gatherer.TestResultGatherer{
 				Client:           r.bs,
 				BucketName:       ref.BucketName,
@@ -387,21 +368,6 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 			scope.Errorf("Unable to write test results: %v", err)
 			return
 		}
-
-		/*
-			cov := coverage.Client{
-				OrgLogin:      orgLogin,
-				Repo:          repoName,
-				BlobClient:    r.bs,
-				StorageClient: r.store,
-				GithubClient:  r.gc,
-			}
-
-			if err = cov.CheckCoverage(context, pr, sha); err != nil {
-				scope.Errorf("unable to check coverage for PR %d in repo %s: %v", prNum, err, p.GetRepo().GetFullName())
-				return
-			}
-		*/
 
 	default:
 		// not what we're looking for
