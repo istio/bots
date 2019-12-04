@@ -17,7 +17,6 @@ package resultgatherer
 import (
 	"context"
 	"encoding/hex"
-	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -65,7 +64,7 @@ func TestTestResultGatherer(t *testing.T) {
 	}
 
 	start := time.Now()
-	testResultGatherer := resultgatherer.TestResultGatherer{client, "istio-flakey-test", "pr-logs/pull/", ""}
+	testResultGatherer := TestResultGatherer{client, "istio-flakey-test", "pr-logs/pull/", ""}
 	testResults, err := testResultGatherer.CheckTestResultsForPr(context, "istio", "istio", prNum)
 	if err != nil {
 		t.Errorf("Expecting no error, got %v", err)

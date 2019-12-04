@@ -17,11 +17,16 @@ package syncmgr
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/hashicorp/go-multierror"
 	"io/ioutil"
+	"istio.io/bots/policybot/pkg/pipeline"
+	"istio.io/pkg/env"
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"cloud.google.com/go/bigquery"
@@ -1066,8 +1071,6 @@ func (ss *syncState) handlePullRequestReviewComments(repo gh.RepoDesc, start tim
 
 func (ss *syncState) handleTestResults() error {
 	for _, repo := range ss.mgr.reg.Repos() {
-		scope.Debugf("Getting test results for repo %s", repo)
-
 		r, ok := ss.mgr.reg.SingleRecord(refresher.RecordType, repo.OrgAndRepo)
 		if !ok {
 			continue
@@ -1081,31 +1084,95 @@ func (ss *syncState) handleTestResults() error {
 			PostSubmitPrefix: tor.PostSubmitTestPath,
 		}
 
-		prPaths, err := g.GetAllPullRequests(ss.ctx, repo.OrgLogin, repo.RepoName)
-		if err != nil {
-			return err
-		}
+		scope.Debugf("Getting test results for org %s", repo.OrgLogin)
+		prMin := env.RegisterIntVar("PR_MIN", 0, "The minimum PR to scan for test results").Get()
+		prMax := env.RegisterIntVar("PR_MAX", -1, "The maximum PR to scan for test results").Get()
 
-		for _, prPath := range prPaths {
+		var completedTests = make(map[string]bool)
+		ctLock := sync.RWMutex{}
+		wg := sync.WaitGroup{}
+		wg.Add(1)
+		go func() {
+			ctLock.Lock()
+			defer ctLock.Unlock()
+			err := ss.mgr.store.QueryTestResultByDone(ss.ctx, repo.OrgLogin, repo.RepoName,
+				func(result *storage.TestResult) error {
+					completedTests[result.RunPath] = true
+					return nil
+				})
+			if err != nil {
+				scope.Warnf("Unable to fetch previous tests: %s", err)
+			}
+			wg.Done()
+		}()
+		prPaths := g.GetAllPullRequestsChan(ss.ctx, repo.OrgLogin, repo.RepoName).WithBuffer(100)
+		// I think a composition syntax would be better here...
+		errorChan := prPaths.Transform(func(prPathi interface{}) (prNum interface{}, err error) {
+			prPath := prPathi.(string)
 			prParts := strings.Split(prPath, "/")
-			prNum, err := strconv.ParseInt(prParts[len(prParts)-2], 10, 64)
+			if len(prParts) < 2 {
+				err = errors.New("too few segments in pr path")
+				return
+			}
+			prNum = prParts[len(prParts)-2]
+			if prInt, ierr := strconv.Atoi(prParts[len(prParts)-2]); ierr == nil {
+				// skip this PR if it's outside the min and max inclusive
+				if prInt < prMin || (prMax > -1 && prInt > prMax) {
+					err = pipeline.ErrSkip
+				}
+			}
+			return
+		}).WithContext(ss.ctx).OnError(func(e error) {
+			// TODO: this should probably be reported out or something...
+			scope.Warnf("error processing test: %s", e)
+		}).WithParallelism(50).Transform(func(prNumi interface{}) (testRunPaths interface{}, err error) {
+			prNum := prNumi.(string)
+			tests, err := g.GetTestsForPR(ss.ctx, repo.OrgLogin, repo.RepoName, prNum)
+			var result [][]string
+
+			// Wait for a comprehensive list of completed tests
+			wg.Wait()
+			ctLock.RLock()
+			defer ctLock.RUnlock()
+
+			for testName, runPaths := range tests {
+				for _, runPath := range runPaths {
+					if _, ok := completedTests[runPath]; !ok {
+						result = append(result, []string{testName, runPath})
+					}
+				}
+			}
+			testRunPaths = result
+			return
+		}).Expand().Transform(func(testRunPathi interface{}) (i interface{}, err error) {
+			inputArray := testRunPathi.([]string)
+			testRunPath := inputArray[1]
+			testName := inputArray[0]
+			if strings.Contains(testRunPath, "00") {
+				fmt.Printf("checking test %s\n", testRunPath)
+			}
+			return g.GetTestResult(ss.ctx, testName, testRunPath)
+		}).Batch(50).To(func(input interface{}) error {
+			var testResults []*storage.TestResult
+			for _, i := range input.([]interface{}) {
+				singleResult := i.(*storage.TestResult)
+				singleResult.OrgLogin = repo.OrgLogin
+				singleResult.RepoName = repo.RepoName
+				testResults = append(testResults, singleResult)
+			}
+			fmt.Printf("saving TestResult batch of size %d\n", len(testResults))
+			err := ss.mgr.store.WriteTestResults(ss.ctx, testResults)
 			if err != nil {
 				return err
 			}
-
-			results, err := g.CheckTestResultsForPr(ss.ctx, repo.OrgLogin, repo.RepoName, prNum)
-			if err != nil {
-				return err
-			}
-
-			if ss.dryRun {
-				scope.Infof("Would have written %d test results for repo %s to storage", len(results), repo)
-				return nil
-			}
-
-			if err = ss.mgr.store.WriteTestResults(ss.ctx, results); err != nil {
-				return err
-			}
+			return nil
+		}).WithParallelism(1).Go()
+		var result *multierror.Error
+		for err := range errorChan {
+			result = multierror.Append(err.Err())
+		}
+		if result != nil {
+			return result
 		}
 		// TODO: check Post Submit tests as well.
 	}
