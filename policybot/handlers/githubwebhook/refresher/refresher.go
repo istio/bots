@@ -22,7 +22,6 @@ import (
 	"istio.io/bots/policybot/handlers/githubwebhook"
 	"istio.io/bots/policybot/pkg/blobstorage"
 	"istio.io/bots/policybot/pkg/config"
-	"istio.io/bots/policybot/pkg/coverage"
 	"istio.io/bots/policybot/pkg/gh"
 	gatherer "istio.io/bots/policybot/pkg/resultgatherer"
 	"istio.io/bots/policybot/pkg/storage"
@@ -139,6 +138,7 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 			repoName := p.GetRepo().GetName()
 			prNum := p.GetNumber()
 
+			/*
 			if action == "opened" || p.GetAction() == "synchronize" {
 				_, err := coverage.GetConfig(orgLogin, repoName)
 				if err != nil {
@@ -155,6 +155,7 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 						"Waiting for test results.")
 				}
 			}
+			*/
 
 			tg := gatherer.TestResultGatherer{
 				Client:           r.bs,
@@ -387,6 +388,7 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 			return
 		}
 
+		/*
 		cov := coverage.Client{
 			OrgLogin:      orgLogin,
 			Repo:          repoName,
@@ -399,6 +401,7 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 			scope.Errorf("unable to check coverage for PR %d in repo %s: %v", prNum, err, p.GetRepo().GetFullName())
 			return
 		}
+		*/
 
 	default:
 		// not what we're looking for
