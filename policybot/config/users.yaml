@@ -966,8 +966,32 @@ users:
         start: "2019-01-01"
         end: "9999-01-01"
 
-  - github_login: biwwie
+  - github_login: Biwwie
     affiliations:
       - organizations: Google
+        start: "2019-01-01"
+        end: "9999-01-01"
+
+  - github_login: zehuaiWANG
+    affiliations:
+      - organizations: Tencent
+        start: "2019-01-01"
+        end: "9999-01-01"
+
+  - github_login: dgn
+    affiliations:
+      - organizations: RedHat
+        start: "2019-01-01"
+        end: "9999-01-01"
+
+  - github_login: stewartbutler
+    affiliations:
+      - organizations: Google
+        start: "2019-01-01"
+        end: "9999-01-01"
+
+  - github_login: withlin
+    affiliations:
+      - organizations: Individual
         start: "2019-01-01"
         end: "9999-01-01"
