@@ -965,3 +965,9 @@ users:
       - organization: BoCloud
         start: "2019-01-01"
         end: "9999-01-01"
+
+  - github_login: biwwie
+    affiliations:
+      - organizations: Google
+        start: "2019-01-01"
+        end: "9999-01-01"
