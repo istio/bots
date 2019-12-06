@@ -1,12 +1,12 @@
 name: istio.io
 type: welcome
 repos:
-  - "istio/bottestrepo"
+  - "istio/istio.io"
 
-resenddays: 5
+resenddays: 90
 message: |
-  😊 Welcome! This is either your first contribution to the Istio documentation repo, or it's been awhile since
-  you've been here. A few things you should know:
+  😊 Welcome! This is either your first contribution to the Istio documentation repo, or
+  it's been awhile since you've been here. A few things you should know:
 
   - You can learn about how we write and maintain documentation, about our style guidelines,
   and about all the available web site features by visiting [Contributing to the Docs](https://istio.io/about/contribute).
@@ -22,5 +22,9 @@ message: |
   status section of the page. Click on the **Details** link to get a list of the problems with your PR.
   Fix those problems and push an update to your PR. This will automatically rerun the tests and
   hopefully this time everything will be perfect.
+
+  - Once your changes are accepted and merged into the repository, they will initially show up
+  on <https://preliminary.istio.io>. The changes will be published to <https://istio.io>
+  the next time we do a major release (which typically happens every 3 months or so).
 
   Thanks for contributing!
