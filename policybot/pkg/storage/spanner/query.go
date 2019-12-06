@@ -779,3 +779,18 @@ func (s store) QueryAllUserAffiliations(context context.Context, cb func(affilia
 
 	return err
 }
+
+func (s store) QueryPullRequestsByUser(context context.Context, orgLogin string, repoName string, userLogin string, cb func(*storage.PullRequest) error) error {
+	iter := s.client.Single().Query(context,
+		spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM PullRequests WHERE OrgLogin = '%s' AND RepoName = '%s' AND Author = '%s';", orgLogin, repoName, userLogin)})
+	err := iter.Do(func(row *spanner.Row) error {
+		pr := &storage.PullRequest{}
+		if err := rowToStruct(row, pr); err != nil {
+			return err
+		}
+
+		return cb(pr)
+	})
+
+	return err
+}

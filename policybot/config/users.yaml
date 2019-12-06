@@ -166,11 +166,14 @@ users:
       - gargnupur@google.com
     github_login: gargnupur
   - affiliations:
-      - end: "9999-01-01"
+      - end: "2019-12-06"
         organization: Google
         start: "2014-11-14"
+      - end: "9999-01-01"
+        organization: Microsoft
+        start: "2019-12-07"
     email_addresses:
-      - mtail@google.com
+      - martin@taillefer.org
     github_login: geeknoid
   - affiliations:
       - end: "9999-01-01"

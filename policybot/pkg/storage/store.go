@@ -81,6 +81,7 @@ type Store interface {
 	QueryCoverageDataBySHA(context context.Context, orgLogin string, repoName string, sha string, cb func(*CoverageData) error) error
 	QueryAllUserAffiliations(context context.Context, cb func(affiliation *UserAffiliation) error) error
 	QueryAllUsers(context context.Context, cb func(user *User) error) error
+	QueryPullRequestsByUser(context context.Context, orgLogin string, repoName string, userLogin string, cb func(*PullRequest) error) error
 
 	QueryTestFlakeIssues(context context.Context, orgLogin string, repoName string, inactiveDays, createdDays int) ([]*Issue, error)
 
