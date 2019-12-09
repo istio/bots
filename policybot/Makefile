@@ -3,12 +3,21 @@ VERSION := $(shell date +%Y%m%d%H%M%S)
 TAG ?= $(VERSION)
 HUB ?= gcr.io/istio-testing/policybot
 IMG := $(HUB):$(TAG)
+
+PROJECT ?= istio-testing
+CLUSTER ?= policy-bot
+ZONE    ?= us-central1-a
+
 export GO111MODULE=on
 
 dockerrun := docker run -t -i --sig-proxy=true --rm -v $(shell pwd):/site -w /site "gcr.io/istio-testing/build-tools:2019-10-11T13-37-52"
 
 gen:
+ifndef BUILD_ID
 	@$(dockerrun) scripts/gen_dashboard.sh
+else
+	@scripts/gen_dashboard.sh
+endif
 	@go generate ./...
 
 clean:
@@ -17,7 +26,7 @@ clean:
 deploy: push deploy_only
 .PHONY: deploy
 
-deploy_only:
+deploy_only: get-cluster-credentials
 	@helm template --set image=$(IMG) \
 		--set GITHUB_WEBHOOK_SECRET=$(GITHUB_WEBHOOK_SECRET) \
 		--set GITHUB_TOKEN=$(GITHUB_TOKEN) \
@@ -29,6 +38,10 @@ deploy_only:
 		deploy/policybot | kubectl apply -f -
 	@echo "Deployed policybot:$(IMG) to GKE"
 .PHONY: deploy_only
+
+.PHONY: get-cluster-credentials
+get-cluster-credentials:
+	gcloud container clusters get-credentials "$(CLUSTER)" --project="$(PROJECT)" --zone="$(ZONE)"
 
 container: gen
 	@GO111MODULE=on CGO_ENABLED=0 GOOS=linux go build
@@ -42,7 +55,9 @@ push: container
 	@echo "  2. That the dashboard is working locally."
 	@echo "  3. That eng.istio.io works after deployment."
 	@echo ""
+ifndef BUILD_ID
 	@read -p "Press enter to continue."
+endif
 	@docker push $(IMG)
 	@echo "Built container and published to $(IMG)"
 .PHONY: push
