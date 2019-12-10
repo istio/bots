@@ -1,13 +1,13 @@
 name: Area selection
 type: boilerplate
 regex: |
-  ^\[.*\] +Configuration Infrastructure
-  \[.*\] +Docs
-  \[.*\] +Installation
-  \[.*\] +Networking
-  \[.*\] +Performance and Scalability
-  \[.*\] +Policies and Telemetry
-  \[.*\] +Security
-  \[.*\] +Test and Release
-  \[.*\] +User Experience
-  \[.*\] +Developer Infrastructure
+  ^\[[ \w]\] +Configuration Infrastructure
+  \[[ \w]\] +Docs
+  \[[ \w]\] +Installation
+  \[[ \w]\] +Networking
+  \[[ \w]\] +Performance and Scalability
+  \[[ \w]\] +Policies and Telemetry
+  \[[ \w]\] +Security
+  \[[ \w]\] +Test and Release
+  \[[ \w]\] +User Experience
+  \[[ \w]\] +Developer Infrastructure
