@@ -19,8 +19,9 @@ import (
 	"fmt"
 	"io"
 
+	"istio.io/bots/policybot/pkg/pipeline"
+
 	"cloud.google.com/go/storage"
-	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 
 	"istio.io/bots/policybot/pkg/blobstorage"
@@ -63,39 +64,95 @@ func (b *bucket) Reader(ctx context.Context, path string) (io.ReadCloser, error)
 }
 
 func (b *bucket) ListPrefixes(ctx context.Context, prefix string) ([]string, error) {
-	query := &storage.Query{Prefix: prefix, Delimiter: "/"}
-	it := b.bucket.Objects(ctx, query)
-	paths := []string{}
-	for {
-		attrs, err := it.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-		if attrs.Prefix != "" {
-			paths = append(paths, attrs.Prefix)
-		}
+	resultChan := b.ListPrefixesProducer(ctx, prefix)
+	out, err := pipeline.BuildSlice(resultChan.Go())
+	// cast to slice of string
+	var result []string
+	for _, o := range out {
+		result = append(result, o.(string))
 	}
-	return paths, nil
+	return result, err
+}
+
+func (b *bucket) ListPrefixesProducer(ctx context.Context, prefix string) pipeline.Pipeline {
+	var query *storage.Query
+	var it *storage.ObjectIterator
+	lp := pipeline.IterProducer{
+		Setup: func() error {
+			query = &storage.Query{Prefix: prefix, Delimiter: "/"}
+			it = b.bucket.Objects(ctx, query)
+			return nil
+		},
+		Iterator: func() (res interface{}, err error) {
+			attrs, err := it.Next()
+			if err == nil {
+				if attrs.Prefix == "" {
+					err = pipeline.ErrSkip
+				} else {
+					res = attrs.Prefix
+				}
+			}
+			return
+		},
+	}
+	return pipeline.FromIter(lp)
+}
+
+func (b *bucket) ListPrefixesProducers(ctx context.Context, prefix string) (resultChan chan pipeline.OutResult) {
+	var query *storage.Query
+	var it *storage.ObjectIterator
+	lp := pipeline.IterProducer{
+		Setup: func() error {
+			query = &storage.Query{Prefix: prefix, Delimiter: "/"}
+			it = b.bucket.Objects(ctx, query)
+			return nil
+		},
+		Iterator: func() (res interface{}, err error) {
+			attrs, err := it.Next()
+			if err == nil {
+				if attrs.Prefix == "" {
+					err = pipeline.ErrSkip
+				} else {
+					res = attrs.Prefix
+				}
+			}
+			return
+		},
+	}
+	return lp.Start(ctx, 1)
 }
 
 func (b *bucket) ListItems(ctx context.Context, prefix string) ([]string, error) {
-	query := &storage.Query{Prefix: prefix}
-	it := b.bucket.Objects(ctx, query)
-	var names []string
-	for {
-		attrs, err := it.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-		if attrs.Name != "" {
-			names = append(names, attrs.Name)
-		}
+	resultChan := b.ListItemsProducer(ctx, prefix)
+	out, err := pipeline.BuildSlice(resultChan)
+	// cast to slice of string
+	var result []string
+	for _, o := range out {
+		result = append(result, o.(string))
 	}
-	return names, nil
+	return result, err
+}
+
+func (b *bucket) ListItemsProducer(ctx context.Context, prefix string) chan pipeline.OutResult {
+	var query *storage.Query
+	var it *storage.ObjectIterator
+	lp := pipeline.IterProducer{
+		Setup: func() error {
+			query = &storage.Query{Prefix: prefix}
+			it = b.bucket.Objects(ctx, query)
+			return nil
+		},
+		Iterator: func() (res interface{}, err error) {
+			attrs, err := it.Next()
+			if err == nil {
+				if attrs.Name == "" {
+					err = pipeline.ErrSkip
+				} else {
+					res = attrs.Name
+				}
+			}
+			return
+		},
+	}
+	return lp.Start(ctx, 1)
 }

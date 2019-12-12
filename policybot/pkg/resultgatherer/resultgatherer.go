@@ -20,11 +20,14 @@ package resultgatherer
 import (
 	"bufio"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"regexp"
+
+	pipelinetwo "istio.io/bots/policybot/pkg/pipeline"
 
 	"cloud.google.com/go/storage"
 
@@ -87,8 +90,7 @@ func (trg *TestResultGatherer) getRepoPrPath(orgLogin string, repoName string) s
 	return trg.PreSubmitPrefix + orgLogin + "_" + repoName + "/"
 }
 
-func (trg *TestResultGatherer) getTestsForPR(ctx context.Context, orgLogin string, repoName string, prNumInt int64) (map[string][]string, error) {
-	prNum := strconv.FormatInt(prNumInt, 10)
+func (trg *TestResultGatherer) GetTestsForPR(ctx context.Context, orgLogin string, repoName string, prNum string) (map[string][]string, error) {
 	prefixForPr := trg.getRepoPrPath(orgLogin, repoName) + prNum + "/"
 	return trg.getTests(ctx, prefixForPr)
 }
@@ -103,30 +105,21 @@ func (trg *TestResultGatherer) getBucket() blobstorage.Bucket {
 // Return []Tests return a slice of Tests objects.
 func (trg *TestResultGatherer) getTests(ctx context.Context, pathPrefix string) (map[string][]string, error) {
 	bucket := trg.getBucket()
-	testNames, err := bucket.ListPrefixes(ctx, pathPrefix)
-	if err != nil {
-		return nil, err
-	}
+	testNames := bucket.ListPrefixesProducer(ctx, pathPrefix).Go()
 	testMap := map[string][]string{}
-	var runs []string
-	for _, testPref := range testNames {
-		testPrefSplit := strings.Split(testPref, "/")
+	for item := range testNames {
+		if item.Err() != nil {
+			return nil, item.Err()
+		}
+		testPref := item.Output()
+		testPrefSplit := strings.Split(testPref.(string), "/")
 		testname := testPrefSplit[len(testPrefSplit)-2]
-		runs, err = bucket.ListPrefixes(ctx, testPref)
+		runs, err := bucket.ListPrefixes(ctx, testPref.(string))
 		if err != nil {
 			return nil, err
 		}
-		var runPaths []string
-		var ok bool
-		if runPaths, ok = testMap[testname]; !ok {
-			runPaths = []string{}
-		}
-		for _, runPath := range runs {
-			if runPath != "" {
-				runPaths = append(runPaths, runPath)
-			}
-		}
-		testMap[testname] = runPaths
+		runPaths := testMap[testname]
+		testMap[testname] = append(runPaths, runs...)
 	}
 	return testMap, nil
 }
@@ -232,11 +225,7 @@ func (trg *TestResultGatherer) getEnvironmentalSignatures(ctx context.Context, t
 }
 
 func (trg *TestResultGatherer) getTestRunArtifacts(ctx context.Context, testRun string) ([]string, error) {
-	artifacts, err := trg.getBucket().ListItems(ctx, testRun+"artifacts/")
-	if err != nil {
-		return nil, err
-	}
-	return artifacts, nil
+	return trg.getBucket().ListItems(ctx, testRun+"artifacts/")
 }
 
 // getManyResults function return the status of test passing, clone failure, sha number, base sha for each test
@@ -251,7 +240,7 @@ func (trg *TestResultGatherer) getManyResults(ctx context.Context, testSlice map
 
 	for testName, runPaths := range testSlice {
 		for _, runPath := range runPaths {
-			if testResult, err := trg.getTestResult(ctx, testName, runPath); err == nil {
+			if testResult, err := trg.GetTestResult(ctx, testName, runPath); err == nil {
 				testResult.OrgLogin = orgLogin
 				testResult.RepoName = repoName
 				allTestRuns = append(allTestRuns, testResult)
@@ -263,7 +252,7 @@ func (trg *TestResultGatherer) getManyResults(ctx context.Context, testSlice map
 	return allTestRuns, nil
 }
 
-func (trg *TestResultGatherer) getTestResult(ctx context.Context, testName string, testRun string) (testResult *store.TestResult, err error) {
+func (trg *TestResultGatherer) GetTestResult(ctx context.Context, testName string, testRun string) (testResult *store.TestResult, err error) {
 	testResult = &store.TestResult{}
 	testResult.TestName = testName
 	testResult.RunPath = testRun
@@ -275,7 +264,10 @@ func (trg *TestResultGatherer) getTestResult(ctx context.Context, testName strin
 	}
 
 	record := records[0]
-	testResult.Sha = record.Refs.Pulls[0].Sha
+	testResult.Sha, err = hex.DecodeString(record.Refs.Pulls[0].Sha)
+	if err != nil {
+		return
+	}
 	testResult.BaseSha = record.Refs.BaseSha
 	testResult.CloneFailed = record.Failed
 
@@ -324,8 +316,8 @@ func (trg *TestResultGatherer) getTestResult(ctx context.Context, testName strin
 }
 
 // Read in gcs the folder of the given pr number and write the result of each test runs into a slice of TestFlake struct.
-func (trg *TestResultGatherer) CheckTestResultsForPr(ctx context.Context, orgLogin string, repoName string, prNum int64) ([]*store.TestResult, error) {
-	testSlice, err := trg.getTestsForPR(ctx, orgLogin, repoName, prNum)
+func (trg *TestResultGatherer) CheckTestResultsForPr(ctx context.Context, orgLogin string, repoName string, prNum string) ([]*store.TestResult, error) {
+	testSlice, err := trg.GetTestsForPR(ctx, orgLogin, repoName, prNum)
 	if err != nil {
 		return nil, err
 	}
@@ -337,8 +329,8 @@ func (trg *TestResultGatherer) CheckTestResultsForPr(ctx context.Context, orgLog
 	return fullResult, nil
 }
 
-func (trg *TestResultGatherer) GetAllPullRequests(ctx context.Context, orgLogin string, repoName string) (prs []string, err error) {
-	return trg.getBucket().ListPrefixes(ctx, trg.getRepoPrPath(orgLogin, repoName))
+func (trg *TestResultGatherer) GetAllPullRequestsChan(ctx context.Context, orgLogin string, repoName string) pipelinetwo.Pipeline {
+	return trg.getBucket().ListPrefixesProducer(ctx, trg.getRepoPrPath(orgLogin, repoName))
 }
 
 // if any pattern is found in the object, return it's index

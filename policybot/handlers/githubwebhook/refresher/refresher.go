@@ -145,7 +145,7 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 				PostSubmitPrefix: ref.PostSubmitTestPath,
 			}
 
-			testResults, err := tg.CheckTestResultsForPr(context, orgLogin, repoName, int64(prNum))
+			testResults, err := tg.CheckTestResultsForPr(context, orgLogin, repoName, string(prNum))
 			if err != nil {
 				scope.Errorf("Unable to get test result for PR %d in repo %s: %v", prNum, p.GetRepo().GetFullName(), err)
 			} else if err = r.cache.WriteTestResults(context, testResults); err != nil {
@@ -358,7 +358,7 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 			PostSubmitPrefix: ref.PostSubmitTestPath,
 		}
 
-		testResults, err := tg.CheckTestResultsForPr(context, orgLogin, repoName, prNum)
+		testResults, err := tg.CheckTestResultsForPr(context, orgLogin, repoName, string(prNum))
 		if err != nil {
 			scope.Errorf("Unable to get test result for PR %d in repo %s: %v", prNum, p.GetRepo().GetFullName(), err)
 			return

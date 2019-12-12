@@ -75,6 +75,7 @@ type Store interface {
 	QueryOpenIssuesByRepo(context context.Context, orgLogin string, repoName string, cb func(*Issue) error) error
 	QueryTestResultByPrNumber(context context.Context, orgLogin string, repoName string, pullRequestNumber int64, cb func(*TestResult) error) error
 	QueryTestResultByUndone(context context.Context, orgLogin string, repoName string, cb func(*TestResult) error) error
+	QueryTestResultByDone(context context.Context, orgLogin string, repoName string, cb func(*TestResult) error) error
 	QueryAllTestResults(context context.Context, orgLogin string, repoName string, cb func(*TestResult) error) error
 	QueryTestResultByTestName(context context.Context, orgLogin string, repoName string, testName string, cb func(*TestResult) error) error
 	QueryTestResultsBySHA(context context.Context, orgLogin string, repoName string, sha string, cb func(*TestResult) error) error

@@ -16,9 +16,14 @@ package resultgatherer
 
 import (
 	"context"
+	"encoding/hex"
 	"reflect"
 	"testing"
 	"time"
+
+	"istio.io/bots/policybot/pkg/pipeline"
+
+	"gotest.tools/assert"
 
 	"istio.io/bots/policybot/pkg/blobstorage/gcs"
 	"istio.io/bots/policybot/pkg/storage"
@@ -42,19 +47,23 @@ func TestTestResultGatherer(t *testing.T) {
 		FinishTime:        t2,
 		TestPassed:        true,
 		CloneFailed:       false,
-		Sha:               "fee4aae74eb4debaf621d653abe8bfcf0ce6a4ea",
 		Result:            "SUCCESS",
 		BaseSha:           "d995c19aefe6b5ff0748b783e8b69c59963bc8ae",
 		RunPath:           "pr-logs/pull/istio_istio/110/release-test/155/",
 		Artifacts:         nil,
 	}
-	var prNum int64 = 110
+	shaBytes, err := hex.DecodeString("fee4aae74eb4debaf621d653abe8bfcf0ce6a4ea")
+	assert.NilError(t, err)
+	correctInfo.Sha = shaBytes
+
+	var prNum = "110"
 
 	client, err := gcs.NewStore(context, nil)
 	if err != nil {
 		t.Fatalf("unable to create GCS client: %v", err)
 	}
 
+	start := time.Now()
 	testResultGatherer := TestResultGatherer{client, "istio-flakey-test", "pr-logs/pull/", ""}
 	testResults, err := testResultGatherer.CheckTestResultsForPr(context, "istio", "istio", prNum)
 	if err != nil {
@@ -71,5 +80,50 @@ func TestTestResultGatherer(t *testing.T) {
 
 	if !reflect.DeepEqual(test, correctInfo) {
 		t.Errorf("Wanted %#v, got %#v", correctInfo, test)
+	}
+	duration := time.Since(start)
+	t.Log(duration)
+}
+
+func BenchmarkOldWay(b *testing.B) {
+	t := time.NewTicker(time.Millisecond)
+	var data []time.Time
+	//build array
+	var count int
+	for i := range t.C {
+		count++
+		data = append(data, i)
+		if count >= b.N {
+			t.Stop()
+			break
+		}
+	}
+	for range data {
+		time.Sleep(time.Second)
+	}
+}
+
+func BenchmarkNewWay(b *testing.B) {
+	//b.N = 100000
+	t := time.NewTicker(time.Microsecond)
+	in := make(chan pipeline.OutResult)
+	go func() {
+		i := 0
+		for range t.C {
+			i++
+			in <- pipeline.NewOut("", nil)
+			if i >= b.N {
+				t.Stop()
+				close(in)
+				break
+			}
+		}
+	}()
+	out := pipeline.FromChan(in).WithParallelism(1000).Transform(func(_ interface{}) (s interface{}, e error) {
+		time.Sleep(time.Second)
+		return "", nil
+	}).Go()
+	for range out {
+		// just waiting for channel to be closed
 	}
 }

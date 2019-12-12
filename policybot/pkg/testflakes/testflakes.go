@@ -19,6 +19,7 @@ package testflakes
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"strings"
 
@@ -78,7 +79,7 @@ func (f *FlakeTester) ProcessResults(testResults []*store.TestResult) map[string
 		var ok bool
 		if testMap, ok = resultMap[testName]; ok {
 			var shaMap map[bool][]*store.TestResult
-			if shaMap, ok = testMap[sha]; ok {
+			if shaMap, ok = testMap[hex.EncodeToString(sha)]; ok {
 				var passMap []*store.TestResult
 				if passMap, ok = shaMap[testPassed]; !ok {
 					passMap = []*store.TestResult{}
@@ -91,14 +92,14 @@ func (f *FlakeTester) ProcessResults(testResults []*store.TestResult) map[string
 				passMap = append(passMap, result)
 				shaMap[testPassed] = passMap
 			}
-			testMap[sha] = shaMap
+			testMap[hex.EncodeToString(sha)] = shaMap
 		} else {
 			shaMap := map[bool][]*store.TestResult{}
 			results := []*store.TestResult{}
 			results = append(results, result)
 			shaMap[testPassed] = results
 			testMap = map[string]map[bool][]*store.TestResult{}
-			testMap[sha] = shaMap
+			testMap[hex.EncodeToString(sha)] = shaMap
 		}
 		resultMap[testName] = testMap
 	}

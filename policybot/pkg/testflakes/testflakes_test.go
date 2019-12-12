@@ -69,7 +69,7 @@ func TestFlakes(t *testing.T) {
 	ctx := context.Background()
 	testResult1 := &storage.TestResult{
 		TestName:          "test1",
-		Sha:               "sha1",
+		Sha:               []byte("sha1"),
 		StartTime:         t1,
 		FinishTime:        t2,
 		PullRequestNumber: 1,
@@ -79,7 +79,7 @@ func TestFlakes(t *testing.T) {
 
 	testResult2 := &storage.TestResult{
 		TestName:          "test1",
-		Sha:               "sha1",
+		Sha:               []byte("sha1"),
 		StartTime:         t3,
 		FinishTime:        t4,
 		PullRequestNumber: 1,
@@ -89,7 +89,7 @@ func TestFlakes(t *testing.T) {
 
 	testResult3 := &storage.TestResult{
 		TestName:          "test2",
-		Sha:               "sha2",
+		Sha:               []byte("sha2"),
 		StartTime:         t5,
 		FinishTime:        t6,
 		PullRequestNumber: 1,
@@ -99,7 +99,7 @@ func TestFlakes(t *testing.T) {
 
 	testResult4 := &storage.TestResult{
 		TestName:          "test2",
-		Sha:               "sha2",
+		Sha:               []byte("sha2"),
 		StartTime:         t7,
 		FinishTime:        t8,
 		PullRequestNumber: 1,
