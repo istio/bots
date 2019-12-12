@@ -19,15 +19,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/hashicorp/go-multierror"
 	"io/ioutil"
-	"istio.io/bots/policybot/pkg/pipeline"
-	"istio.io/pkg/env"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/hashicorp/go-multierror"
+
+	"istio.io/bots/policybot/pkg/pipeline"
+	"istio.io/pkg/env"
 
 	"cloud.google.com/go/bigquery"
 	"github.com/ghodss/yaml"
