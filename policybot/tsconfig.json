@@ -9,6 +9,7 @@
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,
     "alwaysStrict": true,
+    "strictNullChecks": false,
     "checkJs": false,
     "noFallthroughCasesInSwitch": true,
     "noImplicitAny": true,
