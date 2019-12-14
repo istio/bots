@@ -89,7 +89,11 @@ func (w *Welcomer) Handle(context context.Context, event interface{}) {
 func (w *Welcomer) processPR(context context.Context, pr *storage.PullRequest, welcome *welcomeRecord) {
 	latest := time.Time{}
 
-	if err := w.store.QueryPullRequestsByUser(context, pr.OrgLogin, pr.RepoName, pr.Author, func(issue *storage.PullRequest) error {
+	if err := w.store.QueryPullRequestsByUser(context, pr.OrgLogin, pr.RepoName, pr.Author, func(pr *storage.PullRequest) error {
+		if pr.CreatedAt.After(latest) {
+			latest = pr.CreatedAt
+		}
+
 		return nil
 	}); err != nil {
 		scope.Errorf("Unable to query storage for PRs in repo %s/%s: %v", pr.OrgLogin, pr.RepoName, err)
