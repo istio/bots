@@ -26,4 +26,4 @@ spec:
               envFrom:
                 - secretRef:
                     name: policybot
-          restartPolicy: OnFailure
+          restartPolicy: Never
