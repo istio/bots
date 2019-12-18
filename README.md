@@ -4,3 +4,4 @@
 # Istio Bots
 
 This repository holds the source code for bots used by the Istio project.
+Test of bots
