@@ -44,7 +44,7 @@ func TestSetupError(t *testing.T) {
 }
 
 func TestFake(t *testing.T) {
-	var a []string = nil
+	var a []string
 	b := []string{"foo"}
 	c := append(a, b...)
 	assert.Assert(t, c != nil)
