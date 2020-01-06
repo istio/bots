@@ -1,0 +1,14 @@
+name: test-infra
+type: welcome
+repos:
+  - "istio/test-infra"
+
+resenddays: 90
+message: |
+  😊 Welcome! This is either your first contribution to the Istio test infrastructure repo, or
+  it's been awhile since you've been here.
+
+  You can learn more about the Istio working groups, code of conduct, and contributing guidelines
+  by referring to [Contributing to Istio](https://github.com/istio/community/blob/master/CONTRIBUTING.md).
+
+  Thanks for contributing!
