@@ -1176,6 +1176,12 @@ func (ss *syncState) handleTestResults() error {
 		if result != nil {
 			return result
 		}
+		// Update cache table to reflect these results.
+		rowCount, err := ss.mgr.store.UpdateFlakeCache(ss.ctx)
+		if err != nil {
+			return err
+		}
+		log.Infof("Updated flake cache with %d additional flakes", rowCount)
 		// TODO: check Post Submit tests as well.
 	}
 
