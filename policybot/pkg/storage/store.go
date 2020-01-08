@@ -49,6 +49,7 @@ type Store interface {
 	WriteAllUserAffiliations(context context.Context, affiliation []*UserAffiliation) error
 
 	UpdateBotActivity(context context.Context, orgLogin string, repoName string, cb func(*BotActivity) error) error
+	UpdateFlakeCache(context context.Context) (int, error)
 
 	ReadOrg(context context.Context, orgLogin string) (*Org, error)
 	ReadRepo(context context.Context, orgLogin string, repoName string) (*Repo, error)

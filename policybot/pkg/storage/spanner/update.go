@@ -24,6 +24,48 @@ import (
 	"istio.io/bots/policybot/pkg/storage"
 )
 
+func (s store) UpdateFlakeCache(ctx context.Context) (int, error) {
+	var sql = `INSERT INTO ConfirmedFlakes(PullRequestNumber, TestName, RunNumber, PassingRunNumber, OrgLogin, RepoName, Done)
+select failed.PullRequestNumber, failed.TestName, failed.RunNumber, passed.RunNumber as passingRun, failed.OrgLogin, failed.RepoName, failed.Done
+from TestResults as failed
+JOIN TestResults as passed
+ON passed.PullRequestNumber = failed.PullRequestNumber AND
+                        passed.RunNumber != failed.RunNumber AND
+                        passed.TestName = failed.TestName AND
+                        passed.sha = failed.sha AND
+                        passed.TestPassed AND 
+NOT failed.TestPassed AND
+failed.FinishTime > TIMESTAMP(DATE(2010,1,1)) AND
+NOT failed.CloneFailed AND
+failed.result!='ABORTED' AND
+failed.HasArtifacts
+LEFT JOIN ConfirmedFlakes ON failed.PullRequestNumber = ConfirmedFlakes.PullRequestNumber AND
+failed.RunNumber = ConfirmedFlakes.RunNumber AND
+failed.TestName = ConfirmedFlakes.TestName 
+WHERE ConfirmedFlakes.PullRequestNumber is null
+limit 2800`
+	var rowCount int64
+	var sum int
+	var err, iErr error
+	for {
+		_, err = s.client.ReadWriteTransaction(ctx, func(ctx2 context.Context, txn *spanner.ReadWriteTransaction) error {
+			rowCount, iErr = txn.Update(ctx2, spanner.Statement{SQL: sql})
+			return nil
+		})
+		if iErr != nil {
+			err = iErr
+		}
+		sum += int(rowCount)
+		// spanner does not allow transactions of > 20,000 cells, so for large inserts,
+		// we must divide 20,000 by the number of columns being inserted, and repeat
+		// until we have reached the end of rows to insert.
+		if err != nil || rowCount < 2800 {
+			break
+		}
+	}
+	return sum, err
+}
+
 func (s store) UpdateBotActivity(ctx1 context.Context, orgLogin string, repoName string, cb func(*storage.BotActivity) error) error {
 	scope.Debugf("Updating bot activity for repo %s/%s", orgLogin, repoName)
 
