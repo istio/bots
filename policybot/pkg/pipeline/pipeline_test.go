@@ -79,8 +79,6 @@ func TestPipeline(t *testing.T) {
 	assert.Equal(t, rescount, 4)
 }
 
-
-
 func TestNilErrors(t *testing.T) {
 	// This is a sample data source that emits numbers as text
 	// it will skip emitting "two" to demonstrate that feature
