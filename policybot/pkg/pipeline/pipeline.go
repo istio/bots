@@ -257,8 +257,11 @@ func (sp *Impl) To(f func(result interface{}) error) End {
 		input := t.Transform(nx.ctx, in, g)
 		go func() {
 			for i := range input {
-				// this nonsense is necessary because channels don't support inheritance
-				result <- i
+				// For enders, we don't report output unless there has been an error
+				if i.Err() != nil {
+					// this nonsense is necessary because channels don't support inheritance
+					result <- i
+				}
 			}
 			close(result)
 		}()

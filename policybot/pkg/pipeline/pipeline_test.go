@@ -78,3 +78,30 @@ func TestPipeline(t *testing.T) {
 	assert.Equal(t, errcount, 1)
 	assert.Equal(t, rescount, 4)
 }
+
+func TestNilErrors(t *testing.T) {
+	// This is a sample data source that emits numbers as text
+	// it will skip emitting "two" to demonstrate that feature
+	d := testDataSource{
+		source: []interface{}{"zero", "one", "two", "three", "four", "five"},
+		errMap: map[int]error{2: ErrSkip, 5: errors.New("foo")},
+	}
+	// this is an async test, so if it hasn't finished in a minute, exit
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	var errcount, rescount int
+	// from our datasource, transform the text to describe piggies
+	out := From(d.iterate).WithContext(ctx).WithBuffer(2).
+		To(func(i interface{}) error {
+			rescount++
+			return nil
+		}).Go()
+
+	for result := range out {
+		errcount++
+		fmt.Printf("checking result %v\n", result)
+		assert.NilError(t, result.Err())
+	}
+	assert.Equal(t, errcount, 0)
+	assert.Equal(t, rescount, 4)
+}
