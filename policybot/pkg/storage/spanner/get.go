@@ -67,6 +67,27 @@ func (s store) GetLatestIssueMemberComment(context context.Context, orgLogin str
 		return rowToStruct(row, &result)
 	})
 
+	// Include reopening issues as a form of member comment activity.
+	if err == nil {
+		iter = s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
+			`SELECT CreatedAt as LastIssueCommentEvent, Actor FROM
+			(SELECT CreatedAt, Actor FROM IssueEvents WHERE IssueNumber = %d AND OrgLogin = "%s" AND RepoName = "%s" AND Action = "reopened")
+			LEFT JOIN Members ON Actor = UserLogin
+			WHERE OrgLogin is not null
+			ORDER BY LastIssueCommentEvent DESC
+			LIMIT 1;`, issueNumber, orgLogin, repoName)})
+
+		err = iter.Do(func(row *spanner.Row) error {
+			return rowToStruct(row, &result2)
+		})
+
+		if err == nil {
+			if result2.LastIssueCommentEvent.After(result.LastIssueCommentEvent) {
+				result = result2
+			}
+		}
+	}
+
 	if err == nil {
 		iter = s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
 			`SELECT CreatedAt as LastIssueCommentEvent, Actor FROM
