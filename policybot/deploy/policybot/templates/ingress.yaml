@@ -1,16 +1,16 @@
+#
+# This leverages Google-managed SSL certificates which are automatically provisioned, renewed, and managed.
+# https://cloud.google.com/kubernetes-engine/docs/how-to/managed-certs
+#
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
   name: policybot
   annotations:
+    kubernetes.io/ingress.global-static-ip-name: k8s-fw-default-policybot--47acdd4adb2fcf6b
+    networking.gke.io/managed-certificates: eng-istio-io
     ingress.kubernetes.io/force-ssl-redirect: "true"
 spec:
-  tls:
-  - secretName: istio-policybot-certs
   backend:
     serviceName: policybot-server
     servicePort: 8080
-
-# This requires prior creation of sslcerts
-# secret
-# kubectl create secret tls istio-policybot-certs --key=privkey.pem --cert=cert.pem
