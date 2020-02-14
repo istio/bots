@@ -1,0 +1,4 @@
+name: 'auto-merge'
+type: label
+color: e8080b
+description: Set this label on a PR to auto-merge it on success of presubmit tests
