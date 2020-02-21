@@ -89,9 +89,9 @@ func (w *Welcomer) Handle(context context.Context, event interface{}) {
 func (w *Welcomer) processPR(context context.Context, pr *storage.PullRequest, welcome *welcomeRecord) {
 	latest := time.Time{}
 
-	if err := w.store.QueryPullRequestsByUser(context, pr.OrgLogin, pr.RepoName, pr.Author, func(pr *storage.PullRequest) error {
-		if pr.CreatedAt.After(latest) {
-			latest = pr.CreatedAt
+	if err := w.store.QueryPullRequestsByUser(context, pr.OrgLogin, pr.RepoName, pr.Author, func(prResult *storage.PullRequest) error {
+		if pr.PullRequestNumber != prResult.PullRequestNumber && prResult.CreatedAt.After(latest) {
+			latest = prResult.CreatedAt
 		}
 
 		return nil
