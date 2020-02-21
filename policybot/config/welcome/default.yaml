@@ -1,7 +1,23 @@
-name: test-infra
+name: default
 type: welcome
 repos:
-  - "istio/test-infra"
+  - istio/api
+  - istio/bots
+  - istio/client-go
+  - istio/cni
+  - istio/common-files
+  - istio/community
+  - istio/cri
+  - istio/envoy
+  - istio/gogo-genproto
+  - istio/installer
+  - istio/istio
+  - istio/operator
+  - istio/pkg
+  - istio/proxy
+  - istio/release-builder
+  - istio/test-infra
+  - istio/tools
 
 resenddays: 90
 message: |
