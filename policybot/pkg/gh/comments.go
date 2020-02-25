@@ -15,18 +15,44 @@
 package gh
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strings"
+	"text/template"
 
 	"github.com/google/go-github/v26/github"
 )
 
+// MessageTemplate contains info provided to the message template
+type MessageTemplate struct {
+	Org    string
+	Repo   string
+	Author string
+}
+
 // AddOrReplaceBotComment injects a comment from the bot into an issue or PR. It first removes any other
 // comment it finds with the same signature
-func (tc *ThrottledClient) AddOrReplaceBotComment(context context.Context, orgLogin string, repoName string, number int, message string,
+func (tc *ThrottledClient) AddOrReplaceBotComment(context context.Context, orgLogin string, repoName string, number int, userName string, message string,
 	signature string) error {
-	msg := message + signature
+
+	var b bytes.Buffer
+
+	tmpl, err := template.New("message").Parse(message)
+	if err != nil {
+		return err
+	}
+
+	err = tmpl.Execute(&b, MessageTemplate{
+		Org:    orgLogin,
+		Repo:   repoName,
+		Author: userName,
+	})
+	if err != nil {
+		return err
+	}
+
+	msg := b.String() + signature
 	pc := &github.IssueComment{
 		Body: &msg,
 	}

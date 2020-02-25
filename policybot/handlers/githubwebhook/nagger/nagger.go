@@ -179,7 +179,7 @@ func (n *Nagger) processPR(context context.Context, pr *storage.PullRequest, nag
 	for _, nag := range fileMatches {
 		if !n.fileMatch(nag.AbsentFiles, pr.Files) {
 			scope.Infof("Nagging PR %d from repo %s/%s (nag: %s)", pr.PullRequestNumber, pr.OrgLogin, pr.RepoName, nag.Name)
-			if err := n.gc.AddOrReplaceBotComment(context, pr.OrgLogin, pr.RepoName, int(pr.PullRequestNumber), nag.Message, nagSignature); err != nil {
+			if err := n.gc.AddOrReplaceBotComment(context, pr.OrgLogin, pr.RepoName, int(pr.PullRequestNumber), pr.Author, nag.Message, nagSignature); err != nil {
 				scope.Error(err.Error())
 			}
 

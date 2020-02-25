@@ -20,12 +20,13 @@ import (
 
 	"github.com/google/go-github/v26/github"
 
+	"istio.io/pkg/log"
+
 	"istio.io/bots/policybot/handlers/githubwebhook"
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
-	"istio.io/pkg/log"
 )
 
 // Inserts comments into PRs for new or infrequently seen contributors.
@@ -100,7 +101,8 @@ func (w *Welcomer) processPR(context context.Context, pr *storage.PullRequest, w
 	}
 
 	if time.Since(latest) > time.Hour*24*time.Duration(welcome.ResendDays) {
-		if err := w.gc.AddOrReplaceBotComment(context, pr.OrgLogin, pr.RepoName, int(pr.PullRequestNumber), welcome.Message, welcomeSignature); err != nil {
+		if err := w.gc.AddOrReplaceBotComment(context, pr.OrgLogin, pr.RepoName, int(pr.PullRequestNumber), pr.Author, welcome.Message,
+			welcomeSignature); err != nil {
 			scope.Errorf("Unable to add comment to PR %d in repo %s/%s: %v", pr.PullRequestNumber, pr.OrgLogin, pr.RepoName, err)
 		}
 	}
