@@ -370,7 +370,7 @@ func (lm *LifecycleMgr) addComment(context context.Context, issue *storage.Issue
 
 	var err error
 	if comment != "" {
-		err = lm.gc.AddOrReplaceBotComment(context, issue.OrgLogin, issue.RepoName, int(issue.IssueNumber), comment, botSignature)
+		err = lm.gc.AddOrReplaceBotComment(context, issue.OrgLogin, issue.RepoName, int(issue.IssueNumber), issue.Author, comment, botSignature)
 	} else {
 		err = lm.gc.RemoveBotComment(context, issue.OrgLogin, issue.RepoName, int(issue.IssueNumber), botSignature)
 	}

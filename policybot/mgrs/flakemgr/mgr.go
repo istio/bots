@@ -76,7 +76,7 @@ func (fm *FlakeManager) handleNag(context context.Context, repo gh.RepoDesc, nag
 			continue
 		}
 
-		if err := fm.gc.AddOrReplaceBotComment(context, repo.OrgLogin, repo.RepoName, int(issue.IssueNumber), nag.Message, nagSignature); err != nil {
+		if err := fm.gc.AddOrReplaceBotComment(context, repo.OrgLogin, repo.RepoName, int(issue.IssueNumber), issue.Author, nag.Message, nagSignature); err != nil {
 			return fmt.Errorf("unable to create nagging comment for issue %d in repo %v: %v", issue.IssueNumber, repo, err)
 		}
 
