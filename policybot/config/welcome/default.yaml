@@ -21,8 +21,8 @@ repos:
 
 resenddays: 90
 message: |
-  😊 Welcome @{{.Author}}! This is either your first contribution to the Istio {{.Repo}} repo, or it's been awhile since
-  you've been here.
+  😊 Welcome @{{.Author}}! This is either your first contribution to the Istio **{{.Repo}}** repo, or it's been
+  awhile since you've been here.
 
   You can learn more about the Istio working groups, code of conduct, and contributing guidelines
   by referring to [Contributing to Istio](https://github.com/istio/community/blob/master/CONTRIBUTING.md).
