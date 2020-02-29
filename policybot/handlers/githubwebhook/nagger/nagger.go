@@ -110,7 +110,7 @@ func (n *Nagger) Handle(context context.Context, event interface{}) {
 	scope.Infof("Received PullRequestEvent: %s, %d, %s", prp.GetRepo().GetFullName(), prp.GetPullRequest().GetNumber(), prp.GetAction())
 
 	action := prp.GetAction()
-	if action != "opened" && action != "edited" {
+	if action != "opened" && action != "edited" && action != "synchronize" {
 		scope.Infof("Ignoring event for PR %d from repo %s since it doesn't have a supported action: %s", prp.GetNumber(), prp.GetRepo().GetFullName(), action)
 		return
 	}
