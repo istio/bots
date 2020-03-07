@@ -153,7 +153,7 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 			}
 		}
 
-		if action == "opened" || action == "edited" {
+		if action == "opened" || action == "edited" || action == "synchronize" {
 			opt := &github.ListOptions{
 				PerPage: 100,
 			}
