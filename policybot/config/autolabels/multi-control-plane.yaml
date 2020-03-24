@@ -1,0 +1,8 @@
+name: Multi Control Plane
+type: autolabel
+matchbody:
+  - "\\[ ?x ?\\] ?Multi Control Plane"
+absentlabels:
+  - "type/.?"
+labelstoapply:
+  - type/multi-control-plane

@@ -1,0 +1,8 @@
+name: Virtual Machine
+type: autolabel
+matchbody:
+  - "\\[ ?x ?\\] ?Virtual Machine"
+absentlabels:
+  - "type/.?"
+labelstoapply:
+  - type/virtual-machine
