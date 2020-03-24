@@ -1,0 +1,8 @@
+name: Multi Cluster
+type: autolabel
+matchbody:
+  - "\\[ ?x ?\\] ?Multi Cluster"
+absentlabels:
+  - "type/.?"
+labelstoapply:
+  - type/multi-cluster
