@@ -3,6 +3,6 @@ type: autolabel
 matchbody:
   - "\\[ ?x ?\\] ?Multi Cluster"
 absentlabels:
-  - "type/.?"
+  - "feature/.?"
 labelstoapply:
-  - type/multi-cluster
+  - feature/multi-cluster

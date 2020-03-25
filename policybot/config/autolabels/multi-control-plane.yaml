@@ -3,6 +3,6 @@ type: autolabel
 matchbody:
   - "\\[ ?x ?\\] ?Multi Control Plane"
 absentlabels:
-  - "type/.?"
+  - "feature/.?"
 labelstoapply:
-  - type/multi-control-plane
+  - feature/multi-control-plane

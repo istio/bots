@@ -3,6 +3,6 @@ type: autolabel
 matchbody:
   - "\\[ ?x ?\\] ?Virtual Machine"
 absentlabels:
-  - "type/.?"
+  - "feature/.?"
 labelstoapply:
-  - type/virtual-machine
+  - feature/virtual-machine
