@@ -1,0 +1,7 @@
+name: Feature selection
+type: boilerplate
+regex: |
+  ^\[[ \w]\] +Multi Cluster
+  \[[ \w]\] +Virtual Machine
+  \[[ \w]\] +Multi Control Plane
+
