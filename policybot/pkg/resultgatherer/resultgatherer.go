@@ -263,7 +263,14 @@ func (trg *TestResultGatherer) GetTestResult(ctx context.Context, testName strin
 		return
 	}
 
+	if len(records) < 1 {
+		return nil, fmt.Errorf("Test %s %s has an empty clone file.  Cannot proceed", testName, testRun)
+	}
 	record := records[0]
+
+	if len(record.Refs.Pulls) < 1 {
+		return nil, fmt.Errorf("Test %s %s has a malformed clone file.  Cannot proceed", testName, testRun)
+	}
 	testResult.Sha, err = hex.DecodeString(record.Refs.Pulls[0].Sha)
 	if err != nil {
 		return
