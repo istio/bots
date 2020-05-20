@@ -24,7 +24,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"regexp"
 
 	pipelinetwo "istio.io/bots/policybot/pkg/pipeline"
@@ -130,17 +129,17 @@ func (trg *TestResultGatherer) getInformationFromFinishedFile(ctx context.Contex
 	var finish finished
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving finished.json from %s: %v", pref, err)
 	}
 
 	defer nrdr.Close()
 	finishFile, err := ioutil.ReadAll(nrdr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error reading finished.json from %s: %v", pref, err)
 	}
 
 	if err = json.Unmarshal(finishFile, &finish); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error parsing finished.json from %s: %v", pref, err)
 	}
 	return &finish, nil
 }
@@ -149,19 +148,19 @@ func (trg *TestResultGatherer) getInformationFromStartedFile(ctx context.Context
 	bucket := trg.getBucket()
 	nrdr, err := bucket.Reader(ctx, pref+"started.json")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving started.json from %s: %v", pref, err)
 	}
 
 	defer nrdr.Close()
 	startFile, nerr := ioutil.ReadAll(nrdr)
 	if nerr != nil {
-		return nil, nerr
+		return nil, fmt.Errorf("error reading started.json from %s: %v", pref, nerr)
 	}
 
 	var started started
 
 	if err := json.Unmarshal(startFile, &started); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error parsing started.json from %s: %v", pref, err)
 	}
 	return &started, nil
 }
@@ -170,19 +169,19 @@ func (trg *TestResultGatherer) getInformationFromCloneFile(ctx context.Context, 
 	bucket := trg.getBucket()
 	rdr, err := bucket.Reader(ctx, pref+"clone-records.json")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving clone-records.json from %s: %v", pref, err)
 	}
 
 	defer rdr.Close()
 	cloneFile, err := ioutil.ReadAll(rdr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error reading clone-records.json from %s: %v", pref, err)
 	}
 
 	var records []*cloneRecord
 
 	if err = json.Unmarshal(cloneFile, &records); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error parsing clone-records.json from %s: %v", pref, err)
 	}
 
 	return records, nil
@@ -210,7 +209,7 @@ func (trg *TestResultGatherer) getEnvironmentalSignatures(ctx context.Context, t
 	for filename, sigmap := range knownSignatures {
 		r, err := bucket.Reader(ctx, testRun+filename)
 		if err != nil {
-			log.Fatal("foo")
+			continue
 		}
 		var signatures []string
 		var names []string
