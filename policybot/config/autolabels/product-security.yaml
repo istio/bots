@@ -1,0 +1,8 @@
+name: Product Security
+type: autolabel
+matchbody:
+  - "\\[ ?x ?\\] ?Product Security"
+absentlabels:
+  - "area/.?"
+labelstoapply:
+  - area/product security
