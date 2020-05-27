@@ -11,3 +11,4 @@ regex: |
   \[ ?[ \w] ?\] +Test and Release
   \[ ?[ \w] ?\] +User Experience
   \[ ?[ \w] ?\] +Developer Infrastructure
+  \[ ?[ \w] ?\] +Product Security
