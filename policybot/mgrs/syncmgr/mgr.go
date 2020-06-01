@@ -1188,6 +1188,123 @@ func (ss *syncState) handleTestResults() error {
 	return nil
 }
 
+
+func (ss *syncState) handlePostSubmitTestResults() error {
+	for _, repo := range ss.mgr.reg.Repos() {
+		r, ok := ss.mgr.reg.SingleRecord(refresher.RecordType, repo.OrgAndRepo)
+		if !ok {
+			continue
+		}
+
+		tor := r.(*refresher.TestOutputRecord)
+		g := resultgatherer.TestResultGatherer{
+			Client:           ss.mgr.blobstore,
+			BucketName:       tor.BucketName,
+			PreSubmitPrefix:  tor.PreSubmitTestPath,
+			PostSubmitPrefix: tor.PostSubmitTestPath,
+		}
+
+		scope.Debugf("Getting test results for org %s", repo.OrgLogin)
+		prMin := env.RegisterIntVar("PR_MIN", 0, "The minimum PR to scan for test results").Get()
+		prMax := env.RegisterIntVar("PR_MAX", -1, "The maximum PR to scan for test results").Get()
+
+		var completedTests = make(map[string]bool)
+		ctLock := sync.RWMutex{}
+		wg := sync.WaitGroup{}
+		wg.Add(1)
+		go func() {
+			ctLock.Lock()
+			defer ctLock.Unlock()
+			err := ss.mgr.store.QueryTestResultByDone(ss.ctx, repo.OrgLogin, repo.RepoName,
+				func(result *storage.TestResult) error {
+					completedTests[result.RunPath] = true
+					return nil
+				})
+			if err != nil {
+				scope.Warnf("Unable to fetch previous tests: %s", err)
+			}
+			wg.Done()
+		}()
+		// I think a composition syntax would be better here...
+		errorChan := prPaths.Transform(func(prPathi interface{}) (prNum interface{}, err error) {
+			prPath := prPathi.(string)
+			prParts := strings.Split(prPath, "/")
+			if len(prParts) < 2 {
+				err = errors.New("too few segments in pr path")
+				return
+			}
+			prNum = prParts[len(prParts)-2]
+			if prInt, ierr := strconv.Atoi(prParts[len(prParts)-2]); ierr == nil {
+				// skip this PR if it's outside the min and max inclusive
+				if prInt < prMin || (prMax > -1 && prInt > prMax) {
+					err = pipeline.ErrSkip
+				}
+			}
+			return
+		}).WithContext(ss.ctx).OnError(func(e error) {
+			// TODO: this should probably be reported out or something...
+			scope.Warnf("error processing test: %s", e)
+		}).WithParallelism(50).Transform(func(prNumi interface{}) (testRunPaths interface{}, err error) {
+			prNum := prNumi.(string)
+			tests, err := g.GetTestsForPR(ss.ctx, repo.OrgLogin, repo.RepoName, prNum)
+			var result [][]string
+
+			// Wait for a comprehensive list of completed tests
+			wg.Wait()
+			ctLock.RLock()
+			defer ctLock.RUnlock()
+
+			for testName, runPaths := range tests {
+				for _, runPath := range runPaths {
+					if _, ok := completedTests[runPath]; !ok {
+						result = append(result, []string{testName, runPath})
+					}
+				}
+			}
+			testRunPaths = result
+			return
+		}).Expand().Transform(func(testRunPathi interface{}) (i interface{}, err error) {
+			inputArray := testRunPathi.([]string)
+			testRunPath := inputArray[1]
+			testName := inputArray[0]
+			if strings.Contains(testRunPath, "00") {
+				fmt.Printf("checking test %s\n", testRunPath)
+			}
+			return g.GetTestResult(ss.ctx, testName, testRunPath)
+		}).Batch(50).To(func(input interface{}) error {
+			var testResults []*storage.TestResult
+			for _, i := range input.([]interface{}) {
+				singleResult := i.(*storage.TestResult)
+				singleResult.OrgLogin = repo.OrgLogin
+				singleResult.RepoName = repo.RepoName
+				testResults = append(testResults, singleResult)
+			}
+			fmt.Printf("saving TestResult batch of size %d\n", len(testResults))
+			err := ss.mgr.store.WriteTestResults(ss.ctx, testResults)
+			if err != nil {
+				return err
+			}
+			return nil
+		}).WithParallelism(1).Go()
+		var result *multierror.Error
+		for err := range errorChan {
+			result = multierror.Append(err.Err())
+		}
+		if result != nil {
+			return result
+		}
+		// Update cache table to reflect these results.
+		rowCount, err := ss.mgr.store.UpdateFlakeCache(ss.ctx)
+		if err != nil {
+			return err
+		}
+		log.Infof("Updated flake cache with %d additional flakes", rowCount)
+		// TODO: check Post Submit tests as well.
+	}
+
+	return nil
+}
+
 func (ss *syncState) handleMaintainers() error {
 	maintainers := make(map[string]*storage.Maintainer)
 
