@@ -241,6 +241,26 @@ CREATE TABLE TestResults (
 ) PRIMARY KEY(OrgLogin, RepoName, TestName, PullRequestNumber, RunNumber, Done),
   INTERLEAVE IN PARENT Repos ON DELETE CASCADE;
 
+CREATE TABLE PostSubmitTestResults (
+  OrgLogin STRING(MAX) NOT NULL,
+  RepoName STRING(MAX) NOT NULL,
+  RunNumber INT64 NOT NULL,
+  TestName STRING(MAX) NOT NULL,
+  Done BOOL NOT NULL,
+  BaseSha STRING(MAX),
+  CloneFailed BOOL NOT NULL,
+  FinishTime TIMESTAMP,
+  Result STRING(MAX),
+  RunPath STRING(MAX) NOT NULL,
+  Sha BYTES(MAX) NOT NULL,
+  StartTime TIMESTAMP NOT NULL,
+  TestPassed BOOL,
+  HasArtifacts BOOL,
+  Signatures ARRAY<STRING(MAX)>,
+  Artifacts ARRAY<STRING(MAX)>,
+) PRIMARY KEY(OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done),
+  INTERLEAVE IN PARENT Repos ON DELETE CASCADE;
+
 CREATE TABLE ConfirmedFlakes (
   OrgLogin STRING(MAX) NOT NULL,
   RepoName STRING(MAX) NOT NULL,
