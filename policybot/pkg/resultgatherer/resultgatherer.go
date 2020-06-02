@@ -321,6 +321,75 @@ func (trg *TestResultGatherer) GetTestResult(ctx context.Context, testName strin
 	return
 }
 
+func (trg *TestResultGatherer) GetPostSubmitTestResult(ctx context.Context, testName string, testRun string) (testResult *store.TestResult, err error) {
+	testResult = &store.TestResult{}
+	testResult.TestName = testName
+	testResult.RunPath = testRun
+	testResult.Done = false
+
+	records, err := trg.getInformationFromCloneFile(ctx, testRun)
+	if err != nil {
+		return
+	}
+
+	if len(records) < 1 {
+		return nil, fmt.Errorf("test %s %s has an empty clone file.  Cannot proceed", testName, testRun)
+	}
+	record := records[0]
+
+	if len(record.Refs.Pulls) < 1 {
+		return nil, fmt.Errorf("test %s %s has a malformed clone file.  Cannot proceed", testName, testRun)
+	}
+	testResult.Sha, err = hex.DecodeString(record.Refs.Pulls[0].Sha)
+	if err != nil {
+		return
+	}
+	testResult.BaseSha = record.Refs.BaseSha
+	testResult.CloneFailed = record.Failed
+
+	started, err := trg.getInformationFromStartedFile(ctx, testRun)
+	if err != nil {
+		return
+	}
+
+	testResult.StartTime = time.Unix(started.Timestamp, 0)
+
+	finished, err := trg.getInformationFromFinishedFile(ctx, testRun)
+	if err != storage.ErrObjectNotExist {
+		if err != nil {
+			return
+		}
+		testResult.TestPassed = finished.Passed
+		testResult.Result = finished.Result
+		testResult.FinishTime = time.Unix(finished.Timestamp, 0)
+	}
+
+	prefSplit := strings.Split(testRun, "/")
+
+	runNo, err := strconv.ParseInt(prefSplit[len(prefSplit)-2], 10, 64)
+	if err != nil {
+		return
+	}
+	testResult.RunNumber = runNo
+	prNo, newError := strconv.ParseInt(prefSplit[len(prefSplit)-4], 10, 64)
+	if newError != nil {
+		return nil, newError
+	}
+
+	artifacts, err := trg.getTestRunArtifacts(ctx, testRun)
+	if err != nil {
+		return
+	}
+	testResult.HasArtifacts = len(artifacts) != 0
+	testResult.Artifacts = artifacts
+
+	if !testResult.TestPassed && !testResult.HasArtifacts {
+		// this is almost certainly an environmental failure, check for known sigs
+		testResult.Signatures = trg.getEnvironmentalSignatures(ctx, testRun)
+	}
+	return
+}
+
 // Read in gcs the folder of the given pr number and write the result of each test runs into a slice of TestFlake struct.
 func (trg *TestResultGatherer) CheckTestResultsForPr(ctx context.Context, orgLogin string, repoName string, prNum string) ([]*store.TestResult, error) {
 	testSlice, err := trg.GetTestsForPR(ctx, orgLogin, repoName, prNum)
