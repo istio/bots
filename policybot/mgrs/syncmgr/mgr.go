@@ -1205,9 +1205,6 @@ func (ss *syncState) handlePostSubmitTestResults() error {
 		}
 
 		scope.Debugf("Getting test results for org %s", repo.OrgLogin)
-		prMin := env.RegisterIntVar("PR_MIN", 0, "The minimum PR to scan for test results").Get()
-		prMax := env.RegisterIntVar("PR_MAX", -1, "The maximum PR to scan for test results").Get()
-
 		var completedTests = make(map[string]bool)
 		ctLock := sync.RWMutex{}
 		wg := sync.WaitGroup{}
@@ -1225,23 +1222,9 @@ func (ss *syncState) handlePostSubmitTestResults() error {
 			}
 			wg.Done()
 		}()
+		prPaths := g.GetAllPostSubmitTestChan(ss.ctx, repo.OrgLogin, repo.RepoName).WithBuffer(100)
 		// I think a composition syntax would be better here...
-		errorChan := prPaths.Transform(func(prPathi interface{}) (prNum interface{}, err error) {
-			prPath := prPathi.(string)
-			prParts := strings.Split(prPath, "/")
-			if len(prParts) < 2 {
-				err = errors.New("too few segments in pr path")
-				return
-			}
-			prNum = prParts[len(prParts)-2]
-			if prInt, ierr := strconv.Atoi(prParts[len(prParts)-2]); ierr == nil {
-				// skip this PR if it's outside the min and max inclusive
-				if prInt < prMin || (prMax > -1 && prInt > prMax) {
-					err = pipeline.ErrSkip
-				}
-			}
-			return
-		}).WithContext(ss.ctx).OnError(func(e error) {
+		errorChan := prPaths.WithContext(ss.ctx).OnError(func(e error) { 
 			// TODO: this should probably be reported out or something...
 			scope.Warnf("error processing test: %s", e)
 		}).WithParallelism(50).Transform(func(prNumi interface{}) (testRunPaths interface{}, err error) {
@@ -1270,7 +1253,7 @@ func (ss *syncState) handlePostSubmitTestResults() error {
 			if strings.Contains(testRunPath, "00") {
 				fmt.Printf("checking test %s\n", testRunPath)
 			}
-			return g.GetTestResult(ss.ctx, testName, testRunPath)
+			return g.GetPostSubmitTestResult(ss.ctx, testName, testRunPath)
 		}).Batch(50).To(func(input interface{}) error {
 			var testResults []*storage.TestResult
 			for _, i := range input.([]interface{}) {
