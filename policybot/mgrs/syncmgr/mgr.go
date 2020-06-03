@@ -1253,15 +1253,15 @@ func (ss *syncState) handlePostSubmitTestResults() error {
 			}
 			return g.GetPostSubmitTestResult(ss.ctx, testName, testRunPath)
 		}).Batch(50).To(func(input interface{}) error {
-			var testResults []*storage.TestResult
+			var testResults []*storage.PostSubmitTestResult
 			for _, i := range input.([]interface{}) {
-				singleResult := i.(*storage.TestResult)
+				singleResult := i.(*storage.PostSubmitTestResult)
 				singleResult.OrgLogin = repo.OrgLogin
 				singleResult.RepoName = repo.RepoName
 				testResults = append(testResults, singleResult)
 			}
 			fmt.Printf("saving TestResult batch of size %d\n", len(testResults))
-			err := ss.mgr.store.WriteTestResults(ss.ctx, testResults)
+			err := ss.mgr.store.WritePostSumbitTestResults(ss.ctx, testResults)
 			if err != nil {
 				return err
 			}

@@ -47,6 +47,7 @@ const (
 	pullRequestReviewEventTable        = "PullRequestReviewEvents"
 	repoCommentEventTable              = "RepoCommentEvents"
 	testResultTable                    = "TestResults"
+	postSubmitTestResultTable          = "PostSubmitTestResults"
 	coverageDataTable                  = "CoverageData"
 	userAffiliationTable               = "UserAffiliation"
 )
@@ -125,6 +126,10 @@ func memberKey(orgLogin string, userLogin string) spanner.Key {
 
 func testResultKey(orgLogin string, repoName string, testName string, prNum int64, runNumber int64) spanner.Key {
 	return spanner.Key{orgLogin, repoName, testName, prNum, runNumber}
+}
+
+func testPostSubmitResultKey(orgLogin string, repoName string, testName string, runNumber int64) spanner.Key {
+	return spanner.Key{orgLogin, repoName, testName, runNumber}
 }
 
 func init() {
