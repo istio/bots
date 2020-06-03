@@ -1188,7 +1188,6 @@ func (ss *syncState) handleTestResults() error {
 	return nil
 }
 
-
 func (ss *syncState) handlePostSubmitTestResults() error {
 	for _, repo := range ss.mgr.reg.Repos() {
 		r, ok := ss.mgr.reg.SingleRecord(refresher.RecordType, repo.OrgAndRepo)
@@ -1224,7 +1223,7 @@ func (ss *syncState) handlePostSubmitTestResults() error {
 		}()
 		prPaths := g.GetAllPostSubmitTestChan(ss.ctx, repo.OrgLogin, repo.RepoName).WithBuffer(100)
 		// I think a composition syntax would be better here...
-		errorChan := prPaths.WithContext(ss.ctx).OnError(func(e error) { 
+		errorChan := prPaths.WithContext(ss.ctx).OnError(func(e error) {
 			// TODO: this should probably be reported out or something...
 			scope.Warnf("error processing test: %s", e)
 		}).WithParallelism(50).Transform(func(prNumi interface{}) (testRunPaths interface{}, err error) {

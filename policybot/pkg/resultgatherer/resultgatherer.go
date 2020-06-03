@@ -95,7 +95,7 @@ func (trg *TestResultGatherer) GetTestsForPR(ctx context.Context, orgLogin strin
 }
 
 func (trg *TestResultGatherer) GetPostSubmitTestsForPR(ctx context.Context, orgLogin string, repoName string) (map[string][]string, error) {
-	prefixForPr := trg.getRepoPrPath(orgLogin, repoName) + "/"
+	prefixForPr := trg.getRepoPrPath(orgLogin, repoName)
 	return trg.getTests(ctx, prefixForPr)
 }
 
