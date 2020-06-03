@@ -94,6 +94,11 @@ func (trg *TestResultGatherer) GetTestsForPR(ctx context.Context, orgLogin strin
 	return trg.getTests(ctx, prefixForPr)
 }
 
+func (trg *TestResultGatherer) GetPostSubmitTestsForPR(ctx context.Context, orgLogin string, repoName string) (map[string][]string, error) {
+	prefixForPr := trg.getRepoPrPath(orgLogin, repoName) + "/"
+	return trg.getTests(ctx, prefixForPr)
+}
+
 func (trg *TestResultGatherer) getBucket() blobstorage.Bucket {
 	return trg.Client.Bucket(trg.BucketName)
 }
@@ -371,11 +376,6 @@ func (trg *TestResultGatherer) GetPostSubmitTestResult(ctx context.Context, test
 		return
 	}
 	testResult.RunNumber = runNo
-	prNo, newError := strconv.ParseInt(prefSplit[len(prefSplit)-4], 10, 64)
-	if newError != nil {
-		return nil, newError
-	}
-
 	artifacts, err := trg.getTestRunArtifacts(ctx, testRun)
 	if err != nil {
 		return
@@ -406,6 +406,10 @@ func (trg *TestResultGatherer) CheckTestResultsForPr(ctx context.Context, orgLog
 
 func (trg *TestResultGatherer) GetAllPullRequestsChan(ctx context.Context, orgLogin string, repoName string) pipelinetwo.Pipeline {
 	return trg.getBucket().ListPrefixesProducer(ctx, trg.getRepoPrPath(orgLogin, repoName))
+}
+
+func (trg *TestResultGatherer) GetAllPostSubmitTestChan(ctx context.Context, orgLogin string, repoName string) pipelinetwo.Pipeline {
+	return trg.getBucket().ListPrefixesProducer(ctx, "gcsweb.istio.io/gcs/istio-prow/logs/")
 }
 
 // if any pattern is found in the object, return it's index
