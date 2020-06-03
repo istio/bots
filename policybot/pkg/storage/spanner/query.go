@@ -216,7 +216,6 @@ func (s store) QueryTestResultByDone(context context.Context, orgLogin string, r
 	return err
 }
 
-
 func (s store) QueryPostSubmitTestResultByDone(context context.Context, orgLogin string, repoName string, cb func(*storage.TestResult) error) error {
 	sql := `SELECT * from PostSubmitTestResults
 	WHERE OrgLogin = @orgLogin AND
