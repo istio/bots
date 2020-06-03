@@ -1211,7 +1211,7 @@ func (ss *syncState) handlePostSubmitTestResults() error {
 		go func() {
 			ctLock.Lock()
 			defer ctLock.Unlock()
-			err := ss.mgr.store.QueryTestResultByDone(ss.ctx, repo.OrgLogin, repo.RepoName,
+			err := ss.mgr.store.QueryPostSubmitTestResultByDone(ss.ctx, repo.OrgLogin, repo.RepoName,
 				func(result *storage.TestResult) error {
 					completedTests[result.RunPath] = true
 					return nil
