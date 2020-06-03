@@ -1227,8 +1227,6 @@ func (ss *syncState) handlePostSubmitTestResults() error {
 			// TODO: this should probably be reported out or something...
 			scope.Warnf("error processing test: %s", e)
 		}).WithParallelism(50).Transform(func(interface{}) (testRunPaths interface{}, err error) {
-			//prNum := prNumi.(string)
-			//tests, err := g.GetTestsForPR(ss.ctx, repo.OrgLogin, repo.RepoName, prNum)
 			tests, err := g.GetPostSubmitTests(ss.ctx, repo.OrgLogin, repo.RepoName)
 			var result [][]string
 
