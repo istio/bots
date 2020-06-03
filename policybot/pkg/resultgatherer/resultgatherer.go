@@ -94,7 +94,7 @@ func (trg *TestResultGatherer) GetTestsForPR(ctx context.Context, orgLogin strin
 	return trg.getTests(ctx, prefixForPr)
 }
 
-func (trg *TestResultGatherer) GetPostSubmitTestsForPR(ctx context.Context, orgLogin string, repoName string) (map[string][]string, error) {
+func (trg *TestResultGatherer) GetPostSubmitTests(ctx context.Context, orgLogin string, repoName string) (map[string][]string, error) {
 	prefixForPr := trg.getRepoPrPath(orgLogin, repoName)
 	return trg.getTests(ctx, prefixForPr)
 }
@@ -404,11 +404,24 @@ func (trg *TestResultGatherer) CheckTestResultsForPr(ctx context.Context, orgLog
 	return fullResult, nil
 }
 
+func (trg *TestResultGatherer) CheckPostSubmitTestResults(ctx context.Context, orgLogin string, repoName string) ([]*store.TestResult, error) {
+	testSlice, err := trg.GetPostSubmitTests(ctx, orgLogin, repoName)
+	if err != nil {
+		return nil, err
+	}
+	fullResult, err := trg.getManyResults(ctx, testSlice, orgLogin, repoName)
+
+	if err != nil {
+		return nil, err
+	}
+	return fullResult, nil
+}
+
 func (trg *TestResultGatherer) GetAllPullRequestsChan(ctx context.Context, orgLogin string, repoName string) pipelinetwo.Pipeline {
 	return trg.getBucket().ListPrefixesProducer(ctx, trg.getRepoPrPath(orgLogin, repoName))
 }
 
-func (trg *TestResultGatherer) GetAllPostSubmitTestChan(ctx context.Context, orgLogin string, repoName string) pipelinetwo.Pipeline {
+func (trg *TestResultGatherer) GetAllPostSubmitTestChan(ctx context.Context) pipelinetwo.Pipeline {
 	return trg.getBucket().ListPrefixesProducer(ctx, "gcsweb.istio.io/gcs/istio-prow/logs/")
 }
 
