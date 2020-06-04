@@ -1221,9 +1221,9 @@ func (ss *syncState) handlePostSubmitTestResults() error {
 			}
 			wg.Done()
 		}()
-		prPaths := g.GetAllPostSubmitTestChan(ss.ctx).WithBuffer(100)
+		Paths := g.GetAllPostSubmitTestChan(ss.ctx).WithBuffer(100)
 		// I think a composition syntax would be better here...
-		errorChan := prPaths.WithContext(ss.ctx).OnError(func(e error) {
+		errorChan := Paths.WithContext(ss.ctx).OnError(func(e error) {
 			// TODO: this should probably be reported out or something...
 			scope.Warnf("error processing test: %s", e)
 		}).WithParallelism(50).Transform(func(interface{}) (testRunPaths interface{}, err error) {
