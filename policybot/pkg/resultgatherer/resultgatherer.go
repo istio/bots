@@ -422,7 +422,7 @@ func (trg *TestResultGatherer) GetAllPullRequestsChan(ctx context.Context, orgLo
 }
 
 func (trg *TestResultGatherer) GetAllPostSubmitTestChan(ctx context.Context) pipelinetwo.Pipeline {
-	return trg.getBucket().ListPrefixesProducer(ctx, "gcsweb.istio.io/gcs/istio-prow/logs/")
+	return trg.getBucket().ListPrefixesProducer(ctx, "logs/")
 }
 
 // if any pattern is found in the object, return it's index
