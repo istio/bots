@@ -94,9 +94,8 @@ func (trg *TestResultGatherer) GetTestsForPR(ctx context.Context, orgLogin strin
 	return trg.getTests(ctx, prefixForPr)
 }
 
-func (trg *TestResultGatherer) GetPostSubmitTests(ctx context.Context, orgLogin string, repoName string) (map[string][]string, error) {
-	prefixForPr := trg.getRepoPrPath(orgLogin, repoName)
-	return trg.getTests(ctx, prefixForPr)
+func (trg *TestResultGatherer) GetPostSubmitTests(ctx context.Context) (map[string][]string, error) {
+	return trg.getTests(ctx, "logs/")
 }
 
 func (trg *TestResultGatherer) getBucket() blobstorage.Bucket {
@@ -405,7 +404,7 @@ func (trg *TestResultGatherer) CheckTestResultsForPr(ctx context.Context, orgLog
 }
 
 func (trg *TestResultGatherer) CheckPostSubmitTestResults(ctx context.Context, orgLogin string, repoName string) ([]*store.TestResult, error) {
-	testSlice, err := trg.GetPostSubmitTests(ctx, orgLogin, repoName)
+	testSlice, err := trg.GetPostSubmitTests(ctx)
 	if err != nil {
 		return nil, err
 	}
