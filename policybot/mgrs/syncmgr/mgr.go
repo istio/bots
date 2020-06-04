@@ -1203,7 +1203,7 @@ func (ss *syncState) handlePostSubmitTestResults() error {
 			PostSubmitPrefix: tor.PostSubmitTestPath,
 		}
 
-		scope.Debugf("Getting test results for org %s", repo.OrgLogin)
+		scope.Debugf("Getting post submit test results for org %s", repo.OrgLogin)
 		var completedTests = make(map[string]bool)
 		ctLock := sync.RWMutex{}
 		wg := sync.WaitGroup{}
@@ -1217,7 +1217,7 @@ func (ss *syncState) handlePostSubmitTestResults() error {
 					return nil
 				})
 			if err != nil {
-				scope.Warnf("Unable to fetch previous tests: %s", err)
+				scope.Warnf("Unable to fetch previous post submit tests: %s", err)
 			}
 			wg.Done()
 		}()
@@ -1225,7 +1225,7 @@ func (ss *syncState) handlePostSubmitTestResults() error {
 		// I think a composition syntax would be better here...
 		errorChan := Paths.WithContext(ss.ctx).OnError(func(e error) {
 			// TODO: this should probably be reported out or something...
-			scope.Warnf("error processing test: %s", e)
+			scope.Warnf("error processing post submit test: %s", e)
 		}).WithParallelism(50).Transform(func(interface{}) (testRunPaths interface{}, err error) {
 			tests, err := g.GetPostSubmitTests(ss.ctx)
 			var result [][]string
@@ -1249,7 +1249,7 @@ func (ss *syncState) handlePostSubmitTestResults() error {
 			testRunPath := inputArray[1]
 			testName := inputArray[0]
 			if strings.Contains(testRunPath, "00") {
-				fmt.Printf("checking test %s\n", testRunPath)
+				fmt.Printf("checking post submit test %s\n", testRunPath)
 			}
 			return g.GetPostSubmitTestResult(ss.ctx, testName, testRunPath)
 		}).Batch(50).To(func(input interface{}) error {
@@ -1260,7 +1260,7 @@ func (ss *syncState) handlePostSubmitTestResults() error {
 				singleResult.RepoName = repo.RepoName
 				testResults = append(testResults, singleResult)
 			}
-			fmt.Printf("saving TestResult batch of size %d\n", len(testResults))
+			fmt.Printf("saving PostSubmitTestResult batch of size %d\n", len(testResults))
 			err := ss.mgr.store.WritePostSumbitTestResults(ss.ctx, testResults)
 			if err != nil {
 				return err
@@ -1280,7 +1280,6 @@ func (ss *syncState) handlePostSubmitTestResults() error {
 			return err
 		}
 		log.Infof("Updated flake cache with %d additional flakes", rowCount)
-		// TODO: check Post Submit tests as well.
 	}
 
 	return nil
