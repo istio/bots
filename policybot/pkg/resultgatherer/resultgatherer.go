@@ -255,6 +255,25 @@ func (trg *TestResultGatherer) getManyResults(ctx context.Context, testSlice map
 	return allTestRuns, nil
 }
 
+func (trg *TestResultGatherer) getManyPostSubmitResults(ctx context.Context, testSlice map[string][]string,
+	orgLogin string, repoName string) ([]*store.PostSubmitTestResult, error) {
+
+	var allTestRuns []*store.PostSubmitTestResult
+
+	for testName, runPaths := range testSlice {
+		for _, runPath := range runPaths {
+			if testResult, err := trg.GetPostSubmitTestResult(ctx, testName, runPath); err == nil {
+				testResult.OrgLogin = orgLogin
+				testResult.RepoName = repoName
+				allTestRuns = append(allTestRuns, testResult)
+			} else {
+				return nil, err
+			}
+		}
+	}
+	return allTestRuns, nil
+}
+
 func (trg *TestResultGatherer) GetTestResult(ctx context.Context, testName string, testRun string) (testResult *store.TestResult, err error) {
 	testResult = &store.TestResult{}
 	testResult.TestName = testName
@@ -325,8 +344,9 @@ func (trg *TestResultGatherer) GetTestResult(ctx context.Context, testName strin
 	return
 }
 
-func (trg *TestResultGatherer) GetPostSubmitTestResult(ctx context.Context, testName string, testRun string) (testResult *store.TestResult, err error) {
-	testResult = &store.TestResult{}
+func (trg *TestResultGatherer) GetPostSubmitTestResult(ctx context.Context, testName string,
+	testRun string) (testResult *store.PostSubmitTestResult, err error) {
+	testResult = &store.PostSubmitTestResult{}
 	testResult.TestName = testName
 	testResult.RunPath = testRun
 	testResult.Done = false
@@ -403,12 +423,12 @@ func (trg *TestResultGatherer) CheckTestResultsForPr(ctx context.Context, orgLog
 	return fullResult, nil
 }
 
-func (trg *TestResultGatherer) CheckPostSubmitTestResults(ctx context.Context, orgLogin string, repoName string) ([]*store.TestResult, error) {
+func (trg *TestResultGatherer) CheckPostSubmitTestResults(ctx context.Context, orgLogin string, repoName string) ([]*store.PostSubmitTestResult, error) {
 	testSlice, err := trg.GetPostSubmitTests(ctx)
 	if err != nil {
 		return nil, err
 	}
-	fullResult, err := trg.getManyResults(ctx, testSlice, orgLogin, repoName)
+	fullResult, err := trg.getManyPostSubmitResults(ctx, testSlice, orgLogin, repoName)
 
 	if err != nil {
 		return nil, err
