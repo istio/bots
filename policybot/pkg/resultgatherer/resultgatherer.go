@@ -361,13 +361,6 @@ func (trg *TestResultGatherer) GetPostSubmitTestResult(ctx context.Context, test
 	}
 	record := records[0]
 
-	if len(record.Refs.Pulls) < 1 {
-		return nil, fmt.Errorf("test %s %s has a malformed clone file.  Cannot proceed", testName, testRun)
-	}
-	testResult.Sha, err = hex.DecodeString(record.Refs.Pulls[0].Sha)
-	if err != nil {
-		return
-	}
 	testResult.BaseSha = record.Refs.BaseSha
 	testResult.CloneFailed = record.Failed
 
