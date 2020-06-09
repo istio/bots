@@ -211,7 +211,7 @@ func (sm *SyncMgr) Sync(context context.Context, flags FilterFlags, dryRun bool)
 	}
 
 	if flags&TestResults != 0 {
-		if err := ss.handlePostSubmitTestResults(); err != nil {
+		if err := ss.handleTestResults(); err != nil {
 			return err
 		}
 	}
