@@ -94,8 +94,8 @@ func (trg *TestResultGatherer) GetTestsForPR(ctx context.Context, orgLogin strin
 	return trg.getTests(ctx, prefixForPr)
 }
 
-func (trg *TestResultGatherer) GetPostSubmitTests(ctx context.Context) (map[string][]string, error) {
-	return trg.getTests(ctx, "logs/")
+func (trg *TestResultGatherer) GetPostSubmitTests(ctx context.Context) (runPathChan chan pipelinetwo.OutResult) {
+	return trg.getBucket().ListPrefixesProducer(ctx, "logs/").Go()
 }
 
 func (trg *TestResultGatherer) getBucket() blobstorage.Bucket {
@@ -255,12 +255,23 @@ func (trg *TestResultGatherer) getManyResults(ctx context.Context, testSlice map
 	return allTestRuns, nil
 }
 
-func (trg *TestResultGatherer) getManyPostSubmitResults(ctx context.Context, testSlice map[string][]string,
+func (trg *TestResultGatherer) getManyPostSubmitResults(ctx context.Context, testNames chan pipelinetwo.OutResult,
 	orgLogin string, repoName string) ([]*store.PostSubmitTestResult, error) {
 
 	var allTestRuns []*store.PostSubmitTestResult
 
-	for testName, runPaths := range testSlice {
+	for item := range testNames {
+		if item.Err() != nil {
+			return nil, item.Err()
+		}
+		bucket := trg.getBucket()
+		testPref := item.Output()
+		testPrefSplit := strings.Split(testPref.(string), "/")
+		testName := testPrefSplit[len(testPrefSplit)-2]
+		runPaths, err := bucket.ListPrefixes(ctx, testPref.(string))
+		if err != nil {
+			return nil, err
+		}
 		for _, runPath := range runPaths {
 			if testResult, err := trg.GetPostSubmitTestResult(ctx, testName, runPath); err == nil {
 				testResult.OrgLogin = orgLogin
@@ -417,11 +428,8 @@ func (trg *TestResultGatherer) CheckTestResultsForPr(ctx context.Context, orgLog
 }
 
 func (trg *TestResultGatherer) CheckPostSubmitTestResults(ctx context.Context, orgLogin string, repoName string) ([]*store.PostSubmitTestResult, error) {
-	testSlice, err := trg.GetPostSubmitTests(ctx)
-	if err != nil {
-		return nil, err
-	}
-	fullResult, err := trg.getManyPostSubmitResults(ctx, testSlice, orgLogin, repoName)
+	testNames := trg.GetPostSubmitTests(ctx)
+	fullResult, err := trg.getManyPostSubmitResults(ctx, testNames, orgLogin, repoName)
 
 	if err != nil {
 		return nil, err

@@ -1227,7 +1227,7 @@ func (ss *syncState) handlePostSubmitTestResults() error {
 			// TODO: this should probably be reported out or something...
 			scope.Warnf("error processing post submit test: %s", e)
 		}).WithParallelism(50).Transform(func(interface{}) (testRunPaths interface{}, err error) {
-			tests, err := g.GetPostSubmitTests(ss.ctx)
+			testNames := g.GetPostSubmitTests(ss.ctx)
 			var result [][]string
 
 			// Wait for a comprehensive list of completed tests
@@ -1235,7 +1235,15 @@ func (ss *syncState) handlePostSubmitTestResults() error {
 			ctLock.RLock()
 			defer ctLock.RUnlock()
 
-			for testName, runPaths := range tests {
+			for item := range testNames {
+				bucket := g.Client.Bucket(g.BucketName)
+				testPref := item.Output()
+				testPrefSplit := strings.Split(testPref.(string), "/")
+				testName := testPrefSplit[len(testPrefSplit)-2]
+				runPaths, err := bucket.ListPrefixes(ss.ctx, testPref.(string))
+				if err != nil {
+					return nil, err
+				}
 				for _, runPath := range runPaths {
 					if _, ok := completedTests[runPath]; !ok {
 						result = append(result, []string{testName, runPath})
