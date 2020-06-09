@@ -95,10 +95,6 @@ func (trg *TestResultGatherer) GetTestsForPR(ctx context.Context, orgLogin strin
 	return trg.getTests(ctx, prefixForPr)
 }
 
-func (trg *TestResultGatherer) GetPostSubmitTests(ctx context.Context) (runPathChan chan pipelinetwo.OutResult) {
-	return trg.getBucket().ListPrefixesProducer(ctx, "logs/").Go()
-}
-
 func (trg *TestResultGatherer) getBucket() blobstorage.Bucket {
 	return trg.Client.Bucket(trg.BucketName)
 }
@@ -434,7 +430,7 @@ func (trg *TestResultGatherer) CheckTestResultsForPr(ctx context.Context, orgLog
 }
 
 func (trg *TestResultGatherer) CheckPostSubmitTestResults(ctx context.Context, orgLogin string, repoName string) ([]*store.PostSubmitTestResult, error) {
-	testNames := trg.GetPostSubmitTests(ctx)
+	testNames := trg.GetAllPostSubmitTestChan(ctx).Go()
 	fullResult, err := trg.getManyPostSubmitResults(ctx, testNames, orgLogin, repoName)
 
 	if err != nil {

@@ -107,7 +107,9 @@ func TestPostSubmitTestResultGatherer(t *testing.T) {
 		Artifacts:   nil,
 	}
 
-	correctInfo.Sha = nil
+	shaBytes, err := hex.DecodeString("eb5c86e5563c74238665b2e2b3d6724f5acdbb97")
+	assert.NilError(t, err)
+	correctInfo.Sha = shaBytes
 
 	client, err := gcs.NewStore(context, nil)
 	if err != nil {
