@@ -220,6 +220,22 @@ func (s store) ReadTestResult(context context.Context, orgLogin string,
 	return &result, nil
 }
 
+func (s store) ReadPostSubmitTestResult(context context.Context, orgLogin string,
+	repoName string, testName string, runNum int64) (*storage.PostSubmitTestResult, error) {
+	row, err := s.client.Single().ReadRow(context, postSubmitTestResultTable, testPostSubmitResultKey(orgLogin, repoName, testName, runNum), testResultColumns)
+	if spanner.ErrCode(err) == codes.NotFound {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+	var result storage.PostSubmitTestResult
+	if err := rowToStruct(row, &result); err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
+
 func (s store) ReadMaintainer(context context.Context, orgLogin string, userLogin string) (*storage.Maintainer, error) {
 	row, err := s.client.Single().ReadRow(context, maintainerTable, maintainerKey(orgLogin, userLogin), maintainerColumns)
 	if spanner.ErrCode(err) == codes.NotFound {

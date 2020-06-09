@@ -85,6 +85,61 @@ func TestTestResultGatherer(t *testing.T) {
 	t.Log(duration)
 }
 
+func TestPostSubmitTestResultGatherer(t *testing.T) {
+	context := context.Background()
+	const layout = "1/2/2006 15:04:05"
+	time1, _ := time.Parse(layout, "06/03/2020 21:52:53")
+	t1 := time1.Local()
+	time2, _ := time.Parse(layout, "06/03/2020 22:17:49")
+	t2 := time2.Local()
+	var correctInfo = &storage.PostSubmitTestResult{
+		OrgLogin:    "istio",
+		RepoName:    "istio",
+		TestName:    "pilot-e2e-envoyv2-v1alpha3_istio_release-1.4_postsubmit",
+		RunNumber:   253,
+		StartTime:   t1,
+		FinishTime:  t2,
+		TestPassed:  true,
+		CloneFailed: false,
+		Result:      "SUCCESS",
+		BaseSha:     "eb5c86e5563c74238665b2e2b3d6724f5acdbb97",
+		RunPath:     "logs/pilot-e2e-envoyv2-v1alpha3_istio_release-1.4_postsubmit/253/",
+		Artifacts:   nil,
+	}
+
+	shaBytes, err := hex.DecodeString("eb5c86e5563c74238665b2e2b3d6724f5acdbb97")
+	assert.NilError(t, err)
+	correctInfo.Sha = shaBytes
+
+	client, err := gcs.NewStore(context, nil)
+	if err != nil {
+		t.Fatalf("unable to create GCS client: %v", err)
+	}
+
+	start := time.Now()
+	testResultGatherer := TestResultGatherer{client, "istio-flakey-test", "", ""}
+	postSubmitTestResults, err := testResultGatherer.CheckPostSubmitTestResults(context, "istio", "istio")
+	if err != nil {
+		t.Errorf("Expecting no error, got %v", err)
+		return
+	}
+
+	if len(postSubmitTestResults) == 0 {
+		t.Errorf("Expected at least one test result from bucket istio-flakey-test")
+		return
+	}
+
+	test := postSubmitTestResults[0]
+	test.Artifacts = nil
+	test.HasArtifacts = false
+
+	if !reflect.DeepEqual(test, correctInfo) {
+		t.Errorf("Wanted %#v, got %#v", correctInfo, test)
+	}
+	duration := time.Since(start)
+	t.Log(duration)
+}
+
 func BenchmarkOldWay(b *testing.B) {
 	t := time.NewTicker(time.Millisecond)
 	var data []time.Time

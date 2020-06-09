@@ -199,6 +199,25 @@ type TestResult struct {
 	Artifacts         []string
 }
 
+type PostSubmitTestResult struct {
+	StartTime    time.Time
+	FinishTime   time.Time
+	Signatures   []string
+	OrgLogin     string
+	RepoName     string
+	TestName     string
+	Sha          []byte
+	Result       string
+	BaseSha      string
+	RunPath      string
+	RunNumber    int64
+	TestPassed   bool
+	CloneFailed  bool
+	Done         bool
+	HasArtifacts bool
+	Artifacts    []string
+}
+
 type RepoComment struct {
 	OrgLogin  string
 	RepoName  string

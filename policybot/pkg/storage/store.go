@@ -39,6 +39,7 @@ type Store interface {
 	WriteAllMaintainers(context context.Context, maintainers []*Maintainer) error
 	WriteBotActivities(context context.Context, activities []*BotActivity) error
 	WriteTestResults(context context.Context, testResults []*TestResult) error
+	WritePostSumbitTestResults(context context.Context, postSubmitTestResults []*PostSubmitTestResult) error
 	WriteIssueEvents(context context.Context, events []*IssueEvent) error
 	WriteIssueCommentEvents(context context.Context, events []*IssueCommentEvent) error
 	WritePullRequestEvents(context context.Context, events []*PullRequestEvent) error
@@ -77,6 +78,7 @@ type Store interface {
 	QueryTestResultByPrNumber(context context.Context, orgLogin string, repoName string, pullRequestNumber int64, cb func(*TestResult) error) error
 	QueryTestResultByUndone(context context.Context, orgLogin string, repoName string, cb func(*TestResult) error) error
 	QueryTestResultByDone(context context.Context, orgLogin string, repoName string, cb func(*TestResult) error) error
+	QueryPostSubmitTestResultByDone(context context.Context, orgLogin string, repoName string, cb func(*PostSubmitTestResult) error) error
 	QueryAllTestResults(context context.Context, orgLogin string, repoName string, cb func(*TestResult) error) error
 	QueryTestResultByTestName(context context.Context, orgLogin string, repoName string, testName string, cb func(*TestResult) error) error
 	QueryTestResultsBySHA(context context.Context, orgLogin string, repoName string, sha string, cb func(*TestResult) error) error

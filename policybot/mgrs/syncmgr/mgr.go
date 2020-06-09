@@ -1188,6 +1188,108 @@ func (ss *syncState) handleTestResults() error {
 	return nil
 }
 
+func (ss *syncState) handlePostSubmitTestResults() error {
+	for _, repo := range ss.mgr.reg.Repos() {
+		r, ok := ss.mgr.reg.SingleRecord(refresher.RecordType, repo.OrgAndRepo)
+		if !ok {
+			continue
+		}
+
+		tor := r.(*refresher.TestOutputRecord)
+		g := resultgatherer.TestResultGatherer{
+			Client:           ss.mgr.blobstore,
+			BucketName:       tor.BucketName,
+			PreSubmitPrefix:  tor.PreSubmitTestPath,
+			PostSubmitPrefix: tor.PostSubmitTestPath,
+		}
+
+		scope.Debugf("Getting post submit test results for org %s", repo.OrgLogin)
+		var completedTests = make(map[string]bool)
+		ctLock := sync.RWMutex{}
+		wg := sync.WaitGroup{}
+		wg.Add(1)
+		go func() {
+			ctLock.Lock()
+			defer ctLock.Unlock()
+			err := ss.mgr.store.QueryPostSubmitTestResultByDone(ss.ctx, repo.OrgLogin, repo.RepoName,
+				func(result *storage.PostSubmitTestResult) error {
+					completedTests[result.RunPath] = true
+					return nil
+				})
+			if err != nil {
+				scope.Warnf("Unable to fetch previous post submit tests: %s", err)
+			}
+			wg.Done()
+		}()
+		Paths := g.GetAllPostSubmitTestChan(ss.ctx).WithBuffer(100)
+		// I think a composition syntax would be better here...
+		errorChan := Paths.WithContext(ss.ctx).OnError(func(e error) {
+			// TODO: this should probably be reported out or something...
+			scope.Warnf("error processing post submit test: %s", e)
+		}).WithParallelism(50).Transform(func(pathi interface{}) (testRunPaths interface{}, err error) {
+			var result [][]string
+
+			// Wait for a comprehensive list of completed tests
+			wg.Wait()
+			ctLock.RLock()
+			defer ctLock.RUnlock()
+
+			bucket := g.Client.Bucket(g.BucketName)
+			testPref := pathi.(string)
+			testPrefSplit := strings.Split(testPref, "/")
+			testName := testPrefSplit[len(testPrefSplit)-2]
+			runPaths, err := bucket.ListPrefixes(ss.ctx, testPref)
+			if err != nil {
+				return nil, err
+			}
+			for _, runPath := range runPaths {
+				if _, ok := completedTests[runPath]; !ok {
+					result = append(result, []string{testName, runPath})
+				}
+			}
+			testRunPaths = result
+			return
+		}).Expand().Transform(func(testRunPathi interface{}) (i interface{}, err error) {
+			inputArray := testRunPathi.([]string)
+			testRunPath := inputArray[1]
+			testName := inputArray[0]
+			if strings.Contains(testRunPath, "00") {
+				fmt.Printf("checking post submit test %s\n", testRunPath)
+			}
+			return g.GetPostSubmitTestResult(ss.ctx, testName, testRunPath)
+		}).Batch(50).To(func(input interface{}) error {
+			var testResults []*storage.PostSubmitTestResult
+			for _, i := range input.([]interface{}) {
+				singleResult := i.(*storage.PostSubmitTestResult)
+				singleResult.OrgLogin = repo.OrgLogin
+				singleResult.RepoName = repo.RepoName
+				testResults = append(testResults, singleResult)
+			}
+			fmt.Printf("saving PostSubmitTestResult batch of size %d\n", len(testResults))
+			err := ss.mgr.store.WritePostSumbitTestResults(ss.ctx, testResults)
+			if err != nil {
+				return err
+			}
+			return nil
+		}).WithParallelism(1).Go()
+		var result *multierror.Error
+		for err := range errorChan {
+			result = multierror.Append(err.Err())
+		}
+		if result != nil {
+			return result
+		}
+		// Update cache table to reflect these results.
+		rowCount, err := ss.mgr.store.UpdateFlakeCache(ss.ctx)
+		if err != nil {
+			return err
+		}
+		log.Infof("Updated flake cache with %d additional flakes", rowCount)
+	}
+
+	return nil
+}
+
 func (ss *syncState) handleMaintainers() error {
 	maintainers := make(map[string]*storage.Maintainer)
 

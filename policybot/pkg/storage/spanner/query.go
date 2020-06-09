@@ -216,6 +216,27 @@ func (s store) QueryTestResultByDone(context context.Context, orgLogin string, r
 	return err
 }
 
+func (s store) QueryPostSubmitTestResultByDone(context context.Context, orgLogin string, repoName string, cb func(*storage.PostSubmitTestResult) error) error {
+	sql := `SELECT * from PostSubmitTestResults
+	WHERE OrgLogin = @orgLogin AND
+	RepoName = @repoName AND
+	FinishTime IS NOT NULL;`
+	stmt := spanner.NewStatement(sql)
+	stmt.Params["orgLogin"] = orgLogin
+	stmt.Params["repoName"] = repoName
+	iter := s.client.Single().Query(context, stmt)
+	err := iter.Do(func(row *spanner.Row) error {
+		testResult := &storage.PostSubmitTestResult{}
+		if err := rowToStruct(row, testResult); err != nil {
+			return err
+		}
+
+		return cb(testResult)
+	})
+
+	return err
+}
+
 // Read all rows from table in Spanner and invokes a call back on the row.
 func (s store) QueryAllTestResults(context context.Context, orgLogin string, repoName string, cb func(*storage.TestResult) error) error {
 	sql := `SELECT * from TestResults
