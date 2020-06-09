@@ -216,7 +216,7 @@ func (s store) QueryTestResultByDone(context context.Context, orgLogin string, r
 	return err
 }
 
-func (s store) QueryPostSubmitTestResultByDone(context context.Context, orgLogin string, repoName string, cb func(*storage.TestResult) error) error {
+func (s store) QueryPostSubmitTestResultByDone(context context.Context, orgLogin string, repoName string, cb func(*storage.PostSubmitTestResult) error) error {
 	sql := `SELECT * from PostSubmitTestResults
 	WHERE OrgLogin = @orgLogin AND
 	RepoName = @repoName AND
@@ -226,7 +226,7 @@ func (s store) QueryPostSubmitTestResultByDone(context context.Context, orgLogin
 	stmt.Params["repoName"] = repoName
 	iter := s.client.Single().Query(context, stmt)
 	err := iter.Do(func(row *spanner.Row) error {
-		testResult := &storage.TestResult{}
+		testResult := &storage.PostSubmitTestResult{}
 		if err := rowToStruct(row, testResult); err != nil {
 			return err
 		}

@@ -211,7 +211,7 @@ func (sm *SyncMgr) Sync(context context.Context, flags FilterFlags, dryRun bool)
 	}
 
 	if flags&TestResults != 0 {
-		if err := ss.handleTestResults(); err != nil {
+		if err := ss.handlePostSubmitTestResults(); err != nil {
 			return err
 		}
 	}
@@ -1212,7 +1212,7 @@ func (ss *syncState) handlePostSubmitTestResults() error {
 			ctLock.Lock()
 			defer ctLock.Unlock()
 			err := ss.mgr.store.QueryPostSubmitTestResultByDone(ss.ctx, repo.OrgLogin, repo.RepoName,
-				func(result *storage.TestResult) error {
+				func(result *storage.PostSubmitTestResult) error {
 					completedTests[result.RunPath] = true
 					return nil
 				})
@@ -1226,8 +1226,7 @@ func (ss *syncState) handlePostSubmitTestResults() error {
 		errorChan := Paths.WithContext(ss.ctx).OnError(func(e error) {
 			// TODO: this should probably be reported out or something...
 			scope.Warnf("error processing post submit test: %s", e)
-		}).WithParallelism(50).Transform(func(interface{}) (testRunPaths interface{}, err error) {
-			testNames := g.GetPostSubmitTests(ss.ctx)
+		}).WithParallelism(50).Transform(func(pathi interface{}) (testRunPaths interface{}, err error) {
 			var result [][]string
 
 			// Wait for a comprehensive list of completed tests
@@ -1235,19 +1234,17 @@ func (ss *syncState) handlePostSubmitTestResults() error {
 			ctLock.RLock()
 			defer ctLock.RUnlock()
 
-			for item := range testNames {
-				bucket := g.Client.Bucket(g.BucketName)
-				testPref := item.Output()
-				testPrefSplit := strings.Split(testPref.(string), "/")
-				testName := testPrefSplit[len(testPrefSplit)-2]
-				runPaths, err := bucket.ListPrefixes(ss.ctx, testPref.(string))
-				if err != nil {
-					return nil, err
-				}
-				for _, runPath := range runPaths {
-					if _, ok := completedTests[runPath]; !ok {
-						result = append(result, []string{testName, runPath})
-					}
+			bucket := g.Client.Bucket(g.BucketName)
+			testPref := pathi.(string)
+			testPrefSplit := strings.Split(testPref, "/")
+			testName := testPrefSplit[len(testPrefSplit)-2]
+			runPaths, err := bucket.ListPrefixes(ss.ctx, testPref)
+			if err != nil {
+				return nil, err
+			}
+			for _, runPath := range runPaths {
+				if _, ok := completedTests[runPath]; !ok {
+					result = append(result, []string{testName, runPath})
 				}
 			}
 			testRunPaths = result

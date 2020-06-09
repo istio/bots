@@ -71,6 +71,7 @@ type cloneRecord struct {
 	}
 	Commands []cmnd
 	Failed   bool
+	FinalSha string `json:"final_sha"`
 }
 
 // Started struct to store values from started.json
@@ -371,6 +372,11 @@ func (trg *TestResultGatherer) GetPostSubmitTestResult(ctx context.Context, test
 		return nil, fmt.Errorf("test %s %s has an empty clone file.  Cannot proceed", testName, testRun)
 	}
 	record := records[0]
+
+	testResult.Sha, err = hex.DecodeString(record.FinalSha)
+	if err != nil {
+		return
+	}
 
 	testResult.BaseSha = record.Refs.BaseSha
 	testResult.CloneFailed = record.Failed
