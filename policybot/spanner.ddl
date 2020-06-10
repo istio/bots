@@ -261,6 +261,28 @@ CREATE TABLE PostSubmitTestResults (
 ) PRIMARY KEY(OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done),
   INTERLEAVE IN PARENT Repos ON DELETE CASCADE;
 
+CREATE TABLE SuiteOutcome (
+  ArtifactName STRING(MAX) NOT NULL,
+  Environment STRING(MAX) NOT NULL,
+  Multicluster BOOL NOT NULL,
+) PRIMARY KEY(ArtifactName);
+
+CREATE TABLE TestOutcome (
+  ArtifactName STRING(MAX) NOT NULL,
+  TestName STRING(MAX) NOT NULL,
+  Type STRING(MAX) NOT NULL,
+  Outcome STRING(MAX) NOT NULL,
+) PRIMARY KEY(ArtifactName, TestName),
+  INTERLEAVE IN PARENT SuiteOutcome ON DELETE CASCADE;
+
+CREATE TABLE FeatureLabels (
+  ArtifactName STRING(MAX) NOT NULL,
+  TestName STRING(MAX) NOT NULL,
+  Label STRING(MAX) NOT NULL,
+  Scenario STRING(MAX) NOT NULL,
+) PRIMARY KEY(ArtifactName, TestName),
+  INTERLEAVE IN PARENT SuiteOutcome ON DELETE CASCADE;
+
 CREATE TABLE ConfirmedFlakes (
   OrgLogin STRING(MAX) NOT NULL,
   RepoName STRING(MAX) NOT NULL,
