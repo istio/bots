@@ -261,7 +261,7 @@ CREATE TABLE PostSubmitTestResults (
 ) PRIMARY KEY(OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done),
   INTERLEAVE IN PARENT Repos ON DELETE CASCADE;
 
-CREATE TABLE SuiteOutcome (
+CREATE TABLE SuiteOutcomes (
   OrgLogin STRING(MAX) NOT NULL,
   RepoName STRING(MAX) NOT NULL,
   RunNumber INT64 NOT NULL,
@@ -274,7 +274,7 @@ CREATE TABLE SuiteOutcome (
 ) PRIMARY KEY(OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done,Name),
   INTERLEAVE IN PARENT PostSubmitTestResults ON DELETE CASCADE;
 
-CREATE TABLE TestOutcome (
+CREATE TABLE TestOutcomes (
   Name STRING(MAX) NOT NULL,
   TestName STRING(MAX) NOT NULL,
   Type STRING(MAX) NOT NULL,
@@ -286,7 +286,7 @@ CREATE TABLE FeatureLabels (
   Name STRING(MAX) NOT NULL,
   TestName STRING(MAX) NOT NULL,
   Label STRING(MAX) NOT NULL,
-  Scenario STRING(MAX) NOT NULL,
+  Scenario ARRAY<STRING(MAX)>,
 ) PRIMARY KEY(Name, TestName),
   INTERLEAVE IN PARENT TestOutcome ON DELETE CASCADE;
 
