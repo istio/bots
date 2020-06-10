@@ -48,6 +48,7 @@ const (
 	repoCommentEventTable              = "RepoCommentEvents"
 	testResultTable                    = "TestResults"
 	postSubmitTestResultTable          = "PostSubmitTestResults"
+	suiteOutcomesTable                 = "SuiteOutcomes"
 	coverageDataTable                  = "CoverageData"
 	userAffiliationTable               = "UserAffiliation"
 )
