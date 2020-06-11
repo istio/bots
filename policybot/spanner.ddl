@@ -268,26 +268,38 @@ CREATE TABLE SuiteOutcomes (
   TestName STRING(MAX) NOT NULL,
   BaseSha STRING(MAX),
   Done BOOL NOT NULL,
-  Name STRING(MAX) NOT NULL,
+  SuiteName STRING(MAX) NOT NULL,
   Environment STRING(MAX) NOT NULL,
   Multicluster BOOL NOT NULL,
-) PRIMARY KEY(OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done,Name),
+) PRIMARY KEY(OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done, SuiteName),
   INTERLEAVE IN PARENT PostSubmitTestResults ON DELETE CASCADE;
 
 CREATE TABLE TestOutcomes (
-  Name STRING(MAX) NOT NULL,
+  OrgLogin STRING(MAX) NOT NULL,
+  RepoName STRING(MAX) NOT NULL,
+  RunNumber INT64 NOT NULL,
   TestName STRING(MAX) NOT NULL,
+  BaseSha STRING(MAX),
+  Done BOOL NOT NULL,
+  SuiteName STRING(MAX) NOT NULL,
+  TestOutcomeName STRING(MAX) NOT NULL,
   Type STRING(MAX) NOT NULL,
   Outcome STRING(MAX) NOT NULL,
-) PRIMARY KEY(Name, TestName),
+) PRIMARY KEY(OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done, SuiteName, TestOutcomeName),
   INTERLEAVE IN PARENT SuiteOutcome ON DELETE CASCADE;
 
 CREATE TABLE FeatureLabels (
-  Name STRING(MAX) NOT NULL,
+  OrgLogin STRING(MAX) NOT NULL,
+  RepoName STRING(MAX) NOT NULL,
+  RunNumber INT64 NOT NULL,
   TestName STRING(MAX) NOT NULL,
+  BaseSha STRING(MAX),
+  Done BOOL NOT NULL,
+  SuiteName STRING(MAX) NOT NULL,
+  TestOutcomeName STRING(MAX) NOT NULL,
   Label STRING(MAX) NOT NULL,
   Scenario ARRAY<STRING(MAX)>,
-) PRIMARY KEY(Name, TestName),
+) PRIMARY KEY(OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done, SuiteName, TestOutcomeName),
   INTERLEAVE IN PARENT TestOutcome ON DELETE CASCADE;
 
 CREATE TABLE ConfirmedFlakes (
