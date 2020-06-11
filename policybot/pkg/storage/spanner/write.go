@@ -323,7 +323,7 @@ func (s store) WriteSuiteOutcome(context context.Context, suiteOutcomes []*stora
 }
 
 func (s store) WriteTestOutcome(context context.Context, testOutcomes []*storage.TestOutcome) error {
-	scope.Debugf("Writing %d suite outcome", len(testOutcomes))
+	scope.Debugf("Writing %d test outcome", len(testOutcomes))
 
 	mutations := make([]*spanner.Mutation, len(testOutcomes))
 	for i := 0; i < len(testOutcomes); i++ {
@@ -338,7 +338,7 @@ func (s store) WriteTestOutcome(context context.Context, testOutcomes []*storage
 }
 
 func (s store) WriteFeatureLabel(context context.Context, featureLabels []*storage.FeatureLabel) error {
-	scope.Debugf("Writing %d suite outcome", len(featureLabels))
+	scope.Debugf("Writing %d feature label", len(featureLabels))
 
 	mutations := make([]*spanner.Mutation, len(featureLabels))
 	for i := 0; i < len(featureLabels); i++ {
