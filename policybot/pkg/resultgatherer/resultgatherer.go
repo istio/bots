@@ -74,6 +74,24 @@ type cloneRecord struct {
 	FinalSha string `json:"final_sha"`
 }
 
+type Feature string
+
+type Outcome string
+
+type TestOutcome struct {
+	Name          string
+	Type          string
+	Outcome       Outcome
+	FeatureLabels map[Feature][]string
+}
+
+type SuiteOutcome struct {
+	Name         string
+	Environment  string
+	Multicluster bool
+	TestOutcomes []TestOutcome
+}
+
 // Started struct to store values from started.json
 type started struct {
 	Timestamp int64
@@ -186,6 +204,28 @@ func (trg *TestResultGatherer) getInformationFromCloneFile(ctx context.Context, 
 	}
 
 	return records, nil
+}
+
+func (trg *TestResultGatherer) getInformationFromYamlFile(ctx context.Context, pref string) ([]*SuiteOutcome, error) {
+	bucket := trg.getBucket()
+	rdr, err := bucket.Reader(ctx, pref)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving yaml from %s: %v", pref, err)
+	}
+
+	defer rdr.Close()
+	yamlFile, err := ioutil.ReadAll(rdr)
+	if err != nil {
+		return nil, fmt.Errorf("error reading yaml from %s: %v", pref, err)
+	}
+
+	var suiteOutcomes []*SuiteOutcome
+
+	if err = json.Unmarshal(yamlFile, &suiteOutcomes); err != nil {
+		return nil, fmt.Errorf("error parsing clone-records.json from %s: %v", pref, err)
+	}
+
+	return suiteOutcomes, nil
 }
 
 var knownSignatures map[string]map[string]string
@@ -411,6 +451,13 @@ func (trg *TestResultGatherer) GetPostSubmitTestResult(ctx context.Context, test
 	if !testResult.TestPassed && !testResult.HasArtifacts {
 		// this is almost certainly an environmental failure, check for known sigs
 		testResult.Signatures = trg.getEnvironmentalSignatures(ctx, testRun)
+	}
+
+	//saves all the artifact
+	for _, yamlFilePath :=  range artifacts{
+		if strings.Contains(strings.Split(yamlFilePath,"/")[5],"yaml"){
+			readInSuiteOutcome, err := trg.getInformationFromYamlFile(ctx, yamlFilePath)
+		}
 	}
 	return
 }
