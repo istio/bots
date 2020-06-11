@@ -244,6 +244,31 @@ type FeatureLabel struct {
 	Scenario []string
 }
 
+type ReadInSuiteOutcome struct {
+	Name         string
+	Environment  string
+	Multicluster bool
+	TestOutcomes []TestOutcome
+}
+
+type ReadInTestOutcome struct {
+	Name          string
+	Type          string
+	Outcome       Outcome
+	FeatureLabels map[Feature][]string
+}
+
+type Feature string
+
+type Outcome string
+
+const (
+	Passed         Outcome = "Passed"
+	Failed         Outcome = "Failed"
+	Skipped        Outcome = "Skipped"
+	NotImplemented Outcome = "NotImplemented"
+)
+
 type RepoComment struct {
 	OrgLogin  string
 	RepoName  string
