@@ -40,7 +40,9 @@ type Store interface {
 	WriteBotActivities(context context.Context, activities []*BotActivity) error
 	WriteTestResults(context context.Context, testResults []*TestResult) error
 	WritePostSumbitTestResults(context context.Context, postSubmitTestResults []*PostSubmitTestResult) error
-	WriteSuiteOutcome(context context.Context, postSubmitTestResults []*PostSubmitTestResult, suiteOutcomes []*SuiteOutcome) error
+	WriteSuiteOutcome(context context.Context, suiteOutcomes []*SuiteOutcome) error
+	WriteTestOutcome(context context.Context, testOutcomes []*TestOutcome) error
+	WriteFeatureLabel(context context.Context, featureLabels []*FeatureLabel) error
 	WriteIssueEvents(context context.Context, events []*IssueEvent) error
 	WriteIssueCommentEvents(context context.Context, events []*IssueCommentEvent) error
 	WritePullRequestEvents(context context.Context, events []*PullRequestEvent) error

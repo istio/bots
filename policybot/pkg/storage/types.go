@@ -219,29 +219,30 @@ type PostSubmitTestResult struct {
 }
 
 type SuiteOutcome struct {
+	OrgLogin     string
+	RepoName     string
+	RunNumber    string
+	TestName     string
+	BaseSha      string
+	Done         bool
 	Name         string
 	Environment  string
 	Multicluster bool
-	TestOutcomes []TestOutcome
 }
 
 type TestOutcome struct {
-	Name          string
-	Type          string
-	Outcome       Outcome
-	FeatureLabels map[Feature][]string
+	Name     string
+	TestName string
+	Type     string
+	Outcome  string
 }
 
-type Outcome string
-
-type Feature string
-
-const (
-	Passed         Outcome = "Passed"
-	Failed         Outcome = "Failed"
-	Skipped        Outcome = "Skipped"
-	NotImplemented Outcome = "NotImplemented"
-)
+type FeatureLabel struct {
+	Name     string
+	TestName string
+	Label    string
+	Scenario []string
+}
 
 type RepoComment struct {
 	OrgLogin  string
