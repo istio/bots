@@ -26,6 +26,8 @@ import (
 	"io"
 	"regexp"
 
+	"gopkg.in/yaml.v2"
+
 	pipelinetwo "istio.io/bots/policybot/pkg/pipeline"
 
 	"cloud.google.com/go/storage"
@@ -74,15 +76,11 @@ type cloneRecord struct {
 	FinalSha string `json:"final_sha"`
 }
 
-type Feature string
-
-type Outcome string
-
 type TestOutcome struct {
 	Name          string
 	Type          string
-	Outcome       Outcome
-	FeatureLabels map[Feature][]string
+	Outcome       string
+	FeatureLabels map[string][]string
 }
 
 type SuiteOutcome struct {
@@ -206,7 +204,7 @@ func (trg *TestResultGatherer) getInformationFromCloneFile(ctx context.Context, 
 	return records, nil
 }
 
-func (trg *TestResultGatherer) getInformationFromYamlFile(ctx context.Context, pref string) ([]*SuiteOutcome, error) {
+func (trg *TestResultGatherer) getInformationFromYamlFile(ctx context.Context, pref string) (*SuiteOutcome, error) {
 	bucket := trg.getBucket()
 	rdr, err := bucket.Reader(ctx, pref)
 	if err != nil {
@@ -219,13 +217,13 @@ func (trg *TestResultGatherer) getInformationFromYamlFile(ctx context.Context, p
 		return nil, fmt.Errorf("error reading yaml from %s: %v", pref, err)
 	}
 
-	var suiteOutcomes []*SuiteOutcome
+	var suiteOutcome SuiteOutcome
 
-	if err = json.Unmarshal(yamlFile, &suiteOutcomes); err != nil {
-		return nil, fmt.Errorf("error parsing clone-records.json from %s: %v", pref, err)
+	if err = yaml.Unmarshal(yamlFile, &suiteOutcome); err != nil {
+		return nil, fmt.Errorf("error parsing yaml from %s: %v", pref, err)
 	}
 
-	return suiteOutcomes, nil
+	return &suiteOutcome, nil
 }
 
 var knownSignatures map[string]map[string]string
@@ -392,6 +390,42 @@ func (trg *TestResultGatherer) GetTestResult(ctx context.Context, testName strin
 	return
 }
 
+func (trg *TestResultGatherer) AddChildSuiteOutcome(testResult *store.PostSubmitTestResult,
+	suiteOutcome *store.SuiteOutcome) *store.SuiteOutcome {
+	suiteOutcome.OrgLogin = testResult.OrgLogin
+	suiteOutcome.RepoName = testResult.RepoName
+	suiteOutcome.RunNumber = testResult.RunNumber
+	suiteOutcome.TestName = testResult.TestName
+	suiteOutcome.BaseSha = testResult.BaseSha
+	suiteOutcome.Done = testResult.Done
+	return suiteOutcome
+}
+
+func (trg *TestResultGatherer) AddChildTestOutcome(suiteOutcome *store.SuiteOutcome,
+	testOutcome *store.TestOutcome) *store.TestOutcome {
+	testOutcome.OrgLogin = suiteOutcome.OrgLogin
+	testOutcome.RepoName = suiteOutcome.RepoName
+	testOutcome.RunNumber = suiteOutcome.RunNumber
+	testOutcome.TestName = suiteOutcome.TestName
+	testOutcome.BaseSha = suiteOutcome.BaseSha
+	testOutcome.Done = suiteOutcome.Done
+	testOutcome.SuiteName = suiteOutcome.SuiteName
+	return testOutcome
+}
+
+func (trg *TestResultGatherer) AddChildFeatureLabel(testOutcome *store.TestOutcome,
+	featureLabel *store.FeatureLabel) *store.FeatureLabel {
+	featureLabel.OrgLogin = testOutcome.OrgLogin
+	featureLabel.RepoName = testOutcome.RepoName
+	featureLabel.RunNumber = testOutcome.RunNumber
+	featureLabel.TestName = testOutcome.TestName
+	featureLabel.BaseSha = testOutcome.BaseSha
+	featureLabel.Done = testOutcome.Done
+	featureLabel.SuiteName = testOutcome.SuiteName
+	featureLabel.TestOutcomeName = testOutcome.TestOutcomeName
+	return featureLabel
+}
+
 func (trg *TestResultGatherer) GetPostSubmitTestResult(ctx context.Context, testName string,
 	testRun string) (testResult *store.PostSubmitTestResult, err error) {
 	testResult = &store.PostSubmitTestResult{}
@@ -455,12 +489,28 @@ func (trg *TestResultGatherer) GetPostSubmitTestResult(ctx context.Context, test
 	}
 
 	//saves all the artifact
-	for _, yamlFilePath :=  range artifacts{
-		if strings.Contains(strings.Split(yamlFilePath,"/")[4],"yaml"){
+	for _, yamlFilePath := range artifacts {
+		if strings.Contains(strings.Split(yamlFilePath, "/")[4], "yaml") {
 			readInSuiteOutcome, err := trg.getInformationFromYamlFile(ctx, yamlFilePath)
-			suiteOutcome.SuiteName = readInSuiteOutcome[0].Name
-			if err != nil{
+			if err != nil {
 				return nil, err
+			}
+			suiteOutcome.SuiteName = readInSuiteOutcome.Name
+			suiteOutcome.Environment = readInSuiteOutcome.Environment
+			suiteOutcome.Multicluster = readInSuiteOutcome.Multicluster
+			suiteOutcome = trg.AddChildSuiteOutcome(testResult, suiteOutcome)
+			for _, readInTestOutcomes := range readInSuiteOutcome.TestOutcomes {
+				var testOutcome *store.TestOutcome = &store.TestOutcome{}
+				testOutcome.TestOutcomeName = readInTestOutcomes.Name
+				testOutcome.Type = readInTestOutcomes.Type
+				testOutcome.Outcome = readInTestOutcomes.Outcome
+				testOutcome = trg.AddChildTestOutcome(suiteOutcome, testOutcome)
+				for Feature, Scenario := range readInTestOutcomes.FeatureLabels {
+					var featureLabel *store.FeatureLabel = &store.FeatureLabel{}
+					featureLabel.Label = Feature
+					featureLabel.Scenario = Scenario
+					featureLabel = trg.AddChildFeatureLabel(testOutcome, featureLabel)
+				}
 			}
 		}
 	}
