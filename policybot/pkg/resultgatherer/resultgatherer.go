@@ -395,6 +395,7 @@ func (trg *TestResultGatherer) GetTestResult(ctx context.Context, testName strin
 func (trg *TestResultGatherer) GetPostSubmitTestResult(ctx context.Context, testName string,
 	testRun string) (testResult *store.PostSubmitTestResult, err error) {
 	testResult = &store.PostSubmitTestResult{}
+	suiteOutcome := &store.SuiteOutcome{}
 	testResult.TestName = testName
 	testResult.RunPath = testRun
 	testResult.Done = false
@@ -455,8 +456,12 @@ func (trg *TestResultGatherer) GetPostSubmitTestResult(ctx context.Context, test
 
 	//saves all the artifact
 	for _, yamlFilePath :=  range artifacts{
-		if strings.Contains(strings.Split(yamlFilePath,"/")[5],"yaml"){
+		if strings.Contains(strings.Split(yamlFilePath,"/")[4],"yaml"){
 			readInSuiteOutcome, err := trg.getInformationFromYamlFile(ctx, yamlFilePath)
+			suiteOutcome.SuiteName = readInSuiteOutcome[0].Name
+			if err != nil{
+				return nil, err
+			}
 		}
 	}
 	return

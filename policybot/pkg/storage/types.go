@@ -225,23 +225,35 @@ type SuiteOutcome struct {
 	TestName     string
 	BaseSha      string
 	Done         bool
-	Name         string
+	SuiteName    string
 	Environment  string
 	Multicluster bool
 }
 
 type TestOutcome struct {
-	Name     string
-	TestName string
-	Type     string
-	Outcome  string
+	OrgLogin         string
+	RepoName         string
+	RunNumber        string
+	TestName         string
+	BaseSha          string
+	Done             bool
+	SuiteName        string
+	TestOutcomeName  string
+	Type             string
+	Outcome          string
 }
 
 type FeatureLabel struct {
-	Name     string
-	TestName string
-	Label    string
-	Scenario []string
+	OrgLogin         string
+	RepoName         string
+	RunNumber        string
+	TestName         string
+	BaseSha          string
+	Done             bool
+	SuiteName        string
+	TestOutcomeName  string
+	Label            string
+	Scenario         []string
 }
 
 type ReadInSuiteOutcome struct {
