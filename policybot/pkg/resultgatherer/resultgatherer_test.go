@@ -118,7 +118,7 @@ func TestPostSubmitTestResultGatherer(t *testing.T) {
 
 	start := time.Now()
 	testResultGatherer := TestResultGatherer{client, "istio-flakey-test", "", ""}
-	postSubmitTestResults, err := testResultGatherer.CheckPostSubmitTestResults(context, "istio", "istio")
+	postSubmitTestResults, _, _, _ , err := testResultGatherer.CheckPostSubmitTestResults(context, "istio", "istio")
 	if err != nil {
 		t.Errorf("Expecting no error, got %v", err)
 		return
