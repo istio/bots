@@ -218,6 +218,32 @@ type PostSubmitTestResult struct {
 	Artifacts    []string
 }
 
+type SuiteOutcome struct {
+	OrgLogin     string
+	RepoName     string
+	RunNumber    string
+	TestName     string
+	BaseSha      string
+	Done         bool
+	Name         string
+	Environment  string
+	Multicluster bool
+}
+
+type TestOutcome struct {
+	Name     string
+	TestName string
+	Type     string
+	Outcome  string
+}
+
+type FeatureLabel struct {
+	Name     string
+	TestName string
+	Label    string
+	Scenario []string
+}
+
 type RepoComment struct {
 	OrgLogin  string
 	RepoName  string

@@ -293,12 +293,57 @@ func (s store) WriteTestResults(context context.Context, testResults []*storage.
 }
 
 func (s store) WritePostSumbitTestResults(context context.Context, postSubmitTestResults []*storage.PostSubmitTestResult) error {
-	scope.Debugf("Writing %d test results", len(postSubmitTestResults))
+	scope.Debugf("Writing %d post submit test results", len(postSubmitTestResults))
 
 	mutations := make([]*spanner.Mutation, len(postSubmitTestResults))
 	for i := 0; i < len(postSubmitTestResults); i++ {
 		var err error
 		if mutations[i], err = insertOrUpdateStruct(postSubmitTestResultTable, postSubmitTestResults[i]); err != nil {
+			return err
+		}
+	}
+
+	_, err := s.client.Apply(context, mutations)
+	return err
+}
+
+func (s store) WriteSuiteOutcome(context context.Context, suiteOutcomes []*storage.SuiteOutcome) error {
+	scope.Debugf("Writing %d suite outcome", len(suiteOutcomes))
+
+	mutations := make([]*spanner.Mutation, len(suiteOutcomes))
+	for i := 0; i < len(suiteOutcomes); i++ {
+		var err error
+		if mutations[i], err = insertOrUpdateStruct(suiteOutcomesTable, suiteOutcomes[i]); err != nil {
+			return err
+		}
+	}
+
+	_, err := s.client.Apply(context, mutations)
+	return err
+}
+
+func (s store) WriteTestOutcome(context context.Context, testOutcomes []*storage.TestOutcome) error {
+	scope.Debugf("Writing %d test outcome", len(testOutcomes))
+
+	mutations := make([]*spanner.Mutation, len(testOutcomes))
+	for i := 0; i < len(testOutcomes); i++ {
+		var err error
+		if mutations[i], err = insertOrUpdateStruct(testOutcomeTable, testOutcomes[i]); err != nil {
+			return err
+		}
+	}
+
+	_, err := s.client.Apply(context, mutations)
+	return err
+}
+
+func (s store) WriteFeatureLabel(context context.Context, featureLabels []*storage.FeatureLabel) error {
+	scope.Debugf("Writing %d feature label", len(featureLabels))
+
+	mutations := make([]*spanner.Mutation, len(featureLabels))
+	for i := 0; i < len(featureLabels); i++ {
+		var err error
+		if mutations[i], err = insertOrUpdateStruct(featureLabelTable, featureLabels[i]); err != nil {
 			return err
 		}
 	}
