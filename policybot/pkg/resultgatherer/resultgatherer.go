@@ -26,7 +26,7 @@ import (
 	"io"
 	"regexp"
 
-	"gopkg.in/yaml.v2"
+	"github.com/ghodss/yaml"
 
 	pipelinetwo "istio.io/bots/policybot/pkg/pipeline"
 
@@ -77,6 +77,7 @@ type cloneRecord struct {
 }
 
 //TestOutcome struct to store values from yaml
+//https://github.com/istio/istio/blob/77d9c1040b1a56064f7e59593f53331cca6c7578/pkg/test/framework/suitecontext.go#L232
 type TestOutcome struct {
 	Name          string
 	Type          string
@@ -85,6 +86,7 @@ type TestOutcome struct {
 }
 
 //SuiteOutcome struct to store values from yaml
+//https://github.com/istio/istio/blob/6c8b0942298420b94a2af47c7a7f6cd08567851e/pkg/test/framework/suite.go#L311
 type SuiteOutcome struct {
 	Name         string
 	Environment  string

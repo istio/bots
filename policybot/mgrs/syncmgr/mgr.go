@@ -1276,19 +1276,19 @@ func (ss *syncState) handlePostSubmitTestResults() error {
 			fmt.Printf("saving PostSubmitTestResult batch of size %d\n", len(testResults))
 			err := ss.mgr.store.WritePostSumbitTestResults(ss.ctx, testResults)
 			if err != nil {
-				return err
+				return fmt.Errorf("unable to write PostSumbitTestResults: %v", err)
 			}
 			err = ss.mgr.store.WriteSuiteOutcome(ss.ctx, SuiteOutcomes)
 			if err != nil {
-				return err
+				return fmt.Errorf("unable to write SuiteOutcome: %v", err)
 			}
 			err = ss.mgr.store.WriteTestOutcome(ss.ctx, TestOutcomes)
 			if err != nil {
-				return err
+				return fmt.Errorf("unable to write TestOutcome: %v", err)
 			}
 			err = ss.mgr.store.WriteFeatureLabel(ss.ctx, FeatureLabels)
 			if err != nil {
-				return err
+				return fmt.Errorf("unable to write FeatureLabel: %v", err)
 			}
 			return nil
 		}).WithParallelism(1).Go()
