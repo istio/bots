@@ -26,6 +26,8 @@ import (
 	"io"
 	"regexp"
 
+	"gopkg.in/yaml.v2"
+
 	pipelinetwo "istio.io/bots/policybot/pkg/pipeline"
 
 	"cloud.google.com/go/storage"
@@ -72,6 +74,22 @@ type cloneRecord struct {
 	Commands []cmnd
 	Failed   bool
 	FinalSha string `json:"final_sha"`
+}
+
+//TestOutcome struct to store values from yaml
+type TestOutcome struct {
+	Name          string
+	Type          string
+	Outcome       string
+	FeatureLabels map[string][]string `yaml:"featureLabels,omitempty"`
+}
+
+//SuiteOutcome struct to store values from yaml
+type SuiteOutcome struct {
+	Name         string
+	Environment  string
+	Multicluster bool
+	TestOutcomes []TestOutcome
 }
 
 // Started struct to store values from started.json
@@ -188,6 +206,28 @@ func (trg *TestResultGatherer) getInformationFromCloneFile(ctx context.Context, 
 	return records, nil
 }
 
+func (trg *TestResultGatherer) getInformationFromYamlFile(ctx context.Context, pref string) (*SuiteOutcome, error) {
+	bucket := trg.getBucket()
+	rdr, err := bucket.Reader(ctx, pref)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving yaml from %s: %v", pref, err)
+	}
+
+	defer rdr.Close()
+	yamlFile, err := ioutil.ReadAll(rdr)
+	if err != nil {
+		return nil, fmt.Errorf("error reading yaml from %s: %v", pref, err)
+	}
+
+	var suiteOutcome SuiteOutcome
+
+	if err = yaml.Unmarshal(yamlFile, &suiteOutcome); err != nil {
+		return nil, fmt.Errorf("error parsing yaml from %s: %v", pref, err)
+	}
+
+	return &suiteOutcome, nil
+}
+
 var knownSignatures map[string]map[string]string
 
 // = {
@@ -253,9 +293,12 @@ func (trg *TestResultGatherer) getManyResults(ctx context.Context, testSlice map
 }
 
 func (trg *TestResultGatherer) getManyPostSubmitResults(ctx context.Context, testNames chan pipelinetwo.OutResult,
-	orgLogin string, repoName string) ([]*store.PostSubmitTestResult, error) {
-
+	orgLogin string, repoName string) (*store.PostSubtmitAllResult, error) {
+	allTestResult := &store.PostSubtmitAllResult{}
 	var allTestRuns []*store.PostSubmitTestResult
+	var allSuiteOutcome []*store.SuiteOutcome
+	var allTestOutcome []*store.TestOutcome
+	var allFeatureLabel []*store.FeatureLabel
 
 	for item := range testNames {
 		if item.Err() != nil {
@@ -270,16 +313,21 @@ func (trg *TestResultGatherer) getManyPostSubmitResults(ctx context.Context, tes
 			return nil, err
 		}
 		for _, runPath := range runPaths {
-			if testResult, err := trg.GetPostSubmitTestResult(ctx, testName, runPath); err == nil {
-				testResult.OrgLogin = orgLogin
-				testResult.RepoName = repoName
-				allTestRuns = append(allTestRuns, testResult)
+			if postSubtmitAllResult, err := trg.GetPostSubmitTestResult(ctx, testName, runPath, orgLogin, repoName); err == nil {
+				allTestRuns = append(allTestRuns, postSubtmitAllResult.TestResult[0])
+				allSuiteOutcome = append(allSuiteOutcome, postSubtmitAllResult.SuiteOutcome...)
+				allTestOutcome = append(allTestOutcome, postSubtmitAllResult.TestOutcome...)
+				allFeatureLabel = append(allFeatureLabel, postSubtmitAllResult.FeatureLabel...)
 			} else {
 				return nil, err
 			}
 		}
 	}
-	return allTestRuns, nil
+	allTestResult.TestResult = allTestRuns
+	allTestResult.SuiteOutcome = allSuiteOutcome
+	allTestResult.TestOutcome = allTestOutcome
+	allTestResult.FeatureLabel = allFeatureLabel
+	return allTestResult, nil
 }
 
 func (trg *TestResultGatherer) GetTestResult(ctx context.Context, testName string, testRun string) (testResult *store.TestResult, err error) {
@@ -352,9 +400,50 @@ func (trg *TestResultGatherer) GetTestResult(ctx context.Context, testName strin
 	return
 }
 
+func (trg *TestResultGatherer) AddChildSuiteOutcome(testResult *store.PostSubmitTestResult,
+	suiteOutcome *store.SuiteOutcome) *store.SuiteOutcome {
+	suiteOutcome.OrgLogin = testResult.OrgLogin
+	suiteOutcome.RepoName = testResult.RepoName
+	suiteOutcome.RunNumber = testResult.RunNumber
+	suiteOutcome.TestName = testResult.TestName
+	suiteOutcome.BaseSha = testResult.BaseSha
+	suiteOutcome.Done = testResult.Done
+	return suiteOutcome
+}
+
+func (trg *TestResultGatherer) AddChildTestOutcome(suiteOutcome *store.SuiteOutcome,
+	testOutcome *store.TestOutcome) *store.TestOutcome {
+	testOutcome.OrgLogin = suiteOutcome.OrgLogin
+	testOutcome.RepoName = suiteOutcome.RepoName
+	testOutcome.RunNumber = suiteOutcome.RunNumber
+	testOutcome.TestName = suiteOutcome.TestName
+	testOutcome.BaseSha = suiteOutcome.BaseSha
+	testOutcome.Done = suiteOutcome.Done
+	testOutcome.SuiteName = suiteOutcome.SuiteName
+	return testOutcome
+}
+
+func (trg *TestResultGatherer) AddChildFeatureLabel(testOutcome *store.TestOutcome,
+	featureLabel *store.FeatureLabel) *store.FeatureLabel {
+	featureLabel.OrgLogin = testOutcome.OrgLogin
+	featureLabel.RepoName = testOutcome.RepoName
+	featureLabel.RunNumber = testOutcome.RunNumber
+	featureLabel.TestName = testOutcome.TestName
+	featureLabel.BaseSha = testOutcome.BaseSha
+	featureLabel.Done = testOutcome.Done
+	featureLabel.SuiteName = testOutcome.SuiteName
+	featureLabel.TestOutcomeName = testOutcome.TestOutcomeName
+	return featureLabel
+}
+
 func (trg *TestResultGatherer) GetPostSubmitTestResult(ctx context.Context, testName string,
-	testRun string) (testResult *store.PostSubmitTestResult, err error) {
-	testResult = &store.PostSubmitTestResult{}
+	testRun string, orgLogin string, repoName string) (allTestResult *store.PostSubtmitAllResult, err error) {
+	allTestResult = &store.PostSubtmitAllResult{}
+	var testResultList []*store.PostSubmitTestResult
+	var suiteOutcomeList []*store.SuiteOutcome
+	var testOutcomeList []*store.TestOutcome
+	var featureList []*store.FeatureLabel
+	testResult := &store.PostSubmitTestResult{}
 	testResult.TestName = testName
 	testResult.RunPath = testRun
 	testResult.Done = false
@@ -412,6 +501,45 @@ func (trg *TestResultGatherer) GetPostSubmitTestResult(ctx context.Context, test
 		// this is almost certainly an environmental failure, check for known sigs
 		testResult.Signatures = trg.getEnvironmentalSignatures(ctx, testRun)
 	}
+
+	testResult.OrgLogin = orgLogin
+	testResult.RepoName = repoName
+
+	//saves all artifacts
+	for _, yamlFilePath := range artifacts {
+		if strings.Contains(strings.Split(yamlFilePath, "/")[4], "yaml") {
+			readInSuiteOutcome, err := trg.getInformationFromYamlFile(ctx, yamlFilePath)
+			if err != nil {
+				return nil, err
+			}
+			suiteOutcome := &store.SuiteOutcome{}
+			suiteOutcome.SuiteName = readInSuiteOutcome.Name
+			suiteOutcome.Environment = readInSuiteOutcome.Environment
+			suiteOutcome.Multicluster = readInSuiteOutcome.Multicluster
+			suiteOutcome = trg.AddChildSuiteOutcome(testResult, suiteOutcome)
+			suiteOutcomeList = append(suiteOutcomeList, suiteOutcome)
+			for _, readInTestOutcomes := range readInSuiteOutcome.TestOutcomes {
+				var testOutcome *store.TestOutcome = &store.TestOutcome{}
+				testOutcome.TestOutcomeName = readInTestOutcomes.Name
+				testOutcome.Type = readInTestOutcomes.Type
+				testOutcome.Outcome = readInTestOutcomes.Outcome
+				testOutcome = trg.AddChildTestOutcome(suiteOutcome, testOutcome)
+				testOutcomeList = append(testOutcomeList, testOutcome)
+				for Feature, Scenario := range readInTestOutcomes.FeatureLabels {
+					var featureLabel *store.FeatureLabel = &store.FeatureLabel{}
+					featureLabel.Label = Feature
+					featureLabel.Scenario = Scenario
+					featureLabel = trg.AddChildFeatureLabel(testOutcome, featureLabel)
+					featureList = append(featureList, featureLabel)
+				}
+			}
+		}
+	}
+	testResultList = append(testResultList, testResult)
+	allTestResult.TestResult = testResultList
+	allTestResult.SuiteOutcome = suiteOutcomeList
+	allTestResult.TestOutcome = testOutcomeList
+	allTestResult.FeatureLabel = featureList
 	return
 }
 
@@ -429,7 +557,7 @@ func (trg *TestResultGatherer) CheckTestResultsForPr(ctx context.Context, orgLog
 	return fullResult, nil
 }
 
-func (trg *TestResultGatherer) CheckPostSubmitTestResults(ctx context.Context, orgLogin string, repoName string) ([]*store.PostSubmitTestResult, error) {
+func (trg *TestResultGatherer) CheckPostSubmitTestResults(ctx context.Context, orgLogin string, repoName string) (*store.PostSubtmitAllResult, error) {
 	testNames := trg.GetAllPostSubmitTestChan(ctx).Go()
 	fullResult, err := trg.getManyPostSubmitResults(ctx, testNames, orgLogin, repoName)
 
