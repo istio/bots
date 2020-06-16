@@ -1256,17 +1256,37 @@ func (ss *syncState) handlePostSubmitTestResults() error {
 			if strings.Contains(testRunPath, "00") {
 				fmt.Printf("checking post submit test %s\n", testRunPath)
 			}
-			return g.GetPostSubmitTestResult(ss.ctx, testName, testRunPath)
+			return g.GetPostSubmitTestResult(ss.ctx, testName, testRunPath, repo.OrgLogin, repo.RepoName)
 		}).Batch(50).To(func(input interface{}) error {
 			var testResults []*storage.PostSubmitTestResult
+			var SuiteOutcomes []*storage.SuiteOutcome
+			var TestOutcomes []*storage.TestOutcome
+			var FeatureLabels []*storage.FeatureLabel
 			for _, i := range input.([]interface{}) {
-				singleResult := i.(*storage.PostSubmitTestResult)
-				singleResult.OrgLogin = repo.OrgLogin
-				singleResult.RepoName = repo.RepoName
-				testResults = append(testResults, singleResult)
+				singleResult := i.(*storage.PostSubtmitAllResult)
+				testResult := singleResult.TestResult[0]
+				suiteOutcome := singleResult.SuiteOutcome
+				testOutcome := singleResult.TestOutcome
+				featureLabel := singleResult.FeatureLabel
+				testResults = append(testResults, testResult)
+				SuiteOutcomes = append(SuiteOutcomes, suiteOutcome...)
+				TestOutcomes = append(TestOutcomes, testOutcome...)
+				FeatureLabels = append(FeatureLabels, featureLabel...)
 			}
 			fmt.Printf("saving PostSubmitTestResult batch of size %d\n", len(testResults))
 			err := ss.mgr.store.WritePostSumbitTestResults(ss.ctx, testResults)
+			if err != nil {
+				return err
+			}
+			err = ss.mgr.store.WriteSuiteOutcome(ss.ctx, SuiteOutcomes)
+			if err != nil {
+				return err
+			}
+			err = ss.mgr.store.WriteTestOutcome(ss.ctx, TestOutcomes)
+			if err != nil {
+				return err
+			}
+			err = ss.mgr.store.WriteFeatureLabel(ss.ctx, FeatureLabels)
 			if err != nil {
 				return err
 			}

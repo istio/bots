@@ -256,6 +256,13 @@ type FeatureLabel struct {
 	Scenario        []string
 }
 
+type PostSubtmitAllResult struct {
+	TestResult   []*PostSubmitTestResult
+	SuiteOutcome []*SuiteOutcome
+	TestOutcome  []*TestOutcome
+	FeatureLabel []*FeatureLabel
+}
+
 type RepoComment struct {
 	OrgLogin  string
 	RepoName  string

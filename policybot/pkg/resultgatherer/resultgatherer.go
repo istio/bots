@@ -76,13 +76,15 @@ type cloneRecord struct {
 	FinalSha string `json:"final_sha"`
 }
 
+//TestOutcome struct to store values from yaml
 type TestOutcome struct {
 	Name          string
 	Type          string
 	Outcome       string
-	FeatureLabels map[string][]string
+	FeatureLabels map[string][]string `yaml:"featureLabels,omitempty"`
 }
 
+//SuiteOutcome struct to store values from yaml
 type SuiteOutcome struct {
 	Name         string
 	Environment  string
@@ -291,9 +293,8 @@ func (trg *TestResultGatherer) getManyResults(ctx context.Context, testSlice map
 }
 
 func (trg *TestResultGatherer) getManyPostSubmitResults(ctx context.Context, testNames chan pipelinetwo.OutResult,
-	orgLogin string, repoName string) ([]*store.PostSubmitTestResult, []*store.SuiteOutcome, []*store.TestOutcome, 
-	[]*store.FeatureLabel, error) {
-
+	orgLogin string, repoName string) (*store.PostSubtmitAllResult, error) {
+	allTestResult := &store.PostSubtmitAllResult{}
 	var allTestRuns []*store.PostSubmitTestResult
 	var allSuiteOutcome []*store.SuiteOutcome
 	var allTestOutcome []*store.TestOutcome
@@ -301,7 +302,7 @@ func (trg *TestResultGatherer) getManyPostSubmitResults(ctx context.Context, tes
 
 	for item := range testNames {
 		if item.Err() != nil {
-			return nil, nil, nil, nil, item.Err()
+			return nil, item.Err()
 		}
 		bucket := trg.getBucket()
 		testPref := item.Output()
@@ -309,22 +310,24 @@ func (trg *TestResultGatherer) getManyPostSubmitResults(ctx context.Context, tes
 		testName := testPrefSplit[len(testPrefSplit)-2]
 		runPaths, err := bucket.ListPrefixes(ctx, testPref.(string))
 		if err != nil {
-			return nil, nil, nil, nil, err
+			return nil, err
 		}
 		for _, runPath := range runPaths {
-			if testResult, suiteOutcome, testOutcome, featureLabel, err := trg.GetPostSubmitTestResult(ctx, testName, runPath, orgLogin, repoName); err == nil {
-				//testResult.OrgLogin = orgLogin
-				//testResult.RepoName = repoName
-				allTestRuns = append(allTestRuns, testResult)
-				allSuiteOutcome = append(allSuiteOutcome, suiteOutcome...)
-				allTestOutcome = append(allTestOutcome, testOutcome...)
-				allFeatureLabel = append(allFeatureLabel, featureLabel...)
+			if postSubtmitAllResult, err := trg.GetPostSubmitTestResult(ctx, testName, runPath, orgLogin, repoName); err == nil {
+				allTestRuns = append(allTestRuns, postSubtmitAllResult.TestResult[0])
+				allSuiteOutcome = append(allSuiteOutcome, postSubtmitAllResult.SuiteOutcome...)
+				allTestOutcome = append(allTestOutcome, postSubtmitAllResult.TestOutcome...)
+				allFeatureLabel = append(allFeatureLabel, postSubtmitAllResult.FeatureLabel...)
 			} else {
-				return nil, nil, nil, nil, err
+				return nil, err
 			}
 		}
 	}
-	return allTestRuns, allSuiteOutcome, allTestOutcome, allFeatureLabel,nil
+	allTestResult.TestResult = allTestRuns
+	allTestResult.SuiteOutcome = allSuiteOutcome
+	allTestResult.TestOutcome = allTestOutcome
+	allTestResult.FeatureLabel = allFeatureLabel
+	return allTestResult, nil
 }
 
 func (trg *TestResultGatherer) GetTestResult(ctx context.Context, testName string, testRun string) (testResult *store.TestResult, err error) {
@@ -434,9 +437,13 @@ func (trg *TestResultGatherer) AddChildFeatureLabel(testOutcome *store.TestOutco
 }
 
 func (trg *TestResultGatherer) GetPostSubmitTestResult(ctx context.Context, testName string,
-	testRun string, orgLogin string, repoName string) (testResult *store.PostSubmitTestResult, suiteOutcomeList []*store.SuiteOutcome,
-	testOutcomeList []*store.TestOutcome, featureList []*store.FeatureLabel, err error) {
-	testResult = &store.PostSubmitTestResult{}
+	testRun string, orgLogin string, repoName string) (allTestResult *store.PostSubtmitAllResult, err error) {
+	allTestResult = &store.PostSubtmitAllResult{}
+	var testResultList []*store.PostSubmitTestResult
+	var suiteOutcomeList []*store.SuiteOutcome
+	var testOutcomeList []*store.TestOutcome
+	var featureList []*store.FeatureLabel
+	testResult := &store.PostSubmitTestResult{}
 	testResult.TestName = testName
 	testResult.RunPath = testRun
 	testResult.Done = false
@@ -447,7 +454,7 @@ func (trg *TestResultGatherer) GetPostSubmitTestResult(ctx context.Context, test
 	}
 
 	if len(records) < 1 {
-		return nil, nil, nil, nil, fmt.Errorf("test %s %s has an empty clone file.  Cannot proceed", testName, testRun)
+		return nil, fmt.Errorf("test %s %s has an empty clone file.  Cannot proceed", testName, testRun)
 	}
 	record := records[0]
 
@@ -498,12 +505,12 @@ func (trg *TestResultGatherer) GetPostSubmitTestResult(ctx context.Context, test
 	testResult.OrgLogin = orgLogin
 	testResult.RepoName = repoName
 
-	//saves all the artifact
+	//saves all artifacts
 	for _, yamlFilePath := range artifacts {
 		if strings.Contains(strings.Split(yamlFilePath, "/")[4], "yaml") {
 			readInSuiteOutcome, err := trg.getInformationFromYamlFile(ctx, yamlFilePath)
 			if err != nil {
-				return nil, nil, nil, nil, err
+				return nil, err
 			}
 			suiteOutcome := &store.SuiteOutcome{}
 			suiteOutcome.SuiteName = readInSuiteOutcome.Name
@@ -528,6 +535,11 @@ func (trg *TestResultGatherer) GetPostSubmitTestResult(ctx context.Context, test
 			}
 		}
 	}
+	testResultList = append(testResultList, testResult)
+	allTestResult.TestResult = testResultList
+	allTestResult.SuiteOutcome = suiteOutcomeList
+	allTestResult.TestOutcome = testOutcomeList
+	allTestResult.FeatureLabel = featureList
 	return
 }
 
@@ -545,15 +557,14 @@ func (trg *TestResultGatherer) CheckTestResultsForPr(ctx context.Context, orgLog
 	return fullResult, nil
 }
 
-func (trg *TestResultGatherer) CheckPostSubmitTestResults(ctx context.Context, orgLogin string, repoName string) ([]*store.PostSubmitTestResult, 
-	[]*store.SuiteOutcome, []*store.TestOutcome, []*store.FeatureLabel, error) {
+func (trg *TestResultGatherer) CheckPostSubmitTestResults(ctx context.Context, orgLogin string, repoName string) (*store.PostSubtmitAllResult, error) {
 	testNames := trg.GetAllPostSubmitTestChan(ctx).Go()
-	fullResult, fullSuiteOutcome, fullTestOutcome, fullFeature, err := trg.getManyPostSubmitResults(ctx, testNames, orgLogin, repoName)
+	fullResult, err := trg.getManyPostSubmitResults(ctx, testNames, orgLogin, repoName)
 
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, err
 	}
-	return fullResult, fullSuiteOutcome, fullTestOutcome, fullFeature, nil
+	return fullResult, nil
 }
 
 func (trg *TestResultGatherer) GetAllPullRequestsChan(ctx context.Context, orgLogin string, repoName string) pipelinetwo.Pipeline {
