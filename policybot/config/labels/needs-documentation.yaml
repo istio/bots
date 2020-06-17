@@ -1,0 +1,4 @@
+name: 'needs-documentation'
+type: label
+color: dbc1bf
+description: Indicates a PR or issue needs istio.io documentation updated.
