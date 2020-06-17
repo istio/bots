@@ -286,7 +286,7 @@ CREATE TABLE TestOutcomes (
   Type STRING(MAX) NOT NULL,
   Outcome STRING(MAX) NOT NULL,
 ) PRIMARY KEY(OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done, SuiteName, TestOutcomeName),
-  INTERLEAVE IN PARENT SuiteOutcome ON DELETE CASCADE;
+  INTERLEAVE IN PARENT SuiteOutcomes ON DELETE CASCADE;
 
 CREATE TABLE FeatureLabels (
   OrgLogin STRING(MAX) NOT NULL,
@@ -300,7 +300,7 @@ CREATE TABLE FeatureLabels (
   Label STRING(MAX) NOT NULL,
   Scenario ARRAY<STRING(MAX)>,
 ) PRIMARY KEY(OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done, SuiteName, TestOutcomeName),
-  INTERLEAVE IN PARENT TestOutcome ON DELETE CASCADE;
+  INTERLEAVE IN PARENT TestOutcomes ON DELETE CASCADE;
 
 CREATE TABLE ConfirmedFlakes (
   OrgLogin STRING(MAX) NOT NULL,
