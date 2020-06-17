@@ -61,16 +61,17 @@ type FilterFlags int
 
 // the things to sync
 const (
-	Issues       FilterFlags = 1 << 0
-	Prs                      = 1 << 1
-	Maintainers              = 1 << 2
-	Members                  = 1 << 3
-	Labels                   = 1 << 4
-	ZenHub                   = 1 << 5
-	RepoComments             = 1 << 6
-	Events                   = 1 << 7
-	TestResults              = 1 << 8
-	Users                    = 1 << 9
+	Issues                FilterFlags = 1 << 0
+	Prs                               = 1 << 1
+	Maintainers                       = 1 << 2
+	Members                           = 1 << 3
+	Labels                            = 1 << 4
+	ZenHub                            = 1 << 5
+	RepoComments                      = 1 << 6
+	Events                            = 1 << 7
+	TestResults                       = 1 << 8
+	Users                             = 1 << 9
+	PostSubmitTestResults             = 1 << 10
 )
 
 // The state in SyncMgr is immutable once created. syncState on the other hand represents
@@ -106,7 +107,7 @@ func New(gc *gh.ThrottledClient, zc *zh.ThrottledClient, store storage.Store, bq
 func ConvFilterFlags(filter string) (FilterFlags, error) {
 	if filter == "" {
 		// defaults to everything
-		return Issues | Prs | Maintainers | Members | Labels | ZenHub | RepoComments | Events | TestResults, nil
+		return Issues | Prs | Maintainers | Members | Labels | ZenHub | RepoComments | Events | TestResults | PostSubmitTestResults, nil
 	}
 
 	var result FilterFlags
@@ -130,6 +131,8 @@ func ConvFilterFlags(filter string) (FilterFlags, error) {
 			result |= Events
 		case "testresults":
 			result |= TestResults
+		case "postsubmittestresults":
+			result |= PostSubmitTestResults
 		case "users":
 			result |= Users
 		default:
@@ -212,6 +215,12 @@ func (sm *SyncMgr) Sync(context context.Context, flags FilterFlags, dryRun bool)
 
 	if flags&TestResults != 0 {
 		if err := ss.handleTestResults(); err != nil {
+			return err
+		}
+	}
+
+	if flags&PostSubmitTestResults != 0 {
+		if err := ss.handlePostSubmitTestResults(); err != nil {
 			return err
 		}
 	}
