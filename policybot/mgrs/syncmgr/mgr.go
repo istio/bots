@@ -1260,7 +1260,7 @@ func (ss *syncState) handlePostSubmitTestResults() error {
 				fmt.Printf("checking post submit test %s\n", testRunPath)
 			}
 			return g.GetPostSubmitTestResult(ss.ctx, testName, testRunPath, repo.OrgLogin, repo.RepoName)
-		}).Batch(50).To(func(input interface{}) error {
+		}).Batch(50).Transform(func(input interface{}) (t interface{}, err error) {
 			var testResults []*storage.PostSubmitTestResult
 			var SuiteOutcomes []*storage.SuiteOutcome
 			var TestOutcomes []*storage.TestOutcome
@@ -1277,24 +1277,32 @@ func (ss *syncState) handlePostSubmitTestResults() error {
 				FeatureLabels = append(FeatureLabels, featureLabel...)
 			}
 			fmt.Printf("saving PostSubmitTestResult batch of size %d\n", len(testResults))
-			err := ss.mgr.store.WritePostSumbitTestResults(ss.ctx, testResults)
+			err = ss.mgr.store.WritePostSumbitTestResults(ss.ctx, testResults)
 			if err != nil {
-				return fmt.Errorf("unable to write PostSumbitTestResults: %v", err)
+				return nil, fmt.Errorf("unable to write PostSumbitTestResults: %v", err)
 			}
 			err = ss.mgr.store.WriteSuiteOutcome(ss.ctx, SuiteOutcomes)
 			if err != nil {
-				return fmt.Errorf("unable to write SuiteOutcome: %v", err)
+				return nil, fmt.Errorf("unable to write SuiteOutcome: %v", err)
 			}
-			err = ss.mgr.store.WriteTestOutcome(ss.ctx, TestOutcomes)
-			if err != nil {
-				return fmt.Errorf("unable to write TestOutcome: %v", err)
-			}
-			err = ss.mgr.store.WriteFeatureLabel(ss.ctx, FeatureLabels)
-			if err != nil {
-				return fmt.Errorf("unable to write FeatureLabel: %v", err)
+			testOutcomeFeatureLabel := &storage.TestOutcomeFeatureLabel{}
+			testOutcomeFeatureLabel.TestOutcome = TestOutcomes
+			testOutcomeFeatureLabel.FeatureLabel = FeatureLabels
+			return testOutcomeFeatureLabel, nil
+		}).Batch(5).To(func(input interface{}) error {
+			for _, i := range input.([]interface{}) {
+				err := ss.mgr.store.WriteTestOutcome(ss.ctx, i.(*storage.TestOutcomeFeatureLabel).TestOutcome)
+				if err != nil {
+					return fmt.Errorf("unable to write TestOutcome: %v", err)
+				}
+				err = ss.mgr.store.WriteFeatureLabel(ss.ctx, i.(*storage.TestOutcomeFeatureLabel).FeatureLabel)
+				if err != nil {
+					return fmt.Errorf("unable to write FeatureLabel: %v", err)
+				}
 			}
 			return nil
 		}).WithParallelism(1).Go()
+
 		var result *multierror.Error
 		for err := range errorChan {
 			result = multierror.Append(err.Err())
