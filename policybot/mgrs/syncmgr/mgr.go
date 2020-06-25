@@ -1260,7 +1260,7 @@ func (ss *syncState) handlePostSubmitTestResults() error {
 				fmt.Printf("checking post submit test %s\n", testRunPath)
 			}
 			return g.GetPostSubmitTestResult(ss.ctx, testName, testRunPath, repo.OrgLogin, repo.RepoName)
-		}).Batch(50).Transform(func(input interface{}) (t interface{}, err error) {
+		}).Batch(5).Transform(func(input interface{}) (t interface{}, err error) {
 			var testResults []*storage.PostSubmitTestResult
 			var SuiteOutcomes []*storage.SuiteOutcome
 			var TestOutcomes []*storage.TestOutcome
@@ -1289,7 +1289,7 @@ func (ss *syncState) handlePostSubmitTestResults() error {
 			testOutcomeFeatureLabel.TestOutcome = TestOutcomes
 			testOutcomeFeatureLabel.FeatureLabel = FeatureLabels
 			return testOutcomeFeatureLabel, nil
-		}).Batch(5).To(func(input interface{}) error {
+		}).Batch(1).To(func(input interface{}) error {
 			for _, i := range input.([]interface{}) {
 				err := ss.mgr.store.WriteTestOutcome(ss.ctx, i.(*storage.TestOutcomeFeatureLabel).TestOutcome)
 				if err != nil {
