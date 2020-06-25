@@ -263,6 +263,11 @@ type PostSubtmitAllResult struct {
 	FeatureLabel []*FeatureLabel
 }
 
+type TestOutcomeFeatureLabel struct {
+	TestOutcome  []*TestOutcome
+	FeatureLabel []*FeatureLabel
+}
+
 type RepoComment struct {
 	OrgLogin  string
 	RepoName  string
