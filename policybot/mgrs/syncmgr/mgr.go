@@ -1291,11 +1291,20 @@ func (ss *syncState) handlePostSubmitTestResults() error {
 			return testOutcomeFeatureLabel, nil
 		}).Batch(1).To(func(input interface{}) error {
 			for _, i := range input.([]interface{}) {
-				err := ss.mgr.store.WriteTestOutcome(ss.ctx, i.(*storage.TestOutcomeFeatureLabel).TestOutcome)
-				if err != nil {
-					return fmt.Errorf("unable to write TestOutcome: %v", err)
+				TestOutcomesList := i.(*storage.TestOutcomeFeatureLabel).TestOutcome
+				for slice := 0; slice < (len(TestOutcomesList) / 50); slice++ {
+					err := ss.mgr.store.WriteTestOutcome(ss.ctx, TestOutcomesList[slice*50:(slice+1)*50])
+					if err != nil {
+						return fmt.Errorf("unable to write TestOutcome: %v", err)
+					}
 				}
-				err = ss.mgr.store.WriteFeatureLabel(ss.ctx, i.(*storage.TestOutcomeFeatureLabel).FeatureLabel)
+				if len(TestOutcomesList)%50 != 0 {
+					err := ss.mgr.store.WriteTestOutcome(ss.ctx, TestOutcomesList[(len(TestOutcomesList)/50)*50:])
+					if err != nil {
+						return fmt.Errorf("unable to write TestOutcome: %v", err)
+					}
+				}
+				err := ss.mgr.store.WriteFeatureLabel(ss.ctx, i.(*storage.TestOutcomeFeatureLabel).FeatureLabel)
 				if err != nil {
 					return fmt.Errorf("unable to write FeatureLabel: %v", err)
 				}
