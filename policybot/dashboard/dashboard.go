@@ -40,6 +40,7 @@ import (
 	"istio.io/bots/policybot/dashboard/topics/members"
 	"istio.io/bots/policybot/dashboard/topics/perf"
 	"istio.io/bots/policybot/dashboard/topics/pullrequests"
+	"istio.io/bots/policybot/dashboard/topics/postsubmit"
 	"istio.io/bots/policybot/dashboard/types"
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/storage"
@@ -122,6 +123,7 @@ func New(router *mux.Router, store storage.Store, cache *cache.Cache, reg *confi
 	members := members.New(store, cache, time.Duration(core.CacheTTL), time.Duration(core.MemberActivityWindow), core.DefaultOrg, reg)
 	issues := issues.New(store, cache, core.DefaultOrg)
 	pullRequests := pullrequests.New(store, cache)
+	postSubmit := postsubmit.New(store, cache)
 	perf := perf.New(store, cache)
 	commitHub := commithub.New(store, cache)
 	flakes := flakes.New(store, cache)
@@ -173,6 +175,11 @@ func New(router *mux.Router, store storage.Store, cache *cache.Cache, reg *confi
 		addPageWithQuery("/issues", "option", "stale", issues.RenderStale).
 		endEntry().
 		addPage("/issues", issues.RenderSummary).
+		endEntry()
+
+	d.addEntry("Post Submit Test", "Information on post submit test results.").
+		addEntry("LatestBaseSha", "Latest 100 BaseSha").
+		addPageWithQuery("/postsubmit", "option", "latestBaseSha", postSubmit.RenderLatestBaseSha).
 		endEntry()
 
 	d.addEntry("Pull Requests", "Information on new and old pull requests.").

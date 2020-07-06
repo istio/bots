@@ -356,3 +356,9 @@ type UserAffiliation struct {
 	StartTime    time.Time
 	EndTime      time.Time
 }
+
+type LatestBaseSha struct {
+	BaseSha			string
+	LastFinishTime  time.Time
+	NumberofTest 	int64
+}
