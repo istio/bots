@@ -57,9 +57,28 @@ var _pageHtml = []byte(`<aside class="callout warning">
 </aside>
 
 <p>
-This will display information about GitHub pull requests.
+    This will display information about GitHub post submit text results
 </p>
-`)
+
+<table>
+  <caption>Latest 100 BaseSha</caption>
+  <thead>
+  <tr>
+    <th>BaseSha</th>
+    <th>LastFinishTime</th>
+    <th>NumberofTestDone</th>
+  </tr>
+  </thead>
+  <tbody>
+    {{ range .Issues }}
+        <tr>
+            <td>{{ .BaseSha }}</td>
+            <td>{{ .LastFinishTime }}</td>
+            <td>{{ .NumberofTest }}</td>
+        </tr>
+    {{ end }}
+  </tbody>
+</table>`)
 
 func pageHtmlBytes() ([]byte, error) {
 	return _pageHtml, nil

@@ -34,7 +34,6 @@ type PostSubmit struct {
 	store    storage.Store
 	cache    *cache.Cache
 	baseSha  *template.Template
-	page     string
 }
 
 type baseShaSummary struct {
@@ -48,15 +47,8 @@ func New(store storage.Store, cache *cache.Cache) *PostSubmit {
 	return &PostSubmit{
 		store: store,
 		cache: cache,
-		page:  string(MustAsset("page.html")),
+		baseSha: template.Must(template.New("page").Parse(string(MustAsset("page.html")))),
 	}
-}
-
-// Renders the HTML for this topic.
-func (ps *PostSubmit) Render(req *http.Request) (types.RenderInfo, error) {
-	return types.RenderInfo{
-		Content: ps.page,
-	}, nil
 }
 
 func (ps *PostSubmit) RenderLatestBaseSha(req *http.Request) (types.RenderInfo, error) {
