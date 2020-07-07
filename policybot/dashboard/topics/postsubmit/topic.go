@@ -17,11 +17,11 @@
 package postsubmit
 
 import (
-	"time"
 	"context"
 	"net/http"
 	"strings"
 	"text/template"
+	"time"
 
 	"istio.io/bots/policybot/dashboard/types"
 
@@ -31,28 +31,30 @@ import (
 
 // PostSubmit lets users visualize critical information about the project's outstanding pull requests.
 type PostSubmit struct {
-	store    storage.Store
-	cache    *cache.Cache
-	baseSha  *template.Template
+	store         storage.Store
+	cache         *cache.Cache
+	latestbaseSha *template.Template
+	baseSha       *template.Template
 }
 
 type baseShaSummary struct {
-	BaseSha			[]string
-	LastFinishTime  []time.Time
-	NumberofTest 	[]int64
+	BaseSha        []string
+	LastFinishTime []time.Time
+	NumberofTest   []int64
 }
 
 // New creates a new PostSubmit instance.
 func New(store storage.Store, cache *cache.Cache) *PostSubmit {
 	return &PostSubmit{
-		store: store,
-		cache: cache,
-		baseSha: template.Must(template.New("page").Parse(string(MustAsset("page.html")))),
+		store:         store,
+		cache:         cache,
+		latestbaseSha: template.Must(template.New("page").Parse(string(MustAsset("page.html")))),
+		baseSha:       template.Must(template.New("analysis").Parse(string(MustAsset("analysis.html")))),
 	}
 }
 
-func (ps *PostSubmit) RenderLatestBaseSha(req *http.Request) (types.RenderInfo, error) {
-	baseShas, err := ps.getLatestBaseShas(req.Context())
+func (ps *PostSubmit) RenderAllBaseSha(req *http.Request) (types.RenderInfo, error) {
+	baseShas, err := ps.store.QueryAllBaseSha(req.Context())
 	if err != nil {
 		return types.RenderInfo{}, err
 	}
@@ -67,16 +69,32 @@ func (ps *PostSubmit) RenderLatestBaseSha(req *http.Request) (types.RenderInfo, 
 	}, nil
 }
 
-func (i *PostSubmit) getLatestBaseShas(context context.Context) (baseShaSummary, error) {
+func (ps *PostSubmit) RenderLatestBaseSha(req *http.Request) (types.RenderInfo, error) {
+	baseShas, err := ps.getLatestBaseShas(req.Context())
+	if err != nil {
+		return types.RenderInfo{}, err
+	}
+
+	var sb strings.Builder
+	if err := ps.latestbaseSha.Execute(&sb, baseShas); err != nil {
+		return types.RenderInfo{}, err
+	}
+
+	return types.RenderInfo{
+		Content: sb.String(),
+	}, nil
+}
+
+func (ps *PostSubmit) getLatestBaseShas(context context.Context) (baseShaSummary, error) {
 	var summary baseShaSummary
 	var BaseShaList []string
 	var LastFinishTimeList []time.Time
 	var NumberofTestList []int64
 
-	if err := i.store.QueryLatestBaseSha(context, func(latestBaseSha *storage.LatestBaseSha) error {
-		BaseShaList = append(BaseShaList,latestBaseSha.BaseSha)
-		LastFinishTimeList = append(LastFinishTimeList,latestBaseSha.LastFinishTime)
-		NumberofTestList = append(NumberofTestList,latestBaseSha.NumberofTest)
+	if err := ps.store.QueryLatestBaseSha(context, func(latestBaseSha *storage.LatestBaseSha) error {
+		BaseShaList = append(BaseShaList, latestBaseSha.BaseSha)
+		LastFinishTimeList = append(LastFinishTimeList, latestBaseSha.LastFinishTime)
+		NumberofTestList = append(NumberofTestList, latestBaseSha.NumberofTest)
 		return nil
 	}); err != nil {
 		return summary, err

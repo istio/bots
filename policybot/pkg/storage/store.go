@@ -89,6 +89,9 @@ type Store interface {
 	QueryAllUserAffiliations(context context.Context, cb func(affiliation *UserAffiliation) error) error
 	QueryAllUsers(context context.Context, cb func(user *User) error) error
 	QueryPullRequestsByUser(context context.Context, orgLogin string, repoName string, userLogin string, cb func(*PullRequest) error) error
+	QueryLatestBaseSha(context context.Context, cb func(*LatestBaseSha) error) error
+	QueryAllBaseSha(context context.Context) ([]string, error)
+	QueryPostSubmitTestResult(context context.Context, baseSha string, cb func(*PostSubmitTestResultDenormalized) error) error
 
 	QueryTestFlakeIssues(context context.Context, orgLogin string, repoName string, inactiveDays, createdDays int) ([]*Issue, error)
 
