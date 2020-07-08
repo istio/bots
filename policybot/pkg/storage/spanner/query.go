@@ -838,16 +838,15 @@ func (s store) QueryPullRequestsByUser(context context.Context, orgLogin string,
 }
 
 func (s store) QueryLatestBaseSha(context context.Context, cb func(*storage.LatestBaseSha) error) error {
-	sql := `SELECT BaseSha, COUNT(TestOutcomes.TestOutcomeName) AS NumberOfTest,MAX(FinishTime) AS LastFinishTime
+	fmt.Printf("here1")
+	iter := s.client.Single().Query(context,
+		spanner.Statement{SQL: fmt.Sprintf(`SELECT BaseSha, COUNT(TestOutcomes.TestOutcomeName) AS NumberOfTest, MAX(FinishTime) AS LastFinishTime
 			FROM (SELECT * FROM PostSubmitTestResults 
-		  	ORDER BY FinishTime DESC
-		  	LIMIT 10000)
+			  ORDER BY FinishTime DESC
+			  LIMIT 10000)
 			LEFT JOIN TestOutcomes USING (OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done)
 			GROUP BY BaseSha
-			LIMIT 100;`
-	stmt := spanner.NewStatement(sql)
-
-	iter := s.client.Single().Query(context, stmt)
+			LIMIT 100;`)})
 	err := iter.Do(func(row *spanner.Row) error {
 		latestBaseSha := &storage.LatestBaseSha{}
 		if err := rowToStruct(row, latestBaseSha); err != nil {
@@ -856,7 +855,6 @@ func (s store) QueryLatestBaseSha(context context.Context, cb func(*storage.Late
 
 		return cb(latestBaseSha)
 	})
-
 	return err
 }
 
@@ -868,17 +866,17 @@ func (s store) QueryAllBaseSha(context context.Context) (baseShas []string, err 
 
 	iter := s.client.Single().Query(context, stmt)
 	err = iter.Do(func(row *spanner.Row) error {
-		var baseSha string
+		baseSha := &storage.AllBaseSha{} 
 		if err := rowToStruct(row, baseSha); err != nil {
 			return err
 		}
-		baseShas = append(baseShas, baseSha)
+		baseShas = append(baseShas, baseSha.BaseSha)
 		return nil
 	})
 	return
 }
 
-func (s *store) QueryPostSubmitTestResult(context context.Context, baseSha string, cb func(*storage.PostSubmitTestResultDenormalized) error) error {
+func (s store) QueryPostSubmitTestResult(context context.Context, baseSha string, cb func(*storage.PostSubmitTestResultDenormalized) error) error {
 	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
 		`SELECT t.OrgLogin, t.RepoName, t.TestName, t.BaseSha, t.RunNumber, t.Done,t.CloneFailed,t.FinishTime, 
 		t.Result, t.RunPath, t.Sha, t.StartTime, t.TestPassed, t.HasArtifacts,t.Signatures,
@@ -886,9 +884,9 @@ func (s *store) QueryPostSubmitTestResult(context context.Context, baseSha strin
 		TestOutcomes.TestOutcomeName, TestOutcomes.Type, TestOutcomes.Outcome,
 		FeatureLabels.Label,FeatureLabels.Scenario
 		FROM PostSubmitTestResults as t
-		LEFT JOIN SuiteOutcomes USING (OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done)
-		LEFT JOIN TestOutcomes USING (OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done, SuiteName)
-		LEFT JOIN FeatureLabels USING (OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done, SuiteName, TestOutcomeName)
+		INNER JOIN SuiteOutcomes USING (OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done)
+		INNER JOIN TestOutcomes USING (OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done, SuiteName)
+		INNER JOIN FeatureLabels USING (OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done, SuiteName, TestOutcomeName)
 		WHERE BaseSha='%s' and RepoName='istio';`, baseSha)})
 
 	err := iter.Do(func(row *spanner.Row) error {

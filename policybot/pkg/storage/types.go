@@ -357,6 +357,10 @@ type UserAffiliation struct {
 	EndTime      time.Time
 }
 
+type AllBaseSha struct {
+	BaseSha string
+}
+
 type LatestBaseSha struct {
 	BaseSha        string
 	LastFinishTime time.Time
