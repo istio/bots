@@ -180,6 +180,9 @@ func New(router *mux.Router, store storage.Store, cache *cache.Cache, reg *confi
 	d.addEntry("Post Submit Test", "Information on post submit test results.").
 		addEntry("LatestBaseSha", "Latest 100 BaseSha").
 		addPageWithQuery("/postsubmit", "option", "latestBaseSha", postSubmit.RenderLatestBaseSha).
+		endEntry().
+		addEntry("Analysis", "env label relation").
+		addPageWithQuery("/postsubmit", "option", "analysis", postSubmit.RenderAllBaseSha).
 		endEntry()
 
 	d.addEntry("Pull Requests", "Information on new and old pull requests.").

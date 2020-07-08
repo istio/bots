@@ -24,12 +24,10 @@
   </tr>
   </thead>
   <tbody>
-    {{ range .Issues }}
-        <tr>
-            <td>{{ .BaseSha }}</td>
-            <td>{{ .LastFinishTime }}</td>
-            <td>{{ .NumberofTest }}</td>
-        </tr>
-    {{ end }}
+    <tr>
+        <td>{{ .BaseSha }}</td>
+        <td>{{ .LastFinishTime }}</td>
+        <td>{{ .NumberofTest }}</td>
+    </tr>
   </tbody>
 </table>

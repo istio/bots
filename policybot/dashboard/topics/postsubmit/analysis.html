@@ -9,9 +9,13 @@
 
 <body>
     Select BaseSha : <br/>
-    <select class="chosen">
-        <option>{{ .baseShas }}</option>
+    <form action="process" method="post">
+    <select name="choseBaseSha" class="chosen" method="POST" action="index.php?action=contact_agent&agent_id=">
+        {{ range .BaseSha }}
+        <option>{{ . }}</option>
+        {{ end }}
     </select>
+    </form>
     <br/>
     <input type="submit" value="Submit">
 </body>
@@ -19,4 +23,5 @@
 <script type="text/javascript">
     $(".chosen").chosen();
 </script>
+
 </html>
