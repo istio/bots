@@ -22,8 +22,6 @@ import (
 
 	"cloud.google.com/go/spanner"
 	"google.golang.org/api/option"
-
-	"istio.io/bots/policybot/pkg/storage"
 )
 
 type store struct {
@@ -32,10 +30,12 @@ type store struct {
 
 var scope = log.RegisterScope("spanner", "Spanner abstraction layer", 0)
 
-func NewStore(context context.Context, database string, gcpCreds []byte) (storage.Store, error) {
+func NewStore(context context.Context, database string, gcpCreds []byte) (store, error) {
 	client, err := spanner.NewClient(context, database, option.WithCredentialsJSON(gcpCreds))
 	if err != nil {
-		return nil, fmt.Errorf("unable to create Spanner client: %v", err)
+		return store{
+			client: nil,
+		}, fmt.Errorf("unable to create Spanner client: %v", err)
 	}
 
 	return store{
