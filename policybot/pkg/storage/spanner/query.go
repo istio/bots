@@ -838,7 +838,6 @@ func (s store) QueryPullRequestsByUser(context context.Context, orgLogin string,
 }
 
 func (s store) QueryLatestBaseSha(context context.Context, cb func(*storage.LatestBaseSha) error) error {
-	fmt.Printf("here1")
 	iter := s.client.Single().Query(context,
 		spanner.Statement{SQL: fmt.Sprintf(`SELECT BaseSha, COUNT(TestOutcomes.TestOutcomeName) AS NumberOfTest, MAX(FinishTime) AS LastFinishTime
 			FROM (SELECT * FROM PostSubmitTestResults 

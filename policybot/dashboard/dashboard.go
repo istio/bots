@@ -181,8 +181,11 @@ func New(router *mux.Router, store storage.Store, cache *cache.Cache, reg *confi
 		addEntry("LatestBaseSha", "Latest 100 BaseSha").
 		addPageWithQuery("/postsubmit", "option", "latestBaseSha", postSubmit.RenderLatestBaseSha).
 		endEntry().
+		addEntry("ChooseBaseSha", "choose base sha for analysis").
+		addPageWithQuery("/postsubmit", "option", "chooseBaseSha", postSubmit.RenderAllBaseSha).
+		endEntry().
 		addEntry("Analysis", "env label relation").
-		addPageWithQuery("/postsubmit", "option", "analysis", postSubmit.RenderAllBaseSha).
+		addPageWithQuery("/postsubmit", "option", "analysis", postSubmit.RenderLabelEnv).
 		endEntry()
 
 	d.addEntry("Pull Requests", "Information on new and old pull requests.").
@@ -232,6 +235,7 @@ func New(router *mux.Router, store storage.Store, cache *cache.Cache, reg *confi
 	d.registerAPI("/api/maintainers/", maintainers.GetList)
 	d.registerAPI("/api/members/", members.GetList)
 
+	router.HandleFunc("/postsubmit?option=analysis", d.chosenBaseSha)
 	return d
 }
 
@@ -359,4 +363,10 @@ func (d *Dashboard) renderError(w http.ResponseWriter, err error) {
 	_, _ = b.WriteTo(w)
 
 	scope.Errorf("Returning error to client: %v", info.Content)
+}
+
+func (d *Dashboard) chosenBaseSha(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	baseSha := r.FormValue("analysis")
+	fmt.Printf(baseSha)
 }
