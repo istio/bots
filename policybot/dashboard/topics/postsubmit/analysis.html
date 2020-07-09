@@ -1,27 +1,85 @@
-<!DOCTYPE html>
-<head>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-    <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
-    <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chosen/1.8.7/chosen.jquery.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chosen/1.8.7/chosen.min.css">
-</head>
+<p>
+    This will display information about GitHub post submit text results
+</p>
 
-<body>
-    Select BaseSha : <br/>
-    <form action="process" method="post">
-    <select name="choseBaseSha" class="chosen" method="POST" action="index.php?action=contact_agent&agent_id=">
-        {{ range .BaseSha }}
-        <option>{{ . }}</option>
-        {{ end }}
-    </select>
-    </form>
-    <br/>
-    <input type="submit" value="Submit">
-</body>
+<ul id="myUL">
+  {{ range .LabelEnv }}
+  <li><span class="caret">{{ .Label }}</span>
+    <ul class="nested">
+      {{ range .EnvCount }}
+      <li>{{ .Env }} : {{ .Counts }}</li>
+      {{ end }}
+      {{ range .SubLabel.LabelEnv}}
+      <li><span class="caret">{{ .Label }}</span>
+        <ul class="nested">
+          {{ range .EnvCount }}
+          <li>{{ .Env }} : {{ .Counts }}</li>
+          {{ end }}
+          {{ range .SubLabel.LabelEnv}}
+          <li><span class="caret">{{ .Label }}</span>
+            <ul class="nested">
+              {{ range .EnvCount }}
+              <li>{{ .Env }} : {{ .Counts }}</li>
+              {{ end }}
+            </ul>
+          {{ end }}
+          </li>
+        </ul>
+      </li>
+      {{ end }}
+    </ul>
+  </li>
+  {{ end }}
+</ul>
 
-<script type="text/javascript">
-    $(".chosen").chosen();
+<script>
+  var toggler = document.getElementsByClassName("caret");
+  var i;
+  
+  for (i = 0; i < toggler.length; i++) {
+    toggler[i].addEventListener("click", function() {
+      this.parentElement.querySelector(".nested").classList.toggle("active");
+      this.classList.toggle("caret-down");
+    });
+  }
 </script>
 
-</html>
+<style>
+  ul, #myUL {
+    list-style-type: none;
+  }
+  
+  #myUL {
+    margin: 0;
+    padding: 0;
+  }
+  
+  .caret {
+    cursor: pointer;
+    -webkit-user-select: none; /* Safari 3.1+ */
+    -moz-user-select: none; /* Firefox 2+ */
+    -ms-user-select: none; /* IE 10+ */
+    user-select: none;
+  }
+  
+  .caret::before {
+    content: "\25B6";
+    color: black;
+    display: inline-block;
+    margin-right: 6px;
+  }
+  
+  .caret-down::before {
+    -ms-transform: rotate(90deg); 
+    -webkit-transform: rotate(90deg); 
+    transform: rotate(90deg);  
+  }
+  
+  .nested {
+    display: none;
+  }
+  
+  .active {
+    display: block;
+  }
+  </style>
