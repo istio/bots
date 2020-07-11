@@ -9,17 +9,28 @@
 
 <body>
     Select BaseSha : <br/>
-    <form action="/postsubmit?option=analysis" method="post">
-    <select name="analysis" class="chosen">
+    <form id="myForm" name="myForm">
+    <select name="basesha" class="chosen">
         {{ range .BaseSha }}
         <option>{{ . }}</option>
         {{ end }}
     </select>
-    <button type="submit">Submit</button>
+    <input name="submit" type="submit" value="submit">
     </form>
 </body>
 
 <script type="text/javascript">
+    $(document).ready(function() {
+        $("#myForm").on("submit", function(e) {
+            e.preventDefault();
+            $.ajax({
+                url: "/somewhere",
+                type: 'POST',
+                data: $(this).serialize(),
+            });
+        window.location.assign("http://localhost:8080/postsubmit?option=chooseBaseSha");
+        });
+    });
     $(".chosen").chosen();
 </script>
 

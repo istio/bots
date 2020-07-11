@@ -235,7 +235,7 @@ func New(router *mux.Router, store storage.Store, cache *cache.Cache, reg *confi
 	d.registerAPI("/api/maintainers/", maintainers.GetList)
 	d.registerAPI("/api/members/", members.GetList)
 
-	router.HandleFunc("/postsubmit?option=analysis", d.chosenBaseSha)
+	router.HandleFunc("/somewhere", d.chosenBaseSha)
 	return d
 }
 
@@ -367,6 +367,6 @@ func (d *Dashboard) renderError(w http.ResponseWriter, err error) {
 
 func (d *Dashboard) chosenBaseSha(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
-	baseSha := r.FormValue("analysis")
+	baseSha := r.FormValue("basesha")
 	fmt.Printf(baseSha)
 }
