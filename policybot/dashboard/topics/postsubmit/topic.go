@@ -30,15 +30,19 @@ import (
 
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
+
+	"github.com/gorilla/mux"
 )
 
 // PostSubmit lets users visualize critical information about the project's outstanding pull requests.
 type PostSubmit struct {
 	store         storage.Store
 	cache         *cache.Cache
+	router        *mux.Router
 	latestbaseSha *template.Template
 	baseSha       *template.Template
 	analysis      *template.Template
+	choosesha     string
 }
 
 type LatestBaseShaSummary struct {
@@ -73,19 +77,28 @@ type EnvCount struct {
 
 
 // New creates a new PostSubmit instance.
-func New(store storage.Store, cache *cache.Cache) *PostSubmit {
-	return &PostSubmit{
+func New(store storage.Store, cache *cache.Cache, router *mux.Router) *PostSubmit {
+	ps := &PostSubmit{
 		store:         store,
 		cache:         cache,
+		router:        router,
 		latestbaseSha: template.Must(template.New("page").Parse(string(MustAsset("page.html")))),
 		baseSha:       template.Must(template.New("chooseBaseSha").Parse(string(MustAsset("chooseBaseSha.html")))),
 		analysis:      template.Must(template.New("analysis").Parse(string(MustAsset("analysis.html")))),
 	}
+	router.HandleFunc("/somewhere", ps.chosenBaseSha)
+	return ps
+}
+
+func (ps *PostSubmit) chosenBaseSha(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	baseSha := r.FormValue("basesha")
+	ps.choosesha = baseSha
 }
 
 func (ps *PostSubmit) RenderLabelEnv(req *http.Request) (types.RenderInfo, error) {
 	var summary LabelEnvSummary
-	summary, err := ps.getLabelEnvTable(req.Context(),"616aff839f0c4cc71a487f1c2e43b0bc13ce20af")
+	summary, err := ps.getLabelEnvTable(req.Context(), ps.choosesha)
 	if err != nil {
 		return types.RenderInfo{}, err
 	}

@@ -59,6 +59,7 @@ type Dashboard struct {
 	currentEntry     *sidebarEntry
 	oauthHandler     *oauthHandler
 	entryMap         map[*mux.Route]*sidebarEntry
+	basesha 		 string
 }
 
 type templateInfo struct {
@@ -123,7 +124,7 @@ func New(router *mux.Router, store storage.Store, cache *cache.Cache, reg *confi
 	members := members.New(store, cache, time.Duration(core.CacheTTL), time.Duration(core.MemberActivityWindow), core.DefaultOrg, reg)
 	issues := issues.New(store, cache, core.DefaultOrg)
 	pullRequests := pullrequests.New(store, cache)
-	postSubmit := postsubmit.New(store, cache)
+	postSubmit := postsubmit.New(store, cache, router)
 	perf := perf.New(store, cache)
 	commitHub := commithub.New(store, cache)
 	flakes := flakes.New(store, cache)
@@ -234,8 +235,7 @@ func New(router *mux.Router, store storage.Store, cache *cache.Cache, reg *confi
 	// API endpoints
 	d.registerAPI("/api/maintainers/", maintainers.GetList)
 	d.registerAPI("/api/members/", members.GetList)
-
-	router.HandleFunc("/somewhere", d.chosenBaseSha)
+	
 	return d
 }
 
@@ -363,10 +363,4 @@ func (d *Dashboard) renderError(w http.ResponseWriter, err error) {
 	_, _ = b.WriteTo(w)
 
 	scope.Errorf("Returning error to client: %v", info.Content)
-}
-
-func (d *Dashboard) chosenBaseSha(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
-	baseSha := r.FormValue("basesha")
-	fmt.Printf(baseSha)
 }

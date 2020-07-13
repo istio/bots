@@ -177,7 +177,7 @@ var _choosebaseshaHtml = []byte(`<!DOCTYPE html>
                 type: 'POST',
                 data: $(this).serialize(),
             });
-        window.location.assign("http://localhost:8080/postsubmit?option=chooseBaseSha");
+        window.location.assign("http://localhost:8080/postsubmit?option=analysis");
         });
     });
     $(".chosen").chosen();
