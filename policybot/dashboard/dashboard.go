@@ -59,7 +59,6 @@ type Dashboard struct {
 	currentEntry     *sidebarEntry
 	oauthHandler     *oauthHandler
 	entryMap         map[*mux.Route]*sidebarEntry
-	basesha 		 string
 }
 
 type templateInfo struct {
@@ -235,7 +234,7 @@ func New(router *mux.Router, store storage.Store, cache *cache.Cache, reg *confi
 	// API endpoints
 	d.registerAPI("/api/maintainers/", maintainers.GetList)
 	d.registerAPI("/api/members/", members.GetList)
-	
+
 	return d
 }
 

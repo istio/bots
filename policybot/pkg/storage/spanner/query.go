@@ -838,14 +838,16 @@ func (s store) QueryPullRequestsByUser(context context.Context, orgLogin string,
 }
 
 func (s store) QueryLatestBaseSha(context context.Context, cb func(*storage.LatestBaseSha) error) error {
-	iter := s.client.Single().Query(context,
-		spanner.Statement{SQL: fmt.Sprintf(`SELECT BaseSha, COUNT(TestOutcomes.TestOutcomeName) AS NumberOfTest, MAX(FinishTime) AS LastFinishTime
+	sql := `SELECT BaseSha, COUNT(TestOutcomes.TestOutcomeName) AS NumberOfTest, MAX(FinishTime) AS LastFinishTime
 			FROM (SELECT * FROM PostSubmitTestResults 
-			  ORDER BY FinishTime DESC
-			  LIMIT 10000)
+	  			  ORDER BY FinishTime DESC
+	              LIMIT 10000)
 			LEFT JOIN TestOutcomes USING (OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done)
 			GROUP BY BaseSha
-			LIMIT 100;`)})
+			ORDER BY MAX(FinishTime) DESC
+			LIMIT 100;`
+	stmt := spanner.NewStatement(sql)
+	iter := s.client.Single().Query(context, stmt)
 	err := iter.Do(func(row *spanner.Row) error {
 		latestBaseSha := &storage.LatestBaseSha{}
 		if err := rowToStruct(row, latestBaseSha); err != nil {
@@ -865,7 +867,7 @@ func (s store) QueryAllBaseSha(context context.Context) (baseShas []string, err 
 
 	iter := s.client.Single().Query(context, stmt)
 	err = iter.Do(func(row *spanner.Row) error {
-		baseSha := &storage.AllBaseSha{} 
+		baseSha := &storage.AllBaseSha{}
 		if err := rowToStruct(row, baseSha); err != nil {
 			return err
 		}

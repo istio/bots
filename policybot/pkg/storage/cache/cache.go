@@ -17,9 +17,9 @@ package cache
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"time"
-	"fmt"
 
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/pkg/cache"
@@ -41,7 +41,7 @@ type Cache struct {
 	pipelineCache                 cache.ExpiringCache
 	maintainerCache               cache.ExpiringCache
 	memberCache                   cache.ExpiringCache
-	latestBaseShaCache			  cache.ExpiringCache
+	latestBaseShaCache            cache.ExpiringCache
 	repoCommentCache              cache.ExpiringCache
 	testResultCache               cache.ExpiringCache
 }
@@ -397,27 +397,31 @@ func (c *Cache) ReadMember(context context.Context, orgLogin string, userLogin s
 	return result, err
 }
 
-func (c *Cache) WriteLatestBaseShas(context context.Context) {
+func (c *Cache) WriteLatestBaseShas() {
 	var summary storage.LatestBaseShaSummary
 	var summaryList []storage.LatestBaseSha
-
-	if err := c.store.QueryLatestBaseSha(context, func(latestBaseSha *storage.LatestBaseSha) error {
+	if err := c.store.QueryLatestBaseSha(context.Background(), func(latestBaseSha *storage.LatestBaseSha) error {
 		summaryList = append(summaryList, storage.LatestBaseSha{
-			BaseSha: latestBaseSha.BaseSha,
+			BaseSha:        latestBaseSha.BaseSha,
 			LastFinishTime: latestBaseSha.LastFinishTime,
-			NumberofTest: latestBaseSha.NumberofTest,
+			NumberofTest:   latestBaseSha.NumberofTest,
 		})
 		return nil
 	}); err != nil {
-		return 
+		return
 	}
 	summary.LatestBaseSha = summaryList
-	c.latestBaseShaCache.Set("basesha",summary)
-	fmt.Printf("execute cache of basesha")
+	c.latestBaseShaCache.Set("basesha", summary)
 }
 
-func (c *Cache) ReadLatestBaseShas()(storage.LatestBaseShaSummary) {
-	val, _ := c.latestBaseShaCache.Get("basesha")
-	basesha, _ := val.(storage.LatestBaseShaSummary)
-	return basesha
+func (c *Cache) ReadLatestBaseShas() (*storage.LatestBaseShaSummary, error) {
+	val, ok := c.latestBaseShaCache.Get("basesha")
+	if !ok {
+		return nil, fmt.Errorf("can't find latest baseSha in cache")
+	}
+	basesha, ok := val.(storage.LatestBaseShaSummary)
+	if !ok {
+		return nil, fmt.Errorf("baseSha cache type error")
+	}
+	return &basesha, nil
 }

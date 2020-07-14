@@ -182,11 +182,11 @@ var _choosebaseshaHtml = []byte(`<!DOCTYPE html>
         $("#myForm").on("submit", function(e) {
             e.preventDefault();
             $.ajax({
-                url: "/somewhere",
+                url: "/savebasesha",
                 type: 'POST',
                 data: $(this).serialize(),
             });
-        window.location.assign("http://localhost:8080/postsubmit?option=analysis");
+        window.location.assign("/postsubmit?option=analysis");
         });
     });
     $(".chosen").chosen();
