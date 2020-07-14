@@ -19,6 +19,7 @@ import (
 	"context"
 	"strconv"
 	"time"
+	"fmt"
 
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/pkg/cache"
@@ -40,6 +41,7 @@ type Cache struct {
 	pipelineCache                 cache.ExpiringCache
 	maintainerCache               cache.ExpiringCache
 	memberCache                   cache.ExpiringCache
+	latestBaseShaCache			  cache.ExpiringCache
 	repoCommentCache              cache.ExpiringCache
 	testResultCache               cache.ExpiringCache
 }
@@ -67,6 +69,7 @@ func New(store storage.Store, entryTTL time.Duration) *Cache {
 		pipelineCache:                 cache.NewTTL(entryTTL, evictionInterval),
 		maintainerCache:               cache.NewTTL(entryTTL, evictionInterval),
 		memberCache:                   cache.NewTTL(entryTTL, evictionInterval),
+		latestBaseShaCache:            cache.NewTTL(entryTTL, evictionInterval),
 		repoCommentCache:              cache.NewTTL(entryTTL, evictionInterval),
 		testResultCache:               cache.NewTTL(entryTTL, evictionInterval),
 	}
@@ -392,4 +395,29 @@ func (c *Cache) ReadMember(context context.Context, orgLogin string, userLogin s
 	}
 
 	return result, err
+}
+
+func (c *Cache) WriteLatestBaseShas(context context.Context) {
+	var summary storage.LatestBaseShaSummary
+	var summaryList []storage.LatestBaseSha
+
+	if err := c.store.QueryLatestBaseSha(context, func(latestBaseSha *storage.LatestBaseSha) error {
+		summaryList = append(summaryList, storage.LatestBaseSha{
+			BaseSha: latestBaseSha.BaseSha,
+			LastFinishTime: latestBaseSha.LastFinishTime,
+			NumberofTest: latestBaseSha.NumberofTest,
+		})
+		return nil
+	}); err != nil {
+		return 
+	}
+	summary.LatestBaseSha = summaryList
+	c.latestBaseShaCache.Set("basesha",summary)
+	fmt.Printf("execute cache of basesha")
+}
+
+func (c *Cache) ReadLatestBaseShas()(storage.LatestBaseShaSummary) {
+	val, _ := c.latestBaseShaCache.Get("basesha")
+	basesha, _ := val.(storage.LatestBaseShaSummary)
+	return basesha
 }

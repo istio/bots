@@ -69,6 +69,15 @@ var _analysisHtml = []byte(`<p>
               {{ range .EnvCount }}
               <li>{{ .Env }} : {{ .Counts }}</li>
               {{ end }}
+              {{ range .SubLabel.LabelEnv}}
+              <li><span class="caret">{{ .Label }}</span>
+                <ul class="nested">
+                  {{ range .EnvCount }}
+                  <li>{{ .Env }} : {{ .Counts }}</li>
+                  {{ end }}                  
+                </ul>
+              </li>
+              {{ end }}
             </ul>
           {{ end }}
           </li>

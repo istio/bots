@@ -391,3 +391,7 @@ type PostSubmitTestResultDenormalized struct {
 	Label           string
 	Scenario        []string
 }
+
+type LatestBaseShaSummary struct {
+	LatestBaseSha []LatestBaseSha
+}

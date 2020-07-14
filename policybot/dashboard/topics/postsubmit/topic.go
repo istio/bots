@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"strconv"
 	"bufio"
+	"time"
 	"encoding/csv"
 	"istio.io/bots/policybot/dashboard/types"
 
@@ -32,6 +33,7 @@ import (
 	"istio.io/bots/policybot/pkg/storage/cache"
 
 	"github.com/gorilla/mux"
+	"gopkg.in/robfig/cron.v2"
 )
 
 // PostSubmit lets users visualize critical information about the project's outstanding pull requests.
@@ -51,8 +53,7 @@ type LatestBaseShaSummary struct {
 
 type LatestBaseSha struct {
 	BaseSha        string
-	//LastFinishTime time.Time
-	LastFinishTime string
+	LastFinishTime time.Time
 	NumberofTest   int64
 }
 
@@ -87,6 +88,12 @@ func New(store storage.Store, cache *cache.Cache, router *mux.Router) *PostSubmi
 		analysis:      template.Must(template.New("analysis").Parse(string(MustAsset("analysis.html")))),
 	}
 	router.HandleFunc("/somewhere", ps.chosenBaseSha)
+	cron := cron.New()
+	cron.AddFunc("@every 0h30m0s", ps.cache.WriteLatestBaseShas(req.Context()))
+	cron.Start()
+	time.Sleep(10 * time.Second)
+	cron.Stop()
+
 	return ps
 }
 
@@ -143,7 +150,7 @@ func ReadFromCSV(file string) (summary LatestBaseShaSummary, err error){
 		i, _ := strconv.ParseInt(line[2], 10, 64)
 		baseshaList= append(baseshaList, LatestBaseSha{
 			BaseSha: line[0],
-			LastFinishTime: line[1],
+			//LastFinishTime: line[1],
 			NumberofTest: i,
 		})
 	}
@@ -155,7 +162,8 @@ func (ps *PostSubmit) RenderLatestBaseSha(req *http.Request) (types.RenderInfo, 
 		if err != nil {
 		return types.RenderInfo{}, err
 	} */
-	baseShas, err := ReadFromCSV("basesha.csv")
+	//baseShas, err := ReadFromCSV("basesha.csv")
+	baseShas := ps.cache.
 	if err != nil {
 		return types.RenderInfo{}, err
 	}
@@ -202,14 +210,11 @@ func (ps *PostSubmit) getLabelEnvTable(context context.Context, baseSha string) 
 	}); err != nil {
 		return summary, err
 	}
-	return ps.getLabelTree(Labels,0), nil
+	return ps.getLabelTree(Labels), nil
 }
 
-func (ps *PostSubmit) getLabelTree(input map[string]map[string]int, depth int) (LabelEnvSummary){
+func (ps *PostSubmit) getLabelTree(input map[string]map[string]int) (LabelEnvSummary){
 	if len(input)<1{
-		return LabelEnvSummary{}
-	}
-	if depth > 2 {
 		return LabelEnvSummary{}
 	}
 	var toplayer = make(map[string]map[string]int)
@@ -236,7 +241,7 @@ func (ps *PostSubmit) getLabelTree(input map[string]map[string]int, depth int) (
 	}
 
 	for topLayerName, nextLayerMap := range nextLayer{
-		nextLayerSummary[topLayerName] = ps.getLabelTree(nextLayerMap, depth+1)
+		nextLayerSummary[topLayerName] = ps.getLabelTree(nextLayerMap)
 	}
 	return ps.convertMapToSummary(toplayer, nextLayerSummary)
 }
