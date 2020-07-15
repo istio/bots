@@ -3,43 +3,27 @@
 </p>
 
 <ul id="myUL">
-  {{ range .LabelEnv }}
-  <li><span class="caret">{{ .Label }}</span>
-    <ul class="nested">
-      {{ range .EnvCount }}
-      <li>{{ .Env }} : {{ .Counts }}</li>
+
+
+<table>
+  <thead>
+  <tr>
+      <th>LabelName</th>
+      {{ range .AllEnvNanme }}
+      <th>{{ . }}</th>
       {{ end }}
-      {{ range .SubLabel.LabelEnv}}
-      <li><span class="caret">{{ .Label }}</span>
-        <ul class="nested">
-          {{ range .EnvCount }}
-          <li>{{ .Env }} : {{ .Counts }}</li>
-          {{ end }}
-          {{ range .SubLabel.LabelEnv}}
-          <li><span class="caret">{{ .Label }}</span>
-            <ul class="nested">
-              {{ range .EnvCount }}
-              <li>{{ .Env }} : {{ .Counts }}</li>
-              {{ end }}
-              {{ range .SubLabel.LabelEnv}}
-              <li><span class="caret">{{ .Label }}</span>
-                <ul class="nested">
-                  {{ range .EnvCount }}
-                  <li>{{ .Env }} : {{ .Counts }}</li>
-                  {{ end }}                  
-                </ul>
-              </li>
-              {{ end }}
-            </ul>
-          {{ end }}
-          </li>
-        </ul>
-      </li>
-      {{ end }}
-    </ul>
-  </li>
-  {{ end }}
-</ul>
+  </tr>
+  </thead>
+  <tbody>
+    {{ range .LabelEnv }}
+      <tr>
+        <td>{{ .Label }}</td>
+        {{ range .EnvCount }}
+        <td>{{ . }}</td>
+        {{ end }}
+    {{ end }}
+  </tbody>
+</table>
 
 <script>
   var toggler = document.getElementsByClassName("caret");
