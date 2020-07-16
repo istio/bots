@@ -46,12 +46,14 @@ func (fi bindataFileInfo) Sys() interface{} {
 	return nil
 }
 
-var _analysisHtml = []byte(`<p>
+var _analysisHtml = []byte(`<!DOCTYPE html>
+<head>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+</head>
+
+<p>
     This will display information about GitHub post submit text results
 </p>
-
-<ul id="myUL">
-
 
 <table>
   <thead>
@@ -64,66 +66,110 @@ var _analysisHtml = []byte(`<p>
   </thead>
   <tbody>
     {{ range .LabelEnv }}
-      <tr>
-        <td>{{ .Label }}</td>
-        {{ range .EnvCount }}
-        <td>{{ . }}</td>
-        {{ end }}
+      <table>
+        <thead>
+          <tr>
+            <td>{{ .Label }}</td>
+            {{ range .EnvCount }}
+            <td>{{ . }}</td>
+            {{ end }}
+          </tr>
+        </thead>
+
+        <tbody class="collapsed">
+          <td class="subtd">
+          {{ range .SubLabel.LabelEnv}}    
+            <table class="subtable">
+              <tr>
+                <thead>
+                  <td>&nbsp {{ .Label }}</td>
+                  {{ range .EnvCount }}
+                  <td>{{ . }}</td>
+                  {{ end }}
+                </thead>
+              </tr>
+              <tbody class="collapsed"> 
+                <td class="subtd">
+                {{ range .SubLabel.LabelEnv}}
+                  <table class="subtable">
+                    <tr>
+                      <thead>
+                        <td>&nbsp &nbsp {{ .Label }}</td>
+                        {{ range .EnvCount }}
+                        <td>{{ . }}</td>
+                        {{ end }}
+                      </thead>
+                    </tr>
+                    <tbody class="collapsed">
+                      <td class="subtd">
+                        {{ range .SubLabel.LabelEnv}}
+                          <table class="subtable">
+                            <tr>
+                              <thead>
+                                <td>&nbsp &nbsp &nbsp {{ .Label }}</td>
+                                {{ range .EnvCount }}
+                                <td>{{ . }}</td>
+                                {{ end }}
+                              </thead>
+                            </tr>
+                            <tbody class="collapsed">
+                              {{ range .SubLabel.LabelEnv}}
+                                <tr>
+                                  <td>&nbsp &nbsp &nbsp &nbsp {{ .Label }}</td>
+                                  {{ range .EnvCount }}
+                                  <td>{{ . }}</td>
+                                  {{ end }}
+                                </tr>
+                              {{ end }}
+                            </tbody>
+                          </table>
+                        {{ end }}
+                      </td>       
+                    </tbody>
+                  </table>
+                {{ end }}
+                </td>                
+              </tbody>
+            </table>  
+          {{ end }}
+          </td>
+        </tbody>
+      </table>
     {{ end }}
   </tbody>
 </table>
 
 <script>
-  var toggler = document.getElementsByClassName("caret");
-  var i;
-  
-  for (i = 0; i < toggler.length; i++) {
-    toggler[i].addEventListener("click", function() {
-      this.parentElement.querySelector(".nested").classList.toggle("active");
-      this.classList.toggle("caret-down");
-    });
-  }
+  $('thead').on('click', function(){
+    $(this).next('tbody').toggleClass('collapsed');
+  });
 </script>
 
 <style>
-  ul, #myUL {
-    list-style-type: none;
-  }
-  
-  #myUL {
-    margin: 0;
-    padding: 0;
-  }
-  
-  .caret {
-    cursor: pointer;
-    -webkit-user-select: none; /* Safari 3.1+ */
-    -moz-user-select: none; /* Firefox 2+ */
-    -ms-user-select: none; /* IE 10+ */
-    user-select: none;
-  }
-  
-  .caret::before {
-    content: "\25B6";
-    color: black;
-    display: inline-block;
-    margin-right: 6px;
-  }
-  
-  .caret-down::before {
-    -ms-transform: rotate(90deg); 
-    -webkit-transform: rotate(90deg); 
-    transform: rotate(90deg);  
-  }
-  
-  .nested {
+  .collapsed {
     display: none;
   }
-  
-  .active {
-    display: block;
+  table {
+    table-layout: fixed;
+    width: 600px;
+    padding: 0;
+    border-collapse: collapse;
+    margin-left: 0;
   }
-  </style>`)
+
+  table > tr > td {
+      width: 150px;
+  }
+  tr {
+    cursor: pointer;
+  }
+  td, th {
+    padding: 0px;
+  }
+  .subtd{
+    border: 0px;
+  }
+</style>`)
 
 func analysisHtmlBytes() ([]byte, error) {
 	return _analysisHtml, nil
