@@ -58,7 +58,7 @@ type BaseShas struct {
 }
 
 type LabelEnvSummary struct {
-	LabelEnv []LabelEnv
+	LabelEnv    []LabelEnv
 	AllEnvNanme []string
 }
 
@@ -163,17 +163,17 @@ func (ps *PostSubmit) getLabelEnvTable(context context.Context, baseSha string) 
 		return summary, err
 	}
 
-	summary =  ps.getLabelTree(Labels, allEnvNames)
+	summary = ps.getLabelTree(Labels, allEnvNames)
 
 	var EnvNameList []string
-	for key, _ := range allEnvNames {
+	for key := range allEnvNames {
 		EnvNameList = append(EnvNameList, key)
 	}
 	summary.AllEnvNanme = EnvNameList
 	return summary, nil
 }
 
-func (ps *PostSubmit) getLabelTree(input map[string]map[string]int, EnvNames map[string]int) LabelEnvSummary {
+func (ps *PostSubmit) getLabelTree(input map[string]map[string]int, envNames map[string]int) LabelEnvSummary {
 	if len(input) < 1 {
 		return LabelEnvSummary{}
 	}
@@ -201,18 +201,19 @@ func (ps *PostSubmit) getLabelTree(input map[string]map[string]int, EnvNames map
 	}
 
 	for topLayerName, nextLayerMap := range nextLayer {
-		nextLayerSummary[topLayerName] = ps.getLabelTree(nextLayerMap, EnvNames)
+		nextLayerSummary[topLayerName] = ps.getLabelTree(nextLayerMap, envNames)
 	}
-	return ps.convertMapToSummary(toplayer, nextLayerSummary, EnvNames)
+	return ps.convertMapToSummary(toplayer, nextLayerSummary, envNames)
 }
 
-func (ps *PostSubmit) convertMapToSummary(input map[string]map[string]int, nextLayer map[string]LabelEnvSummary, EnvNames map[string]int) (summary LabelEnvSummary) {
+func (ps *PostSubmit) convertMapToSummary(input map[string]map[string]int, nextLayer map[string]LabelEnvSummary,
+	envNames map[string]int) (summary LabelEnvSummary) {
 	var labelEnvList []LabelEnv
 	for label, envMap := range input {
 		var labelEnv LabelEnv
-		var envCount = make([]int, len(EnvNames))
+		var envCount = make([]int, len(envNames))
 		for env, count := range envMap {
-			envCount[EnvNames[env]] = count
+			envCount[envNames[env]] = count
 		}
 		labelEnv.Label = label
 		labelEnv.EnvCount = envCount
