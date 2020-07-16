@@ -40,6 +40,7 @@ import (
 	"istio.io/bots/policybot/dashboard/topics/members"
 	"istio.io/bots/policybot/dashboard/topics/perf"
 	"istio.io/bots/policybot/dashboard/topics/pullrequests"
+	"istio.io/bots/policybot/dashboard/topics/website"
 	"istio.io/bots/policybot/dashboard/types"
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/storage"
@@ -125,6 +126,7 @@ func New(router *mux.Router, store storage.Store, cache *cache.Cache, reg *confi
 	perf := perf.New(store, cache)
 	commitHub := commithub.New(store, cache)
 	flakes := flakes.New(store, cache)
+	website := website.New(store, cache)
 	coverage := coverage.New(store, cache)
 	features := features.New(store, cache)
 	workingGroups := workinggroups.New(store, cache)
@@ -193,6 +195,10 @@ func New(router *mux.Router, store storage.Store, cache *cache.Cache, reg *confi
 
 	d.addEntry("Test Flakes", "Discover the wonderful world of test flakes.").
 		addPage("/flakes", flakes.Render).
+		endEntry()
+	
+	d.addEntry("Website", "Understand istio.io site traffic and content quality.").
+		addPage("/website", website.Render).
 		endEntry()
 
 	d.addEntry("Features and Test Plans", "Get information on product features and associated test plans.").
