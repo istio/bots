@@ -395,3 +395,9 @@ type PostSubmitTestResultDenormalized struct {
 type LatestBaseShaSummary struct {
 	LatestBaseSha []LatestBaseSha
 }
+
+type TestNameByEnvLabel struct {
+	TestOutcomeName string
+	RunNumber		string
+	TestName		string
+}

@@ -902,3 +902,26 @@ func (s store) QueryPostSubmitTestResult(context context.Context, baseSha string
 	return err
 
 }
+
+func (s store) QueryTestNameByEnvLabel(context context.Context, baseSha string, env string, 
+	label string) (testNameByEnvLabels []*storage.TestNameByEnvLabel, err error) {
+	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
+		`SELECT TestOutcomes.TestOutcomeName, RunNumber, TestName
+		FROM PostSubmitTestResults 
+		INNER JOIN SuiteOutcomes USING (OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done)
+		INNER JOIN TestOutcomes USING (OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done, SuiteName)
+		INNER JOIN FeatureLabels USING (OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done, SuiteName,    TestOutcomeName)
+		WHERE BaseSha='%s' and RepoName='istio' and Environment='%s'
+        and Label LIKE '%s%%';`, baseSha, env, label)})
+
+	err = iter.Do(func(row *spanner.Row) error {
+		testNameByEnvLabel := &storage.TestNameByEnvLabel{}
+		if err := rowToStruct(row, testNameByEnvLabel); err != nil {
+			return err
+		}
+		testNameByEnvLabels = append(testNameByEnvLabels, testNameByEnvLabel)
+		return nil
+	})
+	return
+
+}
