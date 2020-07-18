@@ -7,7 +7,7 @@
     This will display information about GitHub post submit text results
 </p>
 
-<table>
+<table id="main">
   <thead>
   <tr>
       <th>LabelName</th>
@@ -21,9 +21,9 @@
       <table>
         <thead>
           <tr>
-            <td>{{ .Label }}</td>
+            <td class="pivot">{{ .Label }}</td>
             {{ range .EnvCount }}
-            <td>{{ . }}</td>
+            <td>{{ . }} <button class="1" type="button">View All Test</button></td>
             {{ end }}
           </tr>
         </thead>
@@ -34,9 +34,9 @@
             <table class="subtable">
               <tr>
                 <thead>
-                  <td>&nbsp {{ .Label }}</td>
+                  <td class="pivot">&nbsp {{ .Label }}</td>
                   {{ range .EnvCount }}
-                  <td>{{ . }}</td>
+                  <td>{{ . }} <button class="2" type="button">View All Test</button></td>
                   {{ end }}
                 </thead>
               </tr>
@@ -46,9 +46,9 @@
                   <table class="subtable">
                     <tr>
                       <thead>
-                        <td>&nbsp &nbsp {{ .Label }}</td>
+                        <td class="pivot">&nbsp &nbsp {{ .Label }}</td>
                         {{ range .EnvCount }}
-                        <td>{{ . }}</td>
+                        <td>{{ . }} <button class="3" type="button">View All Test</button></td>
                         {{ end }}
                       </thead>
                     </tr>
@@ -58,18 +58,18 @@
                           <table class="subtable">
                             <tr>
                               <thead>
-                                <td>&nbsp &nbsp &nbsp {{ .Label }}</td>
+                                <td class="pivot">&nbsp &nbsp &nbsp {{ .Label }}</td>
                                 {{ range .EnvCount }}
-                                <td>{{ . }}</td>
+                                <td>{{ . }} <button class="4" type="button">View All Test</button></td>
                                 {{ end }}
                               </thead>
                             </tr>
                             <tbody class="collapsed">
                               {{ range .SubLabel.LabelEnv}}
                                 <tr>
-                                  <td>&nbsp &nbsp &nbsp &nbsp {{ .Label }}</td>
+                                  <td class="pivot">&nbsp &nbsp &nbsp &nbsp {{ .Label }}</td>
                                   {{ range .EnvCount }}
-                                  <td>{{ . }}</td>
+                                  <td>{{ . }} <button class="5" type="button">View All Test</button></td>
                                   {{ end }}
                                 </tr>
                               {{ end }}
@@ -92,8 +92,43 @@
 </table>
 
 <script>
-  $('thead').on('click', function(){
-    $(this).next('tbody').toggleClass('collapsed');
+  $('.pivot').on('click', function(){
+      $(this).closest("thead").next('tbody').toggleClass('collapsed');
+  });
+  $(".1").click(function() {
+    var label= $(this).closest("tr").find(".pivot").text();
+    var env= $('#main thead th').eq($(this).closest("td").index()).text();
+    alert(label);
+    alert(env);
+  });
+  $(".2").click(function() {
+    var label= $(this).closest("tbody").prev("thead").find("tr").find(".pivot").text()+
+    "."+$(this).closest("tr").find(".pivot").text().replace(' ', '');
+    var env= $('#main thead th').eq($(this).closest("td").index()).text();
+    alert(label);
+    alert(env);
+  });
+  $(".3").click(function() {
+    var $label_pos = $(this).closest("tr").find(".pivot")
+    var label= $label_pos.text().replace(' ', '');
+    for (i = 0; i < 2; i++) {
+      $label_pos = $label_pos.closest("tbody").prev("thead").find("tr").find(".pivot")
+      label = $label_pos.text().replace(' ', '') + "." + label;
+    }
+    var env= $('#main thead th').eq($(this).closest("td").index()).text();
+    alert(label);
+    alert(env);
+  });
+  $(".4").click(function() {
+    var $label_pos = $(this).closest("tr").find(".pivot")
+    var label= $label_pos.text().replace(' ', '');
+    for (i = 0; i < 3; i++) {
+      $label_pos = $label_pos.closest("tbody").prev("thead").find("tr").find(".pivot")
+      label = $label_pos.text().replace(' ', '') + "." + label;
+    }
+    var env= $('#main thead th').eq($(this).closest("td").index()).text();
+    alert(label);
+    alert
   });
 </script>
 

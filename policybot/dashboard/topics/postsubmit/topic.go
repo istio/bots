@@ -65,6 +65,7 @@ type LabelEnvSummary struct {
 type LabelEnv struct {
 	Label    string
 	EnvCount []int
+	TestName []string
 	SubLabel LabelEnvSummary
 }
 
