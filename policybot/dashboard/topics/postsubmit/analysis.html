@@ -32,38 +32,39 @@
           <td class="subtd">
           {{ range .SubLabel.LabelEnv}}    
             <table class="subtable">
-              <tr>
-                <thead>
+              
+              <thead>
+                <tr>
                   <td class="pivot">&nbsp {{ .Label }}</td>
                   {{ range .EnvCount }}
                   <td>{{ . }} <button class="2" type="button">View All Test</button></td>
                   {{ end }}
-                </thead>
-              </tr>
+                </tr>
+              </thead>
               <tbody class="collapsed"> 
                 <td class="subtd">
                 {{ range .SubLabel.LabelEnv}}
                   <table class="subtable">
-                    <tr>
-                      <thead>
+                    <thead>
+                      <tr>
                         <td class="pivot">&nbsp &nbsp {{ .Label }}</td>
                         {{ range .EnvCount }}
                         <td>{{ . }} <button class="3" type="button">View All Test</button></td>
                         {{ end }}
-                      </thead>
-                    </tr>
+                      </tr>
+                    </thead>                   
                     <tbody class="collapsed">
                       <td class="subtd">
                         {{ range .SubLabel.LabelEnv}}
                           <table class="subtable">
-                            <tr>
-                              <thead>
+                            <thead>
+                              <tr>
                                 <td class="pivot">&nbsp &nbsp &nbsp {{ .Label }}</td>
                                 {{ range .EnvCount }}
                                 <td>{{ . }} <button class="4" type="button">View All Test</button></td>
                                 {{ end }}
-                              </thead>
-                            </tr>
+                              </tr>
+                            </thead>
                             <tbody class="collapsed">
                               {{ range .SubLabel.LabelEnv}}
                                 <tr>
@@ -121,14 +122,25 @@
   });
   $(".4").click(function() {
     var $label_pos = $(this).closest("tr").find(".pivot")
-    var label= $label_pos.text().replace(' ', '');
+    var label= $label_pos.text().replace("\xA0", "");
     for (i = 0; i < 3; i++) {
       $label_pos = $label_pos.closest("tbody").prev("thead").find("tr").find(".pivot")
-      label = $label_pos.text().replace(' ', '') + "." + label;
+      label = $label_pos.text().replace("\xA0", "") + "." + label;
     }
     var env= $('#main thead th').eq($(this).closest("td").index()).text();
     alert(label);
-    alert
+    alert(env);
+  });
+  $(".5").click(function() {
+    var $label_pos = $(this).closest("tr").find(".pivot")
+    var label= $label_pos.text().replace("\xA0", "");
+    for (i = 0; i < 4; i++) {
+      $label_pos = $label_pos.closest("tbody").prev("thead").find("tr").find(".pivot")
+      label = $label_pos.text().replace("\xA0", "") + "." + label;
+    }
+    var env= $('#main thead th').eq($(this).closest("td").index()).text();
+    alert(label);
+    alert(env);
   });
 </script>
 
