@@ -3,7 +3,7 @@
 // page.html
 // DO NOT EDIT!
 
-package website
+package webanalytics
 
 import (
 	"fmt"

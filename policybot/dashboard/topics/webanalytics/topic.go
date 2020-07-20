@@ -14,7 +14,7 @@
 
 //go:generate ../../../scripts/gen_topic.sh
 
-package website
+package webanalytics
 
 import (
 	"net/http"
@@ -25,16 +25,16 @@ import (
 	"istio.io/bots/policybot/pkg/storage/cache"
 )
 
-// Website lets users understand istio.io site traffic and content quality.
-type Website struct {
+// WebAnalytics lets users understand istio.io site traffic and content quality.
+type WebAnalytics struct {
 	store storage.Store
 	cache *cache.Cache
 	page  string
 }
 
-// New creates a new Website instance.
-func New(store storage.Store, cache *cache.Cache) *Website {
-	return &Website{
+// New creates a new WebAnalytics instance.
+func New(store storage.Store, cache *cache.Cache) *WebAnalytics {
+	return &WebAnalytics{
 		store: store,
 		cache: cache,
 		page:  string(MustAsset("page.html")),
@@ -42,7 +42,7 @@ func New(store storage.Store, cache *cache.Cache) *Website {
 }
 
 // Renders the HTML for this topic.
-func (pr *Website) Render(req *http.Request) (types.RenderInfo, error) {
+func (pr *WebAnalytics) Render(req *http.Request) (types.RenderInfo, error) {
 	return types.RenderInfo{
 		Content: pr.page,
 	}, nil
