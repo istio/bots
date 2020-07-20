@@ -51,7 +51,7 @@ var _pageHtml = []byte(`<p>
 </p>
 
 <p>
-    <iframe width="1200" height="1000" src="https://datastudio.google.com/embed/reporting/42e6d76e-8e48-4e40-b987-e16ae3985cb4/page/qlD" frameborder="0" style="border:0" allowfullscreen></iframe>
+    <iframe width="1000" height="850" src="https://datastudio.google.com/embed/reporting/42e6d76e-8e48-4e40-b987-e16ae3985cb4/page/qlD" frameborder="0" style="border:0" allowfullscreen></iframe>
 </p>
 
 Notes:
