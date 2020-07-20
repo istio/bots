@@ -17,7 +17,6 @@ package cache
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"time"
 
@@ -41,7 +40,6 @@ type Cache struct {
 	pipelineCache                 cache.ExpiringCache
 	maintainerCache               cache.ExpiringCache
 	memberCache                   cache.ExpiringCache
-	latestBaseShaCache            cache.ExpiringCache
 	repoCommentCache              cache.ExpiringCache
 	testResultCache               cache.ExpiringCache
 }
@@ -69,7 +67,6 @@ func New(store storage.Store, entryTTL time.Duration) *Cache {
 		pipelineCache:                 cache.NewTTL(entryTTL, evictionInterval),
 		maintainerCache:               cache.NewTTL(entryTTL, evictionInterval),
 		memberCache:                   cache.NewTTL(entryTTL, evictionInterval),
-		latestBaseShaCache:            cache.NewTTL(entryTTL, evictionInterval),
 		repoCommentCache:              cache.NewTTL(entryTTL, evictionInterval),
 		testResultCache:               cache.NewTTL(entryTTL, evictionInterval),
 	}
@@ -395,33 +392,4 @@ func (c *Cache) ReadMember(context context.Context, orgLogin string, userLogin s
 	}
 
 	return result, err
-}
-
-func (c *Cache) WriteLatestBaseShas() {
-	var summary storage.LatestBaseShaSummary
-	var summaryList []storage.LatestBaseSha
-	if err := c.store.QueryLatestBaseSha(context.Background(), func(latestBaseSha *storage.LatestBaseSha) error {
-		summaryList = append(summaryList, storage.LatestBaseSha{
-			BaseSha:        latestBaseSha.BaseSha,
-			LastFinishTime: latestBaseSha.LastFinishTime,
-			NumberofTest:   latestBaseSha.NumberofTest,
-		})
-		return nil
-	}); err != nil {
-		return
-	}
-	summary.LatestBaseSha = summaryList
-	c.latestBaseShaCache.Set("basesha", summary)
-}
-
-func (c *Cache) ReadLatestBaseShas() (*storage.LatestBaseShaSummary, error) {
-	val, ok := c.latestBaseShaCache.Get("basesha")
-	if !ok {
-		return nil, fmt.Errorf("can't find latest baseSha in cache")
-	}
-	basesha, ok := val.(storage.LatestBaseShaSummary)
-	if !ok {
-		return nil, fmt.Errorf("baseSha cache type error")
-	}
-	return &basesha, nil
 }

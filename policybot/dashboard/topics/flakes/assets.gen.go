@@ -66,7 +66,7 @@ var _pageHtml = []byte(`<aside class="callout warning">
 </aside>
 
 <p>
-    <iframe height="750" width="1000" src="https://datastudio.google.com/embed/reporting/80ea1cb5-c64d-4ba1-a727-5e53e1c2e957/page/OQoAB" frameborder="0" style="border:0" allowfullscreen=""></iframe>
+This will display information about test flakes.
 </p>
 `)
 
