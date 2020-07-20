@@ -196,7 +196,7 @@ func New(router *mux.Router, store storage.Store, cache *cache.Cache, reg *confi
 	d.addEntry("Test Flakes", "Discover the wonderful world of test flakes.").
 		addPage("/flakes", flakes.Render).
 		endEntry()
-	
+
 	d.addEntry("Website", "Understand istio.io site traffic and content quality.").
 		addPage("/website", website.Render).
 		endEntry()
