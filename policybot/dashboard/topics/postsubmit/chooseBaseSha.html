@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<head>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chosen/1.8.7/chosen.jquery.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chosen/1.8.7/chosen.min.css">
+</head>
+
+<body>
+    Select BaseSha : <br/>
+    <form id="myForm" name="myForm">
+    <select name="basesha" class="chosen">
+        {{ range .BaseSha }}
+        <option>{{ . }}</option>
+        {{ end }}
+    </select>
+    <input name="submit" type="submit" value="submit">
+    </form>
+</body>
+
+<script type="text/javascript">
+    $(document).ready(function() {
+        $("#myForm").on("submit", function(e) {
+            e.preventDefault();
+            $.ajax({
+                url: "/savebasesha",
+                type: 'POST',
+                data: $(this).serialize(),
+            });
+        window.location.assign("/postsubmit?option=analysis");
+        });
+    });
+    $(".chosen").chosen();
+</script>
+
+</html>

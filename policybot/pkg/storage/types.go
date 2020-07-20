@@ -356,3 +356,42 @@ type UserAffiliation struct {
 	StartTime    time.Time
 	EndTime      time.Time
 }
+
+type AllBaseSha struct {
+	BaseSha string
+}
+
+type LatestBaseSha struct {
+	BaseSha        string
+	LastFinishTime time.Time
+	NumberofTest   int64
+}
+
+type PostSubmitTestResultDenormalized struct {
+	OrgLogin        string
+	RepoName        string
+	TestName        string
+	BaseSha         string
+	RunNumber       int64
+	Done            bool
+	CloneFailed     bool
+	FinishTime      time.Time
+	Result          string
+	RunPath         string
+	Sha             []byte
+	StartTime       time.Time
+	TestPassed      bool
+	HasArtifacts    bool
+	SuiteName       string
+	Environment     string
+	Multicluster    bool
+	TestOutcomeName string
+	Type            string
+	Outcome         string
+	Label           string
+	Scenario        []string
+}
+
+type LatestBaseShaSummary struct {
+	LatestBaseSha []LatestBaseSha
+}
