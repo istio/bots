@@ -4,7 +4,7 @@
 </head>
 
 <p>
-    This will display information about GitHub post submit text results
+    This will display information about Environment and Label for the BaseSha you chose
 </p>
 
 <table id="main">
@@ -23,70 +23,11 @@
           <tr>
             <td class="pivot">{{ .Label }}</td>
             {{ range .EnvCount }}
-            <td>{{ . }} <button class="1" type="button">View All Test</button></td>
+            <td>{{ . }} <button class="0" type="button">View All Test</button></td>
             {{ end }}
           </tr>
         </thead>
-
-        <tbody class="collapsed">
-          <td class="subtd">
-          {{ range .SubLabel.LabelEnv}}    
-            <table class="subtable">
-              
-              <thead>
-                <tr>
-                  <td class="pivot">&nbsp;{{ .Label }}</td>
-                  {{ range .EnvCount }}
-                  <td>{{ . }} <button class="2" type="button">View All Test</button></td>
-                  {{ end }}
-                </tr>
-              </thead>
-              <tbody class="collapsed"> 
-                <td class="subtd">
-                {{ range .SubLabel.LabelEnv}}
-                  <table class="subtable">
-                    <thead>
-                      <tr>
-                        <td class="pivot">&nbsp;&nbsp;{{ .Label }}</td>
-                        {{ range .EnvCount }}
-                        <td>{{ . }} <button class="3" type="button">View All Test</button></td>
-                        {{ end }}
-                      </tr>
-                    </thead>                   
-                    <tbody class="collapsed">
-                      <td class="subtd">
-                        {{ range .SubLabel.LabelEnv}}
-                          <table class="subtable">
-                            <thead>
-                              <tr>
-                                <td class="pivot">&nbsp;&nbsp;&nbsp;{{ .Label }}</td>
-                                {{ range .EnvCount }}
-                                <td>{{ . }} <button class="4" type="button">View All Test</button></td>
-                                {{ end }}
-                              </tr>
-                            </thead>
-                            <tbody class="collapsed">
-                              {{ range .SubLabel.LabelEnv}}
-                                <tr>
-                                  <td class="pivot">&nbsp;&nbsp;&nbsp;&nbsp;{{ .Label }}</td>
-                                  {{ range .EnvCount }}
-                                  <td>{{ . }} <button class="5" type="button">View All Test</button></td>
-                                  {{ end }}
-                                </tr>
-                              {{ end }}
-                            </tbody>
-                          </table>
-                        {{ end }}
-                      </td>       
-                    </tbody>
-                  </table>
-                {{ end }}
-                </td>                
-              </tbody>
-            </table>  
-          {{ end }}
-          </td>
-        </tbody>
+        {{template "innerlayer" .SubLabel}}      
       </table>
     {{ end }}
   </tbody>
@@ -108,48 +49,39 @@
     {{ end }}
   </tbody>
 </table>
+
+{{ define "innerlayer" }}
+<tbody class="collapsed">
+  <td class="subtd">
+    {{ range .LabelEnv}}
+    {{$depth := .Depth}}
+      <table class="subtable">
+        <thead>
+          <tr>
+            <td class="pivot">
+              {{range slice $depth}}&nbsp;{{end}}{{ .Label }}
+            </td>
+            {{ range .EnvCount }}
+            <td>{{ . }} <button class="{{$depth}}" type="button">View All Test</button></td>
+            {{ end }}
+          </tr>
+        </thead>
+        {{ if .SubLabel.LabelEnv }}
+          {{template "innerlayer" .SubLabel }}
+        {{ end }}
+      </table>
+    {{ end }}
+  </td>       
+</tbody>
+{{ end }}
+
 <script>
   $('.pivot').on('click', function(){
       $(this).closest("thead").next('tbody').toggleClass('collapsed');
   });
-  $(".1").click(function() {
-    var label= $(this).closest("tr").find(".pivot").text();
-    var env= $('#main thead th').eq($(this).closest("td").index()).text();
-    postEnvLabel(env,label);
-  });
-  $(".2").click(function() {
-    var label= $(this).closest("tbody").prev("thead").find("tr").find(".pivot").text()+
-    "."+$(this).closest("tr").find(".pivot").text().replace(/\xA0/g, "");
-    var env= $('#main thead th').eq($(this).closest("td").index()).text();
-    postEnvLabel(env,label)
-  });
-  $(".3").click(function() {
-    var $label_pos = $(this).closest("tr").find(".pivot")
-    var label= $label_pos.text().replace(/\xA0/g, "");
-    for (i = 0; i < 2; i++) {
-      $label_pos = $label_pos.closest("tbody").prev("thead").find("tr").find(".pivot")
-      label = $label_pos.text().replace(/\xA0/g, "") + "." + label;
-    }
-    var env= $('#main thead th').eq($(this).closest("td").index()).text();
-    postEnvLabel(env,label);
-  });
-  $(".4").click(function() {
-    var $label_pos = $(this).closest("tr").find(".pivot")
-    var label= $label_pos.text().replace(/\xA0/g, "");
-    for (i = 0; i < 3; i++) {
-      $label_pos = $label_pos.closest("tbody").prev("thead").find("tr").find(".pivot")
-      label = $label_pos.text().replace(/\xA0/g, "") + "." + label;
-    }
-    postEnvLabel(env,label);
-  });
-  $(".5").click(function() {
-    var $label_pos = $(this).closest("tr").find(".pivot")
-    var label= $label_pos.text().replace(/\xA0/g, "")
-    for (i = 0; i < 4; i++) {
-      $label_pos = $label_pos.closest("tbody").prev("thead").find("tr").find(".pivot")
-      label = $label_pos.text().replace(/\xA0/g, "") + "." + label;
-    }
-    var env= $('#main thead th').eq($(this).closest("td").index()).text();
+  $("button").click(function() {
+    var label = getLabel($(this),parseInt(this.className));
+    var env= getEnv($(this));
     postEnvLabel(env,label);
   });
   function postEnvLabel(env,label){
@@ -159,7 +91,19 @@
         data: {env:env, label:label},
     });
     window.location.assign("/postsubmit?option=analysis");
-  }
+  };
+  function getLabel($pos,num){
+    var $label_pos = $pos.closest("tr").find(".pivot")
+    var label= $label_pos.text().replace(/(\xA0|\r\n|\n|\r| )/gm,"")
+    for (i = 0; i < num; i++) {
+      $label_pos = $label_pos.closest("tbody").prev("thead").find("tr").find(".pivot")
+      label = $label_pos.text().replace(/(\xA0|\r\n|\n|\r)/gm,"") + "." + label;
+    }
+    return label;
+  };
+  function getEnv($pos){
+    return $('#main thead th').eq($pos.closest("td").index()).text();
+  };
 </script>
 
 <style>

@@ -91,7 +91,7 @@ type Store interface {
 	QueryPullRequestsByUser(context context.Context, orgLogin string, repoName string, userLogin string, cb func(*PullRequest) error) error
 	QueryLatestBaseSha(context context.Context, cb func(*LatestBaseSha) error) error
 	QueryAllBaseSha(context context.Context) ([]string, error)
-	QueryPostSubmitTestResult(context context.Context, baseSha string, cb func(*PostSubmitTestResultDenormalized) error) error
+	QueryPostSubmitTestEnvLabel(context context.Context, baseSha string, cb func(*PostSubmitTestEnvLabel) error) error
 	QueryTestNameByEnvLabel(context context.Context, baseSha string, env string, label string) ([]*TestNameByEnvLabel, error)
 
 	QueryTestFlakeIssues(context context.Context, orgLogin string, repoName string, inactiveDays, createdDays int) ([]*Issue, error)
