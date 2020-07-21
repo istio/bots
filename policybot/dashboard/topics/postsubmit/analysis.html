@@ -81,6 +81,7 @@
   });
   $("button").click(function() {
     var label = getLabel($(this),parseInt(this.className));
+    alert(label)
     var env= getEnv($(this));
     postEnvLabel(env,label);
   });
@@ -97,7 +98,7 @@
     var label= $label_pos.text().replace(/(\xA0|\r\n|\n|\r| )/gm,"")
     for (i = 0; i < num; i++) {
       $label_pos = $label_pos.closest("tbody").prev("thead").find("tr").find(".pivot")
-      label = $label_pos.text().replace(/(\xA0|\r\n|\n|\r)/gm,"") + "." + label;
+      label = $label_pos.text().replace(/(\xA0|\r\n|\n|\r| )/gm,"") + "." + label;
     }
     return label;
   };
