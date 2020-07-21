@@ -177,8 +177,8 @@ func New(router *mux.Router, store storage.Store, cache *cache.Cache, reg *confi
 		addPage("/issues", issues.RenderSummary).
 		endEntry()
 
-	d.addEntry("Post Submit Test", "Information on post submit test results.").
-		addEntry("LatestBaseSha", "Latest 100 BaseSha").
+	d.addEntry("Feature Coverage", "Information on which features have been covered.").
+		addEntry("Recent commits information", "Find basesha of recent 100 commits").
 		addPageWithQuery("/postsubmit", "option", "latestBaseSha", postSubmit.RenderLatestBaseSha).
 		endEntry().
 		addEntry("ChooseBaseSha", "choose base sha for analysis").

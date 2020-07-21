@@ -867,7 +867,7 @@ func (s store) QueryAllBaseSha(context context.Context) (baseShas []string, err 
 
 	iter := s.client.Single().Query(context, stmt)
 	err = iter.Do(func(row *spanner.Row) error {
-		baseSha := &storage.AllBaseSha{}
+		baseSha := &storage.BaseSha{}
 		if err := rowToStruct(row, baseSha); err != nil {
 			return err
 		}
@@ -877,28 +877,47 @@ func (s store) QueryAllBaseSha(context context.Context) (baseShas []string, err 
 	return
 }
 
-func (s store) QueryPostSubmitTestResult(context context.Context, baseSha string, cb func(*storage.PostSubmitTestResultDenormalized) error) error {
+func (s store) QueryPostSubmitTestEnvLabel(context context.Context, baseSha string, cb func(*storage.PostSubmitTestEnvLabel) error) error {
 	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
-		`SELECT t.OrgLogin, t.RepoName, t.TestName, t.BaseSha, t.RunNumber, t.Done,t.CloneFailed,t.FinishTime, 
-		t.Result, t.RunPath, t.Sha, t.StartTime, t.TestPassed, t.HasArtifacts,t.Signatures,
-		SuiteOutcomes.SuiteName,SuiteOutcomes.Environment, SuiteOutcomes.Multicluster,
-		TestOutcomes.TestOutcomeName, TestOutcomes.Type, TestOutcomes.Outcome,
-		FeatureLabels.Label,FeatureLabels.Scenario
-		FROM PostSubmitTestResults as t
+		`SELECT SuiteOutcomes.Environment, FeatureLabels.Label
+		FROM PostSubmitTestResults 
 		INNER JOIN SuiteOutcomes USING (OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done)
 		INNER JOIN TestOutcomes USING (OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done, SuiteName)
 		INNER JOIN FeatureLabels USING (OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done, SuiteName, TestOutcomeName)
 		WHERE BaseSha='%s' and RepoName='istio';`, baseSha)})
 
 	err := iter.Do(func(row *spanner.Row) error {
-		PostSubmitTestResult := &storage.PostSubmitTestResultDenormalized{}
-		if err := rowToStruct(row, PostSubmitTestResult); err != nil {
+		PostSubmitTestEnvLabel := &storage.PostSubmitTestEnvLabel{}
+		if err := rowToStruct(row, PostSubmitTestEnvLabel); err != nil {
 			return err
 		}
 
-		return cb(PostSubmitTestResult)
+		return cb(PostSubmitTestEnvLabel)
 	})
 
 	return err
+
+}
+
+func (s store) QueryTestNameByEnvLabel(context context.Context, baseSha string, env string,
+	label string) (testNameByEnvLabels []*storage.TestNameByEnvLabel, err error) {
+	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
+		`SELECT TestOutcomes.TestOutcomeName, RunNumber, TestName
+		FROM PostSubmitTestResults 
+		INNER JOIN SuiteOutcomes USING (OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done)
+		INNER JOIN TestOutcomes USING (OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done, SuiteName)
+		INNER JOIN FeatureLabels USING (OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done, SuiteName,    TestOutcomeName)
+		WHERE BaseSha='%s' and RepoName='istio' and Environment='%s'
+        and Label LIKE '%s%%';`, baseSha, env, label)})
+
+	err = iter.Do(func(row *spanner.Row) error {
+		testNameByEnvLabel := &storage.TestNameByEnvLabel{}
+		if err := rowToStruct(row, testNameByEnvLabel); err != nil {
+			return err
+		}
+		testNameByEnvLabels = append(testNameByEnvLabels, testNameByEnvLabel)
+		return nil
+	})
+	return
 
 }

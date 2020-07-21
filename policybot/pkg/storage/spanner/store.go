@@ -34,9 +34,7 @@ var scope = log.RegisterScope("spanner", "Spanner abstraction layer", 0)
 func NewStore(context context.Context, database string, gcpCreds []byte) (storage.Store, error) {
 	client, err := spanner.NewClient(context, database, option.WithCredentialsJSON(gcpCreds))
 	if err != nil {
-		return store{
-			client: nil,
-		}, fmt.Errorf("unable to create Spanner client: %v", err)
+		return nil, fmt.Errorf("unable to create Spanner client: %v", err)
 	}
 
 	return store{
