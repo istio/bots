@@ -81,7 +81,6 @@
   });
   $("button").click(function() {
     var label = getLabel($(this),parseInt(this.className));
-    alert(label)
     var env= getEnv($(this));
     postEnvLabel(env,label);
   });

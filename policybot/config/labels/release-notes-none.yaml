@@ -1,0 +1,4 @@
+name: 'release-notes-none'
+type: label
+color: dbc1bf
+description: Indicates a PR that does not require release notes.
