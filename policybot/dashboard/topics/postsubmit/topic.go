@@ -22,7 +22,6 @@ import (
 	"strings"
 	"text/template"
 	"time"
-
 	"istio.io/bots/policybot/dashboard/types"
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
@@ -41,6 +40,9 @@ type PostSubmit struct {
 	baseSha       *template.Template
 	analysis      *template.Template
 	choosesha     string
+	chooseEnv	  string
+	chooseLabel   string
+
 }
 
 type LatestBaseShaSummary struct {
@@ -60,6 +62,7 @@ type BaseShas struct {
 type LabelEnvSummary struct {
 	LabelEnv    []LabelEnv
 	AllEnvNanme []string
+	TestNameByEnvLabels []*storage.TestNameByEnvLabel
 }
 
 type LabelEnv struct {
@@ -80,6 +83,7 @@ func New(store storage.Store, cache *cache.Cache, router *mux.Router) *PostSubmi
 		analysis:      template.Must(template.New("analysis").Parse(string(MustAsset("analysis.html")))),
 	}
 	router.HandleFunc("/savebasesha", ps.chosenBaseSha)
+	router.HandleFunc("/selectEnvLabel", ps.selectEnvLabel)
 	go ps.cache.WriteLatestBaseShas()
 	cron := cron.New()
 	_, err := cron.AddFunc("@hourly", ps.cache.WriteLatestBaseShas)
@@ -99,12 +103,31 @@ func (ps *PostSubmit) chosenBaseSha(w http.ResponseWriter, r *http.Request) {
 	ps.choosesha = baseSha
 }
 
+func (ps *PostSubmit) selectEnvLabel(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		log.Errorf("reading selected Env and Label: %s", err)
+	}
+	env := r.FormValue("env")
+	label := r.FormValue("label")
+	ps.chooseEnv = env
+	ps.chooseLabel = label
+}
+
 func (ps *PostSubmit) RenderLabelEnv(req *http.Request) (types.RenderInfo, error) {
 	var summary LabelEnvSummary
 	summary, err := ps.getLabelEnvTable(req.Context(), ps.choosesha)
 	if err != nil {
 		return types.RenderInfo{}, err
 	}
+	if(ps.choosesha != ""){
+		testNameByEnvLabels, err := ps.store.QueryTestNameByEnvLabel(req.Context(), ps.choosesha, ps.chooseEnv, ps.chooseLabel)
+		if err != nil {
+			return types.RenderInfo{}, err
+		}
+		summary.TestNameByEnvLabels = testNameByEnvLabels
+	}
+
 	var sb strings.Builder
 	if err := ps.analysis.Execute(&sb, summary); err != nil {
 		return types.RenderInfo{}, err

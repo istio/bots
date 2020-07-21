@@ -83,7 +83,7 @@ var _analysisHtml = []byte(`<!DOCTYPE html>
               
               <thead>
                 <tr>
-                  <td class="pivot">&nbsp {{ .Label }}</td>
+                  <td class="pivot">&nbsp;{{ .Label }}</td>
                   {{ range .EnvCount }}
                   <td>{{ . }} <button class="2" type="button">View All Test</button></td>
                   {{ end }}
@@ -95,7 +95,7 @@ var _analysisHtml = []byte(`<!DOCTYPE html>
                   <table class="subtable">
                     <thead>
                       <tr>
-                        <td class="pivot">&nbsp &nbsp {{ .Label }}</td>
+                        <td class="pivot">&nbsp;&nbsp;{{ .Label }}</td>
                         {{ range .EnvCount }}
                         <td>{{ . }} <button class="3" type="button">View All Test</button></td>
                         {{ end }}
@@ -107,7 +107,7 @@ var _analysisHtml = []byte(`<!DOCTYPE html>
                           <table class="subtable">
                             <thead>
                               <tr>
-                                <td class="pivot">&nbsp &nbsp &nbsp {{ .Label }}</td>
+                                <td class="pivot">&nbsp;&nbsp;&nbsp;{{ .Label }}</td>
                                 {{ range .EnvCount }}
                                 <td>{{ . }} <button class="4" type="button">View All Test</button></td>
                                 {{ end }}
@@ -116,7 +116,7 @@ var _analysisHtml = []byte(`<!DOCTYPE html>
                             <tbody class="collapsed">
                               {{ range .SubLabel.LabelEnv}}
                                 <tr>
-                                  <td class="pivot">&nbsp &nbsp &nbsp &nbsp {{ .Label }}</td>
+                                  <td class="pivot">&nbsp;&nbsp;&nbsp;&nbsp;{{ .Label }}</td>
                                   {{ range .EnvCount }}
                                   <td>{{ . }} <button class="5" type="button">View All Test</button></td>
                                   {{ end }}
@@ -139,7 +139,23 @@ var _analysisHtml = []byte(`<!DOCTYPE html>
     {{ end }}
   </tbody>
 </table>
-
+<br>
+<p> View TestNames</p>
+<table>
+  <thead>
+    <tr>
+      <th>TestName</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{range $testname := .TestNameByEnvLabels}}
+      <tr>
+        <td>{{ $testname.TestOutcomeName }} 
+          <a href="https://prow.istio.io/view/gcs/istio-prow/logs/{{ $testname.TestName }}/{{ $testname.RunNumber }}">Prow Link</a></td>
+      </tr>
+    {{ end }}
+  </tbody>
+</table>
 <script>
   $('.pivot').on('click', function(){
       $(this).closest("thead").next('tbody').toggleClass('collapsed');
@@ -147,49 +163,51 @@ var _analysisHtml = []byte(`<!DOCTYPE html>
   $(".1").click(function() {
     var label= $(this).closest("tr").find(".pivot").text();
     var env= $('#main thead th').eq($(this).closest("td").index()).text();
-    alert(label);
-    alert(env);
+    postEnvLabel(env,label);
   });
   $(".2").click(function() {
     var label= $(this).closest("tbody").prev("thead").find("tr").find(".pivot").text()+
-    "."+$(this).closest("tr").find(".pivot").text().replace(' ', '');
+    "."+$(this).closest("tr").find(".pivot").text().replace(/\xA0/g, "");
     var env= $('#main thead th').eq($(this).closest("td").index()).text();
-    alert(label);
-    alert(env);
+    postEnvLabel(env,label)
   });
   $(".3").click(function() {
     var $label_pos = $(this).closest("tr").find(".pivot")
-    var label= $label_pos.text().replace(' ', '');
+    var label= $label_pos.text().replace(/\xA0/g, "");
     for (i = 0; i < 2; i++) {
       $label_pos = $label_pos.closest("tbody").prev("thead").find("tr").find(".pivot")
-      label = $label_pos.text().replace(' ', '') + "." + label;
+      label = $label_pos.text().replace(/\xA0/g, "") + "." + label;
     }
     var env= $('#main thead th').eq($(this).closest("td").index()).text();
-    alert(label);
-    alert(env);
+    postEnvLabel(env,label);
   });
   $(".4").click(function() {
     var $label_pos = $(this).closest("tr").find(".pivot")
-    var label= $label_pos.text().replace("\xA0", "");
+    var label= $label_pos.text().replace(/\xA0/g, "");
     for (i = 0; i < 3; i++) {
       $label_pos = $label_pos.closest("tbody").prev("thead").find("tr").find(".pivot")
-      label = $label_pos.text().replace("\xA0", "") + "." + label;
+      label = $label_pos.text().replace(/\xA0/g, "") + "." + label;
     }
-    var env= $('#main thead th').eq($(this).closest("td").index()).text();
-    alert(label);
-    alert(env);
+    postEnvLabel(env,label);
   });
   $(".5").click(function() {
     var $label_pos = $(this).closest("tr").find(".pivot")
-    var label= $label_pos.text().replace("\xA0", "");
+    var label= $label_pos.text().replace(/\xA0/g, "")
     for (i = 0; i < 4; i++) {
       $label_pos = $label_pos.closest("tbody").prev("thead").find("tr").find(".pivot")
-      label = $label_pos.text().replace("\xA0", "") + "." + label;
+      label = $label_pos.text().replace(/\xA0/g, "") + "." + label;
     }
     var env= $('#main thead th').eq($(this).closest("td").index()).text();
-    alert(label);
-    alert(env);
+    postEnvLabel(env,label);
   });
+  function postEnvLabel(env,label){
+    $.ajax({
+        url: "/selectEnvLabel",
+        type: 'POST',
+        data: {env:env, label:label},
+    });
+    window.location.assign("/postsubmit?option=analysis");
+  }
 </script>
 
 <style>
