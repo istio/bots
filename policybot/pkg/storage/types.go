@@ -398,6 +398,6 @@ type LatestBaseShaSummary struct {
 
 type TestNameByEnvLabel struct {
 	TestOutcomeName string
-	RunNumber		string
+	RunNumber		int64
 	TestName		string
 }
