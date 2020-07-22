@@ -46,26 +46,31 @@ type PostSubmit struct {
 
 }
 
+//List of recent 100 commits with info
 type LatestBaseShaSummary struct {
 	LatestBaseSha []LatestBaseSha
 }
 
+//recent commits with BaseSha, last test finish time and number of test has done 
 type LatestBaseSha struct {
 	BaseSha        string
 	LastFinishTime time.Time
 	NumberofTest   int64
 }
 
+//List of all BaseShas
 type BaseShas struct {
 	BaseSha []string
 }
 
+//Content for LabelEnv tsable and detailed tests
 type LabelEnvSummary struct {
 	LabelEnv            []LabelEnv
 	AllEnvNanme         []string
 	TestNameByEnvLabels []*storage.TestNameByEnvLabel
 }
 
+//Label, corresponding count for different environement, and it's sublabel table
 type LabelEnv struct {
 	Label    string
 	EnvCount []int
