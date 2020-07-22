@@ -1,0 +1,6 @@
+name: Release-notes-none
+type: autolabel
+matchbody:
+  - "\\[ ?x ?\\] ?Does not have any changes that may affect Istio users."
+labelstoapply:
+  - release-notes-none
