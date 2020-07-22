@@ -51,7 +51,7 @@ type LatestBaseShaSummary struct {
 	LatestBaseSha []LatestBaseSha
 }
 
-//recent commits with BaseSha, last test finish time and number of test has done 
+//recent commits with BaseSha, last test finish time and number of test has done
 type LatestBaseSha struct {
 	BaseSha        string
 	LastFinishTime time.Time
@@ -63,18 +63,22 @@ type BaseShas struct {
 	BaseSha []string
 }
 
-//Content for LabelEnv tsable and detailed tests
+//Content for LabelEnv table and detailed tests
 type LabelEnvSummary struct {
 	LabelEnv            []LabelEnv
 	AllEnvNanme         []string
 	TestNameByEnvLabels []*storage.TestNameByEnvLabel
 }
 
+type labelEnvSummaryGroup struct {
+	LabelEnv []LabelEnv
+	Depth    int
+}
+
 //Label, corresponding count for different environement, and it's sublabel table
 type LabelEnv struct {
 	Label    string
 	EnvCount []int
-	Depth    int
 	SubLabel LabelEnvSummary
 }
 
@@ -83,13 +87,18 @@ func New(store storage.Store, cache *cache.Cache, router *mux.Router) *PostSubmi
 	convertIntToMap := template.FuncMap{
 		"slice": func(i int) []int { return make([]int, i) },
 	}
+	wrap := template.FuncMap{
+		"wrap": func(summary LabelEnvSummary, depth int) labelEnvSummaryGroup {
+			return labelEnvSummaryGroup{LabelEnv: summary.LabelEnv, Depth: depth + 1}
+		},
+	}
 	ps := &PostSubmit{
 		store:         store,
 		cache:         cache,
 		router:        router,
 		latestbaseSha: template.Must(template.New("page").Parse(string(MustAsset("page.html")))),
 		baseSha:       template.Must(template.New("chooseBaseSha").Parse(string(MustAsset("chooseBaseSha.html")))),
-		analysis:      template.Must(template.New("analysis").Funcs(convertIntToMap).Parse(string(MustAsset("analysis.html")))),
+		analysis:      template.Must(template.New("analysis").Funcs(convertIntToMap).Funcs(wrap).Parse(string(MustAsset("analysis.html")))),
 	}
 	router.HandleFunc("/savebasesha", ps.chosenBaseSha)
 	router.HandleFunc("/selectEnvLabel", ps.selectEnvLabel)
@@ -196,7 +205,7 @@ func (ps *PostSubmit) getLabelEnvTable(context context.Context, baseSha string) 
 		return summary, err
 	}
 
-	summary = ps.getLabelTree(Labels, allEnvNames, 0)
+	summary = ps.getLabelTree(Labels, allEnvNames)
 
 	var EnvNameList []string
 	for key := range allEnvNames {
@@ -206,7 +215,7 @@ func (ps *PostSubmit) getLabelEnvTable(context context.Context, baseSha string) 
 	return summary, nil
 }
 
-func (ps *PostSubmit) getLabelTree(input map[string]map[string]int, envNames map[string]int, depth int) LabelEnvSummary {
+func (ps *PostSubmit) getLabelTree(input map[string]map[string]int, envNames map[string]int) LabelEnvSummary {
 	if len(input) < 1 {
 		return LabelEnvSummary{}
 	}
@@ -234,13 +243,13 @@ func (ps *PostSubmit) getLabelTree(input map[string]map[string]int, envNames map
 	}
 
 	for topLayerName, nextLayerMap := range nextLayer {
-		nextLayerSummary[topLayerName] = ps.getLabelTree(nextLayerMap, envNames, depth+1)
+		nextLayerSummary[topLayerName] = ps.getLabelTree(nextLayerMap, envNames)
 	}
-	return ps.convertMapToSummary(toplayer, nextLayerSummary, envNames, depth)
+	return ps.convertMapToSummary(toplayer, nextLayerSummary, envNames)
 }
 
 func (ps *PostSubmit) convertMapToSummary(input map[string]map[string]int, nextLayer map[string]LabelEnvSummary,
-	envNames map[string]int, depth int) (summary LabelEnvSummary) {
+	envNames map[string]int) (summary LabelEnvSummary) {
 	var labelEnvList []LabelEnv
 	for label, envMap := range input {
 		var labelEnv LabelEnv
@@ -251,7 +260,6 @@ func (ps *PostSubmit) convertMapToSummary(input map[string]map[string]int, nextL
 		labelEnv.Label = label
 		labelEnv.EnvCount = envCount
 		labelEnv.SubLabel = nextLayer[label]
-		labelEnv.Depth = depth
 		labelEnvList = append(labelEnvList, labelEnv)
 	}
 	summary.LabelEnv = labelEnvList

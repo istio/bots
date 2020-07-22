@@ -17,6 +17,7 @@
   </tr>
   </thead>
   <tbody>
+    {{ $depth := 0 }}
     {{ range .LabelEnv }}
       <table>
         <thead>
@@ -27,7 +28,7 @@
             {{ end }}
           </tr>
         </thead>
-        {{template "innerlayer" .SubLabel}}      
+        {{template "innerlayer" (wrap .SubLabel $depth)}}      
       </table>
     {{ end }}
   </tbody>
@@ -53,8 +54,8 @@
 {{ define "innerlayer" }}
 <tbody class="collapsed">
   <td class="subtd">
-    {{ range .LabelEnv}}
     {{$depth := .Depth}}
+    {{ range .LabelEnv}}
       <table class="subtable">
         <thead>
           <tr>
@@ -67,7 +68,7 @@
           </tr>
         </thead>
         {{ if .SubLabel.LabelEnv }}
-          {{template "innerlayer" .SubLabel }}
+          {{template "innerlayer" (wrap .SubLabel $depth)}}
         {{ end }}
       </table>
     {{ end }}

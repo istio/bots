@@ -65,6 +65,7 @@ var _analysisHtml = []byte(`<!DOCTYPE html>
   </tr>
   </thead>
   <tbody>
+    {{ $depth := 0 }}
     {{ range .LabelEnv }}
       <table>
         <thead>
@@ -75,7 +76,7 @@ var _analysisHtml = []byte(`<!DOCTYPE html>
             {{ end }}
           </tr>
         </thead>
-        {{template "innerlayer" .SubLabel}}      
+        {{template "innerlayer" (wrap .SubLabel $depth)}}      
       </table>
     {{ end }}
   </tbody>
@@ -101,8 +102,8 @@ var _analysisHtml = []byte(`<!DOCTYPE html>
 {{ define "innerlayer" }}
 <tbody class="collapsed">
   <td class="subtd">
-    {{ range .LabelEnv}}
     {{$depth := .Depth}}
+    {{ range .LabelEnv}}
       <table class="subtable">
         <thead>
           <tr>
@@ -115,7 +116,7 @@ var _analysisHtml = []byte(`<!DOCTYPE html>
           </tr>
         </thead>
         {{ if .SubLabel.LabelEnv }}
-          {{template "innerlayer" .SubLabel }}
+          {{template "innerlayer" (wrap .SubLabel $depth)}}
         {{ end }}
       </table>
     {{ end }}
