@@ -70,11 +70,6 @@ type LabelEnvSummary struct {
 	TestNameByEnvLabels []*storage.TestNameByEnvLabel
 }
 
-type labelEnvSummaryGroup struct {
-	LabelEnv []LabelEnv
-	Depth    int
-}
-
 //Label, corresponding count for different environement, and it's sublabel table
 type LabelEnv struct {
 	Label    string
@@ -88,8 +83,8 @@ func New(store storage.Store, cache *cache.Cache, router *mux.Router) *PostSubmi
 		"slice": func(i int) []int { return make([]int, i) },
 	}
 	wrap := template.FuncMap{
-		"wrap": func(summary LabelEnvSummary, depth int) labelEnvSummaryGroup {
-			return labelEnvSummaryGroup{LabelEnv: summary.LabelEnv, Depth: depth + 1}
+		"wrap": func(summary LabelEnvSummary, depth int) map[string]interface{} {
+			return map[string]interface{}{"LabelEnv": summary.LabelEnv, "Depth": depth + 1}
 		},
 	}
 	ps := &PostSubmit{
