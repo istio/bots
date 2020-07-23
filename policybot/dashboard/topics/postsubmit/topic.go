@@ -117,6 +117,8 @@ func (ps *PostSubmit) chosenBaseSha(w http.ResponseWriter, r *http.Request) {
 	}
 	baseSha := r.FormValue("basesha")
 	ps.choosesha = baseSha
+	ps.chooseEnv = ""
+	ps.chooseLabel = ""
 }
 
 func (ps *PostSubmit) selectEnvLabel(w http.ResponseWriter, r *http.Request) {
