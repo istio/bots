@@ -202,9 +202,9 @@ func (ps *PostSubmit) getLabelEnvTable(context context.Context, baseSha string) 
 
 	summary = ps.getLabelTree(Labels, allEnvNames)
 
-	var EnvNameList []string
-	for key := range allEnvNames {
-		EnvNameList = append(EnvNameList, key)
+	var EnvNameList = make([]string, len(allEnvNames))
+	for key, val := range allEnvNames {
+		EnvNameList[val] = key
 	}
 	summary.AllEnvNanme = EnvNameList
 	return summary, nil
