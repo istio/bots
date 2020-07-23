@@ -839,13 +839,12 @@ func (s store) QueryPullRequestsByUser(context context.Context, orgLogin string,
 
 func (s store) QueryLatestBaseSha(context context.Context, cb func(*storage.LatestBaseSha) error) error {
 	sql := `SELECT BaseSha, COUNT(TestOutcomes.TestOutcomeName) AS NumberOfTest, MAX(FinishTime) AS LastFinishTime
-			FROM (SELECT * FROM PostSubmitTestResults 
-	  			  ORDER BY FinishTime DESC
-	              LIMIT 10000)
+			FROM PostSubmitTestResults
 			LEFT JOIN TestOutcomes USING (OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done)
+			WHERE RepoName='istio'
 			GROUP BY BaseSha
 			ORDER BY MAX(FinishTime) DESC
-			LIMIT 100;`
+			LIMIT 100`
 	stmt := spanner.NewStatement(sql)
 	iter := s.client.Single().Query(context, stmt)
 	err := iter.Do(func(row *spanner.Row) error {
