@@ -85,7 +85,7 @@ var _analysisHtml = []byte(`<!DOCTYPE html>
 
 {{ if .ChooseEnv }}
 <p> View TestNames with Label: {{ .ChooseLabel }}, Env: {{ .ChooseEnv }}</p>
-<table>
+<table id="testname">
   <thead>
     <tr>
       <th>TestName</th>
@@ -181,6 +181,10 @@ var _analysisHtml = []byte(`<!DOCTYPE html>
   }
   .subtd{
     border: 0px;
+  }
+
+  #testname{
+    font-size: 1vw;
   }
 </style>`)
 
