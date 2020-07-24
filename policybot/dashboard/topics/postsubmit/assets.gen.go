@@ -164,7 +164,7 @@ var _analysisHtml = []byte(`<!DOCTYPE html>
   }
   table {
     table-layout: fixed;
-    width: 600px;
+    width: 800px;
     padding: 0;
     border-collapse: collapse;
     margin-left: 0;
@@ -184,7 +184,7 @@ var _analysisHtml = []byte(`<!DOCTYPE html>
   }
 
   #testname{
-    font-size: 1vw;
+    width: 1000px;;
   }
 </style>`)
 

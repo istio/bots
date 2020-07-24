@@ -837,7 +837,7 @@ func (s store) QueryPullRequestsByUser(context context.Context, orgLogin string,
 	return err
 }
 
-func (s store) QueryLatestBaseSha(context context.Context, cb func(*storage.LatestBaseSha) error) error {
+func (s store) QueryLatestBaseSha(context context.Context) (*storage.LatestBaseShaSummary, error) {
 	sql := `SELECT BaseSha, COUNT(TestOutcomes.TestOutcomeName) AS NumberOfTest, MAX(FinishTime) AS LastFinishTime
 			FROM PostSubmitTestResults
 			LEFT JOIN TestOutcomes USING (OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done)
@@ -847,15 +847,29 @@ func (s store) QueryLatestBaseSha(context context.Context, cb func(*storage.Late
 			LIMIT 100`
 	stmt := spanner.NewStatement(sql)
 	iter := s.client.Single().Query(context, stmt)
+
+	var summary storage.LatestBaseShaSummary
+	var summaryList []storage.LatestBaseSha
+
 	err := iter.Do(func(row *spanner.Row) error {
 		latestBaseSha := &storage.LatestBaseSha{}
 		if err := rowToStruct(row, latestBaseSha); err != nil {
 			return err
 		}
-
-		return cb(latestBaseSha)
+		summaryList = append(summaryList, storage.LatestBaseSha{
+			BaseSha:        latestBaseSha.BaseSha,
+			LastFinishTime: latestBaseSha.LastFinishTime,
+			NumberofTest:   latestBaseSha.NumberofTest,
+		})
+		return nil
 	})
-	return err
+
+	if err != nil {
+		return nil, err
+	}
+
+	summary.LatestBaseSha = summaryList
+	return &summary, nil
 }
 
 func (s store) QueryAllBaseSha(context context.Context) (baseShas []string, err error) {
