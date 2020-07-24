@@ -17,7 +17,6 @@ package cache
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"time"
 
@@ -398,30 +397,23 @@ func (c *Cache) ReadMember(context context.Context, orgLogin string, userLogin s
 }
 
 func (c *Cache) WriteLatestBaseShas() {
-	var summary storage.LatestBaseShaSummary
-	var summaryList []storage.LatestBaseSha
-	if err := c.store.QueryLatestBaseSha(context.Background(), func(latestBaseSha *storage.LatestBaseSha) error {
-		summaryList = append(summaryList, storage.LatestBaseSha{
-			BaseSha:        latestBaseSha.BaseSha,
-			LastFinishTime: latestBaseSha.LastFinishTime,
-			NumberofTest:   latestBaseSha.NumberofTest,
-		})
-		return nil
-	}); err != nil {
-		return
+	baseShas, err := c.store.QueryLatestBaseSha(context.Background())
+	if err == nil {
+		c.latestBaseShaCache.Set("basesha", *baseShas)
 	}
-	summary.LatestBaseSha = summaryList
-	c.latestBaseShaCache.Set("basesha", summary)
 }
 
 func (c *Cache) ReadLatestBaseShas() (*storage.LatestBaseShaSummary, error) {
-	val, ok := c.latestBaseShaCache.Get("basesha")
-	if !ok {
-		return nil, fmt.Errorf("can't find latest baseSha in cache")
+	if val, ok := c.latestBaseShaCache.Get("basesha"); ok {
+		basesha, _ := val.(storage.LatestBaseShaSummary)
+		return &basesha, nil
 	}
-	basesha, ok := val.(storage.LatestBaseShaSummary)
-	if !ok {
-		return nil, fmt.Errorf("baseSha cache type error")
+
+	val, err := c.store.QueryLatestBaseSha(context.Background())
+	if err == nil {
+		c.latestBaseShaCache.Set("basesha", *val)
+		return val, nil
 	}
-	return &basesha, nil
+
+	return nil, err
 }

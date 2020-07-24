@@ -65,6 +65,9 @@ type BaseShas struct {
 
 //Content for LabelEnv table and detailed tests
 type LabelEnvSummary struct {
+	Choosesha           string
+	ChooseEnv           string
+	ChooseLabel         string
 	LabelEnv            []LabelEnv
 	AllEnvNanme         []string
 	TestNameByEnvLabels []*storage.TestNameByEnvLabel
@@ -114,6 +117,8 @@ func (ps *PostSubmit) chosenBaseSha(w http.ResponseWriter, r *http.Request) {
 	}
 	baseSha := r.FormValue("basesha")
 	ps.choosesha = baseSha
+	ps.chooseEnv = ""
+	ps.chooseLabel = ""
 }
 
 func (ps *PostSubmit) selectEnvLabel(w http.ResponseWriter, r *http.Request) {
@@ -202,11 +207,14 @@ func (ps *PostSubmit) getLabelEnvTable(context context.Context, baseSha string) 
 
 	summary = ps.getLabelTree(Labels, allEnvNames)
 
-	var EnvNameList []string
-	for key := range allEnvNames {
-		EnvNameList = append(EnvNameList, key)
+	var EnvNameList = make([]string, len(allEnvNames))
+	for key, val := range allEnvNames {
+		EnvNameList[val] = key
 	}
 	summary.AllEnvNanme = EnvNameList
+	summary.Choosesha = ps.choosesha
+	summary.ChooseEnv = ps.chooseEnv
+	summary.ChooseLabel = ps.chooseLabel
 	return summary, nil
 }
 

@@ -52,7 +52,7 @@ var _analysisHtml = []byte(`<!DOCTYPE html>
 </head>
 
 <p>
-    This will display information about Environment and Label for the BaseSha you chose
+    This will display information about Environment and Label for the BaseSha: {{ .Choosesha }} 
 </p>
 
 <table id="main">
@@ -82,8 +82,10 @@ var _analysisHtml = []byte(`<!DOCTYPE html>
   </tbody>
 </table>
 <br>
-<p> View TestNames</p>
-<table>
+
+{{ if .ChooseEnv }}
+<p> View TestNames with Label: {{ .ChooseLabel }}, Env: {{ .ChooseEnv }}</p>
+<table id="testname">
   <thead>
     <tr>
       <th>TestName</th>
@@ -98,6 +100,7 @@ var _analysisHtml = []byte(`<!DOCTYPE html>
     {{ end }}
   </tbody>
 </table>
+{{ end }}
 
 {{ define "innerlayer" }}
 <tbody class="collapsed">
@@ -161,7 +164,7 @@ var _analysisHtml = []byte(`<!DOCTYPE html>
   }
   table {
     table-layout: fixed;
-    width: 600px;
+    width: 800px;
     padding: 0;
     border-collapse: collapse;
     margin-left: 0;
@@ -178,6 +181,10 @@ var _analysisHtml = []byte(`<!DOCTYPE html>
   }
   .subtd{
     border: 0px;
+  }
+
+  #testname{
+    width: 1000px;;
   }
 </style>`)
 
