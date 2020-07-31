@@ -1,8 +1,8 @@
 name: Policies and Telemetry
 type: autolabel
 matchbody:
-  - "\\[ ?x ?\\] ?Policies"
+  - "\\[ ?x ?\\] ?Extensions"
 absentlabels:
   - "area/.?"
 labelstoapply:
-  - "area/policies and telemetry"
+  - "area/extensions and telemetry"
