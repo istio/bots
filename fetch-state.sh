@@ -4,6 +4,7 @@ set -eu
 
 TOKEN=${TOKEN:?pass access token as TOKEN}
 
+# howardjohn test workspace is : 5f299ae6a36edd00126879fb
 WORKSPACE=${WORKSPACE:-58d18fe71b06cdd27338c362}
 
 OUT=${OUT:-/tmp/zenhub.csv}
