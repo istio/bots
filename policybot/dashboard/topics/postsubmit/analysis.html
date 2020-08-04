@@ -7,52 +7,54 @@
     This will display information about Environment and Label for the BaseSha: {{ .Choosesha }} 
 </p>
 
-<table id="main">
-  <thead>
-  <tr>
-      <th>LabelName</th>
-      {{ range .AllEnvNanme }}
-      <th>{{ . }}</th>
-      {{ end }}
-  </tr>
-  </thead>
-  <tbody>
-    {{ $depth := 0 }}
-    {{ range .LabelEnv }}
-      <table>
-        <thead>
-          <tr>
-            <td class="pivot">{{ .Label }}</td>
-            {{ range .EnvCount }}
-            <td>{{ . }} <button class="0" type="button">View All Test</button></td>
-            {{ end }}
-          </tr>
-        </thead>
-        {{template "innerlayer" (wrap .SubLabel $depth)}}      
-      </table>
-    {{ end }}
-  </tbody>
-</table>
-<br>
-
-{{ if .ChooseEnv }}
-<p> View TestNames with Label: {{ .ChooseLabel }}, Env: {{ .ChooseEnv }}</p>
-<table id="testname">
-  <thead>
+<div class="analysis">
+  <table id="main">
+    <thead>
     <tr>
-      <th>TestName</th>
+        <th>LabelName</th>
+        {{ range .AllEnvNanme }}
+        <th>{{ . }}</th>
+        {{ end }}
     </tr>
-  </thead>
-  <tbody>
-    {{range $testname := .TestNameByEnvLabels}}
+    </thead>
+    <tbody>
+      {{ $depth := 0 }}
+      {{ range .LabelEnv }}
+        <table>
+          <thead>
+            <tr>
+              <td class="pivot">{{ .Label }}</td>
+              {{ range .EnvCount }}
+              <td>{{ . }} <button class="0" type="button">View All Test</button></td>
+              {{ end }}
+            </tr>
+          </thead>
+          {{template "innerlayer" (wrap .SubLabel $depth)}}      
+        </table>
+      {{ end }}
+    </tbody>
+  </table>
+  <br>
+  
+  {{ if .ChooseEnv }}
+  <p> View TestNames with Label: {{ .ChooseLabel }}, Env: {{ .ChooseEnv }}</p>
+  <table id="testname">
+    <thead>
       <tr>
-        <td>{{ $testname.TestOutcomeName }} 
-          <a href="https://prow.istio.io/view/gcs/istio-prow/logs/{{ $testname.TestName }}/{{ $testname.RunNumber }}">Prow Link</a></td>
+        <th>TestName</th>
       </tr>
-    {{ end }}
-  </tbody>
-</table>
-{{ end }}
+    </thead>
+    <tbody>
+      {{range $testname := .TestNameByEnvLabels}}
+        <tr>
+          <td>{{ $testname.TestOutcomeName }} 
+            <a href="https://prow.istio.io/view/gcs/istio-prow/logs/{{ $testname.TestName }}/{{ $testname.RunNumber }}">Prow Link</a></td>
+        </tr>
+      {{ end }}
+    </tbody>
+  </table>
+  {{ end }}
+</div>
 
 {{ define "innerlayer" }}
 <tbody class="collapsed">
@@ -109,33 +111,3 @@
     return $('#main thead th').eq($pos.closest("td").index()).text();
   };
 </script>
-
-<style>
-  .collapsed {
-    display: none;
-  }
-  table {
-    table-layout: fixed;
-    width: 800px;
-    padding: 0;
-    border-collapse: collapse;
-    margin-left: 0;
-  }
-
-  table > tr > td {
-      width: 150px;
-  }
-  tr {
-    cursor: pointer;
-  }
-  td, th {
-    padding: 0px;
-  }
-  .subtd{
-    border: 0px;
-  }
-
-  #testname{
-    width: 1000px;;
-  }
-</style>
