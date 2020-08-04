@@ -1,8 +1,8 @@
-.analysis{
+.analysis {
     .collapsed {
         display: none;
     }
-        
+
     table {
         table-layout: fixed;
         width: 800px;
@@ -10,25 +10,25 @@
         border-collapse: collapse;
         margin-left: 0;
     }
-    
+
     table > tr > td {
         width: 150px;
     }
-        
+
     tr {
         cursor: pointer;
     }
-        
+
     td, th {
         padding: 0px;
     }
-        
-    .subtd{
+
+    .subtd {
         border: 0px;
     }
-        
-    #testname{
-        width: 1000px;;
+    
+    #testname {
+        width: 1000px;
     }
 }
 
