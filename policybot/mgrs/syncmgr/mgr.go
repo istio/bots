@@ -1179,7 +1179,6 @@ func (ss *syncState) handleTestResults() error {
 		if result != nil {
 			return result
 		}
-		log.Infof("Updated flake cache with %d additional flakes", rowCount)
 		// TODO: check Post Submit tests as well.
 	}
 
