@@ -164,7 +164,7 @@ func HourlyReport(reg *config.Registry, secrets *cmdutil.Secrets) error {
 	}
 	if resp.StatusCode >= 400 {
 		sendMessage = true
-		message += "istio.io is down:" + err.Error()		
+		message += "istio.io is down:" + err.Error()
 	}
 	defer resp.Body.Close()
 	//check if website preliminary.istio.io is down
@@ -174,7 +174,7 @@ func HourlyReport(reg *config.Registry, secrets *cmdutil.Secrets) error {
 	}
 	if resp.StatusCode >= 400 {
 		sendMessage = true
-		message += "preliminary.istio.io is down:" + err.Error()		
+		message += "preliminary.istio.io is down:" + err.Error()
 	}
 	defer resp.Body.Close()
 

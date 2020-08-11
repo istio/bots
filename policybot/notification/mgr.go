@@ -11,25 +11,25 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-package cmd
+package notification
 
 import (
-	"github.com/spf13/cobra"
+	"fmt"
 
-	"istio.io/bots/policybot/notification"
 	"istio.io/bots/policybot/pkg/cmdutil"
 	"istio.io/bots/policybot/pkg/config"
 )
 
-func notificationCmd() *cobra.Command {
-	timeFilter := ""
-	cmd, _ := cmdutil.Run("notification", "send notification when detect website error", 0,
-		cmdutil.ConfigPath|cmdutil.ConfigRepo|cmdutil.SendgridAPIKey, func(reg *config.Registry, secrets *cmdutil.Secrets) error {
-			return notification.GetNotification(reg, secrets, timeFilter)
-		})
-	cmd.PersistentFlags().StringVarP(&timeFilter,
-		"timefilter", "", "", "time filter to set up notification with frequency of"+
-			"[hour, day, week]")
-	return cmd
+func GetNotification(reg *config.Registry, secrets *cmdutil.Secrets, timeFilter string) (err error) {
+	switch timeFilter {
+	case "hour":
+		err = HourlyReport(reg, secrets)
+	case "day":
+		err = DailyReport(reg, secrets)
+	//case "week":
+	//	err := WeeklyReport(reg, secrets)
+	default:
+		return fmt.Errorf("unknown filter flag %s", timeFilter)
+	}
+	return
 }
