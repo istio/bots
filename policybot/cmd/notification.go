@@ -15,6 +15,7 @@
 package cmd
 
 import (
+	"fmt"
 	"github.com/spf13/cobra"
 
 	"istio.io/bots/policybot/notification"
@@ -23,16 +24,22 @@ import (
 )
 
 func notificationCmd() *cobra.Command {
+	timeFilter := ""
 	cmd, _ := cmdutil.Run("notification", "send notification when detect website error", 0,
-		cmdutil.ConfigPath|cmdutil.ConfigRepo|cmdutil.SendgridAPIKey, runNotification)
-
+	cmdutil.ConfigPath|cmdutil.ConfigRepo|cmdutil.SendgridAPIKey, func(reg *config.Registry, secrets *cmdutil.Secrets) error {
+		return runNotification(reg, secrets, timeFilter)
+	})
+	cmd.PersistentFlags().StringVarP(&timeFilter,
+		"timefilter", "", "", "time filter to set up notification with frequency of"+
+			"[hour, day, week]")
 	return cmd
 }
 
 // Runs the flake manager.
-func runNotification(reg *config.Registry, secrets *cmdutil.Secrets) error {
+func runNotification(reg *config.Registry, secrets *cmdutil.Secrets, timeFilter string) error {
 	//notification.Test(reg, secrets)
 	notification.HourlyReport(reg, secrets)
+	fmt.Printf(timeFilter)
 	return nil
 	//notification.SendHelloEmail()
 	//return notification.Send("docs group","hello", reg, secrets)
