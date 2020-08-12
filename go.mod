@@ -4,6 +4,7 @@ go 1.12
 
 require (
 	cloud.google.com/go v0.38.0
+	github.com/PuerkitoBio/goquery v1.5.1
 	github.com/eapache/channels v1.1.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/google/go-github/v26 v26.0.9
@@ -21,7 +22,6 @@ require (
 	github.com/spf13/cobra v0.0.4
 	github.com/stretchr/testify v1.3.0 // indirect
 	golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c // indirect
-	golang.org/x/net v0.0.0-20190620200207-3b0461eec859 // indirect
 	golang.org/x/oauth2 v0.0.0-20190402181905-9f3314589c9a
 	golang.org/x/sys v0.0.0-20190508220229-2d0786266e9c // indirect
 	golang.org/x/text v0.3.2 // indirect
