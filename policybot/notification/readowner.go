@@ -14,7 +14,8 @@
 package notification
 
 import (
-	"os"
+	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -22,12 +23,16 @@ import (
 
 //get Istio.io document owners information from github md file
 func ReadDocsOwner() (docsOwnerMap map[string]string, err error) {
-	file, err := os.Open("https://github.com/istio/istio.io/blob/master/DOC_OWNERS.md")
+	res, err := http.Get("https://github.com/istio/istio.io/blob/master/DOC_OWNERS.md")
 	if err != nil {
 		return
 	}
-	defer file.Close()
-	doc, err := goquery.NewDocumentFromReader(file)
+	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		return nil, fmt.Errorf("status code error: %d %s", res.StatusCode, res.Status)
+	}
+
+	doc, err := goquery.NewDocumentFromReader(res.Body)
 	if err != nil {
 		return
 	}

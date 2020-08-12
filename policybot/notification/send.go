@@ -21,16 +21,17 @@ import (
 	"istio.io/bots/policybot/pkg/util"
 )
 
+//send notification to docs member. Email includes owner and event information in the title
 func Send(title string, owner string, message string, reg *config.Registry, secrets *cmdutil.Secrets) error {
 	toName := "istio member"
-	toEmailAddress := "heatherzheng@google.com"
+	toEmailAddress := "csm-docs@google.com"
 	subject := owner + title
 
 	core := reg.Core()
 	mail := *util.NewMailer(secrets.SendGridAPIKey, core.EmailFrom, core.EmailOriginAddress)
 	err := mail.Send(toName, toEmailAddress, subject, message)
 	if err != nil {
-		fmt.Printf("send error, %v", err)
+		fmt.Printf("can't send email: %v", err)
 		return err
 	}
 	return nil
