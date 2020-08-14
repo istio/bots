@@ -14,25 +14,26 @@
 package notification
 
 import (
-	"fmt"
+	"context"
 
 	"istio.io/bots/policybot/pkg/cmdutil"
-	"istio.io/bots/policybot/pkg/config"
-	"istio.io/bots/policybot/pkg/util"
+
+	"github.com/google/go-github/github"
+	"golang.org/x/oauth2"
 )
 
-//send notification to docs member. Email includes owner and event information in the title
-func Send(title string, owner string, message string, reg *config.Registry, secrets *cmdutil.Secrets) error {
-	toName := "istio member"
-	toEmailAddress := "csm-docs@google.com"
-	subject := owner + title
+//send message to comment under Github Issue 7958 of istio.io
+func SendGithubIssueComment(secrets *cmdutil.Secrets, message string) error {
+	src := oauth2.StaticTokenSource(
+		&oauth2.Token{AccessToken: secrets.GitHubToken},
+	)
 
-	core := reg.Core()
-	mail := *util.NewMailer(secrets.SendGridAPIKey, core.EmailFrom, core.EmailOriginAddress)
-	err := mail.Send(toName, toEmailAddress, subject, message)
-	if err != nil {
-		fmt.Printf("can't send email: %v", err)
-		return err
-	}
-	return nil
+	gc := github.NewClient(oauth2.NewClient(context.Background(), src))
+
+	issueComment := &github.IssueComment{Body: &message}
+	owner := "istio"
+	repo := "istio.io"
+	num := 7958
+	_, _, err := gc.Issues.CreateComment(context.Background(), owner, repo, num, issueComment)
+	return err
 }

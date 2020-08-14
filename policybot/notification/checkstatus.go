@@ -47,7 +47,7 @@ func HourlyReport(reg *config.Registry, secrets *cmdutil.Secrets) error {
 	defer resp.Body.Close()
 
 	if sendMessage {
-		err = Send("Website is down", "", message, reg, secrets)
+		err = SendGithubIssueComment(secrets, "@istio/wg-docs-maintainers "+message)
 		return err
 	}
 	return nil
