@@ -25,7 +25,7 @@ import (
 func notificationCmd() *cobra.Command {
 	timeFilter := ""
 	cmd, _ := cmdutil.Run("notification", "send notification when detect website error", 0,
-		cmdutil.ConfigPath|cmdutil.ConfigRepo|cmdutil.SendgridAPIKey, func(reg *config.Registry, secrets *cmdutil.Secrets) error {
+		cmdutil.ConfigPath|cmdutil.ConfigRepo|cmdutil.SendgridAPIKey|cmdutil.GitHubToken, func(reg *config.Registry, secrets *cmdutil.Secrets) error {
 			return notification.GetNotification(reg, secrets, timeFilter)
 		})
 	cmd.PersistentFlags().StringVarP(&timeFilter,
