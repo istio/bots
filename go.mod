@@ -8,7 +8,6 @@ require (
 	github.com/eapache/channels v1.1.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/golang/protobuf v1.3.2 // indirect
-	github.com/google/go-github v17.0.0+incompatible
 	github.com/google/go-github/v26 v26.0.9
 	github.com/gorilla/mux v1.7.1
 	github.com/gorilla/websocket v1.2.0
