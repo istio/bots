@@ -359,7 +359,7 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 			PostSubmitPrefix: ref.PostSubmitTestPath,
 		}
 
-		testResults, err := tg.CheckTestResultsForPr(context, orgLogin, repoName, strconv.FormatInt(prNum,10))
+		testResults, err := tg.CheckTestResultsForPr(context, orgLogin, repoName, strconv.FormatInt(prNum, 10))
 		if err != nil {
 			scope.Errorf("Unable to get test result for PR %d in repo %s: %v", prNum, p.GetRepo().GetFullName(), err)
 			return
