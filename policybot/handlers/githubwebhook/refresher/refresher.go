@@ -16,6 +16,7 @@ package refresher
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/google/go-github/v26/github"
 
@@ -145,7 +146,7 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 				PostSubmitPrefix: ref.PostSubmitTestPath,
 			}
 
-			testResults, err := tg.CheckTestResultsForPr(context, orgLogin, repoName, string(prNum))
+			testResults, err := tg.CheckTestResultsForPr(context, orgLogin, repoName, strconv.Itoa(prNum))
 			if err != nil {
 				scope.Errorf("Unable to get test result for PR %d in repo %s: %v", prNum, p.GetRepo().GetFullName(), err)
 			} else if err = r.cache.WriteTestResults(context, testResults); err != nil {
@@ -358,7 +359,7 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 			PostSubmitPrefix: ref.PostSubmitTestPath,
 		}
 
-		testResults, err := tg.CheckTestResultsForPr(context, orgLogin, repoName, string(prNum))
+		testResults, err := tg.CheckTestResultsForPr(context, orgLogin, repoName, strconv.FormatInt(prNum,10))
 		if err != nil {
 			scope.Errorf("Unable to get test result for PR %d in repo %s: %v", prNum, p.GetRepo().GetFullName(), err)
 			return
