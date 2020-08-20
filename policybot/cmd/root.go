@@ -42,6 +42,7 @@ func GetRootCmd(args []string) *cobra.Command {
 	rootCmd.AddCommand(milestoneMgrCmd())
 	rootCmd.AddCommand(userdataMgrCmd())
 	rootCmd.AddCommand(lifecycleMgrCmd())
+	rootCmd.AddCommand(notificationCmd())
 	rootCmd.AddCommand(version.CobraCommand())
 
 	return rootCmd
