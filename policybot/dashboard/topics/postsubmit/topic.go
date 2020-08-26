@@ -23,13 +23,13 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/gorilla/mux"
+	"github.com/robfig/cron/v3"
+
 	"istio.io/bots/policybot/dashboard/types"
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
 	"istio.io/pkg/log"
-
-	"github.com/gorilla/mux"
-	"github.com/robfig/cron/v3"
 )
 
 // PostSubmit lets users visualize critical information about which features have been covered and which not after Github PR merged.
@@ -106,7 +106,7 @@ func New(store storage.Store, cache *cache.Cache, router *mux.Router) *PostSubmi
 	if err != nil {
 		log.Errorf("add caching latest 100 BaseSha cron job: %s", err)
 	}
-	cron.Start()
+	//cron.Start()
 	return ps
 }
 
