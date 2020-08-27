@@ -132,27 +132,27 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 
 		action := p.GetAction()
 
-		rec, ok := r.reg.SingleRecord(RecordType, p.GetRepo().GetFullName())
-		if ok {
-			ref := rec.(*TestOutputRecord)
-			orgLogin := p.GetRepo().GetOwner().GetLogin()
-			repoName := p.GetRepo().GetName()
-			prNum := p.GetNumber()
+		//rec, ok := r.reg.SingleRecord(RecordType, p.GetRepo().GetFullName())
+		//if ok {
+		//ref := rec.(*TestOutputRecord)
+		//orgLogin := p.GetRepo().GetOwner().GetLogin()
+		//repoName := p.GetRepo().GetName()
+		//prNum := p.GetNumber()
+		//
+		//tg := gatherer.TestResultGatherer{
+		//	Client:           r.bs,
+		//	BucketName:       ref.BucketName,
+		//	PreSubmitPrefix:  ref.PreSubmitTestPath,
+		//	PostSubmitPrefix: ref.PostSubmitTestPath,
+		//}
 
-			tg := gatherer.TestResultGatherer{
-				Client:           r.bs,
-				BucketName:       ref.BucketName,
-				PreSubmitPrefix:  ref.PreSubmitTestPath,
-				PostSubmitPrefix: ref.PostSubmitTestPath,
-			}
-
-			testResults, err := tg.CheckTestResultsForPr(context, orgLogin, repoName, strconv.Itoa(prNum))
-			if err != nil {
-				scope.Errorf("Unable to get test result for PR %d in repo %s: %v", prNum, p.GetRepo().GetFullName(), err)
-			} else if err = r.cache.WriteTestResults(context, testResults); err != nil {
-				scope.Errorf("Unable to write test results: %v", err)
-			}
-		}
+		//testResults, err := tg.CheckTestResultsForPr(context, orgLogin, repoName, strconv.Itoa(prNum))
+		//if err != nil {
+		//	scope.Errorf("Unable to get test result for PR %d in repo %s: %v", prNum, p.GetRepo().GetFullName(), err)
+		//} else if err = r.cache.WriteTestResults(context, testResults); err != nil {
+		//	scope.Errorf("Unable to write test results: %v", err)
+		//}
+		//}
 
 		if action == "opened" || action == "edited" || action == "synchronize" {
 			opt := &github.ListOptions{
