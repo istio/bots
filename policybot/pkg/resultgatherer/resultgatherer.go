@@ -183,6 +183,28 @@ func (trg *TestResultGatherer) getInformationFromStartedFile(ctx context.Context
 	return &started, nil
 }
 
+func (trg *TestResultGatherer) getInformationFromProwFile(ctx context.Context, pref string) (*ProwJob, error) {
+	bucket := trg.getBucket()
+	rdr, err := bucket.Reader(ctx, pref+"prowjob.json")
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving prowjob.json from %s: %v", pref, err)
+	}
+
+	defer rdr.Close()
+	prowFile, err := ioutil.ReadAll(rdr)
+	if err != nil {
+		return nil, fmt.Errorf("error reading prowjob.json from %s: %v", pref, err)
+	}
+
+	var result *ProwJob
+
+	if err = json.Unmarshal(prowFile, &result); err != nil {
+		return nil, fmt.Errorf("error parsing prowjob.json from %s: %v", pref, err)
+	}
+
+	return result, nil
+}
+
 func (trg *TestResultGatherer) getInformationFromCloneFile(ctx context.Context, pref string) ([]*cloneRecord, error) {
 	bucket := trg.getBucket()
 	rdr, err := bucket.Reader(ctx, pref+"clone-records.json")
@@ -334,44 +356,63 @@ func (trg *TestResultGatherer) GetTestResult(ctx context.Context, testName strin
 	testResult.TestName = testName
 	testResult.RunPath = testRun
 	testResult.Done = false
-
-	records, err := trg.getInformationFromCloneFile(ctx, testRun)
+	pj, err := trg.getInformationFromProwFile(ctx, testRun)
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	if len(records) < 1 {
-		return nil, fmt.Errorf("test %s %s has an empty clone file.  Cannot proceed", testName, testRun)
+	if pj.Status.State == TriggeredState || pj.Status.State == PendingState {
+		return nil, fmt.Errorf("test is still in progress")
 	}
-	record := records[0]
-
-	if len(record.Refs.Pulls) < 1 {
-		return nil, fmt.Errorf("test %s %s has a malformed clone file.  Cannot proceed", testName, testRun)
+	if pj.Status.State == ErrorState {
+		testResult.StartTime = pj.Status.StartTime.Time
+		testResult.FinishTime = pj.Status.CompletionTime.Time
+		testResult.Result = "ERROR"
 	}
-	testResult.Sha, err = hex.DecodeString(record.Refs.Pulls[0].Sha)
-	if err != nil {
-		return
+	if pj.Status.State == AbortedState {
+		testResult.StartTime = pj.Status.StartTime.Time
+		testResult.FinishTime = pj.Status.CompletionTime.Time
+		testResult.Result = "ABORTED"
 	}
-	testResult.BaseSha = record.Refs.BaseSha
-	testResult.CloneFailed = record.Failed
+	if pj.Status.State == SuccessState || pj.Status.State == FailureState {
 
-	started, err := trg.getInformationFromStartedFile(ctx, testRun)
-	if err != nil {
-		return
-	}
-
-	testResult.StartTime = time.Unix(started.Timestamp, 0)
-
-	finished, err := trg.getInformationFromFinishedFile(ctx, testRun)
-	if err != storage.ErrObjectNotExist {
+		records, err := trg.getInformationFromCloneFile(ctx, testRun)
 		if err != nil {
-			return
+			return nil, err
 		}
-		testResult.TestPassed = finished.Passed
-		testResult.Result = finished.Result
-		testResult.FinishTime = time.Unix(finished.Timestamp, 0)
-	}
 
+		if len(records) < 1 {
+			return nil, fmt.Errorf("test %s %s has an empty clone file.  Cannot proceed", testName, testRun)
+		}
+		record := records[0]
+
+		if len(record.Refs.Pulls) < 1 {
+			return nil, fmt.Errorf("test %s %s has a malformed clone file.  Cannot proceed", testName, testRun)
+		}
+		testResult.Sha, err = hex.DecodeString(record.Refs.Pulls[0].Sha)
+		if err != nil {
+			return nil, err
+		}
+		testResult.BaseSha = record.Refs.BaseSha
+		testResult.CloneFailed = record.Failed
+
+		started, err := trg.getInformationFromStartedFile(ctx, testRun)
+		if err != nil {
+			return nil, err
+		}
+
+		testResult.StartTime = time.Unix(started.Timestamp, 0)
+
+		finished, err := trg.getInformationFromFinishedFile(ctx, testRun)
+		if err != storage.ErrObjectNotExist {
+			if err != nil {
+				return nil, err
+			}
+			testResult.TestPassed = finished.Passed
+			testResult.Result = finished.Result
+			testResult.FinishTime = time.Unix(finished.Timestamp, 0)
+		}
+	}
 	prefSplit := strings.Split(testRun, "/")
 
 	runNo, err := strconv.ParseInt(prefSplit[len(prefSplit)-2], 10, 64)
@@ -447,39 +488,59 @@ func (trg *TestResultGatherer) GetPostSubmitTestResult(ctx context.Context, test
 	testResult.RunPath = testRun
 	testResult.Done = false
 
-	records, err := trg.getInformationFromCloneFile(ctx, testRun)
+	pj, err := trg.getInformationFromProwFile(ctx, testRun)
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	if len(records) < 1 {
-		return nil, fmt.Errorf("test %s %s has an empty clone file.  Cannot proceed", testName, testRun)
+	if pj.Status.State == TriggeredState || pj.Status.State == PendingState {
+		return nil, fmt.Errorf("test is still in progress")
 	}
-	record := records[0]
-
-	testResult.Sha, err = hex.DecodeString(record.FinalSha)
-	if err != nil {
-		return
+	if pj.Status.State == ErrorState {
+		testResult.StartTime = pj.Status.StartTime.Time
+		testResult.FinishTime = pj.Status.CompletionTime.Time
+		testResult.Result = "ERROR"
 	}
-
-	testResult.BaseSha = record.Refs.BaseSha
-	testResult.CloneFailed = record.Failed
-
-	started, err := trg.getInformationFromStartedFile(ctx, testRun)
-	if err != nil {
-		return
+	if pj.Status.State == AbortedState {
+		testResult.StartTime = pj.Status.StartTime.Time
+		testResult.FinishTime = pj.Status.CompletionTime.Time
+		testResult.Result = "ABORTED"
 	}
-
-	testResult.StartTime = time.Unix(started.Timestamp, 0)
-
-	finished, err := trg.getInformationFromFinishedFile(ctx, testRun)
-	if err != storage.ErrObjectNotExist {
+	if pj.Status.State == SuccessState || pj.Status.State == FailureState{
+		records, err := trg.getInformationFromCloneFile(ctx, testRun)
 		if err != nil {
-			return
+			return nil, err
 		}
-		testResult.TestPassed = finished.Passed
-		testResult.Result = finished.Result
-		testResult.FinishTime = time.Unix(finished.Timestamp, 0)
+
+		if len(records) < 1 {
+			return nil, fmt.Errorf("test %s %s has an empty clone file.  Cannot proceed", testName, testRun)
+		}
+		record := records[0]
+
+		testResult.Sha, err = hex.DecodeString(record.FinalSha)
+		if err != nil {
+			return nil, err
+		}
+
+		testResult.BaseSha = record.Refs.BaseSha
+		testResult.CloneFailed = record.Failed
+
+		started, err := trg.getInformationFromStartedFile(ctx, testRun)
+		if err != nil {
+			return nil, err
+		}
+
+		testResult.StartTime = time.Unix(started.Timestamp, 0)
+
+		finished, err := trg.getInformationFromFinishedFile(ctx, testRun)
+		if err != storage.ErrObjectNotExist {
+			if err != nil {
+				return nil, err
+			}
+			testResult.TestPassed = finished.Passed
+			testResult.Result = finished.Result
+			testResult.FinishTime = time.Unix(finished.Timestamp, 0)
+		}
 	}
 
 	prefSplit := strings.Split(testRun, "/")
