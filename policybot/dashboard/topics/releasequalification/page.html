@@ -1,0 +1,37 @@
+<aside class="callout warning">
+    <div class="type">
+        <svg class="large-icon">
+            <use xlink:href="/icons/icons.svg#callout-warning">
+            </use>
+        </svg>
+    </div>
+    <div class="content">
+        This page is under construction
+    </div>
+</aside>
+
+{{ range .Branches }}
+<table>
+    <caption>Monitor Status for {{ . }}</caption>
+    <thead>
+    <tr>
+        <th>Monitor</th>
+        <th>Status</th>
+        <th>Summary</th>
+        <th>ClusterURL</th>
+        <th>UpdatedTime</th>
+    </tr>
+    </thead>
+    <tbody>
+        {{ range $monitorName, $singleStatus := .StatusByBranch }}
+        <tr>
+            <td>{{ $monitorName }}</td>
+            <td>{{ $singleStatus.Status }}</td>
+            <td>{{ $singleStatus.Summary }}</td>
+            <td>{{ $singleStatus.ClusterURL }}</td>
+            <td>{{ $singleStatus.UpdatedTime }}</td>
+        </tr>
+        {{ end}}
+    </tbody>
+</table>
+{{ end}}

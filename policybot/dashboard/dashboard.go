@@ -41,6 +41,7 @@ import (
 	"istio.io/bots/policybot/dashboard/topics/perf"
 	"istio.io/bots/policybot/dashboard/topics/postsubmit"
 	"istio.io/bots/policybot/dashboard/topics/pullrequests"
+	"istio.io/bots/policybot/dashboard/topics/releasequalification"
 	"istio.io/bots/policybot/dashboard/topics/webanalytics"
 	"istio.io/bots/policybot/dashboard/types"
 	"istio.io/bots/policybot/pkg/config"
@@ -132,6 +133,7 @@ func New(router *mux.Router, store storage.Store, cache *cache.Cache, reg *confi
 	coverage := coverage.New(store, cache)
 	features := features.New(store, cache)
 	workingGroups := workinggroups.New(store, cache)
+	releasequalification := releasequalification.New(store, cache)
 
 	// all the sidebar entries and their associated UI pages
 	d.addEntry("Maintainers", "Lists the folks that maintain the project.").
@@ -216,6 +218,10 @@ func New(router *mux.Router, store storage.Store, cache *cache.Cache, reg *confi
 
 	d.addEntry("Features and Test Plans", "Get information on product features and associated test plans.").
 		addPage("/features", features.Render).
+		endEntry()
+
+	d.addEntry("Release Qualification Test", "Release qualification test result").
+		addPage("/releasequal", releasequalification.Render).
 		endEntry()
 
 	// home page

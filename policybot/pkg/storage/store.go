@@ -69,6 +69,8 @@ type Store interface {
 	ReadMaintainer(context context.Context, orgLogin string, userLogin string) (*Maintainer, error)
 	ReadMember(context context.Context, orgLogin string, userLogin string) (*Member, error)
 	ReadTestResult(context context.Context, orgLogin string, repoName string, testName string, pullRequestNumber int64, runNumber int64) (*TestResult, error)
+	// ReadMonitorStatus reads monitor status of release qualification test
+	ReadMonitorStatus(context context.Context, testID, monitorName string) (*Monitor, error)
 
 	QueryMembersByOrg(context context.Context, orgLogin string, cb func(*Member) error) error
 	QueryMaintainersByOrg(context context.Context, orgLogin string, cb func(*Maintainer) error) error
@@ -95,6 +97,8 @@ type Store interface {
 	QueryTestNameByEnvLabel(context context.Context, baseSha string, env string, label string) ([]*TestNameByEnvLabel, error)
 
 	QueryTestFlakeIssues(context context.Context, orgLogin string, repoName string, inactiveDays, createdDays int) ([]*Issue, error)
+	// QueryMonitorStatus queries monitor status of release qualification test
+	QueryMonitorStatus(context context.Context, cb func(*Monitor) error) error
 
 	GetLatestIssueMemberActivity(context context.Context, orgLogin string, repoName string, issueNumber int) (time.Time, error)
 	GetLatestIssueMemberComment(context context.Context, orgLogin string, repoName string, issueNumber int) (time.Time, error)

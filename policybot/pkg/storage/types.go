@@ -133,6 +133,25 @@ type Member struct {
 	CachedInfo string // a JSON encoded ActivityInfo
 }
 
+// Release Qualification Test Related Types
+// Monitor represents the status of specific Monitor
+type Monitor struct {
+	// MonitorName is the name of the monitor, e.g. ContainerMemoryUsage
+	MonitorName string
+	// Status represents the status of the monitor, e.g. HEALTHY, ALERTING
+	Status      string
+	// ClusterURL points to the URL of the cluster where the test is running
+	ClusterURL  string
+	// Summary contains high level description about the monitor
+	Summary     string
+	TestID      string
+	// Branch of the test, e.g. release-1.7
+	Branch      string
+	// UpdatedTime represents the time of the monitor status update
+	UpdatedTime time.Time
+	IsActive    bool
+}
+
 type BotActivity struct {
 	OrgLogin                              string
 	RepoName                              string
