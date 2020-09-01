@@ -506,7 +506,7 @@ func (trg *TestResultGatherer) GetPostSubmitTestResult(ctx context.Context, test
 		testResult.FinishTime = pj.Status.CompletionTime.Time
 		testResult.Result = "ABORTED"
 	}
-	if pj.Status.State == SuccessState || pj.Status.State == FailureState{
+	if pj.Status.State == SuccessState || pj.Status.State == FailureState {
 		records, err := trg.getInformationFromCloneFile(ctx, testRun)
 		if err != nil {
 			return nil, err
