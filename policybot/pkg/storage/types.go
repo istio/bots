@@ -140,8 +140,10 @@ type Monitor struct {
 	MonitorName string
 	// Status represents the status of the monitor, e.g. HEALTHY, ALERTING
 	Status      string
-	// ClusterURL points to the URL of the cluster where the test is running
-	ClusterURL  string
+	// ProjectID points to the project where the test is running
+	ProjectID  string
+	// ClusterName points to the cluster where the test is running
+	ClusterName  string
 	// Summary contains high level description about the monitor
 	Summary     string
 	TestID      string

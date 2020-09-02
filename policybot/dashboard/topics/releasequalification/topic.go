@@ -41,7 +41,8 @@ type SingleMonitorStatus struct {
 	Name    string
 	Status  string
 	Summary string
-	ClusterURL string
+	ProjectID string
+	ClusterName string
 	UpdatedTime time.Time
 }
 
@@ -105,7 +106,8 @@ func (r *ReleaseQualification) getMonitorStatus(context context.Context) (Monito
 			sms.Name = monitorName
 			sms.Status = monitor.Status
 			sms.UpdatedTime = monitor.UpdatedTime
-			sms.ClusterURL = monitor.ClusterURL
+			sms.ClusterName = monitor.ClusterName
+			sms.ProjectID = monitor.ProjectID
 			sms.Summary = monitor.Summary
 		}
 		return nil

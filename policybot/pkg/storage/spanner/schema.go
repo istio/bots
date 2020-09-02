@@ -53,7 +53,7 @@ const (
 	featureLabelTable                  = "FeatureLabels"
 	coverageDataTable                  = "CoverageData"
 	userAffiliationTable               = "UserAffiliation"
-	monitorStatus                      = "monitorStatus"
+	monitorStatus                      = "MonitorStatus"
 )
 
 // Holds the column names for each table or index in the database (filled in at startup)

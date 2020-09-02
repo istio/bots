@@ -18,7 +18,8 @@
         <th>Monitor</th>
         <th>Status</th>
         <th>Summary</th>
-        <th>ClusterURL</th>
+        <th>ProjectID</th>
+        <th>ClusterName</th>
         <th>UpdatedTime</th>
     </tr>
     </thead>
@@ -28,7 +29,8 @@
             <td>{{ $monitorName }}</td>
             <td>{{ $singleStatus.Status }}</td>
             <td>{{ $singleStatus.Summary }}</td>
-            <td>{{ $singleStatus.ClusterURL }}</td>
+            <td>{{ $singleStatus.ProjectID }}</td>
+            <td>{{ $singleStatus.ClusterName }}</td>
             <td>{{ $singleStatus.UpdatedTime }}</td>
         </tr>
         {{ end}}
