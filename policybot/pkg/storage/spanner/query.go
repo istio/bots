@@ -17,6 +17,7 @@ package spanner
 import (
 	"context"
 	"fmt"
+	"istio.io/bots/policybot/pkg/pipeline"
 	"strings"
 
 	"cloud.google.com/go/spanner"
@@ -949,4 +950,40 @@ func (s store) QueryTestNameByEnvLabel(context context.Context, baseSha string, 
 	})
 	return
 
+}
+
+func (s store) QueryNewFlakes(ctx context.Context) pipeline.Pipeline {
+	var iter *spanner.RowIterator
+	lp := pipeline.IterProducer{
+		Setup: func() error {
+			iter = s.client.Single().Query(ctx, spanner.Statement{SQL: fmt.Sprintf(
+				`select failed.PullRequestNumber, failed.TestName, failed.RunNumber, passed.RunNumber as PassingRunNumber, failed.OrgLogin, failed.RepoName, failed.Done
+				from TestResults as failed
+				JOIN TestResults as passed
+				ON passed.PullRequestNumber = failed.PullRequestNumber AND
+				passed.RunNumber != failed.RunNumber AND
+				passed.TestName = failed.TestName AND
+				passed.sha = failed.sha AND
+				passed.TestPassed AND
+				NOT failed.TestPassed AND
+				failed.FinishTime > TIMESTAMP(DATE(2010,1,1)) AND
+				NOT failed.CloneFailed AND
+				failed.result!='ABORTED' AND
+				failed.HasArtifacts
+				LEFT JOIN ConfirmedFlakes ON failed.PullRequestNumber = ConfirmedFlakes.PullRequestNumber AND
+				failed.RunNumber = ConfirmedFlakes.RunNumber AND
+				failed.TestName = ConfirmedFlakes.TestName
+				WHERE ConfirmedFlakes.PullRequestNumber is null`)})
+			return nil
+		},
+		Iterator: func() (res interface{}, err error) {
+			row, err := iter.Next()
+			if err == nil {
+				res = &storage.ConfirmedFlake{}
+				err = rowToStruct(row, res)
+			}
+			return
+		},
+	}
+	return pipeline.FromIter(lp)
 }
