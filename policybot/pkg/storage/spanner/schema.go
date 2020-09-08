@@ -33,7 +33,6 @@ const (
 	labelTable                         = "Labels"
 	issueTable                         = "Issues"
 	issueCommentTable                  = "IssueComments"
-	issuePipelineTable                 = "IssuePipelines"
 	pullRequestTable                   = "PullRequests"
 	pullRequestReviewCommentTable      = "PullRequestReviewComments"
 	pullRequestReviewTable             = "PullRequestReviews"
@@ -96,10 +95,6 @@ func issueKey(orgLogin string, repoName string, issueNumber int64) spanner.Key {
 
 func issueCommentKey(orgLogin string, repoName string, issueNumber int64, commentID int64) spanner.Key {
 	return spanner.Key{orgLogin, repoName, issueNumber, commentID}
-}
-
-func issuePipelineKey(orgLogin string, repoName string, issueNumber int64) spanner.Key {
-	return spanner.Key{orgLogin, repoName, issueNumber}
 }
 
 func pullRequestKey(orgLogin string, repoName string, prNumber int64) spanner.Key {
