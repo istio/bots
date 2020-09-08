@@ -16,7 +16,7 @@ The bot consists of three major functional areas:
 
 - A UI dashboard available at eng.istio.io
 
-- A set of webhooks that perform various actions based on GitHub or ZenHub events
+- A set of webhooks that perform various actions based on GitHub events
 
 - A set of managers that are invoked via cron job to perform some maintenance activity
 
@@ -26,8 +26,6 @@ At runtime, the bot has the following external dependencies:
 
 - GitHub. The bot acts as a GitHub webhook to receive notifications of GitHub activity. It
 also calls the GitHub API.
-
-- ZenHub. The bot calls into the ZenHub API to get information about GitHub issues.
 
 - SendGrid. The bot sends email using SendGrid.
 
@@ -41,8 +39,6 @@ standalone cron jobs, distinct from the main PolicyBot server job.
 
 - GitHub WebHook Handlers. These handlers are responsible for responding to a variety of GitHub events, such
 as opening or closing issues, creating pull requests, etc.
-
-- ZenHub WebHook Handlers. Similar to the GitHub handlers from above, but they respond to ZenHub events.
 
 - Topics. Topics represent different portions of the UI dashboard. Each topic includes the logic necessary to render
 a set of pages and respond to user interaction.
@@ -65,9 +61,6 @@ as obtained in the GitHub admin UI for the target organization.
 - GITHUB_OAUTH_CLIENT_ID / --github_oauth_client_id. The client ID to use in the GitHub OAuth flow,
 as obtained in the GitHub admin UI for the target organization.
 
-- ZENHUB_TOKEN / --zenhub_token. The access token necessary to let the bot invoke the ZenHub
-API.
-
 - GCP_CREDS / --gcp_creds. Base64-encoded JSON credentials for GCP, enabling the bot to invoke
 Google Cloud Spanner.
 
@@ -86,9 +79,6 @@ The bot exposes a REST API at <https://eng.istio.io>:
 
 - /githubwebhook - used to report events from GitHub. This is called by GitHub whenever anything interesting happens in
 the Istio repos.
-
-- /zenhubwebhook - used to report events from ZenHub. This is called by ZenHub whenever anything interesting happens to Istio issues
-tracked by ZenHub.
 
 - /api/* - topic-specific API available to query information that the bot generates.
 

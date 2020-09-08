@@ -21,11 +21,10 @@ import (
 	"testing"
 	"time"
 
-	"istio.io/bots/policybot/pkg/pipeline"
-
 	"gotest.tools/assert"
 
 	"istio.io/bots/policybot/pkg/blobstorage/gcs"
+	"istio.io/bots/policybot/pkg/pipeline"
 	"istio.io/bots/policybot/pkg/storage"
 )
 

@@ -149,13 +149,6 @@ type Maintainer struct {
 	CachedInfo string // a JSON encoded ActivityInfo
 }
 
-type IssuePipeline struct {
-	OrgLogin    string
-	RepoName    string
-	IssueNumber int64
-	Pipeline    string
-}
-
 type TimedEntry struct {
 	Time   time.Time
 	Number int64 // an object number (issue or pr)

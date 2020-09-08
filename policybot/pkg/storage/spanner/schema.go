@@ -63,7 +63,6 @@ var (
 	labelColumns                    []string
 	issueColumns                    []string
 	issueCommentColumns             []string
-	issuePipelineColumns            []string
 	pullRequestColumns              []string
 	pullRequestReviewCommentColumns []string
 	pullRequestReviewColumns        []string
@@ -142,7 +141,6 @@ func init() {
 	labelColumns = getFields(storage.Label{})
 	issueColumns = getFields(storage.Issue{})
 	issueCommentColumns = getFields(storage.IssueComment{})
-	issuePipelineColumns = getFields(storage.IssuePipeline{})
 	pullRequestColumns = getFields(storage.PullRequest{})
 	pullRequestReviewColumns = getFields(storage.PullRequestReview{})
 	botActivityColumns = getFields(storage.BotActivity{})

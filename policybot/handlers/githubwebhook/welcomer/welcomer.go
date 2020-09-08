@@ -20,13 +20,12 @@ import (
 
 	"github.com/google/go-github/v26/github"
 
-	"istio.io/pkg/log"
-
 	"istio.io/bots/policybot/handlers/githubwebhook"
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
+	"istio.io/pkg/log"
 )
 
 // Inserts comments into PRs for new or infrequently seen contributors.

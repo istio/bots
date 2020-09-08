@@ -97,21 +97,6 @@ func (s store) WriteIssueComments(context context.Context, issueComments []*stor
 	return err
 }
 
-func (s store) WriteIssuePipelines(context context.Context, issuePipelines []*storage.IssuePipeline) error {
-	scope.Debugf("Writing %d issue pipelines", len(issuePipelines))
-
-	mutations := make([]*spanner.Mutation, len(issuePipelines))
-	for i := 0; i < len(issuePipelines); i++ {
-		var err error
-		if mutations[i], err = insertOrUpdateStruct(issuePipelineTable, issuePipelines[i]); err != nil {
-			return err
-		}
-	}
-
-	_, err := s.client.Apply(context, mutations)
-	return err
-}
-
 func (s store) WritePullRequests(context context.Context, prs []*storage.PullRequest) error {
 	scope.Debugf("Writing %d pull requests", len(prs))
 

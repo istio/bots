@@ -30,7 +30,6 @@ deploy_only: get-cluster-credentials
 	@helm template --set image=$(IMG) \
 		--set GITHUB_WEBHOOK_SECRET=$(GITHUB_WEBHOOK_SECRET) \
 		--set GITHUB_TOKEN=$(GITHUB_TOKEN) \
-		--set ZENHUB_TOKEN=$(ZENHUB_TOKEN) \
 		--set GCP_CREDS=$(GCP_CREDS) \
 		--set SENDGRID_APIKEY=$(SENDGRID_APIKEY) \
 		--set GITHUB_OAUTH_CLIENT_ID=$(GITHUB_OAUTH_CLIENT_ID) \

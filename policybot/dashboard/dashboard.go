@@ -22,10 +22,6 @@ import (
 	"text/template"
 	"time"
 
-	"istio.io/bots/policybot/pkg/cmdutil"
-
-	"istio.io/bots/policybot/dashboard/topics/workinggroups"
-
 	"github.com/gorilla/mux"
 
 	"istio.io/bots/policybot/dashboard/templates/layout"
@@ -42,7 +38,9 @@ import (
 	"istio.io/bots/policybot/dashboard/topics/postsubmit"
 	"istio.io/bots/policybot/dashboard/topics/pullrequests"
 	"istio.io/bots/policybot/dashboard/topics/webanalytics"
+	"istio.io/bots/policybot/dashboard/topics/workinggroups"
 	"istio.io/bots/policybot/dashboard/types"
+	"istio.io/bots/policybot/pkg/cmdutil"
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"

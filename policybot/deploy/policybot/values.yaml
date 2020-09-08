@@ -5,7 +5,6 @@ istio: false
 # pass the following args to helm template on the command line
 GITHUB_WEBHOOK_SECRET: gh
 GITHUB_TOKEN: gt
-ZENHUB_TOKEN: zt
 GCP_CREDS: gc
 SENDGRID_APIKEY: sa
 GITHUB_OAUTH_CLIENT_ID: gcl
