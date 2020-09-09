@@ -33,7 +33,6 @@ const (
 	labelTable                         = "Labels"
 	issueTable                         = "Issues"
 	issueCommentTable                  = "IssueComments"
-	issuePipelineTable                 = "IssuePipelines"
 	pullRequestTable                   = "PullRequests"
 	pullRequestReviewCommentTable      = "PullRequestReviewComments"
 	pullRequestReviewTable             = "PullRequestReviews"
@@ -63,7 +62,6 @@ var (
 	labelColumns                    []string
 	issueColumns                    []string
 	issueCommentColumns             []string
-	issuePipelineColumns            []string
 	pullRequestColumns              []string
 	pullRequestReviewCommentColumns []string
 	pullRequestReviewColumns        []string
@@ -97,10 +95,6 @@ func issueKey(orgLogin string, repoName string, issueNumber int64) spanner.Key {
 
 func issueCommentKey(orgLogin string, repoName string, issueNumber int64, commentID int64) spanner.Key {
 	return spanner.Key{orgLogin, repoName, issueNumber, commentID}
-}
-
-func issuePipelineKey(orgLogin string, repoName string, issueNumber int64) spanner.Key {
-	return spanner.Key{orgLogin, repoName, issueNumber}
 }
 
 func pullRequestKey(orgLogin string, repoName string, prNumber int64) spanner.Key {
@@ -142,7 +136,6 @@ func init() {
 	labelColumns = getFields(storage.Label{})
 	issueColumns = getFields(storage.Issue{})
 	issueCommentColumns = getFields(storage.IssueComment{})
-	issuePipelineColumns = getFields(storage.IssuePipeline{})
 	pullRequestColumns = getFields(storage.PullRequest{})
 	pullRequestReviewColumns = getFields(storage.PullRequestReview{})
 	botActivityColumns = getFields(storage.BotActivity{})

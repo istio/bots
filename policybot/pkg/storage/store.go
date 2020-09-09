@@ -29,7 +29,6 @@ type Store interface {
 	WriteRepoComments(context context.Context, comments []*RepoComment) error
 	WriteIssues(context context.Context, issues []*Issue) error
 	WriteIssueComments(context context.Context, issueComments []*IssueComment) error
-	WriteIssuePipelines(context context.Context, issueData []*IssuePipeline) error
 	WritePullRequests(context context.Context, prs []*PullRequest) error
 	WritePullRequestReviewComments(context context.Context, prComments []*PullRequestReviewComment) error
 	WritePullRequestReviews(context context.Context, prReviews []*PullRequestReview) error
@@ -59,7 +58,6 @@ type Store interface {
 	ReadRepo(context context.Context, orgLogin string, repoName string) (*Repo, error)
 	ReadIssue(context context.Context, orgLogin string, repoName string, number int) (*Issue, error)
 	ReadIssueComment(context context.Context, orgLogin string, repoName string, issueNumber int, issueCommentID int) (*IssueComment, error)
-	ReadIssuePipeline(context context.Context, orgLogin string, repoName string, issueNumber int) (*IssuePipeline, error)
 	ReadLabel(context context.Context, orgLogin string, repoName string, labelName string) (*Label, error)
 	ReadUser(context context.Context, userLogin string) (*User, error)
 	ReadPullRequest(context context.Context, orgLogin string, repoName string, prNumber int) (*PullRequest, error)

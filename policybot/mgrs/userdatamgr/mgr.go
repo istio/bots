@@ -19,11 +19,9 @@ import (
 	"fmt"
 	"os"
 
-	"istio.io/pkg/log"
-
 	"istio.io/bots/policybot/pkg/config"
-
 	"istio.io/bots/policybot/pkg/storage"
+	"istio.io/pkg/log"
 )
 
 // UserdataMgr populates Spanner with the set of known affiliated users

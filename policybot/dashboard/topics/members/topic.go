@@ -25,12 +25,11 @@ import (
 	"strings"
 	"time"
 
-	"istio.io/bots/policybot/pkg/config"
-
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 
 	"istio.io/bots/policybot/dashboard/types"
+	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
 	"istio.io/bots/policybot/pkg/util"

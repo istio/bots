@@ -37,7 +37,6 @@ type Cache struct {
 	pullRequestCache              cache.ExpiringCache
 	pullRequestReviewCommentCache cache.ExpiringCache
 	pullRequestReviewCache        cache.ExpiringCache
-	pipelineCache                 cache.ExpiringCache
 	maintainerCache               cache.ExpiringCache
 	memberCache                   cache.ExpiringCache
 	latestBaseShaCache            cache.ExpiringCache
@@ -65,7 +64,6 @@ func New(store storage.Store, entryTTL time.Duration) *Cache {
 		pullRequestCache:              cache.NewTTL(entryTTL, evictionInterval),
 		pullRequestReviewCommentCache: cache.NewTTL(entryTTL, evictionInterval),
 		pullRequestReviewCache:        cache.NewTTL(entryTTL, evictionInterval),
-		pipelineCache:                 cache.NewTTL(entryTTL, evictionInterval),
 		maintainerCache:               cache.NewTTL(entryTTL, evictionInterval),
 		memberCache:                   cache.NewTTL(entryTTL, evictionInterval),
 		latestBaseShaCache:            cache.NewTTL(entryTTL, evictionInterval),
@@ -297,35 +295,6 @@ func (c *Cache) WritePullRequestReviews(context context.Context, prReviews []*st
 				review.RepoName+
 				strconv.Itoa(int(review.PullRequestNumber))+
 				strconv.Itoa(int(review.PullRequestReviewID)), review)
-		}
-	}
-
-	return err
-}
-
-// Reads from cache and if not found reads from DB
-func (c *Cache) ReadIssuePipeline(context context.Context, orgLogin string, repoName string, issueNumber int) (*storage.IssuePipeline, error) {
-	key := orgLogin + repoName + strconv.Itoa(issueNumber)
-	if value, ok := c.pipelineCache.Get(key); ok {
-		return value.(*storage.IssuePipeline), nil
-	}
-
-	result, err := c.store.ReadIssuePipeline(context, orgLogin, repoName, issueNumber)
-	if err == nil {
-		c.pipelineCache.Set(key, result)
-	}
-
-	return result, err
-}
-
-// Writes to DB and if successful, updates the cache
-func (c *Cache) WriteIssuePipelines(context context.Context, pipelines []*storage.IssuePipeline) error {
-	err := c.store.WriteIssuePipelines(context, pipelines)
-	if err == nil {
-		for _, pipeline := range pipelines {
-			c.pipelineCache.Set(pipeline.OrgLogin+
-				pipeline.RepoName+
-				strconv.Itoa(int(pipeline.IssueNumber)), pipeline)
 		}
 	}
 

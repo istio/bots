@@ -88,22 +88,6 @@ func (s store) ReadIssueComment(context context.Context, orgLogin string, repoNa
 	return &result, nil
 }
 
-func (s store) ReadIssuePipeline(context context.Context, orgLogin string, repoName string, issueNumber int) (*storage.IssuePipeline, error) {
-	row, err := s.client.Single().ReadRow(context, issuePipelineTable, issuePipelineKey(orgLogin, repoName, int64(issueNumber)), issuePipelineColumns)
-	if spanner.ErrCode(err) == codes.NotFound {
-		return nil, nil
-	} else if err != nil {
-		return nil, err
-	}
-
-	var result storage.IssuePipeline
-	if err := rowToStruct(row, &result); err != nil {
-		return nil, err
-	}
-
-	return &result, nil
-}
-
 func (s store) ReadPullRequest(context context.Context, orgLogin string, repoName string, prNumber int) (*storage.PullRequest, error) {
 	row, err := s.client.Single().ReadRow(context, pullRequestTable, pullRequestKey(orgLogin, repoName, int64(prNumber)), pullRequestColumns)
 	if spanner.ErrCode(err) == codes.NotFound {

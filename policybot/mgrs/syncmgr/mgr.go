@@ -26,31 +26,27 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
-
-	"istio.io/bots/policybot/pkg/pipeline"
-	"istio.io/pkg/env"
-
 	"cloud.google.com/go/bigquery"
 	"github.com/ghodss/yaml"
 	"github.com/google/go-github/v26/github"
+	"github.com/hashicorp/go-multierror"
 	"google.golang.org/api/iterator"
 
 	"istio.io/bots/policybot/handlers/githubwebhook/refresher"
 	"istio.io/bots/policybot/pkg/blobstorage"
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
+	"istio.io/bots/policybot/pkg/pipeline"
 	"istio.io/bots/policybot/pkg/resultgatherer"
 	"istio.io/bots/policybot/pkg/storage"
-	"istio.io/bots/policybot/pkg/zh"
+	"istio.io/pkg/env"
 	"istio.io/pkg/log"
 )
 
-// SyncMgr is responsible for synchronizing state from GitHub and ZenHub into our local store
+// SyncMgr is responsible for synchronizing state from GitHub into our local store
 type SyncMgr struct {
 	bq        *bigquery.Client
 	gc        *gh.ThrottledClient
-	zc        *zh.ThrottledClient
 	store     storage.Store
 	blobstore blobstorage.Store
 	robots    map[string]bool
@@ -66,7 +62,6 @@ const (
 	Maintainers              = 1 << 2
 	Members                  = 1 << 3
 	Labels                   = 1 << 4
-	ZenHub                   = 1 << 5
 	RepoComments             = 1 << 6
 	Events                   = 1 << 7
 	TestResults              = 1 << 8
@@ -83,9 +78,9 @@ type syncState struct {
 	dryRun bool
 }
 
-var scope = log.RegisterScope("syncmgr", "The GitHub/ZenHub data syncer", 0)
+var scope = log.RegisterScope("syncmgr", "The GitHub data syncer", 0)
 
-func New(gc *gh.ThrottledClient, zc *zh.ThrottledClient, store storage.Store, bq *bigquery.Client, bs blobstorage.Store,
+func New(gc *gh.ThrottledClient, store storage.Store, bq *bigquery.Client, bs blobstorage.Store,
 	reg *config.Registry, robots []string) *SyncMgr {
 	r := make(map[string]bool, len(robots))
 	for _, robot := range robots {
@@ -95,7 +90,6 @@ func New(gc *gh.ThrottledClient, zc *zh.ThrottledClient, store storage.Store, bq
 	return &SyncMgr{
 		gc:        gc,
 		bq:        bq,
-		zc:        zc,
 		store:     store,
 		blobstore: bs,
 		robots:    r,
@@ -106,7 +100,7 @@ func New(gc *gh.ThrottledClient, zc *zh.ThrottledClient, store storage.Store, bq
 func ConvFilterFlags(filter string) (FilterFlags, error) {
 	if filter == "" {
 		// defaults to everything
-		return Issues | Prs | Maintainers | Members | Labels | ZenHub | RepoComments | Events | TestResults, nil
+		return Issues | Prs | Maintainers | Members | Labels | RepoComments | Events | TestResults, nil
 	}
 
 	var result FilterFlags
@@ -122,8 +116,6 @@ func ConvFilterFlags(filter string) (FilterFlags, error) {
 			result |= Members
 		case "labels":
 			result |= Labels
-		case "zenhub":
-			result |= ZenHub
 		case "repocomments":
 			result |= RepoComments
 		case "events":
@@ -312,12 +304,6 @@ func (ss *syncState) handleRepo(repo gh.RepoDesc) error {
 			return err
 		}
 
-	}
-
-	if ss.flags&ZenHub != 0 {
-		if err := ss.handleZenHub(repo); err != nil {
-			return err
-		}
 	}
 
 	if ss.flags&Prs != 0 {
@@ -929,62 +915,6 @@ func (ss *syncState) handleIssueComments(repo gh.RepoDesc, startTime time.Time) 
 
 		return ss.mgr.store.WriteIssueComments(ss.ctx, storageIssueComments)
 	})
-}
-
-func (ss *syncState) handleZenHub(repo gh.RepoDesc) error {
-	scope.Debugf("Getting ZenHub issue data for repo %s", repo)
-
-	// get all the issues
-	var issues []*storage.Issue
-	if err := ss.mgr.store.QueryIssuesByRepo(ss.ctx, repo.OrgLogin, repo.RepoName, func(issue *storage.Issue) error {
-		issues = append(issues, issue)
-		return nil
-	}); err != nil {
-		return fmt.Errorf("unable to read issues from repo %s: %v", repo, err)
-	}
-
-	sr, err := ss.mgr.store.ReadRepo(ss.ctx, repo.OrgLogin, repo.RepoName)
-	if err != nil {
-		return fmt.Errorf("unable to read information about repo %s from storage", repo)
-	}
-
-	// now get the ZenHub data for all issues
-	var pipelines []*storage.IssuePipeline
-	for _, issue := range issues {
-		issueData, err := ss.mgr.zc.ThrottledCall(func(client *zh.Client) (interface{}, error) {
-			return client.GetIssueData(int(sr.RepoNumber), int(issue.IssueNumber))
-		})
-
-		if err != nil {
-			if err == zh.ErrNotFound {
-				// not found, so nothing to do...
-				return nil
-			}
-
-			return fmt.Errorf("unable to get issue data from ZenHub for issue %d in repo %s/%s: %v", issue.IssueNumber, repo.OrgLogin, repo.RepoName, err)
-		}
-
-		pipelines = append(pipelines, &storage.IssuePipeline{
-			OrgLogin:    repo.OrgLogin,
-			RepoName:    repo.RepoName,
-			IssueNumber: issue.IssueNumber,
-			Pipeline:    issueData.(*zh.IssueData).Pipeline.Name,
-		})
-
-		if len(pipelines)%100 == 0 {
-			if err = ss.mgr.store.WriteIssuePipelines(ss.ctx, pipelines); err != nil {
-				return err
-			}
-			pipelines = pipelines[:0]
-		}
-	}
-
-	if ss.dryRun {
-		scope.Infof("Would have written %d issue pipelines for repo %s to storage", len(pipelines), repo)
-		return nil
-	}
-
-	return ss.mgr.store.WriteIssuePipelines(ss.ctx, pipelines)
 }
 
 func (ss *syncState) handlePullRequests(repo gh.RepoDesc) error {

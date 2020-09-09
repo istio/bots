@@ -18,11 +18,11 @@ import (
 	"context"
 	"fmt"
 
-	"istio.io/bots/policybot/pkg/storage"
-	"istio.io/pkg/log"
-
 	"cloud.google.com/go/spanner"
 	"google.golang.org/api/option"
+
+	"istio.io/bots/policybot/pkg/storage"
+	"istio.io/pkg/log"
 )
 
 type store struct {

@@ -24,20 +24,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"regexp"
-
-	"github.com/ghodss/yaml"
-
-	pipelinetwo "istio.io/bots/policybot/pkg/pipeline"
-
-	"cloud.google.com/go/storage"
-
 	"io/ioutil"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	"cloud.google.com/go/storage"
+	"github.com/ghodss/yaml"
+
 	"istio.io/bots/policybot/pkg/blobstorage"
+	pipelinetwo "istio.io/bots/policybot/pkg/pipeline"
 	store "istio.io/bots/policybot/pkg/storage"
 )
 

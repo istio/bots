@@ -17,9 +17,8 @@ package spanner
 import (
 	"context"
 
-	"google.golang.org/grpc/codes"
-
 	"cloud.google.com/go/spanner"
+	"google.golang.org/grpc/codes"
 
 	"istio.io/bots/policybot/pkg/storage"
 )

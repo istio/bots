@@ -20,7 +20,6 @@ import (
 	"net/http"
 
 	"istio.io/bots/policybot/dashboard/types"
-
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
 )

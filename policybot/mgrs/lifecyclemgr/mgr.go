@@ -153,11 +153,6 @@ func (lm *LifecycleMgr) manageIssue(context context.Context, issue *storage.Issu
 		return nil
 	}
 
-	latestMemberActivity, err := lm.store.GetLatestIssueMemberActivity(context, issue.OrgLogin, issue.RepoName, int(issue.IssueNumber))
-	if err != nil {
-		return fmt.Errorf("could not get member activity for issue/PR %d in repo %s/%s: %v", issue.IssueNumber, issue.OrgLogin, issue.RepoName, err)
-	}
-
 	latestMemberComment, err := lm.store.GetLatestIssueMemberComment(context, issue.OrgLogin, issue.RepoName, int(issue.IssueNumber))
 	if err != nil {
 		return fmt.Errorf("could not get member comment for issue/PR %d in repo %s/%s: %v", issue.IssueNumber, issue.OrgLogin, issue.RepoName, err)
@@ -168,54 +163,11 @@ func (lm *LifecycleMgr) manageIssue(context context.Context, issue *storage.Issu
 		latestMemberCommentDelta = now.Sub(issue.CreatedAt)
 	}
 
-	pipeline, err := lm.cache.ReadIssuePipeline(context, issue.OrgLogin, issue.RepoName, int(issue.IssueNumber))
-	if err != nil {
-		return fmt.Errorf("could not get issue pipeline data for issue/PR %d in repo %s/%s: %v", issue.IssueNumber, issue.OrgLogin, issue.RepoName, err)
-	}
-
 	pull, err := lm.cache.ReadPullRequest(context, issue.OrgLogin, issue.RepoName, int(issue.IssueNumber))
 	if err != nil {
 		return fmt.Errorf("could not get pr info for issue/PR %d in repo %s/%s: %v", issue.IssueNumber, issue.OrgLogin, issue.RepoName, err)
 	}
 	pr := pull != nil
-
-	if !pr {
-		// if an issue needs to be triaged, add the label
-		if needsTriage(pipeline, latestMemberComment, latestMemberActivity, pr) {
-			oldCutoff := now.Add(-time.Duration(lr.RealOldDelay))
-
-			if issue.CreatedAt.After(oldCutoff) {
-				st.markedNeedsTriage++
-				if !hasTriageLabel {
-					if err := lm.addLabel(context, issue, lr.TriageLabel, dryRun); err != nil {
-						return err
-					}
-				}
-
-				return nil
-			}
-		} else if hasTriageLabel {
-			// the item has been triaged, so the label can be removed if present
-			if err := lm.removeLabel(context, issue, lr.TriageLabel, dryRun); err != nil {
-				return err
-			}
-		}
-	}
-
-	// see if the item needs escalation
-	if lm.needsEscalation(pipeline, latestMemberCommentDelta, lr) {
-		st.markedNeedsEscalation++
-		if !hasEscalationLabel {
-			if err := lm.addLabel(context, issue, lr.EscalationLabel, dryRun); err != nil {
-				return err
-			}
-		}
-	} else if hasEscalationLabel {
-		// remove the label if no need for escalation
-		if err := lm.removeLabel(context, issue, lr.EscalationLabel, dryRun); err != nil {
-			return err
-		}
-	}
 
 	if hasStaleproofLabel {
 		// clean up any leftover stale label and staleness comment
@@ -396,35 +348,4 @@ func (lm *LifecycleMgr) removeComment(context context.Context, issue *storage.Is
 
 	scope.Infof("Removed comment from issue/PR %d in repo %s/%s", issue.IssueNumber, issue.OrgLogin, issue.RepoName)
 	return nil
-}
-
-func needsTriage(pipeline *storage.IssuePipeline, latestMemberComment time.Time, latestMemberActivity time.Time, pr bool) bool {
-	if !pr {
-		// issues need to be prioritized
-		if pipeline == nil || pipeline.Pipeline == "" || pipeline.Pipeline == "New Issues" {
-			return true
-		}
-	}
-
-	if (latestMemberComment == time.Time{}) && (latestMemberActivity == time.Time{}) {
-		// no team member has left a comment or performed any other activity on the issue
-		return true
-	}
-
-	return false
-}
-
-func (lm *LifecycleMgr) needsEscalation(pipeline *storage.IssuePipeline, latestMemberCommentDelta time.Duration, lr *lifecycleRecord) bool {
-	if highPriority(pipeline) {
-		// needs escalation if no team member has commented on the item in the allowed escalation delay
-		if latestMemberCommentDelta > time.Duration(lr.EscalationDelay) {
-			return true
-		}
-	}
-
-	return false
-}
-
-func highPriority(pipeline *storage.IssuePipeline) bool {
-	return pipeline != nil && (pipeline.Pipeline == "P0" || pipeline.Pipeline == "Release Blocker")
 }

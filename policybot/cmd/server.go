@@ -34,7 +34,6 @@ import (
 	"istio.io/bots/policybot/handlers/githubwebhook/refresher"
 	"istio.io/bots/policybot/handlers/githubwebhook/watcher"
 	"istio.io/bots/policybot/handlers/githubwebhook/welcomer"
-	"istio.io/bots/policybot/handlers/zenhubwebhook"
 	"istio.io/bots/policybot/mgrs/lifecyclemgr"
 	"istio.io/bots/policybot/pkg/blobstorage/gcs"
 	"istio.io/bots/policybot/pkg/cmdutil"
@@ -43,7 +42,6 @@ import (
 	"istio.io/bots/policybot/pkg/storage/cache"
 	"istio.io/bots/policybot/pkg/storage/spanner"
 	"istio.io/bots/policybot/pkg/util"
-	"istio.io/bots/policybot/pkg/zh"
 	"istio.io/pkg/log"
 )
 
@@ -61,7 +59,6 @@ func serverCmd() *cobra.Command {
 			cmdutil.GitHubWebhookSecret|
 			cmdutil.ConfigPath|
 			cmdutil.ConfigRepo|
-			cmdutil.ZenhubToken|
 			cmdutil.GitHubToken|
 			cmdutil.GCPCreds|
 			cmdutil.ControlZ, func(reg *config.Registry, secrets *cmdutil.Secrets) error {
@@ -140,7 +137,6 @@ func runWithConfig(reg *config.Registry, secrets *cmdutil.Secrets, httpsOnly boo
 
 	c := cache.New(store, time.Duration(core.CacheTTL))
 	gc := gh.NewThrottledClient(context.Background(), secrets.GitHubToken)
-	zc := zh.NewThrottledClient(secrets.ZenHubToken)
 	_ = util.NewMailer(secrets.SendGridAPIKey, core.EmailFrom, core.EmailOriginAddress)
 	lf := lifecyclemgr.New(gc, store, c, reg)
 
@@ -182,7 +178,7 @@ func runWithConfig(reg *config.Registry, secrets *cmdutil.Secrets, httpsOnly boo
 	filters := []githubwebhook.Filter{
 		refresher.NewRefresher(c, store, bs, gc, reg),
 		nag,
-		lifecycler.New(gc, zc, reg, lf, c),
+		lifecycler.New(gc, reg, lf, c),
 		labeler,
 		cleaner,
 		welcomer.NewWelcomer(gc, store, c, reg),
@@ -198,7 +194,6 @@ func runWithConfig(reg *config.Registry, secrets *cmdutil.Secrets, httpsOnly boo
 
 	// top-level handlers
 	router.Handle("/githubwebhook", githubwebhook.NewHandler(secrets.GitHubWebhookSecret, filters...)).Methods("POST")
-	router.Handle("/zenhubwebhook", zenhubwebhook.NewHandler(store, c, lf)).Methods("POST")
 
 	// prep the UI
 	_ = dashboard.New(router, store, c, reg, secrets)

@@ -21,9 +21,8 @@ import (
 	"net/http"
 	"strings"
 
-	"istio.io/bots/policybot/dashboard/types"
-
 	"istio.io/bots/policybot/dashboard/templates/widgets"
+	"istio.io/bots/policybot/dashboard/types"
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
 )

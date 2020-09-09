@@ -20,7 +20,6 @@ type Secrets struct {
 	GitHubToken             string
 	GCPCredentials          string
 	SendGridAPIKey          string
-	ZenHubToken             string
 	GitHubOAuthClientSecret string
 	GitHubOAuthClientID     string
 }

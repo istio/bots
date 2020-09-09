@@ -19,12 +19,11 @@ import (
 	"fmt"
 	"io"
 
-	"istio.io/bots/policybot/pkg/pipeline"
-
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/option"
 
 	"istio.io/bots/policybot/pkg/blobstorage"
+	"istio.io/bots/policybot/pkg/pipeline"
 )
 
 type store struct {
