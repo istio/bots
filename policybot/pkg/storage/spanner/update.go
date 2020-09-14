@@ -17,7 +17,6 @@ package spanner
 import (
 	"context"
 
-
 	"cloud.google.com/go/spanner"
 	"github.com/hashicorp/go-multierror"
 	"google.golang.org/grpc/codes"

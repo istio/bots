@@ -19,8 +19,6 @@ import (
 	"fmt"
 	"strings"
 
-	"istio.io/bots/policybot/pkg/pipeline"
-
 	"cloud.google.com/go/spanner"
 	"google.golang.org/api/iterator"
 
