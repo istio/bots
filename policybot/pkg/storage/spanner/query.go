@@ -956,7 +956,7 @@ func (s store) QueryNewFlakes(ctx context.Context) pipeline.Pipeline {
 	var iter *spanner.RowIterator
 	lp := pipeline.IterProducer{
 		Setup: func() error {
-			iter = s.client.Single().Query(ctx, spanner.Statement{SQL: fmt.Sprintf(
+			iter = s.client.Single().Query(ctx, spanner.Statement{SQL:
 				`select failed.PullRequestNumber, failed.TestName, failed.RunNumber, passed.RunNumber as PassingRunNumber, failed.OrgLogin, failed.RepoName, failed.Done
 				from TestResults as failed
 				JOIN TestResults as passed
@@ -973,7 +973,7 @@ func (s store) QueryNewFlakes(ctx context.Context) pipeline.Pipeline {
 				LEFT JOIN ConfirmedFlakes ON failed.PullRequestNumber = ConfirmedFlakes.PullRequestNumber AND
 				failed.RunNumber = ConfirmedFlakes.RunNumber AND
 				failed.TestName = ConfirmedFlakes.TestName
-				WHERE ConfirmedFlakes.PullRequestNumber is null`)})
+				WHERE ConfirmedFlakes.PullRequestNumber is null`})
 			return nil
 		},
 		Iterator: func() (res interface{}, err error) {
