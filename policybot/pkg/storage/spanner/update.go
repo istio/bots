@@ -16,9 +16,10 @@ package spanner
 
 import (
 	"context"
-	"github.com/hashicorp/go-multierror"
+
 
 	"cloud.google.com/go/spanner"
+	"github.com/hashicorp/go-multierror"
 	"google.golang.org/grpc/codes"
 
 	"istio.io/bots/policybot/pkg/storage"
