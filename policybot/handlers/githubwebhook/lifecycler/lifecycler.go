@@ -17,8 +17,6 @@ package lifecycler
 import (
 	"context"
 
-	"fmt"
-
 	"github.com/google/go-github/v26/github"
 
 	"istio.io/bots/policybot/handlers/githubwebhook"
@@ -27,7 +25,6 @@ import (
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
-	"istio.io/bots/policybot/pkg/zh"
 	"istio.io/pkg/log"
 )
 
