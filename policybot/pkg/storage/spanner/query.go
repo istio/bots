@@ -891,7 +891,7 @@ func (s store) QueryLatestBaseSha(context context.Context) (*storage.LatestBaseS
 
 func (s store) QueryAllBaseSha(context context.Context) (baseShas []string, err error) {
 	sql := `SELECT DISTINCT BaseSha
-			FROM PostSubmitTestResults 
+			FROM PostSubmitTestResults
 			LIMIT 50000;`
 	stmt := spanner.NewStatement(sql)
 
@@ -910,7 +910,7 @@ func (s store) QueryAllBaseSha(context context.Context) (baseShas []string, err 
 func (s store) QueryPostSubmitTestEnvLabel(context context.Context, baseSha string, cb func(*storage.PostSubmitTestEnvLabel) error) error {
 	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
 		`SELECT SuiteOutcomes.Environment, FeatureLabels.Label
-		FROM PostSubmitTestResults 
+		FROM PostSubmitTestResults
 		INNER JOIN SuiteOutcomes USING (OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done)
 		INNER JOIN TestOutcomes USING (OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done, SuiteName)
 		INNER JOIN FeatureLabels USING (OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done, SuiteName, TestOutcomeName)
@@ -933,7 +933,7 @@ func (s store) QueryTestNameByEnvLabel(context context.Context, baseSha string, 
 	label string) (testNameByEnvLabels []*storage.TestNameByEnvLabel, err error) {
 	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
 		`SELECT TestOutcomes.TestOutcomeName, RunNumber, TestName
-		FROM PostSubmitTestResults 
+		FROM PostSubmitTestResults
 		INNER JOIN SuiteOutcomes USING (OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done)
 		INNER JOIN TestOutcomes USING (OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done, SuiteName)
 		INNER JOIN FeatureLabels USING (OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done, SuiteName,    TestOutcomeName)
