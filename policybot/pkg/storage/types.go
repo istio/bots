@@ -139,19 +139,19 @@ type Monitor struct {
 	// MonitorName is the name of the monitor, e.g. ContainerMemoryUsage
 	MonitorName string
 	// Status represents the status of the monitor, e.g. HEALTHY, ALERTING
-	Status      string
+	Status string
 	// ProjectID points to the project where the test is running
-	ProjectID  string
+	ProjectID string
 	// ClusterName points to the cluster where the test is running
-	ClusterName  string
-	// Summary contains high level description about the monitor
-	Summary     string
+	ClusterName string
 	TestID      string
 	// Branch of the test, e.g. release-1.7
-	Branch      string
+	Branch string
 	// UpdatedTime represents the time of the monitor status update
 	UpdatedTime time.Time
-	IsActive    bool
+	// FiredTimes represents the number of times the monitor fired alerts.
+	FiredTimes int64
+	IsActive   *bool
 }
 
 type BotActivity struct {

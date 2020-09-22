@@ -56,26 +56,30 @@ var _pageHtml = []byte(`<aside class="callout warning">
     </div>
 </aside>
 
-{{ range .Branches }}
+{{ range $branch, $aggregatedStatus := .StatusByBranch }}
 <table>
-    <caption>Monitor Status for {{ . }}</caption>
+    <caption>Monitor Status for {{ $branch }}</caption>
     <thead>
     <tr>
         <th>Monitor</th>
         <th>Status</th>
-        <th>Summary</th>
-        <th>ClusterURL</th>
-        <th>LastUpdatedTime</th>
+        <th>ProjectID</th>
+        <th>ClusterName</th>
+        <th>UpdatedTime</th>
+        <th>TestID</th>
+        <th>FiredTimes</th>
     </tr>
     </thead>
     <tbody>
-        {{ range $monitorName, $singleStatus := .StatusByBranch }}
+        {{ range $monitorName, $singleStatus := $aggregatedStatus }}
         <tr>
-            <td>{{ .monitorName }}</td>
-            <td>{{ .singleStatus.Status }}</td>
-            <td>{{ .singleStatus.Summary }}</td>
-            <td>{{ .singleStatus.ClusterURL }}</td>
-            <td>{{ .singleStatus.LastUpdatedTime }}</td>
+            <td>{{ $monitorName }}</td>
+            <td>{{ $singleStatus.Status }}</td>
+            <td>{{ $singleStatus.ProjectID }}</td>
+            <td>{{ $singleStatus.ClusterName }}</td>
+            <td>{{ $singleStatus.UpdatedTime }}</td>
+            <td>{{ $singleStatus.TestID }}</td>
+            <td>{{ $singleStatus.FiredTimes }}</td>
         </tr>
         {{ end}}
     </tbody>

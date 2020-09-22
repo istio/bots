@@ -38,16 +38,17 @@ type ReleaseQualification struct {
 
 // SingleMonitorStatus represents the status of one single monitor
 type SingleMonitorStatus struct {
-	Name    string
-	Status  string
-	Summary string
-	ProjectID string
+	Name        string
+	Status      string
+	TestID      string
+	ProjectID   string
 	ClusterName string
+	FiredTimes  int64
 	UpdatedTime time.Time
 }
 
 // AggregatedMonitorStatus is aggregation of monitor statuses, key is the monitor name.
-type AggregatedMonitorStatus map[string]SingleMonitorStatus
+type AggregatedMonitorStatus map[string]*SingleMonitorStatus
 
 // MonitorReport represents the data used for rendering the HTML page.
 type MonitorReport struct {
@@ -83,8 +84,8 @@ func (r *ReleaseQualification) Render(req *http.Request) (types.RenderInfo, erro
 
 func (r *ReleaseQualification) getMonitorStatus(context context.Context) (MonitorReport, error) {
 	var mr MonitorReport
-	// branchStatus is mapping from branch name to aggregatedMonitorStatus
-	branchStatus := make(map[string]AggregatedMonitorStatus)
+	// StatusByBranch is mapping from branch name to aggregatedMonitorStatus
+	mr.StatusByBranch = make(map[string]AggregatedMonitorStatus)
 
 	if err := r.store.QueryMonitorStatus(context, func(monitor *storage.Monitor) error {
 		branch := monitor.Branch
@@ -92,28 +93,34 @@ func (r *ReleaseQualification) getMonitorStatus(context context.Context) (Monito
 			log.Warn("monitor branch is empty")
 			return nil
 		}
-		if _, ok := branchStatus[branch]; !ok {
+		if _, ok := mr.StatusByBranch[branch]; !ok {
 			mr.Branches = append(mr.Branches, branch)
-			branchStatus[branch] = make(AggregatedMonitorStatus)
+			mr.StatusByBranch[branch] = make(AggregatedMonitorStatus)
 		}
-		ms := branchStatus[branch]
+		ms := mr.StatusByBranch[branch]
 		monitorName := monitor.MonitorName
 		if _, ok := ms[monitorName]; !ok {
-			ms[monitorName] = SingleMonitorStatus{}
+			ms[monitorName] = &SingleMonitorStatus{}
 		}
-		sms := ms[monitorName]
-		if sms.UpdatedTime.String() == "" || sms.UpdatedTime.Before(monitor.UpdatedTime) {
+		sms, _ := ms[monitorName]
+		if sms.UpdatedTime.IsZero() || sms.UpdatedTime.Before(monitor.UpdatedTime) {
 			sms.Name = monitorName
 			sms.Status = monitor.Status
 			sms.UpdatedTime = monitor.UpdatedTime
 			sms.ClusterName = monitor.ClusterName
 			sms.ProjectID = monitor.ProjectID
-			sms.Summary = monitor.Summary
+			sms.TestID = monitor.TestID
+			sms.FiredTimes = monitor.FiredTimes
 		}
 		return nil
 	}); err != nil {
 		return mr, err
 	}
-
+	for branch, ags := range mr.StatusByBranch {
+		log.Infof("monitor status for branch: %v\n", branch)
+		for _, sgs := range ags {
+			log.Infof("single status: %v\n", sgs)
+		}
+	}
 	return mr, nil
 }
