@@ -102,7 +102,7 @@ func (r *ReleaseQualification) getMonitorStatus(context context.Context) (Monito
 		if _, ok := ms[monitorName]; !ok {
 			ms[monitorName] = &SingleMonitorStatus{}
 		}
-		sms, _ := ms[monitorName]
+		sms := ms[monitorName]
 		if sms.UpdatedTime.IsZero() || sms.UpdatedTime.Before(monitor.UpdatedTime) {
 			sms.Name = monitorName
 			sms.Status = monitor.Status

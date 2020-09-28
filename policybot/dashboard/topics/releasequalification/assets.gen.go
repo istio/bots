@@ -74,12 +74,20 @@ var _pageHtml = []byte(`<aside class="callout warning">
         {{ range $monitorName, $singleStatus := $aggregatedStatus }}
         <tr>
             <td>{{ $monitorName }}</td>
-            <td>{{ $singleStatus.Status }}</td>
+            {{ if eq $singleStatus.Status "HEALTHY"}}
+              <td style="color: green">{{ $singleStatus.Status }}</td>
+            {{ else }}
+              <td style="color: red">{{ $singleStatus.Status }}</td>
+            {{ end }}
             <td>{{ $singleStatus.ProjectID }}</td>
             <td>{{ $singleStatus.ClusterName }}</td>
             <td>{{ $singleStatus.UpdatedTime }}</td>
             <td>{{ $singleStatus.TestID }}</td>
-            <td>{{ $singleStatus.FiredTimes }}</td>
+            {{ if eq $singleStatus.FiredTimes 0 }}
+                <td style="color: green">{{ $singleStatus.FiredTimes }}</td>
+            {{ else }}
+                <td style="color: red">{{ $singleStatus.FiredTimes }}</td>
+            {{ end }}
         </tr>
         {{ end}}
     </tbody>
