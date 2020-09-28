@@ -52,6 +52,7 @@ const (
 	featureLabelTable                  = "FeatureLabels"
 	coverageDataTable                  = "CoverageData"
 	userAffiliationTable               = "UserAffiliation"
+	monitorStatus                      = "MonitorStatus"
 )
 
 // Holds the column names for each table or index in the database (filled in at startup)
@@ -69,6 +70,7 @@ var (
 	maintainerColumns               []string
 	memberColumns                   []string
 	testResultColumns               []string
+	monitorStatusColumns            []string
 )
 
 // Bunch of functions to from keys for the tables and indices in the DB
@@ -83,6 +85,10 @@ func repoKey(orgLogin string, repoName string) spanner.Key {
 
 func userKey(userLogin string) spanner.Key {
 	return spanner.Key{userLogin}
+}
+
+func monitorStatusKey(branch, monitorName string) spanner.Key {
+	return spanner.Key{branch, monitorName}
 }
 
 func labelKey(orgLogin string, repoName string, labelName string) spanner.Key {
@@ -142,6 +148,7 @@ func init() {
 	maintainerColumns = getFields(storage.Maintainer{})
 	memberColumns = getFields(storage.Member{})
 	testResultColumns = getFields(storage.TestResult{})
+	monitorStatusColumns = getFields(storage.Monitor{})
 }
 
 // Produces a string array representing all the fields in the input object

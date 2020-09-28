@@ -172,6 +172,23 @@ func (s store) ReadUser(context context.Context, userLogin string) (*storage.Use
 	return &result, nil
 }
 
+// ReadMonitorStatus reads monitor status of release qualification test
+func (s store) ReadMonitorStatus(context context.Context, branch, monitorName string) (*storage.Monitor, error) {
+	row, err := s.client.Single().ReadRow(context, monitorStatus, monitorStatusKey(branch, monitorName), monitorStatusColumns)
+	if spanner.ErrCode(err) == codes.NotFound {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	var result storage.Monitor
+	if err := rowToStruct(row, &result); err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
+
 func (s store) ReadBotActivity(context context.Context, orgLogin string, repoName string) (*storage.BotActivity, error) {
 	row, err := s.client.Single().ReadRow(context, botActivityTable, botActivityKey(orgLogin, repoName), botActivityColumns)
 	if spanner.ErrCode(err) == codes.NotFound {

@@ -1,0 +1,49 @@
+<aside class="callout warning">
+    <div class="type">
+        <svg class="large-icon">
+            <use xlink:href="/icons/icons.svg#callout-warning">
+            </use>
+        </svg>
+    </div>
+    <div class="content">
+        This page is under construction
+    </div>
+</aside>
+
+{{ range $branch, $aggregatedStatus := .StatusByBranch }}
+<table>
+    <caption>Monitor Status for {{ $branch }}</caption>
+    <thead>
+    <tr>
+        <th>Monitor</th>
+        <th>Status</th>
+        <th>ProjectID</th>
+        <th>ClusterName</th>
+        <th>UpdatedTime</th>
+        <th>TestID</th>
+        <th>FiredTimes</th>
+    </tr>
+    </thead>
+    <tbody>
+        {{ range $monitorName, $singleStatus := $aggregatedStatus }}
+        <tr>
+            <td>{{ $monitorName }}</td>
+            {{ if eq $singleStatus.Status "HEALTHY"}}
+              <td style="color: green">{{ $singleStatus.Status }}</td>
+            {{ else }}
+              <td style="color: red">{{ $singleStatus.Status }}</td>
+            {{ end }}
+            <td>{{ $singleStatus.ProjectID }}</td>
+            <td>{{ $singleStatus.ClusterName }}</td>
+            <td>{{ $singleStatus.UpdatedTime }}</td>
+            <td>{{ $singleStatus.TestID }}</td>
+            {{ if eq $singleStatus.FiredTimes 0 }}
+                <td style="color: green">{{ $singleStatus.FiredTimes }}</td>
+            {{ else }}
+                <td style="color: red">{{ $singleStatus.FiredTimes }}</td>
+            {{ end }}
+        </tr>
+        {{ end}}
+    </tbody>
+</table>
+{{ end}}

@@ -220,6 +220,18 @@ CREATE TABLE RepoComments (
 ) PRIMARY KEY(OrgLogin, RepoName, CommentID),
   INTERLEAVE IN PARENT Repos ON DELETE CASCADE;
 
+CREATE TABLE MonitorStatus (
+  MonitorName STRING(MAX) NOT NULL,
+  Status STRING(MAX) NOT NULL,
+  ClusterName STRING(MAX) NOT NULL,
+  ProjectID STRING(MAX) NOT NULL,
+  TestID STRING(MAX),
+  Branch STRING(MAX) NOT NULL,
+  UpdatedTime TIMESTAMP NOT NULL,
+  FiredTimes INT64 NOT NULL,
+  IsActive BOOL,
+) PRIMARY KEY(TestID, MonitorName)
+
 CREATE TABLE TestResults (
   OrgLogin STRING(MAX) NOT NULL,
   RepoName STRING(MAX) NOT NULL,
