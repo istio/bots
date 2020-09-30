@@ -118,12 +118,12 @@ func TestPostSubmitTestResultGatherer(t *testing.T) {
 	start := time.Now()
 	testResultGatherer := TestResultGatherer{client, "istio-flakey-test", "", ""}
 	postSubmitResults, err := testResultGatherer.CheckPostSubmitTestResults(context, "istio", "istio")
-	postSubmitTestResults := postSubmitResults.TestResult
 	if err != nil {
 		t.Errorf("Expecting no error, got %v", err)
 		return
 	}
 
+	postSubmitTestResults := postSubmitResults.TestResult
 	if len(postSubmitTestResults) == 0 {
 		t.Errorf("Expected at least one test result from bucket istio-flakey-test")
 		return
