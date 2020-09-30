@@ -16,6 +16,8 @@ package storage
 
 import (
 	"time"
+
+	"cloud.google.com/go/spanner"
 )
 
 // This file defines the shapes we csn read/write to/from the DB. Before
@@ -147,10 +149,12 @@ type Monitor struct {
 	TestID      string
 	// Branch of the test, e.g. release-1.7
 	Branch string
+	// Description of the monitor
+	Description spanner.NullString
 	// UpdatedTime represents the time of the monitor status update
 	UpdatedTime time.Time
 	// FiredTimes represents the number of times the monitor fired alerts.
-	FiredTimes int64
+	FiredTimes spanner.NullInt64
 	IsActive   *bool
 }
 

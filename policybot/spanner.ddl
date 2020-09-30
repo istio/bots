@@ -227,8 +227,10 @@ CREATE TABLE MonitorStatus (
   ProjectID STRING(MAX) NOT NULL,
   TestID STRING(MAX),
   Branch STRING(MAX) NOT NULL,
+  Description STRING(MAX),
   UpdatedTime TIMESTAMP NOT NULL,
   FiredTimes INT64 NOT NULL,
+  Description STRING(MAX),
   IsActive BOOL,
 ) PRIMARY KEY(TestID, MonitorName)
 

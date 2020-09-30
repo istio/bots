@@ -43,6 +43,8 @@ type SingleMonitorStatus struct {
 	TestID      string
 	ProjectID   string
 	ClusterName string
+	Branch      string
+	Description string
 	FiredTimes  int64
 	UpdatedTime time.Time
 }
@@ -110,7 +112,9 @@ func (r *ReleaseQualification) getMonitorStatus(context context.Context) (Monito
 			sms.ClusterName = monitor.ClusterName
 			sms.ProjectID = monitor.ProjectID
 			sms.TestID = monitor.TestID
-			sms.FiredTimes = monitor.FiredTimes
+			sms.Branch = monitor.Branch
+			sms.Description = monitor.Description.String()
+			sms.FiredTimes = monitor.FiredTimes.Int64
 		}
 		return nil
 	}); err != nil {

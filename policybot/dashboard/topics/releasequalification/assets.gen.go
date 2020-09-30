@@ -56,6 +56,14 @@ var _pageHtml = []byte(`<aside class="callout warning">
     </div>
 </aside>
 
+<p>
+    This dashboard shows results of release qualification pipeline
+</p>
+
+<p>
+    To view the monitor/alert definition, checkout <a href="https://github.com/istio/tools/blob/master/perf/stability/alertmanager/prometheusrule.yaml">PrometheusRule list</a>
+</p>
+
 {{ range $branch, $aggregatedStatus := .StatusByBranch }}
 <table>
     <caption>Monitor Status for {{ $branch }}</caption>
@@ -67,7 +75,9 @@ var _pageHtml = []byte(`<aside class="callout warning">
         <th>ClusterName</th>
         <th>UpdatedTime</th>
         <th>TestID</th>
+        <th>Branch/SHA/Tag</th>
         <th>FiredTimes</th>
+        <th>Description</th>
     </tr>
     </thead>
     <tbody>
@@ -83,11 +93,13 @@ var _pageHtml = []byte(`<aside class="callout warning">
             <td>{{ $singleStatus.ClusterName }}</td>
             <td>{{ $singleStatus.UpdatedTime }}</td>
             <td>{{ $singleStatus.TestID }}</td>
+            <td>{{ $singleStatus.Branch }}</td>
             {{ if eq $singleStatus.FiredTimes 0 }}
                 <td style="color: green">{{ $singleStatus.FiredTimes }}</td>
             {{ else }}
                 <td style="color: red">{{ $singleStatus.FiredTimes }}</td>
             {{ end }}
+            <td>{{ $singleStatus.Description }}</td>
         </tr>
         {{ end}}
     </tbody>
