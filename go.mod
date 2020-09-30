@@ -2,6 +2,9 @@ module istio.io/bots
 
 go 1.12
 
+// Old version had no license
+replace github.com/chzyer/logex => github.com/chzyer/logex v1.1.11-0.20170329064859-445be9e134b2
+
 require (
 	cloud.google.com/go/bigquery v1.8.0
 	cloud.google.com/go/spanner v1.9.0
