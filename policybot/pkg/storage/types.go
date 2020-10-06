@@ -153,9 +153,27 @@ type Monitor struct {
 	Description spanner.NullString
 	// UpdatedTime represents the time of the monitor status update
 	UpdatedTime time.Time
+	// LastFiredTime represents the last timestamp when the alert is fired.
+	LastFiredTime spanner.NullTime
 	// FiredTimes represents the number of times the monitor fired alerts.
 	FiredTimes spanner.NullInt64
 	IsActive   *bool
+}
+
+// ReleaseQualTestMetadata represents the metadata of specific test run.
+type ReleaseQualTestMetadata struct {
+	// ProjectID points to the project where the test is running
+	ProjectID string
+	// ClusterName points to the cluster where the test is running
+	ClusterName string
+	// TestID is the ID of specific Test run
+	TestID string
+	// Branch of the test, e.g. release-1.7
+	Branch string
+	// PrometheusLink links to prometheus running in the cluster
+	PrometheusLink spanner.NullString
+	// GrafanaLink links to prometheus running in the cluster
+	GrafanaLink spanner.NullString
 }
 
 type BotActivity struct {

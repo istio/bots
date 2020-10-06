@@ -97,6 +97,8 @@ type Store interface {
 	QueryTestFlakeIssues(context context.Context, orgLogin string, repoName string, inactiveDays, createdDays int) ([]*Issue, error)
 	// QueryMonitorStatus queries monitor status of release qualification test
 	QueryMonitorStatus(context context.Context, cb func(*Monitor) error) error
+	// QueryReleaseQualTestMetadata queries release qualification test metadata
+	QueryReleaseQualTestMetadata(context context.Context, cb func(metadata *ReleaseQualTestMetadata) error) error
 
 	GetLatestIssueMemberActivity(context context.Context, orgLogin string, repoName string, issueNumber int) (time.Time, error)
 	GetLatestIssueMemberComment(context context.Context, orgLogin string, repoName string, issueNumber int) (time.Time, error)
