@@ -38,13 +38,24 @@ type ReleaseQualification struct {
 
 // SingleMonitorStatus represents the status of one single monitor
 type SingleMonitorStatus struct {
-	Name        string
-	Status      string
-	TestID      string
-	ProjectID   string
-	ClusterName string
-	FiredTimes  int64
-	UpdatedTime time.Time
+	Name          string
+	Status        string
+	TestID        string
+	Branch        string
+	Description   string
+	FiredTimes    int64
+	LastFiredTime string
+	UpdatedTime   time.Time
+}
+
+// TestMetadata represents the metadata about one test
+type TestMetadata struct {
+	ProjectID      string
+	ClusterName    string
+	Branch         string
+	GrafanaLink    string
+	PrometheusLink string
+	TestID         string
 }
 
 // AggregatedMonitorStatus is aggregation of monitor statuses, key is the monitor name.
@@ -52,8 +63,9 @@ type AggregatedMonitorStatus map[string]*SingleMonitorStatus
 
 // MonitorReport represents the data used for rendering the HTML page.
 type MonitorReport struct {
-	Branches       []string
-	StatusByBranch map[string]AggregatedMonitorStatus
+	TestIDs          []string
+	StatusByTestID   map[string]AggregatedMonitorStatus
+	MetadataByTestID map[string]*TestMetadata
 }
 
 // New creates a new ReleaseQualification instance.
@@ -84,40 +96,68 @@ func (r *ReleaseQualification) Render(req *http.Request) (types.RenderInfo, erro
 
 func (r *ReleaseQualification) getMonitorStatus(context context.Context) (MonitorReport, error) {
 	var mr MonitorReport
-	// StatusByBranch is mapping from branch name to aggregatedMonitorStatus
-	mr.StatusByBranch = make(map[string]AggregatedMonitorStatus)
+	// StatusByTestID is mapping from testID to aggregatedMonitorStatus
+	mr.StatusByTestID = make(map[string]AggregatedMonitorStatus)
+	mr.MetadataByTestID = make(map[string]*TestMetadata)
 
 	if err := r.store.QueryMonitorStatus(context, func(monitor *storage.Monitor) error {
-		branch := monitor.Branch
-		if branch == "" {
-			log.Warn("monitor branch is empty")
+		testID := monitor.TestID
+		if testID == "" {
+			log.Warn("testID is empty")
 			return nil
 		}
-		if _, ok := mr.StatusByBranch[branch]; !ok {
-			mr.Branches = append(mr.Branches, branch)
-			mr.StatusByBranch[branch] = make(AggregatedMonitorStatus)
+		if _, ok := mr.StatusByTestID[testID]; !ok {
+			mr.TestIDs = append(mr.TestIDs, testID)
+			mr.StatusByTestID[testID] = make(AggregatedMonitorStatus)
 		}
-		ms := mr.StatusByBranch[branch]
+		ms := mr.StatusByTestID[testID]
 		monitorName := monitor.MonitorName
 		if _, ok := ms[monitorName]; !ok {
 			ms[monitorName] = &SingleMonitorStatus{}
 		}
+
 		sms := ms[monitorName]
 		if sms.UpdatedTime.IsZero() || sms.UpdatedTime.Before(monitor.UpdatedTime) {
 			sms.Name = monitorName
 			sms.Status = monitor.Status
 			sms.UpdatedTime = monitor.UpdatedTime
-			sms.ClusterName = monitor.ClusterName
-			sms.ProjectID = monitor.ProjectID
 			sms.TestID = monitor.TestID
-			sms.FiredTimes = monitor.FiredTimes
+			sms.Description = monitor.Description.String()
+			sms.FiredTimes = monitor.FiredTimes.Int64
+			if monitor.LastFiredTime.Valid && !monitor.LastFiredTime.Time.IsZero() {
+				sms.LastFiredTime = monitor.LastFiredTime.String()
+			}
 		}
 		return nil
 	}); err != nil {
 		return mr, err
 	}
-	for branch, ags := range mr.StatusByBranch {
-		log.Infof("monitor status for branch: %v\n", branch)
+
+	if err := r.store.QueryReleaseQualTestMetadata(context, func(metadata *storage.ReleaseQualTestMetadata) error {
+		testID := metadata.TestID
+		if testID == "" {
+			log.Warn("testID is empty")
+			return nil
+		}
+
+		md := mr.MetadataByTestID
+		if md[testID] == nil {
+			md[testID] = &TestMetadata{
+				TestID:         testID,
+				ProjectID:      metadata.ProjectID,
+				ClusterName:    metadata.ClusterName,
+				Branch:         metadata.Branch,
+				PrometheusLink: metadata.PrometheusLink.String(),
+				GrafanaLink:    metadata.GrafanaLink.String(),
+			}
+		}
+
+		return nil
+	}); err != nil {
+		return mr, err
+	}
+	for testID, ags := range mr.StatusByTestID {
+		log.Infof("monitor status for testID: %v\n", testID)
 		for _, sgs := range ags {
 			log.Infof("single status: %v\n", sgs)
 		}

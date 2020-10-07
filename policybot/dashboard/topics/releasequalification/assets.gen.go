@@ -56,18 +56,51 @@ var _pageHtml = []byte(`<aside class="callout warning">
     </div>
 </aside>
 
-{{ range $branch, $aggregatedStatus := .StatusByBranch }}
+<h2>
+    This dashboard shows results of release qualification pipeline
+</h2>
+
+<p>
+    To view the monitor/alert definition, checkout <a href="https://github.com/istio/tools/blob/master/perf/stability/alertmanager/prometheusrule.yaml">PrometheusRule list</a>
+</p>
+
+{{ range $testID, $aggregatedStatus := .StatusByTestID }}
+<div>
+    <h2>Test result for {{ $testID }}</h2>
 <table>
-    <caption>Monitor Status for {{ $branch }}</caption>
+    <caption>Test Info</caption>
+    <thead>
+    <tr>
+        <th>ProjectID</th>
+        <th>ClusterName</th>
+        <th>Branch/SHA/Tag</th>
+        <th>PrometheusLink</th>
+        <th>GrafanaLink</th>
+    </tr>
+    </thead>
+    <tbody>
+        <tr>
+            {{ with (index $.MetadataByTestID $testID) }}
+            <td>{{ .ProjectID }}</td>
+            <td>{{ .ClusterName }}</td>
+            <td>{{ .Branch }}</td>
+            <td>{{ .PrometheusLink }}</td>
+            <td>{{ .GrafanaLink }}</td>
+            {{ end }}
+        </tr>
+    </tbody>
+</table>
+    <p></p>
+<table>
+    <caption>Monitor Status</caption>
     <thead>
     <tr>
         <th>Monitor</th>
         <th>Status</th>
-        <th>ProjectID</th>
-        <th>ClusterName</th>
         <th>UpdatedTime</th>
-        <th>TestID</th>
         <th>FiredTimes</th>
+        <th>LastFiredTime</th>
+        <th>Description</th>
     </tr>
     </thead>
     <tbody>
@@ -79,19 +112,19 @@ var _pageHtml = []byte(`<aside class="callout warning">
             {{ else }}
               <td style="color: red">{{ $singleStatus.Status }}</td>
             {{ end }}
-            <td>{{ $singleStatus.ProjectID }}</td>
-            <td>{{ $singleStatus.ClusterName }}</td>
             <td>{{ $singleStatus.UpdatedTime }}</td>
-            <td>{{ $singleStatus.TestID }}</td>
             {{ if eq $singleStatus.FiredTimes 0 }}
                 <td style="color: green">{{ $singleStatus.FiredTimes }}</td>
             {{ else }}
                 <td style="color: red">{{ $singleStatus.FiredTimes }}</td>
             {{ end }}
+            <td>{{ $singleStatus.LastFiredTime }}</td>
+            <td>{{ $singleStatus.Description }}</td>
         </tr>
         {{ end}}
     </tbody>
 </table>
+</div>
 {{ end}}`)
 
 func pageHtmlBytes() ([]byte, error) {

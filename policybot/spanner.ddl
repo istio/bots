@@ -223,14 +223,22 @@ CREATE TABLE RepoComments (
 CREATE TABLE MonitorStatus (
   MonitorName STRING(MAX) NOT NULL,
   Status STRING(MAX) NOT NULL,
-  ClusterName STRING(MAX) NOT NULL,
-  ProjectID STRING(MAX) NOT NULL,
-  TestID STRING(MAX),
-  Branch STRING(MAX) NOT NULL,
+  TestID STRING(MAX) NOT NULL,
+  Description STRING(MAX),
   UpdatedTime TIMESTAMP NOT NULL,
   FiredTimes INT64 NOT NULL,
+  LastFiredTime TIMESTAMP,
   IsActive BOOL,
 ) PRIMARY KEY(TestID, MonitorName)
+
+CREATE TABLE ReleaseQualTestMetadata (
+  ClusterName STRING(MAX) NOT NULL,
+  ProjectID STRING(MAX) NOT NULL,
+  TestID STRING(MAX) NOT NULL,
+  Branch STRING(MAX) NOT NULL,
+  PrometheusLink STRING(MAX),
+  GrafanaLink STRING(MAX),
+) PRIMARY KEY(TestID)
 
 CREATE TABLE TestResults (
   OrgLogin STRING(MAX) NOT NULL,

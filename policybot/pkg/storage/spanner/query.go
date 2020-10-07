@@ -83,6 +83,22 @@ func (s store) QueryMonitorStatus(context context.Context, cb func(*storage.Moni
 	return err
 }
 
+// QueryReleaseQualTestMeta queries meta info of release qualification test
+func (s store) QueryReleaseQualTestMetadata(context context.Context, cb func(metadata *storage.ReleaseQualTestMetadata) error) error {
+	iter := s.client.Single().Query(context,
+		spanner.Statement{SQL: "SELECT * FROM ReleaseQualTestMetadata"})
+	err := iter.Do(func(row *spanner.Row) error {
+		monitor := &storage.ReleaseQualTestMetadata{}
+		if err := rowToStruct(row, monitor); err != nil {
+			return err
+		}
+
+		return cb(monitor)
+	})
+
+	return err
+}
+
 func (s store) QueryIssues(context context.Context, orgLogin string, cb func(*storage.Issue) error) error {
 	iter := s.client.Single().Query(context,
 		spanner.Statement{SQL: fmt.Sprintf("SELECT * FROM Issues WHERE OrgLogin = '%s';", orgLogin)})
