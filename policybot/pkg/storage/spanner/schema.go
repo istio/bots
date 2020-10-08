@@ -53,7 +53,6 @@ const (
 	coverageDataTable                  = "CoverageData"
 	userAffiliationTable               = "UserAffiliation"
 	confirmedFlakesTable               = "ConfirmedFlakes"
-	confirmedFlakesTable = "ConfirmedFlakes"
 	monitorStatus                      = "MonitorStatus"
 )
 
