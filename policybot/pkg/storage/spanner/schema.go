@@ -52,6 +52,7 @@ const (
 	featureLabelTable                  = "FeatureLabels"
 	coverageDataTable                  = "CoverageData"
 	userAffiliationTable               = "UserAffiliation"
+	confirmedFlakesTable               = "ConfirmedFlakes"
 	monitorStatus                      = "MonitorStatus"
 )
 

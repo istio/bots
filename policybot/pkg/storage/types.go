@@ -417,3 +417,14 @@ type TestNameByEnvLabel struct {
 	RunNumber       int64
 	TestName        string
 }
+
+type ConfirmedFlake struct {
+	OrgLogin          string
+	RepoName          string
+	PullRequestNumber int64
+	RunNumber         int64
+	TestName          string
+	Done              bool
+	PassingRunNumber  int64
+	IssueNum          int64
+}

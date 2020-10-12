@@ -18,51 +18,37 @@ import (
 	"context"
 
 	"cloud.google.com/go/spanner"
+	"github.com/hashicorp/go-multierror"
 	"google.golang.org/grpc/codes"
 
 	"istio.io/bots/policybot/pkg/storage"
 )
 
-func (s store) UpdateFlakeCache(ctx context.Context) (int, error) {
-	var sql = `INSERT INTO ConfirmedFlakes(PullRequestNumber, TestName, RunNumber, PassingRunNumber, OrgLogin, RepoName, Done)
-select failed.PullRequestNumber, failed.TestName, failed.RunNumber, passed.RunNumber as passingRun, failed.OrgLogin, failed.RepoName, failed.Done
-from TestResults as failed
-JOIN TestResults as passed
-ON passed.PullRequestNumber = failed.PullRequestNumber AND
-                        passed.RunNumber != failed.RunNumber AND
-                        passed.TestName = failed.TestName AND
-                        passed.sha = failed.sha AND
-                        passed.TestPassed AND 
-NOT failed.TestPassed AND
-failed.FinishTime > TIMESTAMP(DATE(2010,1,1)) AND
-NOT failed.CloneFailed AND
-failed.result!='ABORTED' AND
-failed.HasArtifacts
-LEFT JOIN ConfirmedFlakes ON failed.PullRequestNumber = ConfirmedFlakes.PullRequestNumber AND
-failed.RunNumber = ConfirmedFlakes.RunNumber AND
-failed.TestName = ConfirmedFlakes.TestName 
-WHERE ConfirmedFlakes.PullRequestNumber is null
-limit 2800`
-	var rowCount int64
-	var sum int
-	var err, iErr error
-	for {
-		_, err = s.client.ReadWriteTransaction(ctx, func(ctx2 context.Context, txn *spanner.ReadWriteTransaction) error {
-			rowCount, iErr = txn.Update(ctx2, spanner.Statement{SQL: sql})
-			return nil
-		})
-		if iErr != nil {
-			err = iErr
+// running this in a Read/Write transaction causes timeouts, so we were advised to separate read and write
+func (s store) UpdateFlakeCache(ctx context.Context) (sum int, multierr error) {
+	errchan := s.QueryNewFlakes(ctx).Batch(2800).To(func(input interface{}) (err error) {
+		islice := input.([]interface{})
+		mutations := make([]*spanner.Mutation, len(islice))
+		for x, i := range islice {
+			singleResult := i.(*storage.ConfirmedFlake)
+			if mutations[x], err = insertOrUpdateStruct(confirmedFlakesTable, singleResult); err != nil {
+				return
+			}
 		}
-		sum += int(rowCount)
-		// spanner does not allow transactions of > 20,000 cells, so for large inserts,
-		// we must divide 20,000 by the number of columns being inserted, and repeat
-		// until we have reached the end of rows to insert.
-		if err != nil || rowCount < 2800 {
-			break
+
+		if _, err = s.client.Apply(ctx, mutations); err == nil {
+			sum += len(mutations)
 		}
+		return
+	}).Go()
+	var result *multierror.Error
+	for err := range errchan {
+		result = multierror.Append(result, err.Err())
 	}
-	return sum, err
+	if result != nil {
+		return
+	}
+	return
 }
 
 func (s store) UpdateBotActivity(ctx1 context.Context, orgLogin string, repoName string, cb func(*storage.BotActivity) error) error {

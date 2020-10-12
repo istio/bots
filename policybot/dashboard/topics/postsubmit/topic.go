@@ -106,7 +106,7 @@ func New(store storage.Store, cache *cache.Cache, router *mux.Router) *PostSubmi
 	if err != nil {
 		log.Errorf("add caching latest 100 BaseSha cron job: %s", err)
 	}
-	//cron.Start()
+	cron.Start()
 	return ps
 }
 
