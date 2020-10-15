@@ -371,7 +371,9 @@ func (trg *TestResultGatherer) GetTestResult(ctx context.Context, testName strin
 	}
 	if pj.Status.State == AbortedState {
 		testResult.StartTime = pj.Status.StartTime.Time
-		testResult.FinishTime = pj.Status.CompletionTime.Time
+		if pj.Status.CompletionTime != nil {
+			testResult.FinishTime = pj.Status.CompletionTime.Time
+		}
 		testResult.Result = "ABORTED"
 	}
 	if pj.Status.State == SuccessState || pj.Status.State == FailureState {
@@ -432,6 +434,10 @@ func (trg *TestResultGatherer) GetTestResult(ctx context.Context, testName strin
 	}
 	testResult.HasArtifacts = len(artifacts) != 0
 	testResult.Artifacts = artifacts
+
+	if testResult.Sha == nil {
+		testResult.Sha = []byte{}
+	}
 
 	if !testResult.TestPassed && !testResult.HasArtifacts {
 		// this is almost certainly an environmental failure, check for known sigs
