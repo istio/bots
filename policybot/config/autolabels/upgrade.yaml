@@ -1,0 +1,8 @@
+name: Upgrade
+type: autolabel
+matchbody:
+  - "\\[ ?x ?\\] ?Upgrade"
+absentlabels:
+  - "area/.?"
+labelstoapply:
+  - area/upgrade
