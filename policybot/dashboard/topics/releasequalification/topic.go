@@ -100,10 +100,37 @@ func (r *ReleaseQualification) getMonitorStatus(context context.Context) (Monito
 	mr.StatusByTestID = make(map[string]AggregatedMonitorStatus)
 	mr.MetadataByTestID = make(map[string]*TestMetadata)
 
+	if err := r.store.QueryReleaseQualTestMetadata(context, func(metadata *storage.ReleaseQualTestMetadata) error {
+		testID := metadata.TestID
+		if testID == "" {
+			log.Warn("testID is empty")
+			return nil
+		}
+
+		md := mr.MetadataByTestID
+		if md[testID] == nil {
+			md[testID] = &TestMetadata{
+				TestID:         testID,
+				ProjectID:      metadata.ProjectID,
+				ClusterName:    metadata.ClusterName,
+				Branch:         metadata.Branch,
+				PrometheusLink: metadata.PrometheusLink.String(),
+				GrafanaLink:    metadata.GrafanaLink.String(),
+			}
+		}
+
+		return nil
+	}); err != nil {
+		return mr, err
+	}
 	if err := r.store.QueryMonitorStatus(context, func(monitor *storage.Monitor) error {
 		testID := monitor.TestID
 		if testID == "" {
 			log.Warn("testID is empty")
+			return nil
+		}
+		if mr.MetadataByTestID[testID] == nil {
+			log.Warn("testMetadata is empty, test was likely removed already, skip checking the monitor status")
 			return nil
 		}
 		if _, ok := mr.StatusByTestID[testID]; !ok {
@@ -128,30 +155,6 @@ func (r *ReleaseQualification) getMonitorStatus(context context.Context) (Monito
 				sms.LastFiredTime = monitor.LastFiredTime.String()
 			}
 		}
-		return nil
-	}); err != nil {
-		return mr, err
-	}
-
-	if err := r.store.QueryReleaseQualTestMetadata(context, func(metadata *storage.ReleaseQualTestMetadata) error {
-		testID := metadata.TestID
-		if testID == "" {
-			log.Warn("testID is empty")
-			return nil
-		}
-
-		md := mr.MetadataByTestID
-		if md[testID] == nil {
-			md[testID] = &TestMetadata{
-				TestID:         testID,
-				ProjectID:      metadata.ProjectID,
-				ClusterName:    metadata.ClusterName,
-				Branch:         metadata.Branch,
-				PrometheusLink: metadata.PrometheusLink.String(),
-				GrafanaLink:    metadata.GrafanaLink.String(),
-			}
-		}
-
 		return nil
 	}); err != nil {
 		return mr, err
