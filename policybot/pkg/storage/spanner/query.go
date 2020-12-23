@@ -974,7 +974,7 @@ func (s store) QueryNewFlakes(ctx context.Context) pipeline.Pipeline {
 		Setup: func() error {
 			iter = s.client.Single().Query(ctx, spanner.Statement{SQL: `select failed.PullRequestNumber,
 				failed.TestName, failed.RunNumber, passed.RunNumber as PassingRunNumber,
-				failed.OrgLogin, failed.RepoName, failed.Done
+				failed.OrgLogin, failed.RepoName, failed.Done, NULL as IssueNum
 				from TestResults as failed
 				JOIN TestResults as passed
 				ON passed.PullRequestNumber = failed.PullRequestNumber AND
