@@ -26,7 +26,9 @@ import (
 
 // running this in a Read/Write transaction causes timeouts, so we were advised to separate read and write
 func (s store) UpdateFlakeCache(ctx context.Context) (sum int, multierr error) {
-	errchan := s.QueryNewFlakes(ctx).Batch(2800).To(func(input interface{}) (err error) {
+	errchan := s.QueryNewFlakes(ctx).OnError(func(err error) {
+		scope.Warnf("Error parsing flake: %v", err)
+	}).Batch(2800).To(func(input interface{}) (err error) {
 		islice := input.([]interface{})
 		mutations := make([]*spanner.Mutation, len(islice))
 		for x, i := range islice {
