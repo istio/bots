@@ -286,7 +286,12 @@ func (trg *TestResultGatherer) getEnvironmentalSignatures(ctx context.Context, t
 }
 
 func (trg *TestResultGatherer) getTestRunArtifacts(ctx context.Context, testRun string) ([]string, error) {
-	return trg.getBucket().ListItems(ctx, testRun+"artifacts/")
+	artifacts, err := trg.getBucket().ListItems(ctx, testRun+"artifacts/")
+	// spanner has a limit to the number of artifacts allowed
+	if len(artifacts) > 10485760 {
+		artifacts = artifacts[:10485759]
+	}
+	return artifacts, err
 }
 
 // getManyResults function return the status of test passing, clone failure, sha number, base sha for each test
