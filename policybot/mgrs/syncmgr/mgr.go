@@ -1086,7 +1086,7 @@ func (ss *syncState) handleTestResults() error {
 			if strings.Contains(testRunPath, "00") {
 				fmt.Printf("checking test %s\n", testRunPath)
 			}
-			return g.GetTestResult(ss.ctx, testName, testRunPath)
+			return g.GetTestResult(ss.ctx, testName, testRunPath, repo.OrgLogin)
 		}).Batch(50).To(func(input interface{}) error {
 			var testResults []*storage.TestResult
 			for _, i := range input.([]interface{}) {

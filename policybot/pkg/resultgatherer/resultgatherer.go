@@ -301,7 +301,7 @@ func (trg *TestResultGatherer) getManyResults(ctx context.Context, testSlice map
 
 	for testName, runPaths := range testSlice {
 		for _, runPath := range runPaths {
-			if testResult, err := trg.GetTestResult(ctx, testName, runPath); err == nil {
+			if testResult, err := trg.GetTestResult(ctx, testName, runPath, orgLogin); err == nil {
 				testResult.OrgLogin = orgLogin
 				testResult.RepoName = repoName
 				allTestRuns = append(allTestRuns, testResult)
@@ -351,7 +351,7 @@ func (trg *TestResultGatherer) getManyPostSubmitResults(ctx context.Context, tes
 	return allTestResult, nil
 }
 
-func (trg *TestResultGatherer) GetTestResult(ctx context.Context, testName string, testRun string) (testResult *store.TestResult, err error) {
+func (trg *TestResultGatherer) GetTestResult(ctx context.Context, testName string, testRun string, orgLogin string) (testResult *store.TestResult, err error) {
 	testResult = &store.TestResult{}
 	testResult.TestName = testName
 	testResult.RunPath = testRun
@@ -386,7 +386,13 @@ func (trg *TestResultGatherer) GetTestResult(ctx context.Context, testName strin
 		if len(records) < 1 {
 			return nil, fmt.Errorf("test %s %s has an empty clone file.  Cannot proceed", testName, testRun)
 		}
-		record := records[0]
+		// starting late october 2020, clone records started having an empty first record, with real data in the second record.
+		var record *cloneRecord
+		for _, r := range records {
+			if r.Refs.Org == orgLogin {
+				record = r
+			}
+		}
 
 		if len(record.Refs.Pulls) < 1 {
 			return nil, fmt.Errorf("test %s %s has a malformed clone file.  Cannot proceed", testName, testRun)
@@ -521,7 +527,13 @@ func (trg *TestResultGatherer) GetPostSubmitTestResult(ctx context.Context, test
 		if len(records) < 1 {
 			return nil, fmt.Errorf("test %s %s has an empty clone file.  Cannot proceed", testName, testRun)
 		}
-		record := records[0]
+		// starting late october 2020, clone records started having an empty first record, with real data in the second record.
+		var record *cloneRecord
+		for _, r := range records {
+			if r.Refs.Org == orgLogin {
+				record = r
+			}
+		}
 
 		testResult.Sha, err = hex.DecodeString(record.FinalSha)
 		if err != nil {
