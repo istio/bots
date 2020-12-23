@@ -655,7 +655,14 @@ func (trg *TestResultGatherer) GetAllPullRequestsChan(ctx context.Context, orgLo
 }
 
 func (trg *TestResultGatherer) GetAllPostSubmitTestChan(ctx context.Context) pipelinetwo.Pipeline {
-	return trg.getBucket().ListPrefixesProducer(ctx, "logs/")
+	return trg.getBucket().ListPrefixesProducer(ctx, "logs/").Transform(
+		func(i interface{}) (interface{}, error) {
+			// this test runs every 5 minutes, and has no meaningful output
+			if strings.Contains(i.(string), "monitoring-verify-gcsweb") {
+				return nil, pipelinetwo.ErrSkip
+			}
+			return i, nil
+	})
 }
 
 // if any pattern is found in the object, return it's index
