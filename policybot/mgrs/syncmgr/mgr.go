@@ -1109,7 +1109,6 @@ func (ss *syncState) handleTestResults() error {
 		if result != nil {
 			return result
 		}
-		// TODO: check Post Submit tests as well.
 	}
 
 	return nil
