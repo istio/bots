@@ -287,9 +287,9 @@ func (trg *TestResultGatherer) getEnvironmentalSignatures(ctx context.Context, t
 
 func (trg *TestResultGatherer) getTestRunArtifacts(ctx context.Context, testRun string) ([]string, error) {
 	artifacts, err := trg.getBucket().ListItems(ctx, testRun+"artifacts/")
-	// spanner has a limit to the number of artifacts allowed
-	if len(artifacts) > 10485760 {
-		artifacts = artifacts[:10485759]
+	// spanner has a limit to the number of artifacts allowed, but it's in bytes.  1000 should be plenty.
+	if len(artifacts) > 1000 {
+		artifacts = artifacts[:1000]
 	}
 	return artifacts, err
 }
