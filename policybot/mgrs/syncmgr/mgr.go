@@ -1004,7 +1004,7 @@ func (ss *syncState) handlePullRequestReviewComments(repo gh.RepoDesc, start tim
 	})
 }
 
-func (ss *syncState) handleTestResults() error {
+func (ss *syncState) handleTestResults() (result error) {
 	for _, repo := range ss.mgr.reg.Repos() {
 		r, ok := ss.mgr.reg.SingleRecord(refresher.RecordType, repo.OrgAndRepo)
 		if !ok {
@@ -1102,16 +1102,19 @@ func (ss *syncState) handleTestResults() error {
 			}
 			return nil
 		}).WithParallelism(1).Go()
-		var result *multierror.Error
 		for err := range errorChan {
-			result = multierror.Append(err.Err())
-		}
-		if result != nil {
-			return result
+			result = multierror.Append(result, err.Err())
 		}
 	}
 
-	return nil
+	rowCount, err := ss.mgr.store.UpdateFlakeCache(ss.ctx)
+	if err != nil {
+		result = multierror.Append(result, err)
+	} else {
+		log.Infof("detected %d new flakes", rowCount)
+	}
+
+	return
 }
 
 func (ss *syncState) handlePostSubmitTestResults() error {
@@ -1251,12 +1254,6 @@ func (ss *syncState) handlePostSubmitTestResults() error {
 		if result != nil {
 			return result
 		}
-		// Update cache table to reflect these results.
-		rowCount, err := ss.mgr.store.UpdateFlakeCache(ss.ctx)
-		if err != nil {
-			return err
-		}
-		log.Infof("Updated flake cache with %d additional flakes", rowCount)
 	}
 
 	return nil

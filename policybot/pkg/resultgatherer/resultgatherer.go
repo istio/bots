@@ -662,7 +662,7 @@ func (trg *TestResultGatherer) GetAllPostSubmitTestChan(ctx context.Context) pip
 				return nil, pipelinetwo.ErrSkip
 			}
 			return i, nil
-	})
+		})
 }
 
 // if any pattern is found in the object, return it's index
