@@ -426,5 +426,5 @@ type ConfirmedFlake struct {
 	TestName          string
 	Done              bool
 	PassingRunNumber  int64
-	IssueNum          int64
+	IssueNum          *int64
 }
