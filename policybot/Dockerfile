@@ -14,10 +14,8 @@
 
 FROM ubuntu:groovy
 
-ENV CA_CERTIFICATES_VERSION=20190110
-
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates=${CA_CERTIFICATES_VERSION} \
+    ca-certificates \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 COPY policybot /policybot
