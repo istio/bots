@@ -61,7 +61,7 @@ func Transform(ctx context.Context, parallelism int, bufferSize int, in chan Out
 					return
 				}
 			case sr, ok := <-in:
-				//do stuff, write to out maybe
+				// do stuff, write to out maybe
 				if !ok {
 					// channel is closed, time to exit
 					return

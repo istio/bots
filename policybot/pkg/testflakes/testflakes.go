@@ -185,7 +185,6 @@ func (f *FlakeTester) ReportFlake(context context.Context, flakeResults []*Flaky
 			return client.PullRequests.CreateComment(
 				context, flake.OrgLogin, flake.RepoName, int(flake.PrNum), comment)
 		})
-
 		if err != nil {
 			scope.Errorf("Failed to create flakes nagging comments: %v", err)
 		}

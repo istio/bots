@@ -16,7 +16,9 @@
 
 package layout
 
-var BaseTemplate = string(MustAsset("base.html"))
-var PrimaryTemplate = string(MustAsset("primary.html"))
-var NotFoundTemplate = string(MustAsset("notfound.html"))
-var ErrorTemplate = string(MustAsset("error.html"))
+var (
+	BaseTemplate     = string(MustAsset("base.html"))
+	PrimaryTemplate  = string(MustAsset("primary.html"))
+	NotFoundTemplate = string(MustAsset("notfound.html"))
+	ErrorTemplate    = string(MustAsset("error.html"))
+)

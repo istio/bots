@@ -383,7 +383,6 @@ func (s store) QueryMaintainerActivity(context context.Context, maintainer *stor
 			maintainer.OrgLogin, repoName, maintainer.UserLogin)})
 
 		err := iter.Do(func(row *spanner.Row) error {
-
 			var pr storage.PullRequest
 			if err := rowToStruct(row, &pr); err != nil {
 				return err
@@ -446,7 +445,6 @@ func (s store) QueryMaintainerActivity(context context.Context, maintainer *stor
 			maintainer.OrgLogin, repoName, maintainer.UserLogin)})
 
 		err := iter.Do(func(row *spanner.Row) error {
-
 			var e storage.PullRequestReviewEvent
 			if err := rowToStruct(row, &e); err != nil {
 				return err
@@ -514,7 +512,6 @@ func (s store) QueryMaintainerActivity(context context.Context, maintainer *stor
 			maintainer.OrgLogin, repoName, maintainer.UserLogin)})
 
 		err := iter.Do(func(row *spanner.Row) error {
-
 			var e storage.PullRequestReviewCommentEvent
 			if err := rowToStruct(row, &e); err != nil {
 				return err
@@ -636,7 +633,6 @@ func (s *store) getIssueActivity(context context.Context, orgLogin string, repoN
 
 		return nil
 	})
-
 	if err != nil {
 		return err
 	}
@@ -739,7 +735,6 @@ func (s store) QueryCoverageDataBySHA(
 
 func (s *store) getPRActivity(context context.Context, orgLogin string, repoName string, userLogin string,
 	info *storage.ActivityInfo, repoInfo *storage.RepoActivityInfo) error {
-
 	pathInfo := repoInfo.Paths["/"]
 
 	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
@@ -769,7 +764,6 @@ func (s *store) getPRActivity(context context.Context, orgLogin string, repoName
 
 		return nil
 	})
-
 	if err != nil {
 		return err
 	}
@@ -896,7 +890,6 @@ func (s store) QueryLatestBaseSha(context context.Context) (*storage.LatestBaseS
 		})
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -942,7 +935,6 @@ func (s store) QueryPostSubmitTestEnvLabel(context context.Context, baseSha stri
 	})
 
 	return err
-
 }
 
 func (s store) QueryTestNameByEnvLabel(context context.Context, baseSha string, env string,
@@ -965,7 +957,6 @@ func (s store) QueryTestNameByEnvLabel(context context.Context, baseSha string, 
 		return nil
 	})
 	return
-
 }
 
 func (s store) QueryNewFlakes(ctx context.Context) pipeline.Pipeline {

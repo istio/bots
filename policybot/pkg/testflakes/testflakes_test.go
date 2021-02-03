@@ -44,7 +44,6 @@ func checkEqual(f1, f2 *testflakes.FlakyResult) bool {
 }
 
 func TestFlakes(t *testing.T) {
-
 	const layout = "1/2/2006 15:04:05"
 	time1, _ := time.Parse(layout, "11/16/2018 07:03:22")
 	t1 := time1.Local()
@@ -139,5 +138,4 @@ func TestFlakes(t *testing.T) {
 			}
 		}
 	}
-
 }

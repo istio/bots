@@ -165,7 +165,6 @@ func (r *Refresher) Handle(context context.Context, event interface{}) {
 				files, resp, err := r.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 					return client.PullRequests.ListFiles(context, p.GetRepo().GetOwner().GetLogin(), p.GetRepo().GetName(), p.GetNumber(), opt)
 				})
-
 				if err != nil {
 					scope.Errorf("Unable to list all files for pull request %d in repo %s: %v\n", p.GetNumber(), p.GetRepo().GetFullName(), err)
 					return

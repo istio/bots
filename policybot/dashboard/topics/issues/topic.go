@@ -224,7 +224,6 @@ func (i *Issues) getOpenIssues(context context.Context, orgLogin string, kind st
 
 	var issues []issueInfo
 	if err = i.store.QueryOpenIssues(context, org.OrgLogin, func(issue *storage.Issue) error {
-
 		keep := false
 		switch kind {
 		case "escalation":
@@ -310,7 +309,7 @@ func (i *Issues) getOpenIssues(context context.Context, orgLogin string, kind st
 
 func (i *Issues) getIssuesSummary(context context.Context, orgLogin string) (issuesSummary, error) {
 	var summary issuesSummary
-	var opened = make(map[string]map[string]int)
+	opened := make(map[string]map[string]int)
 	var months []string
 
 	org, err := i.cache.ReadOrg(context, orgLogin)

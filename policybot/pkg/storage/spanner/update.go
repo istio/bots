@@ -57,7 +57,6 @@ func (s store) UpdateBotActivity(ctx1 context.Context, orgLogin string, repoName
 	scope.Debugf("Updating bot activity for repo %s/%s", orgLogin, repoName)
 
 	_, err := s.client.ReadWriteTransaction(ctx1, func(ctx2 context.Context, txn *spanner.ReadWriteTransaction) error {
-
 		var result storage.BotActivity
 
 		row, err := txn.ReadRow(ctx2, botActivityTable, botActivityKey(orgLogin, repoName), botActivityColumns)

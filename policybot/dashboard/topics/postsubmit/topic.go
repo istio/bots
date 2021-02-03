@@ -40,30 +40,30 @@ type PostSubmit struct {
 	latestbaseSha *template.Template
 	baseSha       *template.Template
 	analysis      *template.Template
-	choosesha     string //basesha user choose to view
-	chooseEnv     string //environment of selected basesha user wants to generate detailed test name
-	chooseLabel   string //label of selected basesha user wants to generate detailed test name
+	choosesha     string // basesha user choose to view
+	chooseEnv     string // environment of selected basesha user wants to generate detailed test name
+	chooseLabel   string // label of selected basesha user wants to generate detailed test name
 
 }
 
-//List of recent 100 commits with info
+// List of recent 100 commits with info
 type LatestBaseShaSummary struct {
 	LatestBaseSha []LatestBaseSha
 }
 
-//recent commits with BaseSha, last test finish time and number of test has done
+// recent commits with BaseSha, last test finish time and number of test has done
 type LatestBaseSha struct {
 	BaseSha        string
 	LastFinishTime time.Time
 	NumberofTest   int64
 }
 
-//List of all BaseShas
+// List of all BaseShas
 type BaseShas struct {
 	BaseSha []string
 }
 
-//Content for LabelEnv table and detailed tests
+// Content for LabelEnv table and detailed tests
 type LabelEnvSummary struct {
 	Choosesha           string
 	ChooseEnv           string
@@ -73,7 +73,7 @@ type LabelEnvSummary struct {
 	TestNameByEnvLabels []*storage.TestNameByEnvLabel
 }
 
-//Label, corresponding count for different environement, and it's sublabel table
+// Label, corresponding count for different environement, and it's sublabel table
 type LabelEnv struct {
 	Label    string
 	EnvCount []int
@@ -188,8 +188,8 @@ func (ps *PostSubmit) RenderLatestBaseSha(req *http.Request) (types.RenderInfo, 
 
 func (ps *PostSubmit) getLabelEnvTable(context context.Context, baseSha string) (LabelEnvSummary, error) {
 	var summary LabelEnvSummary
-	var Labels = make(map[string]map[string]int)
-	var allEnvNames = make(map[string]int)
+	Labels := make(map[string]map[string]int)
+	allEnvNames := make(map[string]int)
 
 	if err := ps.store.QueryPostSubmitTestEnvLabel(context, baseSha, func(postSubmitTestResult *storage.PostSubmitTestEnvLabel) error {
 		_, ok := Labels[postSubmitTestResult.Label]
@@ -207,7 +207,7 @@ func (ps *PostSubmit) getLabelEnvTable(context context.Context, baseSha string) 
 
 	summary = ps.getLabelTree(Labels, allEnvNames)
 
-	var EnvNameList = make([]string, len(allEnvNames))
+	EnvNameList := make([]string, len(allEnvNames))
 	for key, val := range allEnvNames {
 		EnvNameList[val] = key
 	}
@@ -222,9 +222,9 @@ func (ps *PostSubmit) getLabelTree(input map[string]map[string]int, envNames map
 	if len(input) < 1 {
 		return LabelEnvSummary{}
 	}
-	var toplayer = make(map[string]map[string]int)
-	var nextLayer = make(map[string]map[string]map[string]int)
-	var nextLayerSummary = make(map[string]LabelEnvSummary)
+	toplayer := make(map[string]map[string]int)
+	nextLayer := make(map[string]map[string]map[string]int)
+	nextLayerSummary := make(map[string]LabelEnvSummary)
 	for label, envMap := range input {
 		splitlabel := strings.Split(label, ".")
 		_, ok := toplayer[splitlabel[0]]
@@ -234,7 +234,7 @@ func (ps *PostSubmit) getLabelTree(input map[string]map[string]int, envNames map
 		for env, count := range envMap {
 			toplayer[splitlabel[0]][env] += count
 		}
-		//add content after first dot to the map for the next layer
+		// add content after first dot to the map for the next layer
 		if len(splitlabel) < 2 {
 			continue
 		}
@@ -256,7 +256,7 @@ func (ps *PostSubmit) convertMapToSummary(input map[string]map[string]int, nextL
 	var labelEnvList []LabelEnv
 	for label, envMap := range input {
 		var labelEnv LabelEnv
-		var envCount = make([]int, len(envNames))
+		envCount := make([]int, len(envNames))
 		for env, count := range envMap {
 			envCount[envNames[env]] = count
 		}

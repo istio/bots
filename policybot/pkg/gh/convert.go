@@ -167,7 +167,6 @@ func ConvertPullRequest(orgLogin string, repoName string, pr *github.PullRequest
 // Maps from a GitHub pr comment to a storage pr comment.
 func ConvertPullRequestReviewComment(orgLogin string, repoName string, prNumber int,
 	comment *github.PullRequestComment) *storage.PullRequestReviewComment {
-
 	return &storage.PullRequestReviewComment{
 		OrgLogin:                   orgLogin,
 		RepoName:                   repoName,
