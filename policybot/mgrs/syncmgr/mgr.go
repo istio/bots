@@ -157,7 +157,6 @@ func (sm *SyncMgr) Sync(context context.Context, flags FilterFlags, dryRun bool)
 			org, _, err := sm.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 				return client.Organizations.Get(context, repo.OrgLogin)
 			})
-
 			if err != nil {
 				return fmt.Errorf("unable to get information for org %s: %v", repo.OrgLogin, err)
 			}
@@ -169,7 +168,6 @@ func (sm *SyncMgr) Sync(context context.Context, flags FilterFlags, dryRun bool)
 		repo, _, err := sm.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.Repositories.Get(context, repo.OrgLogin, repo.RepoName)
 		})
-
 		if err != nil {
 			return fmt.Errorf("unable to get information for repo %s: %v", repo, err)
 		}
@@ -339,7 +337,6 @@ func (ss *syncState) handleRepo(repo gh.RepoDesc) error {
 
 func (ss *syncState) handleActivity(repo gh.RepoDesc, cb func(gh.RepoDesc, time.Time) error,
 	getField func(*storage.BotActivity) *time.Time) error {
-
 	start := time.Now().UTC()
 	priorStart := time.Time{}
 
@@ -808,7 +805,6 @@ func (ss *syncState) handleEventsFromGitHub(repo gh.RepoDesc) error {
 
 		return nil
 	})
-
 	if err != nil {
 		return err
 	}
@@ -1023,7 +1019,7 @@ func (ss *syncState) handleTestResults() (result error) {
 		prMin := env.RegisterIntVar("PR_MIN", 0, "The minimum PR to scan for test results").Get()
 		prMax := env.RegisterIntVar("PR_MAX", -1, "The maximum PR to scan for test results").Get()
 
-		var completedTests = make(map[string]bool)
+		completedTests := make(map[string]bool)
 		ctLock := sync.RWMutex{}
 		wg := sync.WaitGroup{}
 		wg.Add(1)
@@ -1133,7 +1129,7 @@ func (ss *syncState) handlePostSubmitTestResults() error {
 		}
 
 		scope.Debugf("Getting post submit test results for org %s", repo.OrgLogin)
-		var completedTests = make(map[string]bool)
+		completedTests := make(map[string]bool)
 		ctLock := sync.RWMutex{}
 		wg := sync.WaitGroup{}
 		wg.Add(1)
@@ -1391,7 +1387,6 @@ func (ss *syncState) expandTeam(orgLogin string, teamLogin string) ([]string, er
 	team, _, err := ss.mgr.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 		return client.Teams.GetTeamBySlug(ss.ctx, orgLogin, teamLogin[index+1:])
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("unable to get information on team %s: %v", teamLogin, err)
 	}
@@ -1401,7 +1396,6 @@ func (ss *syncState) expandTeam(orgLogin string, teamLogin string) ([]string, er
 	ghUsers, _, err := ss.mgr.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 		return client.Teams.ListTeamMembers(ss.ctx, id, nil)
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("unable to get members of team %s: %v", teamLogin, err)
 	}
@@ -1430,7 +1424,6 @@ func (ss *syncState) handleOWNERS(repo gh.RepoDesc, maintainers map[string]*stor
 	rc, _, err := ss.mgr.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 		return client.Repositories.ListCommits(ss.ctx, repo.OrgLogin, repo.RepoName, opt)
 	})
-
 	if err != nil {
 		return fmt.Errorf("unable to get latest commit in repo %s: %v", repo, err)
 	}
@@ -1438,7 +1431,6 @@ func (ss *syncState) handleOWNERS(repo gh.RepoDesc, maintainers map[string]*stor
 	tree, _, err := ss.mgr.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 		return client.Git.GetTree(ss.ctx, repo.OrgLogin, repo.RepoName, rc.([]*github.RepositoryCommit)[0].GetSHA(), true)
 	})
-
 	if err != nil {
 		return fmt.Errorf("unable to get tree in repo %s: %v", repo, err)
 	}

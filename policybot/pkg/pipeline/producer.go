@@ -118,7 +118,7 @@ func (sp *IterProducer) Start(ctx context.Context, bufferSize int) (resultChan c
 }
 
 func BuildSlice(resultChan chan OutResult) ([]interface{}, error) {
-	var items = make([]interface{}, 0)
+	items := make([]interface{}, 0)
 	for result := range resultChan {
 		if result.Err() != nil {
 			return nil, result.Err()

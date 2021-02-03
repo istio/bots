@@ -31,7 +31,6 @@ func (tc *ThrottledClient) FetchRepoComments(context context.Context, orgLogin s
 		comments, resp, err := tc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.Repositories.ListComments(context, orgLogin, repoName, opt)
 		})
-
 		if err != nil {
 			return fmt.Errorf("unable to list comments for repo %s/%s: %v", orgLogin, repoName, err)
 		}
@@ -57,7 +56,6 @@ func (tc *ThrottledClient) FetchRepoEvents(context context.Context, orgLogin str
 		events, resp, err := tc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.Activity.ListRepositoryEvents(context, orgLogin, repoName, opt)
 		})
-
 		if err != nil {
 			return fmt.Errorf("unable to list events for repo %s/%s: %v", orgLogin, repoName, err)
 		}
@@ -83,7 +81,6 @@ func (tc *ThrottledClient) FetchIssueEvents(context context.Context, orgLogin st
 		events, resp, err := tc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.Activity.ListIssueEventsForRepository(context, orgLogin, repoName, opt)
 		})
-
 		if err != nil {
 			return fmt.Errorf("unable to list issue events for repo %s/%s: %v", orgLogin, repoName, err)
 		}
@@ -111,7 +108,6 @@ func (tc *ThrottledClient) FetchMembers(context context.Context, orgLogin string
 		members, resp, err := tc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.Organizations.ListMembers(context, orgLogin, opt)
 		})
-
 		if err != nil {
 			return fmt.Errorf("unable to list members of org %s: %v", orgLogin, err)
 		}
@@ -137,7 +133,6 @@ func (tc *ThrottledClient) FetchLabels(context context.Context, orgLogin string,
 		labels, resp, err := tc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.Issues.ListLabels(context, orgLogin, repoName, opt)
 		})
-
 		if err != nil {
 			return fmt.Errorf("unable to list all labels in repo %s/%s: %v", orgLogin, repoName, err)
 		}
@@ -167,7 +162,6 @@ func (tc *ThrottledClient) FetchIssues(context context.Context, orgLogin string,
 		issues, resp, err := tc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.Issues.ListByRepo(context, orgLogin, repoName, opt)
 		})
-
 		if err != nil {
 			return fmt.Errorf("unable to list all issues in repo %s/%s: %v", orgLogin, repoName, err)
 		}
@@ -197,7 +191,6 @@ func (tc *ThrottledClient) FetchIssueComments(context context.Context, orgLogin 
 		comments, resp, err := tc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.Issues.ListComments(context, orgLogin, repoName, 0, opt)
 		})
-
 		if err != nil {
 			return fmt.Errorf("unable to list comments for repo %s/%s: %v", orgLogin, repoName, err)
 		}
@@ -227,7 +220,6 @@ func (tc *ThrottledClient) FetchPullRequestReviewComments(context context.Contex
 		comments, resp, err := tc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.PullRequests.ListComments(context, orgLogin, repoName, 0, opt)
 		})
-
 		if err != nil {
 			return fmt.Errorf("unable to list review comments for repo %s/%s: %v", orgLogin, repoName, err)
 		}
@@ -253,7 +245,6 @@ func (tc *ThrottledClient) FetchFiles(context context.Context, orgLogin string, 
 		files, resp, err := tc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.PullRequests.ListFiles(context, orgLogin, repoName, prNumber, opt)
 		})
-
 		if err != nil {
 			return fmt.Errorf("unable to list files for pull request %d in repo %s/%s: %v", prNumber, orgLogin, repoName, err)
 		}
@@ -287,7 +278,6 @@ func (tc *ThrottledClient) FetchPullRequests(context context.Context, orgLogin s
 		prs, resp, err := tc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.PullRequests.List(context, orgLogin, repoName, opt)
 		})
-
 		if err != nil {
 			return fmt.Errorf("unable to list pull requests in repo %s/%s: %v", orgLogin, repoName, err)
 		}
@@ -316,7 +306,6 @@ func (tc *ThrottledClient) FetchReviews(context context.Context, orgLogin string
 		reviews, resp, err := tc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.PullRequests.ListReviews(context, orgLogin, repoName, prNumber, opt)
 		})
-
 		if err != nil {
 			return fmt.Errorf("unable to list comments for pr %d in repo %s/%s: %v", prNumber, orgLogin, repoName, err)
 		}

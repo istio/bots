@@ -60,7 +60,7 @@ func (sp *Impl) Expand() Pipeline {
 						return
 					}
 				case sr, ok := <-in:
-					//do stuff, write to out maybe
+					// do stuff, write to out maybe
 					if !ok {
 						// channel is closed, time to exit
 						return
@@ -287,7 +287,6 @@ func FromChan(in chan OutResult) Pipeline {
 		},
 		ctx: context.Background(), // this is just the default
 	}
-
 }
 
 func FromIter(x IterProducer) Pipeline {

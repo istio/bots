@@ -130,7 +130,7 @@ func Run(name string, desc string, numArgs int, flags CommonFlags, cb func(reg *
 		}
 
 		// neutralize gRPC logging since it spews out useless junk
-		var dummy = dummyIoWriter{}
+		dummy := dummyIoWriter{}
 		grpclog.SetLoggerV2(grpclog.NewLoggerV2(dummy, dummy, dummy))
 
 		cmd.SilenceUsage = true

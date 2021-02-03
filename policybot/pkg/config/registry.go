@@ -82,7 +82,6 @@ func LoadRegistryFromRepo(gc *gh.ThrottledClient, repo gh.RepoDesc, path string)
 	t, _, err := gc.ThrottledCall(func(client *github.Client) (i interface{}, response *github.Response, e error) {
 		return client.Git.GetTree(context.Background(), repo.OrgLogin, repo.RepoName, "master", true)
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("unable to query GitHub for configuration state: %v", err)
 	}
@@ -151,7 +150,6 @@ func LoadRegistryFromDirectory(path string) (*Registry, error) {
 
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +220,6 @@ func (reg *Registry) postProcessAfterLoad() error {
 	for recType, recs := range reg.records {
 		card := recordTypes[recType].card
 		for _, rec := range recs {
-
 			if len(rec.GetRepos()) == 0 {
 				for _, repo := range reg.allRepos {
 					recSet := reg.repos[repo.OrgAndRepo]

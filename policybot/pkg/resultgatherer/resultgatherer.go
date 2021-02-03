@@ -301,7 +301,6 @@ func (trg *TestResultGatherer) getTestRunArtifacts(ctx context.Context, testRun 
 // Return a map of test suite name -- pr number -- run number -- FortestResult objects.
 func (trg *TestResultGatherer) getManyResults(ctx context.Context, testSlice map[string][]string,
 	orgLogin string, repoName string) ([]*store.TestResult, error) {
-
 	var allTestRuns []*store.TestResult
 
 	for testName, runPaths := range testSlice {
@@ -588,7 +587,7 @@ func (trg *TestResultGatherer) GetPostSubmitTestResult(ctx context.Context, test
 	testResult.OrgLogin = orgLogin
 	testResult.RepoName = repoName
 
-	//saves all artifacts
+	// saves all artifacts
 	for _, yamlFilePath := range artifacts {
 		if strings.Contains(strings.Split(yamlFilePath, "/")[4], "yaml") {
 			readInSuiteOutcome, err := trg.getInformationFromYamlFile(ctx, yamlFilePath)
@@ -633,7 +632,6 @@ func (trg *TestResultGatherer) CheckTestResultsForPr(ctx context.Context, orgLog
 		return nil, err
 	}
 	fullResult, err := trg.getManyResults(ctx, testSlice, orgLogin, repoName)
-
 	if err != nil {
 		return nil, err
 	}
@@ -643,7 +641,6 @@ func (trg *TestResultGatherer) CheckTestResultsForPr(ctx context.Context, orgLog
 func (trg *TestResultGatherer) CheckPostSubmitTestResults(ctx context.Context, orgLogin string, repoName string) (*store.PostSubtmitAllResult, error) {
 	testNames := trg.GetAllPostSubmitTestChan(ctx).Go()
 	fullResult, err := trg.getManyPostSubmitResults(ctx, testNames, orgLogin, repoName)
-
 	if err != nil {
 		return nil, err
 	}

@@ -60,8 +60,10 @@ func (mm *MilestoneMgr) MakeConfiguredMilestones(context context.Context, dryRun
 	return nil
 }
 
-var open = "open"
-var closed = "closed"
+var (
+	open   = "open"
+	closed = "closed"
+)
 
 func (mm *MilestoneMgr) makeMilestone(context context.Context, repo gh.RepoDesc, milestone *milestoneRecord) error {
 	ms := &github.Milestone{
@@ -121,7 +123,6 @@ func findMilestone(context context.Context, gc *gh.ThrottledClient, repo gh.Repo
 		milestones, resp, err := gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.Issues.ListMilestones(context, repo.OrgLogin, repo.RepoName, opt)
 		})
-
 		if err != nil {
 			return -1, fmt.Errorf("unable to list milestones for repo %s: %v", repo, err)
 		}
