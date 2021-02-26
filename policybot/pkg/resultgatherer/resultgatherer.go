@@ -73,8 +73,8 @@ type cloneRecord struct {
 	FinalSha string `json:"final_sha"`
 }
 
-//TestOutcome struct to store values from yaml
-//https://github.com/istio/istio/blob/77d9c1040b1a56064f7e59593f53331cca6c7578/pkg/test/framework/suitecontext.go#L232
+// TestOutcome struct to store values from yaml
+// https://github.com/istio/istio/blob/77d9c1040b1a56064f7e59593f53331cca6c7578/pkg/test/framework/suitecontext.go#L232
 type TestOutcome struct {
 	Name          string
 	Type          string
@@ -82,8 +82,8 @@ type TestOutcome struct {
 	FeatureLabels map[string][]string `yaml:"featureLabels,omitempty"`
 }
 
-//SuiteOutcome struct to store values from yaml
-//https://github.com/istio/istio/blob/6c8b0942298420b94a2af47c7a7f6cd08567851e/pkg/test/framework/suite.go#L311
+// SuiteOutcome struct to store values from yaml
+// https://github.com/istio/istio/blob/6c8b0942298420b94a2af47c7a7f6cd08567851e/pkg/test/framework/suite.go#L311
 type SuiteOutcome struct {
 	Name         string
 	Environment  string
