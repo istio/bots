@@ -2,7 +2,7 @@
 # This leverages Google-managed SSL certificates which are automatically provisioned, renewed, and managed.
 # https://cloud.google.com/kubernetes-engine/docs/how-to/managed-certs
 #
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1beta1
 kind: Ingress
 metadata:
   name: policybot
