@@ -149,7 +149,7 @@ users:
         organization: Google
         start: "2013-06-03"
     email_addresses:
-      - fpesce@google.com
+      - francois.pesce@gmail.com
     github_login: fpesce
   - affiliations:
       - end: "9999-01-01"
