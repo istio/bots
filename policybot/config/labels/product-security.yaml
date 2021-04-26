@@ -1,0 +1,4 @@
+name: 'area/product security'
+type: label
+color: dbc1bf
+description: Indicates an issue affecting Istio security. Do not use for vulnerabilities.
