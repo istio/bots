@@ -223,6 +223,7 @@ CREATE TABLE RepoComments (
 CREATE TABLE MonitorStatus (
   MonitorName STRING(MAX) NOT NULL,
   Status STRING(MAX) NOT NULL,
+  ProjectID STRING(MAX),
   TestID STRING(MAX) NOT NULL,
   Description STRING(MAX),
   UpdatedTime TIMESTAMP NOT NULL,

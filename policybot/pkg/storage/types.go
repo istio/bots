@@ -143,7 +143,8 @@ type Monitor struct {
 	// Status represents the status of the monitor, e.g. HEALTHY, ALERTING
 	Status string
 	// ProjectID points to the project where the test is running
-	ProjectID string
+	// Optional: keep it for backward compatibility
+	ProjectID spanner.NullString
 	// ClusterName points to the cluster where the test is running
 	ClusterName string
 	TestID      string
