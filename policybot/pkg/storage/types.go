@@ -146,7 +146,7 @@ type Monitor struct {
 	// Optional: keep it for backward compatibility
 	ProjectID spanner.NullString
 	// ClusterName points to the cluster where the test is running
-	ClusterName string
+	ClusterName spanner.NullString
 	TestID      string
 	// Branch of the test, e.g. release-1.7
 	Branch string
@@ -164,13 +164,13 @@ type Monitor struct {
 // ReleaseQualTestMetadata represents the metadata of specific test run.
 type ReleaseQualTestMetadata struct {
 	// ProjectID points to the project where the test is running
-	ProjectID string
+	ProjectID spanner.NullString
 	// ClusterName points to the cluster where the test is running
-	ClusterName string
+	ClusterName spanner.NullString
 	// TestID is the ID of specific Test run
 	TestID string
 	// Branch of the test, e.g. release-1.7
-	Branch string
+	Branch spanner.NullString
 	// PrometheusLink links to prometheus running in the cluster
 	PrometheusLink spanner.NullString
 	// GrafanaLink links to prometheus running in the cluster

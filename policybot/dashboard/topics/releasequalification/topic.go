@@ -111,9 +111,9 @@ func (r *ReleaseQualification) getMonitorStatus(context context.Context) (Monito
 		if md[testID] == nil {
 			md[testID] = &TestMetadata{
 				TestID:         testID,
-				ProjectID:      metadata.ProjectID,
-				ClusterName:    metadata.ClusterName,
-				Branch:         metadata.Branch,
+				ProjectID:      metadata.ProjectID.String(),
+				ClusterName:    metadata.ClusterName.String(),
+				Branch:         metadata.Branch.String(),
 				PrometheusLink: metadata.PrometheusLink.String(),
 				GrafanaLink:    metadata.GrafanaLink.String(),
 			}
