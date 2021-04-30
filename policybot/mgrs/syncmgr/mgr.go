@@ -26,31 +26,27 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
-
-	"istio.io/bots/policybot/pkg/pipeline"
-	"istio.io/pkg/env"
-
 	"cloud.google.com/go/bigquery"
 	"github.com/ghodss/yaml"
 	"github.com/google/go-github/v26/github"
+	"github.com/hashicorp/go-multierror"
 	"google.golang.org/api/iterator"
 
 	"istio.io/bots/policybot/handlers/githubwebhook/refresher"
 	"istio.io/bots/policybot/pkg/blobstorage"
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
+	"istio.io/bots/policybot/pkg/pipeline"
 	"istio.io/bots/policybot/pkg/resultgatherer"
 	"istio.io/bots/policybot/pkg/storage"
-	"istio.io/bots/policybot/pkg/zh"
+	"istio.io/pkg/env"
 	"istio.io/pkg/log"
 )
 
-// SyncMgr is responsible for synchronizing state from GitHub and ZenHub into our local store
+// SyncMgr is responsible for synchronizing state from GitHub into our local store
 type SyncMgr struct {
 	bq        *bigquery.Client
 	gc        *gh.ThrottledClient
-	zc        *zh.ThrottledClient
 	store     storage.Store
 	blobstore blobstorage.Store
 	robots    map[string]bool
@@ -66,7 +62,6 @@ const (
 	Maintainers              = 1 << 2
 	Members                  = 1 << 3
 	Labels                   = 1 << 4
-	ZenHub                   = 1 << 5
 	RepoComments             = 1 << 6
 	Events                   = 1 << 7
 	TestResults              = 1 << 8
@@ -83,9 +78,9 @@ type syncState struct {
 	dryRun bool
 }
 
-var scope = log.RegisterScope("syncmgr", "The GitHub/ZenHub data syncer", 0)
+var scope = log.RegisterScope("syncmgr", "The GitHub data syncer", 0)
 
-func New(gc *gh.ThrottledClient, zc *zh.ThrottledClient, store storage.Store, bq *bigquery.Client, bs blobstorage.Store,
+func New(gc *gh.ThrottledClient, store storage.Store, bq *bigquery.Client, bs blobstorage.Store,
 	reg *config.Registry, robots []string) *SyncMgr {
 	r := make(map[string]bool, len(robots))
 	for _, robot := range robots {
@@ -95,7 +90,6 @@ func New(gc *gh.ThrottledClient, zc *zh.ThrottledClient, store storage.Store, bq
 	return &SyncMgr{
 		gc:        gc,
 		bq:        bq,
-		zc:        zc,
 		store:     store,
 		blobstore: bs,
 		robots:    r,
@@ -106,7 +100,7 @@ func New(gc *gh.ThrottledClient, zc *zh.ThrottledClient, store storage.Store, bq
 func ConvFilterFlags(filter string) (FilterFlags, error) {
 	if filter == "" {
 		// defaults to everything
-		return Issues | Prs | Maintainers | Members | Labels | ZenHub | RepoComments | Events | TestResults, nil
+		return Issues | Prs | Maintainers | Members | Labels | RepoComments | Events | TestResults, nil
 	}
 
 	var result FilterFlags
@@ -122,8 +116,6 @@ func ConvFilterFlags(filter string) (FilterFlags, error) {
 			result |= Members
 		case "labels":
 			result |= Labels
-		case "zenhub":
-			result |= ZenHub
 		case "repocomments":
 			result |= RepoComments
 		case "events":
@@ -165,7 +157,6 @@ func (sm *SyncMgr) Sync(context context.Context, flags FilterFlags, dryRun bool)
 			org, _, err := sm.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 				return client.Organizations.Get(context, repo.OrgLogin)
 			})
-
 			if err != nil {
 				return fmt.Errorf("unable to get information for org %s: %v", repo.OrgLogin, err)
 			}
@@ -177,7 +168,6 @@ func (sm *SyncMgr) Sync(context context.Context, flags FilterFlags, dryRun bool)
 		repo, _, err := sm.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.Repositories.Get(context, repo.OrgLogin, repo.RepoName)
 		})
-
 		if err != nil {
 			return fmt.Errorf("unable to get information for repo %s: %v", repo, err)
 		}
@@ -314,12 +304,6 @@ func (ss *syncState) handleRepo(repo gh.RepoDesc) error {
 
 	}
 
-	if ss.flags&ZenHub != 0 {
-		if err := ss.handleZenHub(repo); err != nil {
-			return err
-		}
-	}
-
 	if ss.flags&Prs != 0 {
 		if err := ss.handlePullRequests(repo); err != nil {
 			return err
@@ -353,7 +337,6 @@ func (ss *syncState) handleRepo(repo gh.RepoDesc) error {
 
 func (ss *syncState) handleActivity(repo gh.RepoDesc, cb func(gh.RepoDesc, time.Time) error,
 	getField func(*storage.BotActivity) *time.Time) error {
-
 	start := time.Now().UTC()
 	priorStart := time.Time{}
 
@@ -822,7 +805,6 @@ func (ss *syncState) handleEventsFromGitHub(repo gh.RepoDesc) error {
 
 		return nil
 	})
-
 	if err != nil {
 		return err
 	}
@@ -931,62 +913,6 @@ func (ss *syncState) handleIssueComments(repo gh.RepoDesc, startTime time.Time) 
 	})
 }
 
-func (ss *syncState) handleZenHub(repo gh.RepoDesc) error {
-	scope.Debugf("Getting ZenHub issue data for repo %s", repo)
-
-	// get all the issues
-	var issues []*storage.Issue
-	if err := ss.mgr.store.QueryIssuesByRepo(ss.ctx, repo.OrgLogin, repo.RepoName, func(issue *storage.Issue) error {
-		issues = append(issues, issue)
-		return nil
-	}); err != nil {
-		return fmt.Errorf("unable to read issues from repo %s: %v", repo, err)
-	}
-
-	sr, err := ss.mgr.store.ReadRepo(ss.ctx, repo.OrgLogin, repo.RepoName)
-	if err != nil {
-		return fmt.Errorf("unable to read information about repo %s from storage", repo)
-	}
-
-	// now get the ZenHub data for all issues
-	var pipelines []*storage.IssuePipeline
-	for _, issue := range issues {
-		issueData, err := ss.mgr.zc.ThrottledCall(func(client *zh.Client) (interface{}, error) {
-			return client.GetIssueData(int(sr.RepoNumber), int(issue.IssueNumber))
-		})
-
-		if err != nil {
-			if err == zh.ErrNotFound {
-				// not found, so nothing to do...
-				return nil
-			}
-
-			return fmt.Errorf("unable to get issue data from ZenHub for issue %d in repo %s/%s: %v", issue.IssueNumber, repo.OrgLogin, repo.RepoName, err)
-		}
-
-		pipelines = append(pipelines, &storage.IssuePipeline{
-			OrgLogin:    repo.OrgLogin,
-			RepoName:    repo.RepoName,
-			IssueNumber: issue.IssueNumber,
-			Pipeline:    issueData.(*zh.IssueData).Pipeline.Name,
-		})
-
-		if len(pipelines)%100 == 0 {
-			if err = ss.mgr.store.WriteIssuePipelines(ss.ctx, pipelines); err != nil {
-				return err
-			}
-			pipelines = pipelines[:0]
-		}
-	}
-
-	if ss.dryRun {
-		scope.Infof("Would have written %d issue pipelines for repo %s to storage", len(pipelines), repo)
-		return nil
-	}
-
-	return ss.mgr.store.WriteIssuePipelines(ss.ctx, pipelines)
-}
-
 func (ss *syncState) handlePullRequests(repo gh.RepoDesc) error {
 	scope.Debugf("Getting pull requests from repo %s", repo)
 
@@ -1074,7 +1000,7 @@ func (ss *syncState) handlePullRequestReviewComments(repo gh.RepoDesc, start tim
 	})
 }
 
-func (ss *syncState) handleTestResults() error {
+func (ss *syncState) handleTestResults() (result error) {
 	for _, repo := range ss.mgr.reg.Repos() {
 		r, ok := ss.mgr.reg.SingleRecord(refresher.RecordType, repo.OrgAndRepo)
 		if !ok {
@@ -1093,7 +1019,7 @@ func (ss *syncState) handleTestResults() error {
 		prMin := env.RegisterIntVar("PR_MIN", 0, "The minimum PR to scan for test results").Get()
 		prMax := env.RegisterIntVar("PR_MAX", -1, "The maximum PR to scan for test results").Get()
 
-		var completedTests = make(map[string]bool)
+		completedTests := make(map[string]bool)
 		ctLock := sync.RWMutex{}
 		wg := sync.WaitGroup{}
 		wg.Add(1)
@@ -1156,7 +1082,7 @@ func (ss *syncState) handleTestResults() error {
 			if strings.Contains(testRunPath, "00") {
 				fmt.Printf("checking test %s\n", testRunPath)
 			}
-			return g.GetTestResult(ss.ctx, testName, testRunPath)
+			return g.GetTestResult(ss.ctx, testName, testRunPath, repo.OrgLogin)
 		}).Batch(50).To(func(input interface{}) error {
 			var testResults []*storage.TestResult
 			for _, i := range input.([]interface{}) {
@@ -1172,23 +1098,19 @@ func (ss *syncState) handleTestResults() error {
 			}
 			return nil
 		}).WithParallelism(1).Go()
-		var result *multierror.Error
 		for err := range errorChan {
-			result = multierror.Append(err.Err())
+			result = multierror.Append(result, err.Err())
 		}
-		if result != nil {
-			return result
-		}
-		// Update cache table to reflect these results.
-		rowCount, err := ss.mgr.store.UpdateFlakeCache(ss.ctx)
-		if err != nil {
-			return err
-		}
-		log.Infof("Updated flake cache with %d additional flakes", rowCount)
-		// TODO: check Post Submit tests as well.
 	}
 
-	return nil
+	rowCount, err := ss.mgr.store.UpdateFlakeCache(ss.ctx)
+	if err != nil {
+		result = multierror.Append(result, err)
+	} else {
+		log.Infof("detected %d new flakes", rowCount)
+	}
+
+	return
 }
 
 func (ss *syncState) handlePostSubmitTestResults() error {
@@ -1207,7 +1129,7 @@ func (ss *syncState) handlePostSubmitTestResults() error {
 		}
 
 		scope.Debugf("Getting post submit test results for org %s", repo.OrgLogin)
-		var completedTests = make(map[string]bool)
+		completedTests := make(map[string]bool)
 		ctLock := sync.RWMutex{}
 		wg := sync.WaitGroup{}
 		wg.Add(1)
@@ -1328,12 +1250,6 @@ func (ss *syncState) handlePostSubmitTestResults() error {
 		if result != nil {
 			return result
 		}
-		// Update cache table to reflect these results.
-		rowCount, err := ss.mgr.store.UpdateFlakeCache(ss.ctx)
-		if err != nil {
-			return err
-		}
-		log.Infof("Updated flake cache with %d additional flakes", rowCount)
 	}
 
 	return nil
@@ -1471,7 +1387,6 @@ func (ss *syncState) expandTeam(orgLogin string, teamLogin string) ([]string, er
 	team, _, err := ss.mgr.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 		return client.Teams.GetTeamBySlug(ss.ctx, orgLogin, teamLogin[index+1:])
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("unable to get information on team %s: %v", teamLogin, err)
 	}
@@ -1481,7 +1396,6 @@ func (ss *syncState) expandTeam(orgLogin string, teamLogin string) ([]string, er
 	ghUsers, _, err := ss.mgr.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 		return client.Teams.ListTeamMembers(ss.ctx, id, nil)
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("unable to get members of team %s: %v", teamLogin, err)
 	}
@@ -1510,7 +1424,6 @@ func (ss *syncState) handleOWNERS(repo gh.RepoDesc, maintainers map[string]*stor
 	rc, _, err := ss.mgr.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 		return client.Repositories.ListCommits(ss.ctx, repo.OrgLogin, repo.RepoName, opt)
 	})
-
 	if err != nil {
 		return fmt.Errorf("unable to get latest commit in repo %s: %v", repo, err)
 	}
@@ -1518,7 +1431,6 @@ func (ss *syncState) handleOWNERS(repo gh.RepoDesc, maintainers map[string]*stor
 	tree, _, err := ss.mgr.gc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 		return client.Git.GetTree(ss.ctx, repo.OrgLogin, repo.RepoName, rc.([]*github.RepositoryCommit)[0].GetSHA(), true)
 	})
-
 	if err != nil {
 		return fmt.Errorf("unable to get tree in repo %s: %v", repo, err)
 	}

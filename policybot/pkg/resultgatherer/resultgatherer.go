@@ -24,20 +24,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"regexp"
-
-	"github.com/ghodss/yaml"
-
-	pipelinetwo "istio.io/bots/policybot/pkg/pipeline"
-
-	"cloud.google.com/go/storage"
-
 	"io/ioutil"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	"cloud.google.com/go/storage"
+	"github.com/ghodss/yaml"
+
 	"istio.io/bots/policybot/pkg/blobstorage"
+	pipelinetwo "istio.io/bots/policybot/pkg/pipeline"
 	store "istio.io/bots/policybot/pkg/storage"
 )
 
@@ -76,8 +73,8 @@ type cloneRecord struct {
 	FinalSha string `json:"final_sha"`
 }
 
-//TestOutcome struct to store values from yaml
-//https://github.com/istio/istio/blob/77d9c1040b1a56064f7e59593f53331cca6c7578/pkg/test/framework/suitecontext.go#L232
+// TestOutcome struct to store values from yaml
+// https://github.com/istio/istio/blob/77d9c1040b1a56064f7e59593f53331cca6c7578/pkg/test/framework/suitecontext.go#L232
 type TestOutcome struct {
 	Name          string
 	Type          string
@@ -85,8 +82,8 @@ type TestOutcome struct {
 	FeatureLabels map[string][]string `yaml:"featureLabels,omitempty"`
 }
 
-//SuiteOutcome struct to store values from yaml
-//https://github.com/istio/istio/blob/6c8b0942298420b94a2af47c7a7f6cd08567851e/pkg/test/framework/suite.go#L311
+// SuiteOutcome struct to store values from yaml
+// https://github.com/istio/istio/blob/6c8b0942298420b94a2af47c7a7f6cd08567851e/pkg/test/framework/suite.go#L311
 type SuiteOutcome struct {
 	Name         string
 	Environment  string
@@ -186,6 +183,28 @@ func (trg *TestResultGatherer) getInformationFromStartedFile(ctx context.Context
 	return &started, nil
 }
 
+func (trg *TestResultGatherer) getInformationFromProwFile(ctx context.Context, pref string) (*ProwJob, error) {
+	bucket := trg.getBucket()
+	rdr, err := bucket.Reader(ctx, pref+"prowjob.json")
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving prowjob.json from %s: %v", pref, err)
+	}
+
+	defer rdr.Close()
+	prowFile, err := ioutil.ReadAll(rdr)
+	if err != nil {
+		return nil, fmt.Errorf("error reading prowjob.json from %s: %v", pref, err)
+	}
+
+	var result *ProwJob
+
+	if err = json.Unmarshal(prowFile, &result); err != nil {
+		return nil, fmt.Errorf("error parsing prowjob.json from %s: %v", pref, err)
+	}
+
+	return result, nil
+}
+
 func (trg *TestResultGatherer) getInformationFromCloneFile(ctx context.Context, pref string) ([]*cloneRecord, error) {
 	bucket := trg.getBucket()
 	rdr, err := bucket.Reader(ctx, pref+"clone-records.json")
@@ -267,7 +286,12 @@ func (trg *TestResultGatherer) getEnvironmentalSignatures(ctx context.Context, t
 }
 
 func (trg *TestResultGatherer) getTestRunArtifacts(ctx context.Context, testRun string) ([]string, error) {
-	return trg.getBucket().ListItems(ctx, testRun+"artifacts/")
+	artifacts, err := trg.getBucket().ListItems(ctx, testRun+"artifacts/")
+	// spanner has a limit to the number of artifacts allowed, but it's in bytes.  1000 should be plenty.
+	if len(artifacts) > 1000 {
+		artifacts = artifacts[:1000]
+	}
+	return artifacts, err
 }
 
 // getManyResults function return the status of test passing, clone failure, sha number, base sha for each test
@@ -277,12 +301,11 @@ func (trg *TestResultGatherer) getTestRunArtifacts(ctx context.Context, testRun 
 // Return a map of test suite name -- pr number -- run number -- FortestResult objects.
 func (trg *TestResultGatherer) getManyResults(ctx context.Context, testSlice map[string][]string,
 	orgLogin string, repoName string) ([]*store.TestResult, error) {
-
 	var allTestRuns []*store.TestResult
 
 	for testName, runPaths := range testSlice {
 		for _, runPath := range runPaths {
-			if testResult, err := trg.GetTestResult(ctx, testName, runPath); err == nil {
+			if testResult, err := trg.GetTestResult(ctx, testName, runPath, orgLogin); err == nil {
 				testResult.OrgLogin = orgLogin
 				testResult.RepoName = repoName
 				allTestRuns = append(allTestRuns, testResult)
@@ -332,49 +355,76 @@ func (trg *TestResultGatherer) getManyPostSubmitResults(ctx context.Context, tes
 	return allTestResult, nil
 }
 
-func (trg *TestResultGatherer) GetTestResult(ctx context.Context, testName string, testRun string) (testResult *store.TestResult, err error) {
+func (trg *TestResultGatherer) GetTestResult(ctx context.Context, testName string, testRun string, orgLogin string) (testResult *store.TestResult, err error) {
 	testResult = &store.TestResult{}
 	testResult.TestName = testName
 	testResult.RunPath = testRun
 	testResult.Done = false
-
-	records, err := trg.getInformationFromCloneFile(ctx, testRun)
+	pj, err := trg.getInformationFromProwFile(ctx, testRun)
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	if len(records) < 1 {
-		return nil, fmt.Errorf("test %s %s has an empty clone file.  Cannot proceed", testName, testRun)
+	if pj.Status.State == TriggeredState || pj.Status.State == PendingState {
+		return nil, fmt.Errorf("test is still in progress")
 	}
-	record := records[0]
-
-	if len(record.Refs.Pulls) < 1 {
-		return nil, fmt.Errorf("test %s %s has a malformed clone file.  Cannot proceed", testName, testRun)
+	if pj.Status.State == ErrorState {
+		testResult.StartTime = pj.Status.StartTime.Time
+		testResult.FinishTime = pj.Status.CompletionTime.Time
+		testResult.Result = "ERROR"
 	}
-	testResult.Sha, err = hex.DecodeString(record.Refs.Pulls[0].Sha)
-	if err != nil {
-		return
-	}
-	testResult.BaseSha = record.Refs.BaseSha
-	testResult.CloneFailed = record.Failed
-
-	started, err := trg.getInformationFromStartedFile(ctx, testRun)
-	if err != nil {
-		return
-	}
-
-	testResult.StartTime = time.Unix(started.Timestamp, 0)
-
-	finished, err := trg.getInformationFromFinishedFile(ctx, testRun)
-	if err != storage.ErrObjectNotExist {
-		if err != nil {
-			return
+	if pj.Status.State == AbortedState {
+		testResult.StartTime = pj.Status.StartTime.Time
+		if pj.Status.CompletionTime != nil {
+			testResult.FinishTime = pj.Status.CompletionTime.Time
 		}
-		testResult.TestPassed = finished.Passed
-		testResult.Result = finished.Result
-		testResult.FinishTime = time.Unix(finished.Timestamp, 0)
+		testResult.Result = "ABORTED"
 	}
+	if pj.Status.State == SuccessState || pj.Status.State == FailureState {
 
+		records, err := trg.getInformationFromCloneFile(ctx, testRun)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(records) < 1 {
+			return nil, fmt.Errorf("test %s %s has an empty clone file.  Cannot proceed", testName, testRun)
+		}
+		// starting late october 2020, clone records started having an empty first record, with real data in the second record.
+		var record *cloneRecord
+		for _, r := range records {
+			if r.Refs.Org == orgLogin {
+				record = r
+			}
+		}
+
+		if len(record.Refs.Pulls) < 1 {
+			return nil, fmt.Errorf("test %s %s has a malformed clone file.  Cannot proceed", testName, testRun)
+		}
+		testResult.Sha, err = hex.DecodeString(record.Refs.Pulls[0].Sha)
+		if err != nil {
+			return nil, err
+		}
+		testResult.BaseSha = record.Refs.BaseSha
+		testResult.CloneFailed = record.Failed
+
+		started, err := trg.getInformationFromStartedFile(ctx, testRun)
+		if err != nil {
+			return nil, err
+		}
+
+		testResult.StartTime = time.Unix(started.Timestamp, 0)
+
+		finished, err := trg.getInformationFromFinishedFile(ctx, testRun)
+		if err != storage.ErrObjectNotExist {
+			if err != nil {
+				return nil, err
+			}
+			testResult.TestPassed = finished.Passed
+			testResult.Result = finished.Result
+			testResult.FinishTime = time.Unix(finished.Timestamp, 0)
+		}
+	}
 	prefSplit := strings.Split(testRun, "/")
 
 	runNo, err := strconv.ParseInt(prefSplit[len(prefSplit)-2], 10, 64)
@@ -394,6 +444,10 @@ func (trg *TestResultGatherer) GetTestResult(ctx context.Context, testName strin
 	}
 	testResult.HasArtifacts = len(artifacts) != 0
 	testResult.Artifacts = artifacts
+
+	if testResult.Sha == nil {
+		testResult.Sha = []byte{}
+	}
 
 	if !testResult.TestPassed && !testResult.HasArtifacts {
 		// this is almost certainly an environmental failure, check for known sigs
@@ -450,39 +504,65 @@ func (trg *TestResultGatherer) GetPostSubmitTestResult(ctx context.Context, test
 	testResult.RunPath = testRun
 	testResult.Done = false
 
-	records, err := trg.getInformationFromCloneFile(ctx, testRun)
+	pj, err := trg.getInformationFromProwFile(ctx, testRun)
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	if len(records) < 1 {
-		return nil, fmt.Errorf("test %s %s has an empty clone file.  Cannot proceed", testName, testRun)
+	if pj.Status.State == TriggeredState || pj.Status.State == PendingState {
+		return nil, fmt.Errorf("test is still in progress")
 	}
-	record := records[0]
-
-	testResult.Sha, err = hex.DecodeString(record.FinalSha)
-	if err != nil {
-		return
+	if pj.Status.State == ErrorState {
+		testResult.StartTime = pj.Status.StartTime.Time
+		testResult.FinishTime = pj.Status.CompletionTime.Time
+		testResult.Result = "ERROR"
 	}
-
-	testResult.BaseSha = record.Refs.BaseSha
-	testResult.CloneFailed = record.Failed
-
-	started, err := trg.getInformationFromStartedFile(ctx, testRun)
-	if err != nil {
-		return
+	if pj.Status.State == AbortedState {
+		testResult.StartTime = pj.Status.StartTime.Time
+		testResult.FinishTime = pj.Status.CompletionTime.Time
+		testResult.Result = "ABORTED"
 	}
-
-	testResult.StartTime = time.Unix(started.Timestamp, 0)
-
-	finished, err := trg.getInformationFromFinishedFile(ctx, testRun)
-	if err != storage.ErrObjectNotExist {
+	if pj.Status.State == SuccessState || pj.Status.State == FailureState {
+		records, err := trg.getInformationFromCloneFile(ctx, testRun)
 		if err != nil {
-			return
+			return nil, err
 		}
-		testResult.TestPassed = finished.Passed
-		testResult.Result = finished.Result
-		testResult.FinishTime = time.Unix(finished.Timestamp, 0)
+
+		if len(records) < 1 {
+			return nil, fmt.Errorf("test %s %s has an empty clone file.  Cannot proceed", testName, testRun)
+		}
+		// starting late october 2020, clone records started having an empty first record, with real data in the second record.
+		var record *cloneRecord
+		for _, r := range records {
+			if r.Refs.Org == orgLogin {
+				record = r
+			}
+		}
+
+		testResult.Sha, err = hex.DecodeString(record.FinalSha)
+		if err != nil {
+			return nil, err
+		}
+
+		testResult.BaseSha = record.Refs.BaseSha
+		testResult.CloneFailed = record.Failed
+
+		started, err := trg.getInformationFromStartedFile(ctx, testRun)
+		if err != nil {
+			return nil, err
+		}
+
+		testResult.StartTime = time.Unix(started.Timestamp, 0)
+
+		finished, err := trg.getInformationFromFinishedFile(ctx, testRun)
+		if err != storage.ErrObjectNotExist {
+			if err != nil {
+				return nil, err
+			}
+			testResult.TestPassed = finished.Passed
+			testResult.Result = finished.Result
+			testResult.FinishTime = time.Unix(finished.Timestamp, 0)
+		}
 	}
 
 	prefSplit := strings.Split(testRun, "/")
@@ -507,7 +587,7 @@ func (trg *TestResultGatherer) GetPostSubmitTestResult(ctx context.Context, test
 	testResult.OrgLogin = orgLogin
 	testResult.RepoName = repoName
 
-	//saves all artifacts
+	// saves all artifacts
 	for _, yamlFilePath := range artifacts {
 		if strings.Contains(strings.Split(yamlFilePath, "/")[4], "yaml") {
 			readInSuiteOutcome, err := trg.getInformationFromYamlFile(ctx, yamlFilePath)
@@ -552,7 +632,6 @@ func (trg *TestResultGatherer) CheckTestResultsForPr(ctx context.Context, orgLog
 		return nil, err
 	}
 	fullResult, err := trg.getManyResults(ctx, testSlice, orgLogin, repoName)
-
 	if err != nil {
 		return nil, err
 	}
@@ -562,7 +641,6 @@ func (trg *TestResultGatherer) CheckTestResultsForPr(ctx context.Context, orgLog
 func (trg *TestResultGatherer) CheckPostSubmitTestResults(ctx context.Context, orgLogin string, repoName string) (*store.PostSubtmitAllResult, error) {
 	testNames := trg.GetAllPostSubmitTestChan(ctx).Go()
 	fullResult, err := trg.getManyPostSubmitResults(ctx, testNames, orgLogin, repoName)
-
 	if err != nil {
 		return nil, err
 	}
@@ -574,7 +652,14 @@ func (trg *TestResultGatherer) GetAllPullRequestsChan(ctx context.Context, orgLo
 }
 
 func (trg *TestResultGatherer) GetAllPostSubmitTestChan(ctx context.Context) pipelinetwo.Pipeline {
-	return trg.getBucket().ListPrefixesProducer(ctx, "logs/")
+	return trg.getBucket().ListPrefixesProducer(ctx, "logs/").Transform(
+		func(i interface{}) (interface{}, error) {
+			// this test runs every 5 minutes, and has no meaningful output
+			if strings.Contains(i.(string), "monitoring-verify-gcsweb") {
+				return nil, pipelinetwo.ErrSkip
+			}
+			return i, nil
+		})
 }
 
 // if any pattern is found in the object, return it's index

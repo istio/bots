@@ -22,6 +22,7 @@ import (
 	"cloud.google.com/go/spanner"
 	"google.golang.org/api/iterator"
 
+	"istio.io/bots/policybot/pkg/pipeline"
 	"istio.io/bots/policybot/pkg/storage"
 )
 
@@ -62,6 +63,38 @@ func (s store) QueryAllUsers(context context.Context, cb func(*storage.User) err
 		}
 
 		return cb(user)
+	})
+
+	return err
+}
+
+// QueryMonitorStatus queries monitor status of release qualification test
+func (s store) QueryMonitorStatus(context context.Context, cb func(*storage.Monitor) error) error {
+	iter := s.client.Single().Query(context,
+		spanner.Statement{SQL: "SELECT * FROM MonitorStatus"})
+	err := iter.Do(func(row *spanner.Row) error {
+		monitor := &storage.Monitor{}
+		if err := rowToStruct(row, monitor); err != nil {
+			return err
+		}
+
+		return cb(monitor)
+	})
+
+	return err
+}
+
+// QueryReleaseQualTestMeta queries meta info of release qualification test
+func (s store) QueryReleaseQualTestMetadata(context context.Context, cb func(metadata *storage.ReleaseQualTestMetadata) error) error {
+	iter := s.client.Single().Query(context,
+		spanner.Statement{SQL: "SELECT * FROM ReleaseQualTestMetadata"})
+	err := iter.Do(func(row *spanner.Row) error {
+		monitor := &storage.ReleaseQualTestMetadata{}
+		if err := rowToStruct(row, monitor); err != nil {
+			return err
+		}
+
+		return cb(monitor)
 	})
 
 	return err
@@ -350,7 +383,6 @@ func (s store) QueryMaintainerActivity(context context.Context, maintainer *stor
 			maintainer.OrgLogin, repoName, maintainer.UserLogin)})
 
 		err := iter.Do(func(row *spanner.Row) error {
-
 			var pr storage.PullRequest
 			if err := rowToStruct(row, &pr); err != nil {
 				return err
@@ -413,7 +445,6 @@ func (s store) QueryMaintainerActivity(context context.Context, maintainer *stor
 			maintainer.OrgLogin, repoName, maintainer.UserLogin)})
 
 		err := iter.Do(func(row *spanner.Row) error {
-
 			var e storage.PullRequestReviewEvent
 			if err := rowToStruct(row, &e); err != nil {
 				return err
@@ -481,7 +512,6 @@ func (s store) QueryMaintainerActivity(context context.Context, maintainer *stor
 			maintainer.OrgLogin, repoName, maintainer.UserLogin)})
 
 		err := iter.Do(func(row *spanner.Row) error {
-
 			var e storage.PullRequestReviewCommentEvent
 			if err := rowToStruct(row, &e); err != nil {
 				return err
@@ -603,7 +633,6 @@ func (s *store) getIssueActivity(context context.Context, orgLogin string, repoN
 
 		return nil
 	})
-
 	if err != nil {
 		return err
 	}
@@ -706,7 +735,6 @@ func (s store) QueryCoverageDataBySHA(
 
 func (s *store) getPRActivity(context context.Context, orgLogin string, repoName string, userLogin string,
 	info *storage.ActivityInfo, repoInfo *storage.RepoActivityInfo) error {
-
 	pathInfo := repoInfo.Paths["/"]
 
 	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
@@ -736,7 +764,6 @@ func (s *store) getPRActivity(context context.Context, orgLogin string, repoName
 
 		return nil
 	})
-
 	if err != nil {
 		return err
 	}
@@ -837,37 +864,49 @@ func (s store) QueryPullRequestsByUser(context context.Context, orgLogin string,
 	return err
 }
 
-func (s store) QueryLatestBaseSha(context context.Context, cb func(*storage.LatestBaseSha) error) error {
+func (s store) QueryLatestBaseSha(context context.Context) (*storage.LatestBaseShaSummary, error) {
 	sql := `SELECT BaseSha, COUNT(TestOutcomes.TestOutcomeName) AS NumberOfTest, MAX(FinishTime) AS LastFinishTime
-			FROM (SELECT * FROM PostSubmitTestResults 
-	  			  ORDER BY FinishTime DESC
-	              LIMIT 10000)
+			FROM PostSubmitTestResults
 			LEFT JOIN TestOutcomes USING (OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done)
+			WHERE RepoName='istio'
 			GROUP BY BaseSha
 			ORDER BY MAX(FinishTime) DESC
-			LIMIT 100;`
+			LIMIT 100`
 	stmt := spanner.NewStatement(sql)
 	iter := s.client.Single().Query(context, stmt)
+
+	var summary storage.LatestBaseShaSummary
+	var summaryList []storage.LatestBaseSha
+
 	err := iter.Do(func(row *spanner.Row) error {
 		latestBaseSha := &storage.LatestBaseSha{}
 		if err := rowToStruct(row, latestBaseSha); err != nil {
 			return err
 		}
-
-		return cb(latestBaseSha)
+		summaryList = append(summaryList, storage.LatestBaseSha{
+			BaseSha:        latestBaseSha.BaseSha,
+			LastFinishTime: latestBaseSha.LastFinishTime,
+			NumberofTest:   latestBaseSha.NumberofTest,
+		})
+		return nil
 	})
-	return err
+	if err != nil {
+		return nil, err
+	}
+
+	summary.LatestBaseSha = summaryList
+	return &summary, nil
 }
 
 func (s store) QueryAllBaseSha(context context.Context) (baseShas []string, err error) {
 	sql := `SELECT DISTINCT BaseSha
-			FROM PostSubmitTestResults 
+			FROM PostSubmitTestResults
 			LIMIT 50000;`
 	stmt := spanner.NewStatement(sql)
 
 	iter := s.client.Single().Query(context, stmt)
 	err = iter.Do(func(row *spanner.Row) error {
-		baseSha := &storage.AllBaseSha{}
+		baseSha := &storage.BaseSha{}
 		if err := rowToStruct(row, baseSha); err != nil {
 			return err
 		}
@@ -877,28 +916,82 @@ func (s store) QueryAllBaseSha(context context.Context) (baseShas []string, err 
 	return
 }
 
-func (s store) QueryPostSubmitTestResult(context context.Context, baseSha string, cb func(*storage.PostSubmitTestResultDenormalized) error) error {
+func (s store) QueryPostSubmitTestEnvLabel(context context.Context, baseSha string, cb func(*storage.PostSubmitTestEnvLabel) error) error {
 	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
-		`SELECT t.OrgLogin, t.RepoName, t.TestName, t.BaseSha, t.RunNumber, t.Done,t.CloneFailed,t.FinishTime, 
-		t.Result, t.RunPath, t.Sha, t.StartTime, t.TestPassed, t.HasArtifacts,t.Signatures,
-		SuiteOutcomes.SuiteName,SuiteOutcomes.Environment, SuiteOutcomes.Multicluster,
-		TestOutcomes.TestOutcomeName, TestOutcomes.Type, TestOutcomes.Outcome,
-		FeatureLabels.Label,FeatureLabels.Scenario
-		FROM PostSubmitTestResults as t
+		`SELECT SuiteOutcomes.Environment, FeatureLabels.Label
+		FROM PostSubmitTestResults
 		INNER JOIN SuiteOutcomes USING (OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done)
 		INNER JOIN TestOutcomes USING (OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done, SuiteName)
 		INNER JOIN FeatureLabels USING (OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done, SuiteName, TestOutcomeName)
 		WHERE BaseSha='%s' and RepoName='istio';`, baseSha)})
 
 	err := iter.Do(func(row *spanner.Row) error {
-		PostSubmitTestResult := &storage.PostSubmitTestResultDenormalized{}
-		if err := rowToStruct(row, PostSubmitTestResult); err != nil {
+		PostSubmitTestEnvLabel := &storage.PostSubmitTestEnvLabel{}
+		if err := rowToStruct(row, PostSubmitTestEnvLabel); err != nil {
 			return err
 		}
 
-		return cb(PostSubmitTestResult)
+		return cb(PostSubmitTestEnvLabel)
 	})
 
 	return err
+}
 
+func (s store) QueryTestNameByEnvLabel(context context.Context, baseSha string, env string,
+	label string) (testNameByEnvLabels []*storage.TestNameByEnvLabel, err error) {
+	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
+		`SELECT TestOutcomes.TestOutcomeName, RunNumber, TestName
+		FROM PostSubmitTestResults
+		INNER JOIN SuiteOutcomes USING (OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done)
+		INNER JOIN TestOutcomes USING (OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done, SuiteName)
+		INNER JOIN FeatureLabels USING (OrgLogin, RepoName, TestName, BaseSha, RunNumber, Done, SuiteName,    TestOutcomeName)
+		WHERE BaseSha='%s' and RepoName='istio' and Environment='%s'
+        and Label LIKE '%s%%';`, baseSha, env, label)})
+
+	err = iter.Do(func(row *spanner.Row) error {
+		testNameByEnvLabel := &storage.TestNameByEnvLabel{}
+		if err := rowToStruct(row, testNameByEnvLabel); err != nil {
+			return err
+		}
+		testNameByEnvLabels = append(testNameByEnvLabels, testNameByEnvLabel)
+		return nil
+	})
+	return
+}
+
+func (s store) QueryNewFlakes(ctx context.Context) pipeline.Pipeline {
+	var iter *spanner.RowIterator
+	lp := pipeline.IterProducer{
+		Setup: func() error {
+			iter = s.client.Single().Query(ctx, spanner.Statement{SQL: `select failed.PullRequestNumber,
+				failed.TestName, failed.RunNumber, passed.RunNumber as PassingRunNumber,
+				failed.OrgLogin, failed.RepoName, failed.Done, NULL as IssueNum
+				from TestResults as failed
+				JOIN TestResults as passed
+				ON passed.PullRequestNumber = failed.PullRequestNumber AND
+				passed.RunNumber != failed.RunNumber AND
+				passed.TestName = failed.TestName AND
+				passed.sha = failed.sha AND
+				passed.TestPassed AND
+				NOT failed.TestPassed AND
+				failed.FinishTime > TIMESTAMP(DATE(2010,1,1)) AND
+				NOT failed.CloneFailed AND
+				failed.result!='ABORTED' AND
+				failed.HasArtifacts
+				LEFT JOIN ConfirmedFlakes ON failed.PullRequestNumber = ConfirmedFlakes.PullRequestNumber AND
+				failed.RunNumber = ConfirmedFlakes.RunNumber AND
+				failed.TestName = ConfirmedFlakes.TestName
+				WHERE ConfirmedFlakes.PullRequestNumber is null`})
+			return nil
+		},
+		Iterator: func() (res interface{}, err error) {
+			row, err := iter.Next()
+			if err == nil {
+				res = &storage.ConfirmedFlake{}
+				err = rowToStruct(row, res)
+			}
+			return
+		},
+	}
+	return pipeline.FromIter(lp)
 }

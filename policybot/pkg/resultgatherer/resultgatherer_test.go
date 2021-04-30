@@ -21,11 +21,10 @@ import (
 	"testing"
 	"time"
 
-	"istio.io/bots/policybot/pkg/pipeline"
-
 	"gotest.tools/assert"
 
 	"istio.io/bots/policybot/pkg/blobstorage/gcs"
+	"istio.io/bots/policybot/pkg/pipeline"
 	"istio.io/bots/policybot/pkg/storage"
 )
 
@@ -37,7 +36,7 @@ func TestTestResultGatherer(t *testing.T) {
 	t1 := time1.Local()
 	time2, _ := time.Parse(layout, "11/16/2018 07:15:44")
 	t2 := time2.Local()
-	var correctInfo = &storage.TestResult{
+	correctInfo := &storage.TestResult{
 		OrgLogin:          "istio",
 		RepoName:          "istio",
 		TestName:          "release-test",
@@ -56,7 +55,7 @@ func TestTestResultGatherer(t *testing.T) {
 	assert.NilError(t, err)
 	correctInfo.Sha = shaBytes
 
-	var prNum = "110"
+	prNum := "110"
 
 	client, err := gcs.NewStore(context, nil)
 	if err != nil {
@@ -92,7 +91,7 @@ func TestPostSubmitTestResultGatherer(t *testing.T) {
 	t1 := time1.Local()
 	time2, _ := time.Parse(layout, "06/03/2020 22:17:49")
 	t2 := time2.Local()
-	var correctInfo = &storage.PostSubmitTestResult{
+	correctInfo := &storage.PostSubmitTestResult{
 		OrgLogin:    "istio",
 		RepoName:    "istio",
 		TestName:    "pilot-e2e-envoyv2-v1alpha3_istio_release-1.4_postsubmit",
@@ -119,12 +118,12 @@ func TestPostSubmitTestResultGatherer(t *testing.T) {
 	start := time.Now()
 	testResultGatherer := TestResultGatherer{client, "istio-flakey-test", "", ""}
 	postSubmitResults, err := testResultGatherer.CheckPostSubmitTestResults(context, "istio", "istio")
-	postSubmitTestResults := postSubmitResults.TestResult
 	if err != nil {
 		t.Errorf("Expecting no error, got %v", err)
 		return
 	}
 
+	postSubmitTestResults := postSubmitResults.TestResult
 	if len(postSubmitTestResults) == 0 {
 		t.Errorf("Expected at least one test result from bucket istio-flakey-test")
 		return
@@ -144,7 +143,7 @@ func TestPostSubmitTestResultGatherer(t *testing.T) {
 func BenchmarkOldWay(b *testing.B) {
 	t := time.NewTicker(time.Millisecond)
 	var data []time.Time
-	//build array
+	// build array
 	var count int
 	for i := range t.C {
 		count++
@@ -160,7 +159,7 @@ func BenchmarkOldWay(b *testing.B) {
 }
 
 func BenchmarkNewWay(b *testing.B) {
-	//b.N = 100000
+	// b.N = 100000
 	t := time.NewTicker(time.Microsecond)
 	in := make(chan pipeline.OutResult)
 	go func() {

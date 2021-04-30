@@ -21,9 +21,8 @@ import (
 	"net/http"
 	"strings"
 
-	"istio.io/bots/policybot/dashboard/types"
-
 	"istio.io/bots/policybot/dashboard/templates/widgets"
+	"istio.io/bots/policybot/dashboard/types"
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
 )
@@ -69,7 +68,8 @@ type Result struct {
 func (p *Perf) getPerformanceResults() []Result {
 	results := []Result{
 		{Name: "Perf Test 1", Target: "perftest1", TimeSeries: p.getTimeSeries1()},
-		{Name: "Perf Test 2", Target: "perftest2", TimeSeries: p.getTimeSeries2()}}
+		{Name: "Perf Test 2", Target: "perftest2", TimeSeries: p.getTimeSeries2()},
+	}
 	return results
 }
 

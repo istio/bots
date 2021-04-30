@@ -83,7 +83,6 @@ func (tc *ThrottledClient) ThrottledCallNoResult(cb func(*github.Client) (*githu
 // specified in the error.
 func (tc *ThrottledClient) ThrottledCallTwoResult(cb func(*github.Client) (interface{}, interface{}, *github.Response, error)) (interface{},
 	interface{}, *github.Response, error) {
-
 	for {
 		result1, result2, resp, err := cb(tc.client)
 		if err == nil {

@@ -61,124 +61,113 @@ var _analysisHtml = []byte(`<!DOCTYPE html>
 </head>
 
 <p>
-    This will display information about GitHub post submit text results
+    This will display information about Environment and Label for the BaseSha: {{ .Choosesha }} 
 </p>
 
-<table>
-  <thead>
-  <tr>
-      <th>LabelName</th>
-      {{ range .AllEnvNanme }}
-      <th>{{ . }}</th>
+<div class="analysis">
+  <table id="main">
+    <thead>
+    <tr>
+        <th>LabelName</th>
+        {{ range .AllEnvNanme }}
+        <th>{{ . }}</th>
+        {{ end }}
+    </tr>
+    </thead>
+    <tbody>
+      {{ $depth := 0 }}
+      {{ range .LabelEnv }}
+        <table>
+          <thead>
+            <tr>
+              <td class="pivot">{{ .Label }}</td>
+              {{ range .EnvCount }}
+              <td>{{ . }} <button class="0" type="button">View All Test</button></td>
+              {{ end }}
+            </tr>
+          </thead>
+          {{template "innerlayer" (wrap .SubLabel $depth)}}      
+        </table>
       {{ end }}
-  </tr>
-  </thead>
-  <tbody>
-    {{ range .LabelEnv }}
-      <table>
+    </tbody>
+  </table>
+  <br>
+  
+  {{ if .ChooseEnv }}
+  <p> View TestNames with Label: {{ .ChooseLabel }}, Env: {{ .ChooseEnv }}</p>
+  <table id="testname">
+    <thead>
+      <tr>
+        <th>TestName</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range $testname := .TestNameByEnvLabels}}
+        <tr>
+          <td>{{ $testname.TestOutcomeName }} 
+            <a href="https://prow.istio.io/view/gcs/istio-prow/logs/{{ $testname.TestName }}/{{ $testname.RunNumber }}">Prow Link</a></td>
+        </tr>
+      {{ end }}
+    </tbody>
+  </table>
+  {{ end }}
+</div>
+
+{{ define "innerlayer" }}
+<tbody class="collapsed">
+  <td class="subtd">
+    {{$depth := .Depth}}
+    {{ range .LabelEnv}}
+      <table class="subtable">
         <thead>
           <tr>
-            <td>{{ .Label }}</td>
+            <td class="pivot">
+              {{range slice $depth}}&nbsp;{{end}}{{ .Label }}
+            </td>
             {{ range .EnvCount }}
-            <td>{{ . }}</td>
+            <td>{{ . }} <button class="{{$depth}}" type="button">View All Test</button></td>
             {{ end }}
           </tr>
         </thead>
-
-        <tbody class="collapsed">
-          <td class="subtd">
-          {{ range .SubLabel.LabelEnv}}    
-            <table class="subtable">
-              <tr>
-                <thead>
-                  <td>&nbsp {{ .Label }}</td>
-                  {{ range .EnvCount }}
-                  <td>{{ . }}</td>
-                  {{ end }}
-                </thead>
-              </tr>
-              <tbody class="collapsed"> 
-                <td class="subtd">
-                {{ range .SubLabel.LabelEnv}}
-                  <table class="subtable">
-                    <tr>
-                      <thead>
-                        <td>&nbsp &nbsp {{ .Label }}</td>
-                        {{ range .EnvCount }}
-                        <td>{{ . }}</td>
-                        {{ end }}
-                      </thead>
-                    </tr>
-                    <tbody class="collapsed">
-                      <td class="subtd">
-                        {{ range .SubLabel.LabelEnv}}
-                          <table class="subtable">
-                            <tr>
-                              <thead>
-                                <td>&nbsp &nbsp &nbsp {{ .Label }}</td>
-                                {{ range .EnvCount }}
-                                <td>{{ . }}</td>
-                                {{ end }}
-                              </thead>
-                            </tr>
-                            <tbody class="collapsed">
-                              {{ range .SubLabel.LabelEnv}}
-                                <tr>
-                                  <td>&nbsp &nbsp &nbsp &nbsp {{ .Label }}</td>
-                                  {{ range .EnvCount }}
-                                  <td>{{ . }}</td>
-                                  {{ end }}
-                                </tr>
-                              {{ end }}
-                            </tbody>
-                          </table>
-                        {{ end }}
-                      </td>       
-                    </tbody>
-                  </table>
-                {{ end }}
-                </td>                
-              </tbody>
-            </table>  
-          {{ end }}
-          </td>
-        </tbody>
+        {{ if .SubLabel.LabelEnv }}
+          {{template "innerlayer" (wrap .SubLabel $depth)}}
+        {{ end }}
       </table>
     {{ end }}
-  </tbody>
-</table>
+  </td>       
+</tbody>
+{{ end }}
 
 <script>
-  $('thead').on('click', function(){
-    $(this).next('tbody').toggleClass('collapsed');
+  $('.pivot').on('click', function(){
+      $(this).closest("thead").next('tbody').toggleClass('collapsed');
   });
-</script>
-
-<style>
-  .collapsed {
-    display: none;
-  }
-  table {
-    table-layout: fixed;
-    width: 600px;
-    padding: 0;
-    border-collapse: collapse;
-    margin-left: 0;
-  }
-
-  table > tr > td {
-      width: 150px;
-  }
-  tr {
-    cursor: pointer;
-  }
-  td, th {
-    padding: 0px;
-  }
-  .subtd{
-    border: 0px;
-  }
-</style>`)
+  $("button").click(function() {
+    var label = getLabel($(this),parseInt(this.className));
+    var env= getEnv($(this));
+    postEnvLabel(env,label);
+  });
+  function postEnvLabel(env,label){
+    $.ajax({
+        url: "/selectEnvLabel",
+        type: 'POST',
+        data: {env:env, label:label},
+    });
+    window.location.assign("/postsubmit?option=analysis");
+  };
+  function getLabel($pos,num){
+    var $label_pos = $pos.closest("tr").find(".pivot")
+    var label= $label_pos.text().replace(/(\xA0|\r\n|\n|\r| )/gm,"")
+    for (i = 0; i < num; i++) {
+      $label_pos = $label_pos.closest("tbody").prev("thead").find("tr").find(".pivot")
+      label = $label_pos.text().replace(/(\xA0|\r\n|\n|\r| )/gm,"") + "." + label;
+    }
+    return label;
+  };
+  function getEnv($pos){
+    return $('#main thead th').eq($pos.closest("td").index()).text();
+  };
+</script>`)
 
 func analysisHtmlBytes() ([]byte, error) {
 	return _analysisHtml, nil
@@ -259,10 +248,6 @@ var _pageHtml = []byte(`<aside class="callout warning">
         This page is under construction
     </div>
 </aside>
-
-<p>
-    This will display information about GitHub post submit text results
-</p>
 
 <table>
   <caption>Latest 100 BaseSha</caption>

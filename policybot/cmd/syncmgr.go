@@ -29,20 +29,19 @@ import (
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage/spanner"
-	"istio.io/bots/policybot/pkg/zh"
 )
 
 func syncMgrCmd() *cobra.Command {
 	syncFilter := ""
 
-	cmd, _ := cmdutil.Run("syncmgr", "Run the GitHub+ZenHub state syncer", 0,
-		cmdutil.ConfigPath|cmdutil.ConfigRepo|cmdutil.ZenhubToken|cmdutil.GitHubToken|cmdutil.GCPCreds, func(reg *config.Registry, secrets *cmdutil.Secrets) error {
+	cmd, _ := cmdutil.Run("syncmgr", "Run the GitHub state syncer", 0,
+		cmdutil.ConfigPath|cmdutil.ConfigRepo|cmdutil.GitHubToken|cmdutil.GCPCreds, func(reg *config.Registry, secrets *cmdutil.Secrets) error {
 			return runSyncMgr(reg, secrets, syncFilter)
 		})
 
 	cmd.PersistentFlags().StringVarP(&syncFilter,
 		"filter", "", "", "Comma-separated filters to limit what is synced, one or more of "+
-			"[issues, prs, labels, maintainers, members, zenhub, repocomments, events, testresults]")
+			"[issues, prs, labels, maintainers, members, repocomments, events, testresults]")
 
 	return cmd
 }
@@ -80,7 +79,6 @@ func runSyncMgr(reg *config.Registry, secrets *cmdutil.Secrets, syncFilter strin
 	defer bs.Close()
 
 	gc := gh.NewThrottledClient(context.Background(), secrets.GitHubToken)
-	zc := zh.NewThrottledClient(secrets.ZenHubToken)
-	mgr := syncmgr.New(gc, zc, store, bq, bs, reg, core.Robots)
+	mgr := syncmgr.New(gc, store, bq, bs, reg, core.Robots)
 	return mgr.Sync(context.Background(), flags, false)
 }

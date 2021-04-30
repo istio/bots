@@ -12,12 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM ubuntu:eoan
-
-ENV CA_CERTIFICATES_VERSION=20190110
+FROM ubuntu:groovy
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates=${CA_CERTIFICATES_VERSION} \
+    ca-certificates \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 COPY policybot /policybot

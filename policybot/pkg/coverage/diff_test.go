@@ -22,20 +22,18 @@ import (
 	"istio.io/bots/policybot/pkg/storage"
 )
 
-var (
-	config = Config{
-		"all": &Feature{
-			Stages: map[string]*Stage{
-				"stable": {
-					Packages: []string{"istio.io/bots/policybot"},
-					Targets: map[string]float64{
-						"unit": 70,
-					},
+var config = Config{
+	"all": &Feature{
+		Stages: map[string]*Stage{
+			"stable": {
+				Packages: []string{"istio.io/bots/policybot"},
+				Targets: map[string]float64{
+					"unit": 70,
 				},
 			},
 		},
-	}
-)
+	},
+}
 
 func coverage(label string, covered int64) *storage.CoverageData {
 	return &storage.CoverageData{

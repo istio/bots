@@ -33,7 +33,6 @@ const (
 	labelTable                         = "Labels"
 	issueTable                         = "Issues"
 	issueCommentTable                  = "IssueComments"
-	issuePipelineTable                 = "IssuePipelines"
 	pullRequestTable                   = "PullRequests"
 	pullRequestReviewCommentTable      = "PullRequestReviewComments"
 	pullRequestReviewTable             = "PullRequestReviews"
@@ -53,6 +52,8 @@ const (
 	featureLabelTable                  = "FeatureLabels"
 	coverageDataTable                  = "CoverageData"
 	userAffiliationTable               = "UserAffiliation"
+	confirmedFlakesTable               = "ConfirmedFlakes"
+	monitorStatus                      = "MonitorStatus"
 )
 
 // Holds the column names for each table or index in the database (filled in at startup)
@@ -63,7 +64,6 @@ var (
 	labelColumns                    []string
 	issueColumns                    []string
 	issueCommentColumns             []string
-	issuePipelineColumns            []string
 	pullRequestColumns              []string
 	pullRequestReviewCommentColumns []string
 	pullRequestReviewColumns        []string
@@ -71,6 +71,7 @@ var (
 	maintainerColumns               []string
 	memberColumns                   []string
 	testResultColumns               []string
+	monitorStatusColumns            []string
 )
 
 // Bunch of functions to from keys for the tables and indices in the DB
@@ -87,6 +88,10 @@ func userKey(userLogin string) spanner.Key {
 	return spanner.Key{userLogin}
 }
 
+func monitorStatusKey(branch, monitorName string) spanner.Key {
+	return spanner.Key{branch, monitorName}
+}
+
 func labelKey(orgLogin string, repoName string, labelName string) spanner.Key {
 	return spanner.Key{orgLogin, repoName, labelName}
 }
@@ -97,10 +102,6 @@ func issueKey(orgLogin string, repoName string, issueNumber int64) spanner.Key {
 
 func issueCommentKey(orgLogin string, repoName string, issueNumber int64, commentID int64) spanner.Key {
 	return spanner.Key{orgLogin, repoName, issueNumber, commentID}
-}
-
-func issuePipelineKey(orgLogin string, repoName string, issueNumber int64) spanner.Key {
-	return spanner.Key{orgLogin, repoName, issueNumber}
 }
 
 func pullRequestKey(orgLogin string, repoName string, prNumber int64) spanner.Key {
@@ -142,13 +143,13 @@ func init() {
 	labelColumns = getFields(storage.Label{})
 	issueColumns = getFields(storage.Issue{})
 	issueCommentColumns = getFields(storage.IssueComment{})
-	issuePipelineColumns = getFields(storage.IssuePipeline{})
 	pullRequestColumns = getFields(storage.PullRequest{})
 	pullRequestReviewColumns = getFields(storage.PullRequestReview{})
 	botActivityColumns = getFields(storage.BotActivity{})
 	maintainerColumns = getFields(storage.Maintainer{})
 	memberColumns = getFields(storage.Member{})
 	testResultColumns = getFields(storage.TestResult{})
+	monitorStatusColumns = getFields(storage.Monitor{})
 }
 
 // Produces a string array representing all the fields in the input object

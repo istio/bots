@@ -44,10 +44,6 @@ func TestConvFilterFlags(t *testing.T) {
 			Labels,
 		},
 		{
-			"zenhub",
-			ZenHub,
-		},
-		{
 			"repocomments",
 			RepoComments,
 		},
@@ -60,12 +56,12 @@ func TestConvFilterFlags(t *testing.T) {
 			TestResults,
 		},
 		{
-			"issues,prs,maintainers,members,labels,zenhub,repocomments,events,testresults",
-			Issues | Prs | Maintainers | Members | Labels | ZenHub | RepoComments | Events | TestResults,
+			"issues,prs,maintainers,members,labels,repocomments,events,testresults",
+			Issues | Prs | Maintainers | Members | Labels | RepoComments | Events | TestResults,
 		},
 		{
-			"Issues,PRs,mAiNtAinErS,MEMBERS,labeLs,zEnhUb,RePoComMents,EventS,TestResults",
-			Issues | Prs | Maintainers | Members | Labels | ZenHub | RepoComments | Events | TestResults,
+			"Issues,PRs,mAiNtAinErS,MEMBERS,labeLs,RePoComMents,EventS,TestResults",
+			Issues | Prs | Maintainers | Members | Labels | RepoComments | Events | TestResults,
 		},
 	}
 

@@ -35,7 +35,6 @@ type MessageTemplate struct {
 // comment it finds with the same signature
 func (tc *ThrottledClient) AddOrReplaceBotComment(context context.Context, orgLogin string, repoName string, number int, userName string, message string,
 	signature string) error {
-
 	var b bytes.Buffer
 
 	tmpl, err := template.New("message").Parse(message)
@@ -115,7 +114,6 @@ func (tc *ThrottledClient) FindBotComment(context context.Context, orgLogin stri
 		comments, resp, err := tc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 			return client.Issues.ListComments(context, orgLogin, repoName, number, opt)
 		})
-
 		if err != nil {
 			return "", -1, fmt.Errorf("unable to list comments for issue/PR %d in repo %s/%s: %v", number, orgLogin, repoName, err)
 		}

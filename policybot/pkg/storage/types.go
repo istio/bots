@@ -16,6 +16,8 @@ package storage
 
 import (
 	"time"
+
+	"cloud.google.com/go/spanner"
 )
 
 // This file defines the shapes we csn read/write to/from the DB. Before
@@ -133,6 +135,48 @@ type Member struct {
 	CachedInfo string // a JSON encoded ActivityInfo
 }
 
+// Release Qualification Test Related Types
+// Monitor represents the status of specific Monitor
+type Monitor struct {
+	// MonitorName is the name of the monitor, e.g. ContainerMemoryUsage
+	MonitorName string
+	// Status represents the status of the monitor, e.g. HEALTHY, ALERTING
+	Status string
+	// ProjectID points to the project where the test is running
+	// Optional: keep it for backward compatibility
+	ProjectID spanner.NullString
+	// ClusterName points to the cluster where the test is running
+	ClusterName spanner.NullString
+	TestID      string
+	// Branch of the test, e.g. release-1.7
+	Branch string
+	// Description of the monitor
+	Description spanner.NullString
+	// UpdatedTime represents the time of the monitor status update
+	UpdatedTime time.Time
+	// LastFiredTime represents the last timestamp when the alert is fired.
+	LastFiredTime spanner.NullTime
+	// FiredTimes represents the number of times the monitor fired alerts.
+	FiredTimes spanner.NullInt64
+	IsActive   *bool
+}
+
+// ReleaseQualTestMetadata represents the metadata of specific test run.
+type ReleaseQualTestMetadata struct {
+	// ProjectID points to the project where the test is running
+	ProjectID spanner.NullString
+	// ClusterName points to the cluster where the test is running
+	ClusterName spanner.NullString
+	// TestID is the ID of specific Test run
+	TestID string
+	// Branch of the test, e.g. release-1.7
+	Branch spanner.NullString
+	// PrometheusLink links to prometheus running in the cluster
+	PrometheusLink spanner.NullString
+	// GrafanaLink links to prometheus running in the cluster
+	GrafanaLink spanner.NullString
+}
+
 type BotActivity struct {
 	OrgLogin                              string
 	RepoName                              string
@@ -147,13 +191,6 @@ type Maintainer struct {
 	Paths      []string // where each path is of the form RepoName/path_in_repo
 	Emeritus   bool
 	CachedInfo string // a JSON encoded ActivityInfo
-}
-
-type IssuePipeline struct {
-	OrgLogin    string
-	RepoName    string
-	IssueNumber int64
-	Pipeline    string
 }
 
 type TimedEntry struct {
@@ -357,7 +394,7 @@ type UserAffiliation struct {
 	EndTime      time.Time
 }
 
-type AllBaseSha struct {
+type BaseSha struct {
 	BaseSha string
 }
 
@@ -367,31 +404,28 @@ type LatestBaseSha struct {
 	NumberofTest   int64
 }
 
-type PostSubmitTestResultDenormalized struct {
-	OrgLogin        string
-	RepoName        string
-	TestName        string
-	BaseSha         string
-	RunNumber       int64
-	Done            bool
-	CloneFailed     bool
-	FinishTime      time.Time
-	Result          string
-	RunPath         string
-	Sha             []byte
-	StartTime       time.Time
-	TestPassed      bool
-	HasArtifacts    bool
-	SuiteName       string
-	Environment     string
-	Multicluster    bool
-	TestOutcomeName string
-	Type            string
-	Outcome         string
-	Label           string
-	Scenario        []string
+type PostSubmitTestEnvLabel struct {
+	Environment string
+	Label       string
 }
 
 type LatestBaseShaSummary struct {
 	LatestBaseSha []LatestBaseSha
+}
+
+type TestNameByEnvLabel struct {
+	TestOutcomeName string
+	RunNumber       int64
+	TestName        string
+}
+
+type ConfirmedFlake struct {
+	OrgLogin          string
+	RepoName          string
+	PullRequestNumber int64
+	RunNumber         int64
+	TestName          string
+	Done              bool
+	PassingRunNumber  int64
+	IssueNum          *int64
 }

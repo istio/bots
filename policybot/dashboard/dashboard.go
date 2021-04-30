@@ -22,10 +22,6 @@ import (
 	"text/template"
 	"time"
 
-	"istio.io/bots/policybot/pkg/cmdutil"
-
-	"istio.io/bots/policybot/dashboard/topics/workinggroups"
-
 	"github.com/gorilla/mux"
 
 	"istio.io/bots/policybot/dashboard/templates/layout"
@@ -41,8 +37,11 @@ import (
 	"istio.io/bots/policybot/dashboard/topics/perf"
 	"istio.io/bots/policybot/dashboard/topics/postsubmit"
 	"istio.io/bots/policybot/dashboard/topics/pullrequests"
+	"istio.io/bots/policybot/dashboard/topics/releasequalification"
 	"istio.io/bots/policybot/dashboard/topics/webanalytics"
+	"istio.io/bots/policybot/dashboard/topics/workinggroups"
 	"istio.io/bots/policybot/dashboard/types"
+	"istio.io/bots/policybot/pkg/cmdutil"
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
@@ -132,6 +131,7 @@ func New(router *mux.Router, store storage.Store, cache *cache.Cache, reg *confi
 	coverage := coverage.New(store, cache)
 	features := features.New(store, cache)
 	workingGroups := workinggroups.New(store, cache)
+	releasequalification := releasequalification.New(store, cache)
 
 	// all the sidebar entries and their associated UI pages
 	d.addEntry("Maintainers", "Lists the folks that maintain the project.").
@@ -179,8 +179,8 @@ func New(router *mux.Router, store storage.Store, cache *cache.Cache, reg *confi
 		addPage("/issues", issues.RenderSummary).
 		endEntry()
 
-	d.addEntry("Post Submit Test", "Information on post submit test results.").
-		addEntry("LatestBaseSha", "Latest 100 BaseSha").
+	d.addEntry("Feature Coverage", "Information on which features have been covered.").
+		addEntry("Recent commits information", "Find basesha of recent 100 commits").
 		addPageWithQuery("/postsubmit", "option", "latestBaseSha", postSubmit.RenderLatestBaseSha).
 		endEntry().
 		addEntry("ChooseBaseSha", "choose base sha for analysis").
@@ -216,6 +216,10 @@ func New(router *mux.Router, store storage.Store, cache *cache.Cache, reg *confi
 
 	d.addEntry("Features and Test Plans", "Get information on product features and associated test plans.").
 		addPage("/features", features.Render).
+		endEntry()
+
+	d.addEntry("Release Qualification Test", "Release qualification test result").
+		addPage("/releasequal", releasequalification.Render).
 		endEntry()
 
 	// home page

@@ -19,10 +19,9 @@ import (
 	"fmt"
 	"regexp"
 
-	"istio.io/bots/policybot/handlers/githubwebhook"
-
 	"github.com/google/go-github/v26/github"
 
+	"istio.io/bots/policybot/handlers/githubwebhook"
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage"

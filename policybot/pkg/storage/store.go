@@ -29,7 +29,6 @@ type Store interface {
 	WriteRepoComments(context context.Context, comments []*RepoComment) error
 	WriteIssues(context context.Context, issues []*Issue) error
 	WriteIssueComments(context context.Context, issueComments []*IssueComment) error
-	WriteIssuePipelines(context context.Context, issueData []*IssuePipeline) error
 	WritePullRequests(context context.Context, prs []*PullRequest) error
 	WritePullRequestReviewComments(context context.Context, prComments []*PullRequestReviewComment) error
 	WritePullRequestReviews(context context.Context, prReviews []*PullRequestReview) error
@@ -59,7 +58,6 @@ type Store interface {
 	ReadRepo(context context.Context, orgLogin string, repoName string) (*Repo, error)
 	ReadIssue(context context.Context, orgLogin string, repoName string, number int) (*Issue, error)
 	ReadIssueComment(context context.Context, orgLogin string, repoName string, issueNumber int, issueCommentID int) (*IssueComment, error)
-	ReadIssuePipeline(context context.Context, orgLogin string, repoName string, issueNumber int) (*IssuePipeline, error)
 	ReadLabel(context context.Context, orgLogin string, repoName string, labelName string) (*Label, error)
 	ReadUser(context context.Context, userLogin string) (*User, error)
 	ReadPullRequest(context context.Context, orgLogin string, repoName string, prNumber int) (*PullRequest, error)
@@ -69,6 +67,8 @@ type Store interface {
 	ReadMaintainer(context context.Context, orgLogin string, userLogin string) (*Maintainer, error)
 	ReadMember(context context.Context, orgLogin string, userLogin string) (*Member, error)
 	ReadTestResult(context context.Context, orgLogin string, repoName string, testName string, pullRequestNumber int64, runNumber int64) (*TestResult, error)
+	// ReadMonitorStatus reads monitor status of release qualification test
+	ReadMonitorStatus(context context.Context, testID, monitorName string) (*Monitor, error)
 
 	QueryMembersByOrg(context context.Context, orgLogin string, cb func(*Member) error) error
 	QueryMaintainersByOrg(context context.Context, orgLogin string, cb func(*Maintainer) error) error
@@ -89,11 +89,16 @@ type Store interface {
 	QueryAllUserAffiliations(context context.Context, cb func(affiliation *UserAffiliation) error) error
 	QueryAllUsers(context context.Context, cb func(user *User) error) error
 	QueryPullRequestsByUser(context context.Context, orgLogin string, repoName string, userLogin string, cb func(*PullRequest) error) error
-	QueryLatestBaseSha(context context.Context, cb func(*LatestBaseSha) error) error
+	QueryLatestBaseSha(context context.Context) (*LatestBaseShaSummary, error)
 	QueryAllBaseSha(context context.Context) ([]string, error)
-	QueryPostSubmitTestResult(context context.Context, baseSha string, cb func(*PostSubmitTestResultDenormalized) error) error
+	QueryPostSubmitTestEnvLabel(context context.Context, baseSha string, cb func(*PostSubmitTestEnvLabel) error) error
+	QueryTestNameByEnvLabel(context context.Context, baseSha string, env string, label string) ([]*TestNameByEnvLabel, error)
 
 	QueryTestFlakeIssues(context context.Context, orgLogin string, repoName string, inactiveDays, createdDays int) ([]*Issue, error)
+	// QueryMonitorStatus queries monitor status of release qualification test
+	QueryMonitorStatus(context context.Context, cb func(*Monitor) error) error
+	// QueryReleaseQualTestMetadata queries release qualification test metadata
+	QueryReleaseQualTestMetadata(context context.Context, cb func(metadata *ReleaseQualTestMetadata) error) error
 
 	GetLatestIssueMemberActivity(context context.Context, orgLogin string, repoName string, issueNumber int) (time.Time, error)
 	GetLatestIssueMemberComment(context context.Context, orgLogin string, repoName string, issueNumber int) (time.Time, error)

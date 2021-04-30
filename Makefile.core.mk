@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+SHELL := /bin/bash -o pipefail
+
 build:
 	@go generate ./...
 	@go build ./...
@@ -20,7 +22,7 @@ lint: lint-all
 
 fmt: format-go tidy-go
 
-gen: tidy-go mirror-licenses
+gen: fmt mirror-licenses
 
 gen-check: gen check-clean-repo
 

@@ -17,7 +17,6 @@ package cache
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"time"
 
@@ -38,7 +37,6 @@ type Cache struct {
 	pullRequestCache              cache.ExpiringCache
 	pullRequestReviewCommentCache cache.ExpiringCache
 	pullRequestReviewCache        cache.ExpiringCache
-	pipelineCache                 cache.ExpiringCache
 	maintainerCache               cache.ExpiringCache
 	memberCache                   cache.ExpiringCache
 	latestBaseShaCache            cache.ExpiringCache
@@ -66,7 +64,6 @@ func New(store storage.Store, entryTTL time.Duration) *Cache {
 		pullRequestCache:              cache.NewTTL(entryTTL, evictionInterval),
 		pullRequestReviewCommentCache: cache.NewTTL(entryTTL, evictionInterval),
 		pullRequestReviewCache:        cache.NewTTL(entryTTL, evictionInterval),
-		pipelineCache:                 cache.NewTTL(entryTTL, evictionInterval),
 		maintainerCache:               cache.NewTTL(entryTTL, evictionInterval),
 		memberCache:                   cache.NewTTL(entryTTL, evictionInterval),
 		latestBaseShaCache:            cache.NewTTL(entryTTL, evictionInterval),
@@ -304,35 +301,6 @@ func (c *Cache) WritePullRequestReviews(context context.Context, prReviews []*st
 	return err
 }
 
-// Reads from cache and if not found reads from DB
-func (c *Cache) ReadIssuePipeline(context context.Context, orgLogin string, repoName string, issueNumber int) (*storage.IssuePipeline, error) {
-	key := orgLogin + repoName + strconv.Itoa(issueNumber)
-	if value, ok := c.pipelineCache.Get(key); ok {
-		return value.(*storage.IssuePipeline), nil
-	}
-
-	result, err := c.store.ReadIssuePipeline(context, orgLogin, repoName, issueNumber)
-	if err == nil {
-		c.pipelineCache.Set(key, result)
-	}
-
-	return result, err
-}
-
-// Writes to DB and if successful, updates the cache
-func (c *Cache) WriteIssuePipelines(context context.Context, pipelines []*storage.IssuePipeline) error {
-	err := c.store.WriteIssuePipelines(context, pipelines)
-	if err == nil {
-		for _, pipeline := range pipelines {
-			c.pipelineCache.Set(pipeline.OrgLogin+
-				pipeline.RepoName+
-				strconv.Itoa(int(pipeline.IssueNumber)), pipeline)
-		}
-	}
-
-	return err
-}
-
 func (c *Cache) ReadTestResult(context context.Context,
 	orgLogin string, repoName string, testName string, prNum int64, runNumber int64) (*storage.TestResult, error) {
 	key := orgLogin + repoName + testName + strconv.FormatInt(prNum, 10) + strconv.FormatInt(runNumber, 10)
@@ -398,30 +366,23 @@ func (c *Cache) ReadMember(context context.Context, orgLogin string, userLogin s
 }
 
 func (c *Cache) WriteLatestBaseShas() {
-	var summary storage.LatestBaseShaSummary
-	var summaryList []storage.LatestBaseSha
-	if err := c.store.QueryLatestBaseSha(context.Background(), func(latestBaseSha *storage.LatestBaseSha) error {
-		summaryList = append(summaryList, storage.LatestBaseSha{
-			BaseSha:        latestBaseSha.BaseSha,
-			LastFinishTime: latestBaseSha.LastFinishTime,
-			NumberofTest:   latestBaseSha.NumberofTest,
-		})
-		return nil
-	}); err != nil {
-		return
+	baseShas, err := c.store.QueryLatestBaseSha(context.Background())
+	if err == nil {
+		c.latestBaseShaCache.Set("basesha", *baseShas)
 	}
-	summary.LatestBaseSha = summaryList
-	c.latestBaseShaCache.Set("basesha", summary)
 }
 
 func (c *Cache) ReadLatestBaseShas() (*storage.LatestBaseShaSummary, error) {
-	val, ok := c.latestBaseShaCache.Get("basesha")
-	if !ok {
-		return nil, fmt.Errorf("can't find latest baseSha in cache")
+	if val, ok := c.latestBaseShaCache.Get("basesha"); ok {
+		basesha, _ := val.(storage.LatestBaseShaSummary)
+		return &basesha, nil
 	}
-	basesha, ok := val.(storage.LatestBaseShaSummary)
-	if !ok {
-		return nil, fmt.Errorf("baseSha cache type error")
+
+	val, err := c.store.QueryLatestBaseSha(context.Background())
+	if err == nil {
+		c.latestBaseShaCache.Set("basesha", *val)
+		return val, nil
 	}
-	return &basesha, nil
+
+	return nil, err
 }
