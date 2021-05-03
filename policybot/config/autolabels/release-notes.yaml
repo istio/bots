@@ -1,6 +1,6 @@
 name: Release-notes-none
 type: autolabel
 matchbody:
-  - "\\[ ?x ?\\] ?Does not have any [user-facing](https://github.com/istio/istio/tree/master/releasenotes#when-to-add-release-notes) changes. This may include CLI changes, API changes, behavior changes, performance improvements, etc."
+  - "\\[ ?x ?\\] ?Does not have any \\[user-facing\\].*changes."
 labelstoapply:
   - release-notes-none
