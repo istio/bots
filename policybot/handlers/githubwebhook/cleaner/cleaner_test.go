@@ -41,10 +41,14 @@ func TestBoilerplates(t *testing.T) {
 			"issue-default",
 			[]string{
 				"area-selection",
-				"area-selection-banner",
-				"feature-selection",
-				"feature-selection-banner",
-				"note-about-bugs",
+				"valid-report-check",
+			},
+		},
+		{
+			"pr-default",
+			[]string{
+				"pr-area-selection",
+				"pr-release-note",
 			},
 		},
 	}
@@ -101,7 +105,6 @@ func TestBoilerplates(t *testing.T) {
 		})
 	}
 	t.Run("coverage", func(t *testing.T) {
-		t.Skip("Enable after https://github.com/istio/istio/issues/34839 to avoid wasted effort")
 		for _, tt := range cases {
 			for _, m := range tt.matchers {
 				delete(boilerplates, m)

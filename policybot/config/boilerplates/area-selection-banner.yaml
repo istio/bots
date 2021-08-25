@@ -1,4 +1,0 @@
-name: Area selection banner
-type: boilerplate
-regex: |
-  \*\*Affected product area \(please put an X in all that apply\)\*\*

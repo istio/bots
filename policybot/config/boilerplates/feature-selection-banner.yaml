@@ -1,4 +1,0 @@
-name: Feature selection banner
-type: boilerplate
-regex: |
-  \*\*Affected features \(please put an X in all that apply\)\*\*

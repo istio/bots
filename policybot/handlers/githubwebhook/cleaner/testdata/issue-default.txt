@@ -1,37 +1,41 @@
-(**NOTE**: This is used to report product bugs:
-  To report a security vulnerability, please visit <https://istio.io/about/security-vulnerabilities>
-  To ask questions about how to use Istio, please visit <https://discuss.istio.io>)
+### Bug Description
 
-**Bug description**
+Things did not work
 
-**Affected product area (please put an X in all that apply)**
+### Version
 
-[ ] Docs
-[ ] Installation
-[ ] Networking
-[ ] Performance and Scalability
-[ ] Extensions and Telemetry
-[ ] Security
-[ ] Test and Release
-[ ] User Experience
-[ ] Developer Infrastructure
-[ ] Upgrade
+```prose
+$ istioctl version
+client version: 1.0.0
+control plane version: 1.0.0
+data plane version: 1.0.0 (100 proxies)
+$ kubectl version --short
+Client Version: v1.0.0
+Server Version: v1.0.0
+```
 
-**Affected features (please put an X in all that apply)**
 
-[ ] Multi Cluster
-[ ] Virtual Machine
-[ ] Multi Control Plane
+### Additional Information
 
-**Expected behavior**
+No thanks
 
-**Steps to reproduce the bug**
+### Affected product area
 
-**Version** (include the output of `istioctl version --remote` and `kubectl version --short` and `helm version --short` if you used Helm)
+- [ ] Docs
+- [ ] Installation
+- [ ] Networking
+- [ ] Performance and Scalability
+- [ ] Extensions and Telemetry
+- [X] Security
+- [ ] Test and Release
+- [ ] User Experience
+- [ ] Developer Infrastructure
+- [ ] Upgrade
+- [ ] Multi Cluster
+- [X] Virtual Machine
+- [ ] Control Plane Revisions
 
-**How was Istio installed?**
+### Is this the right place to submit this?
 
-**Environment where the bug was observed (cloud vendor, OS, etc)**
-
-Additionally, please consider running `istioctl bug-report` and attach the generated cluster-state tarball to this issue.
-Refer [cluster state archive](http://istio.io/help/bugs/#generating-a-cluster-state-archive) for more details.
+- [X] This is not a security vulnerability
+- [X] This is not a question about how to use Istio

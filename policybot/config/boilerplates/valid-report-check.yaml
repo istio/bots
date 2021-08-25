@@ -1,0 +1,8 @@
+name: Valid report check
+type: boilerplate
+regex: |
+  ^
+  ### Is this the right place to submit this\?
+
+  - \[[ \w]\] +This is not a security vulnerability
+  - \[[ \w]\] +This is not a question about how to use Istio

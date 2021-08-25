@@ -1,19 +1,15 @@
-name: Area selection
+name: PR Area selection
 type: boilerplate
 regex: |
-  ^
-  ### Affected product area
+  ^\*\*To help us figure out who should review this PR, please put an X in all the areas that this PR affects\.\*\*
 
+  - \[[ \w]\] +Configuration Infrastructure
   - \[[ \w]\] +Docs
   - \[[ \w]\] +Installation
   - \[[ \w]\] +Networking
   - \[[ \w]\] +Performance and Scalability
-  - \[[ \w]\] +Extensions and Telemetry
+  - \[[ \w]\] +Policies and Telemetry
   - \[[ \w]\] +Security
   - \[[ \w]\] +Test and Release
   - \[[ \w]\] +User Experience
   - \[[ \w]\] +Developer Infrastructure
-  - \[[ \w]\] +Upgrade
-  - \[[ \w]\] +Multi Cluster
-  - \[[ \w]\] +Virtual Machine
-  - \[[ \w]\] +Control Plane Revisions
