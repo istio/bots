@@ -1,6 +1,6 @@
 module istio.io/bots
 
-go 1.12
+go 1.13
 
 // Old version had no license
 replace github.com/chzyer/logex => github.com/chzyer/logex v1.1.11-0.20170329064859-445be9e134b2
@@ -11,6 +11,7 @@ require (
 	cloud.google.com/go/storage v1.10.0
 	github.com/eapache/channels v1.1.0
 	github.com/ghodss/yaml v1.0.0
+	github.com/google/go-cmp v0.5.1
 	github.com/google/go-github/v26 v26.0.9
 	github.com/gorilla/mux v1.7.1
 	github.com/gorilla/websocket v1.4.1
