@@ -1,0 +1,19 @@
+
+**Bug description**
+
+
+
+
+
+**Expected behavior**
+
+**Steps to reproduce the bug**
+
+**Version** (include the output of `istioctl version --remote` and `kubectl version --short` and `helm version --short` if you used Helm)
+
+**How was Istio installed?**
+
+**Environment where the bug was observed (cloud vendor, OS, etc)**
+
+Additionally, please consider running `istioctl bug-report` and attach the generated cluster-state tarball to this issue.
+Refer [cluster state archive](http://istio.io/help/bugs/#generating-a-cluster-state-archive) for more details.
