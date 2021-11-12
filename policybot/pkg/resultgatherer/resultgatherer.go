@@ -31,7 +31,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/ghodss/yaml"
+	"sigs.k8s.io/yaml"
 
 	"istio.io/bots/policybot/pkg/blobstorage"
 	pipelinetwo "istio.io/bots/policybot/pkg/pipeline"

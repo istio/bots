@@ -10,7 +10,6 @@ require (
 	cloud.google.com/go/spanner v1.9.0
 	cloud.google.com/go/storage v1.10.0
 	github.com/eapache/channels v1.1.0
-	github.com/ghodss/yaml v1.0.0
 	github.com/google/go-cmp v0.5.1
 	github.com/google/go-github/v26 v26.0.9
 	github.com/gorilla/mux v1.7.1
@@ -31,4 +30,5 @@ require (
 	istio.io/pkg v0.0.0-20190710182420-c26792dead42
 	k8s.io/api v0.19.0
 	k8s.io/apimachinery v0.19.0
+	sigs.k8s.io/yaml v1.2.0
 )

@@ -24,8 +24,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ghodss/yaml"
 	"github.com/google/go-github/v26/github"
+	"sigs.k8s.io/yaml"
 
 	"istio.io/bots/policybot/pkg/gh"
 )
