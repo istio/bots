@@ -22,8 +22,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ghodss/yaml"
 	"github.com/google/go-cmp/cmp"
+	"sigs.k8s.io/yaml"
 )
 
 func TestBoilerplates(t *testing.T) {

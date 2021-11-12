@@ -27,10 +27,10 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigquery"
-	"github.com/ghodss/yaml"
 	"github.com/google/go-github/v26/github"
 	"github.com/hashicorp/go-multierror"
 	"google.golang.org/api/iterator"
+	"sigs.k8s.io/yaml"
 
 	"istio.io/bots/policybot/handlers/githubwebhook/refresher"
 	"istio.io/bots/policybot/pkg/blobstorage"
