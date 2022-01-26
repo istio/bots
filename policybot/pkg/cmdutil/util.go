@@ -94,15 +94,13 @@ func Run(name string, desc string, numArgs int, flags CommonFlags, cb func(reg *
 	}
 
 	if flags&GithubOAuthClientSecret != 0 {
-		secrets.GitHubOAuthClientSecret =
-			env.RegisterStringVar("GITHUB_OAUTH_CLIENT_SECRET", secrets.GitHubOAuthClientSecret, githubOAuthClientSecret).Get()
+		secrets.GitHubOAuthClientSecret = env.RegisterStringVar("GITHUB_OAUTH_CLIENT_SECRET", secrets.GitHubOAuthClientSecret, githubOAuthClientSecret).Get()
 		cmd.PersistentFlags().StringVarP(&secrets.GitHubOAuthClientSecret,
 			"github_oauth_client_secret", "", secrets.GitHubOAuthClientSecret, githubOAuthClientSecret)
 	}
 
 	if flags&GithubOAuthClientID != 0 {
-		secrets.GitHubOAuthClientID =
-			env.RegisterStringVar("GITHUB_OAUTH_CLIENT_ID", secrets.GitHubOAuthClientID, githubOAuthClientID).Get()
+		secrets.GitHubOAuthClientID = env.RegisterStringVar("GITHUB_OAUTH_CLIENT_ID", secrets.GitHubOAuthClientID, githubOAuthClientID).Get()
 
 		cmd.PersistentFlags().StringVarP(&secrets.GitHubOAuthClientID,
 			"github_oauth_client_id", "", secrets.GitHubOAuthClientID, githubOAuthClientID)

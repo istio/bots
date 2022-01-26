@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 )
+
 type asset struct {
 	bytes []byte
 	info  os.FileInfo
@@ -92,8 +93,8 @@ var _baseHtml = []byte(`<!DOCTYPE html>
         <meta name="application-name" content="Istio Eng Dashboard">
 
         <!-- style sheets -->
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Work+Sans:400|Chivo:400|Work+Sans:500,300,600,300italic,400italic`+"`"+` +
-	`+"`"+`,500italic,600italic|Chivo:500,300,600,300italic,400italic,500italic,600italic">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Work+Sans:400|Chivo:400|Work+Sans:500,300,600,300italic,400italic` + "`" + ` +
+	` + "`" + `,500italic,600italic|Chivo:500,300,600,300italic,400italic,500italic,600italic">
         <link rel="stylesheet" href="/css/all.css">
     </head>
 
@@ -340,10 +341,10 @@ type bintree struct {
 }
 
 var _bintree = &bintree{nil, map[string]*bintree{
-	"base.html":     &bintree{baseHtml, map[string]*bintree{}},
-	"error.html":    &bintree{errorHtml, map[string]*bintree{}},
-	"notfound.html": &bintree{notfoundHtml, map[string]*bintree{}},
-	"primary.html":  &bintree{primaryHtml, map[string]*bintree{}},
+	"base.html":     {baseHtml, map[string]*bintree{}},
+	"error.html":    {errorHtml, map[string]*bintree{}},
+	"notfound.html": {notfoundHtml, map[string]*bintree{}},
+	"primary.html":  {primaryHtml, map[string]*bintree{}},
 }}
 
 // RestoreAsset restores an asset under the given directory
@@ -356,7 +357,7 @@ func RestoreAsset(dir, name string) error {
 	if err != nil {
 		return err
 	}
-	err = os.MkdirAll(_filePath(dir, filepath.Dir(name)), os.FileMode(0755))
+	err = os.MkdirAll(_filePath(dir, filepath.Dir(name)), os.FileMode(0o755))
 	if err != nil {
 		return err
 	}

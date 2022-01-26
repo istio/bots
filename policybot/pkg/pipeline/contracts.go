@@ -26,7 +26,6 @@ type Pipeline interface {
 	Batch(size int) Pipeline
 	Go() chan OutResult
 	Expand() Pipeline
-
 	OnError(func(error)) Pipeline
 	WithContext(ctx context.Context) Pipeline
 	WithBuffer(int) Pipeline
