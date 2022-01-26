@@ -601,14 +601,14 @@ func (trg *TestResultGatherer) GetPostSubmitTestResult(ctx context.Context, test
 			suiteOutcome = trg.AddChildSuiteOutcome(testResult, suiteOutcome)
 			suiteOutcomeList = append(suiteOutcomeList, suiteOutcome)
 			for _, readInTestOutcomes := range readInSuiteOutcome.TestOutcomes {
-				var testOutcome *store.TestOutcome = &store.TestOutcome{}
+				testOutcome := &store.TestOutcome{}
 				testOutcome.TestOutcomeName = readInTestOutcomes.Name
 				testOutcome.Type = readInTestOutcomes.Type
 				testOutcome.Outcome = readInTestOutcomes.Outcome
 				testOutcome = trg.AddChildTestOutcome(suiteOutcome, testOutcome)
 				testOutcomeList = append(testOutcomeList, testOutcome)
 				for Feature, Scenario := range readInTestOutcomes.FeatureLabels {
-					var featureLabel *store.FeatureLabel = &store.FeatureLabel{}
+					featureLabel := &store.FeatureLabel{}
 					featureLabel.Label = Feature
 					featureLabel.Scenario = Scenario
 					featureLabel = trg.AddChildFeatureLabel(testOutcome, featureLabel)

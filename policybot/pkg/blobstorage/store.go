@@ -37,7 +37,6 @@ type Bucket interface {
 	// under a given prefix, though in blob storage systems, directories
 	// don't really exist.
 	ListPrefixes(ctx context.Context, prefix string) ([]string, error)
-
 	ListPrefixesProducer(ctx context.Context, prefix string) pipeline.Pipeline
 	ListItemsProducer(ctx context.Context, prefix string) chan pipeline.OutResult
 
