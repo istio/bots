@@ -85,7 +85,7 @@ const (
 
 // ProwJob contains the spec as well as runtime metadata.
 type ProwJob struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta   `json:",inline"` // nolint: revive
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Spec   ProwJobSpec   `json:"spec,omitempty"`
