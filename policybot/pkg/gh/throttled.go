@@ -82,7 +82,8 @@ func (tc *ThrottledClient) ThrottledCallNoResult(cb func(*github.Client) (*githu
 // If a rate limit error is detected, the call is tried again based on the reset time
 // specified in the error.
 func (tc *ThrottledClient) ThrottledCallTwoResult(cb func(*github.Client) (interface{}, interface{}, *github.Response, error)) (interface{},
-	interface{}, *github.Response, error) {
+	interface{}, *github.Response, error,
+) {
 	for {
 		result1, result2, resp, err := cb(tc.client)
 		if err == nil {

@@ -34,7 +34,8 @@ type MessageTemplate struct {
 // AddOrReplaceBotComment injects a comment from the bot into an issue or PR. It first removes any other
 // comment it finds with the same signature
 func (tc *ThrottledClient) AddOrReplaceBotComment(context context.Context, orgLogin string, repoName string, number int, userName string, message string,
-	signature string) error {
+	signature string,
+) error {
 	var b bytes.Buffer
 
 	tmpl, err := template.New("message").Parse(message)

@@ -105,7 +105,8 @@ func (s store) ReadPullRequest(context context.Context, orgLogin string, repoNam
 }
 
 func (s store) ReadPullRequestReviewComment(context context.Context, orgLogin string, repoName string, prNumber int,
-	prCommentID int) (*storage.PullRequestReviewComment, error) {
+	prCommentID int,
+) (*storage.PullRequestReviewComment, error) {
 	row, err := s.client.Single().ReadRow(context, pullRequestReviewCommentTable, pullRequestReviewCommentKey(orgLogin, repoName,
 		int64(prNumber), int64(prCommentID)), pullRequestReviewCommentColumns)
 	if spanner.ErrCode(err) == codes.NotFound {
@@ -123,7 +124,8 @@ func (s store) ReadPullRequestReviewComment(context context.Context, orgLogin st
 }
 
 func (s store) ReadPullRequestReview(context context.Context, orgLogin string, repoName string, issueNumber int,
-	pullRequestReviewID int) (*storage.PullRequestReview, error) {
+	pullRequestReviewID int,
+) (*storage.PullRequestReview, error) {
 	row, err := s.client.Single().ReadRow(context, pullRequestReviewTable, pullRequestReviewKey(orgLogin, repoName,
 		int64(issueNumber), int64(pullRequestReviewID)), pullRequestReviewColumns)
 	if spanner.ErrCode(err) == codes.NotFound {
@@ -206,7 +208,8 @@ func (s store) ReadBotActivity(context context.Context, orgLogin string, repoNam
 }
 
 func (s store) ReadTestResult(context context.Context, orgLogin string,
-	repoName string, testName string, pullRequestNumber int64, runNum int64) (*storage.TestResult, error) {
+	repoName string, testName string, pullRequestNumber int64, runNum int64,
+) (*storage.TestResult, error) {
 	row, err := s.client.Single().ReadRow(context, testResultTable, testResultKey(orgLogin, repoName, testName, pullRequestNumber, runNum), testResultColumns)
 	if spanner.ErrCode(err) == codes.NotFound {
 		return nil, nil
@@ -222,7 +225,8 @@ func (s store) ReadTestResult(context context.Context, orgLogin string,
 }
 
 func (s store) ReadPostSubmitTestResult(context context.Context, orgLogin string,
-	repoName string, testName string, runNum int64) (*storage.PostSubmitTestResult, error) {
+	repoName string, testName string, runNum int64,
+) (*storage.PostSubmitTestResult, error) {
 	row, err := s.client.Single().ReadRow(context, postSubmitTestResultTable, testPostSubmitResultKey(orgLogin, repoName, testName, runNum), testResultColumns)
 	if spanner.ErrCode(err) == codes.NotFound {
 		return nil, nil

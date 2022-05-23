@@ -185,7 +185,8 @@ func (c *Cache) WriteIssues(context context.Context, issues []*storage.Issue) er
 
 // Reads from cache and if not found reads from DB
 func (c *Cache) ReadIssueComment(context context.Context, orgLogin string, repoName string, issueNumber int,
-	issueCommentID int) (*storage.IssueComment, error) {
+	issueCommentID int,
+) (*storage.IssueComment, error) {
 	key := orgLogin + repoName + strconv.Itoa(issueNumber) + strconv.Itoa(issueCommentID)
 	if value, ok := c.issueCommentCache.Get(key); ok {
 		return value.(*storage.IssueComment), nil
@@ -241,7 +242,8 @@ func (c *Cache) WritePullRequests(context context.Context, prs []*storage.PullRe
 
 // Reads from cache and if not found reads from DB
 func (c *Cache) ReadPullRequestReviewComment(context context.Context, orgLogin string, repoName string, prNumber int,
-	prCommentID int) (*storage.PullRequestReviewComment, error) {
+	prCommentID int,
+) (*storage.PullRequestReviewComment, error) {
 	key := orgLogin + repoName + strconv.Itoa(prNumber) + strconv.Itoa(prCommentID)
 	if value, ok := c.pullRequestReviewCommentCache.Get(key); ok {
 		return value.(*storage.PullRequestReviewComment), nil
@@ -272,7 +274,8 @@ func (c *Cache) WritePullRequestReviewComments(context context.Context, prCommen
 
 // Reads from cache and if not found reads from DB
 func (c *Cache) ReadPullRequestReview(context context.Context, orgLogin string, repoName string, prNumber int,
-	prReviewID int) (*storage.PullRequestReview, error) {
+	prReviewID int,
+) (*storage.PullRequestReview, error) {
 	key := orgLogin + repoName + strconv.Itoa(prNumber) + strconv.Itoa(prReviewID)
 	if value, ok := c.pullRequestReviewCache.Get(key); ok {
 		return value.(*storage.PullRequestReview), nil
@@ -302,7 +305,8 @@ func (c *Cache) WritePullRequestReviews(context context.Context, prReviews []*st
 }
 
 func (c *Cache) ReadTestResult(context context.Context,
-	orgLogin string, repoName string, testName string, prNum int64, runNumber int64) (*storage.TestResult, error) {
+	orgLogin string, repoName string, testName string, prNum int64, runNumber int64,
+) (*storage.TestResult, error) {
 	key := orgLogin + repoName + testName + strconv.FormatInt(prNum, 10) + strconv.FormatInt(runNumber, 10)
 	if value, ok := c.testResultCache.Get(key); ok {
 		return value.(*storage.TestResult), nil
