@@ -39,7 +39,8 @@ func (slt *StringLogTransformer) Transform(ctx context.Context, in chan OutResul
 // All incoming errorless strings will be passed to the transform function, whose results will be written to the
 // resulting channel *unless* the returned error is ErrSkip, in which case that element is skipped.
 func Transform(ctx context.Context, parallelism int, bufferSize int, in chan OutResult,
-	transformer func(interface{}) (interface{}, error), errhandler func(error)) chan InOutResult {
+	transformer func(interface{}) (interface{}, error), errhandler func(error),
+) chan InOutResult {
 	// TODO: can we have a channel factory to do this?
 	outChan := make(chan InOutResult, bufferSize)
 	var wg sync.WaitGroup

@@ -43,7 +43,6 @@ type PostSubmit struct {
 	choosesha     string // basesha user choose to view
 	chooseEnv     string // environment of selected basesha user wants to generate detailed test name
 	chooseLabel   string // label of selected basesha user wants to generate detailed test name
-
 }
 
 // List of recent 100 commits with info
@@ -252,7 +251,8 @@ func (ps *PostSubmit) getLabelTree(input map[string]map[string]int, envNames map
 }
 
 func (ps *PostSubmit) convertMapToSummary(input map[string]map[string]int, nextLayer map[string]LabelEnvSummary,
-	envNames map[string]int) (summary LabelEnvSummary) {
+	envNames map[string]int,
+) (summary LabelEnvSummary) {
 	var labelEnvList []LabelEnv
 	for label, envMap := range input {
 		var labelEnv LabelEnv

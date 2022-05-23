@@ -183,7 +183,8 @@ func (s store) QueryTestResultByTestName(context context.Context, orgLogin strin
 }
 
 func (s store) QueryTestResultByPrNumber(
-	context context.Context, orgLogin string, repoName string, pullRequestNumber int64, cb func(*storage.TestResult) error) error {
+	context context.Context, orgLogin string, repoName string, pullRequestNumber int64, cb func(*storage.TestResult) error,
+) error {
 	sql := `SELECT * from TestResults
 	WHERE OrgLogin = @orgLogin AND
 	RepoName = @repoName AND
@@ -604,7 +605,8 @@ func (s store) QueryMemberActivity(context context.Context, member *storage.Memb
 }
 
 func (s *store) getIssueActivity(context context.Context, orgLogin string, repoName string, userLogin string,
-	info *storage.ActivityInfo, repoInfo *storage.RepoActivityInfo) error {
+	info *storage.ActivityInfo, repoInfo *storage.RepoActivityInfo,
+) error {
 	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
 		`SELECT * FROM IssueCommentEvents
 			WHERE
@@ -734,7 +736,8 @@ func (s store) QueryCoverageDataBySHA(
 }
 
 func (s *store) getPRActivity(context context.Context, orgLogin string, repoName string, userLogin string,
-	info *storage.ActivityInfo, repoInfo *storage.RepoActivityInfo) error {
+	info *storage.ActivityInfo, repoInfo *storage.RepoActivityInfo,
+) error {
 	pathInfo := repoInfo.Paths["/"]
 
 	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
@@ -938,7 +941,8 @@ func (s store) QueryPostSubmitTestEnvLabel(context context.Context, baseSha stri
 }
 
 func (s store) QueryTestNameByEnvLabel(context context.Context, baseSha string, env string,
-	label string) (testNameByEnvLabels []*storage.TestNameByEnvLabel, err error) {
+	label string,
+) (testNameByEnvLabels []*storage.TestNameByEnvLabel, err error) {
 	iter := s.client.Single().Query(context, spanner.Statement{SQL: fmt.Sprintf(
 		`SELECT TestOutcomes.TestOutcomeName, RunNumber, TestName
 		FROM PostSubmitTestResults

@@ -90,7 +90,7 @@ func (c *Client) checkCoverageDiff(
 	if err != nil {
 		return &DiffResult{err: err}
 	}
-	if cfg == nil || len(cfg) == 0 {
+	if len(cfg) == 0 {
 		return &DiffResult{}
 	}
 	baseSHA := pr.GetBase().GetSHA()

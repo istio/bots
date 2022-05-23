@@ -81,7 +81,8 @@ type syncState struct {
 var scope = log.RegisterScope("syncmgr", "The GitHub data syncer", 0)
 
 func New(gc *gh.ThrottledClient, store storage.Store, bq *bigquery.Client, bs blobstorage.Store,
-	reg *config.Registry, robots []string) *SyncMgr {
+	reg *config.Registry, robots []string,
+) *SyncMgr {
 	r := make(map[string]bool, len(robots))
 	for _, robot := range robots {
 		r[robot] = true
@@ -336,7 +337,8 @@ func (ss *syncState) handleRepo(repo gh.RepoDesc) error {
 }
 
 func (ss *syncState) handleActivity(repo gh.RepoDesc, cb func(gh.RepoDesc, time.Time) error,
-	getField func(*storage.BotActivity) *time.Time) error {
+	getField func(*storage.BotActivity) *time.Time,
+) error {
 	start := time.Now().UTC()
 	priorStart := time.Time{}
 

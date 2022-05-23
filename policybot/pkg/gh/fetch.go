@@ -179,7 +179,8 @@ func (tc *ThrottledClient) FetchIssues(context context.Context, orgLogin string,
 }
 
 func (tc *ThrottledClient) FetchIssueComments(context context.Context, orgLogin string, repoName string, startTime time.Time,
-	cb func([]*github.IssueComment) error) error {
+	cb func([]*github.IssueComment) error,
+) error {
 	opt := &github.IssueListCommentsOptions{
 		Since: startTime,
 		ListOptions: github.ListOptions{
@@ -208,7 +209,8 @@ func (tc *ThrottledClient) FetchIssueComments(context context.Context, orgLogin 
 }
 
 func (tc *ThrottledClient) FetchPullRequestReviewComments(context context.Context, orgLogin string, repoName string, startTime time.Time,
-	cb func([]*github.PullRequestComment) error) error {
+	cb func([]*github.PullRequestComment) error,
+) error {
 	opt := &github.PullRequestListCommentsOptions{
 		Since: startTime,
 		ListOptions: github.ListOptions{
@@ -297,7 +299,8 @@ func (tc *ThrottledClient) FetchPullRequests(context context.Context, orgLogin s
 }
 
 func (tc *ThrottledClient) FetchReviews(context context.Context, orgLogin string, repoName string, prNumber int,
-	cb func([]*github.PullRequestReview) error) error {
+	cb func([]*github.PullRequestReview) error,
+) error {
 	opt := &github.ListOptions{
 		PerPage: 100,
 	}

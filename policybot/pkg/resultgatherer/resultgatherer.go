@@ -300,7 +300,8 @@ func (trg *TestResultGatherer) getTestRunArtifacts(ctx context.Context, testRun 
 // TestSlice: a slice of Tests objects containing all tests and the path to folder for each test run for the test under such pr.
 // Return a map of test suite name -- pr number -- run number -- FortestResult objects.
 func (trg *TestResultGatherer) getManyResults(ctx context.Context, testSlice map[string][]string,
-	orgLogin string, repoName string) ([]*store.TestResult, error) {
+	orgLogin string, repoName string,
+) ([]*store.TestResult, error) {
 	var allTestRuns []*store.TestResult
 
 	for testName, runPaths := range testSlice {
@@ -318,7 +319,8 @@ func (trg *TestResultGatherer) getManyResults(ctx context.Context, testSlice map
 }
 
 func (trg *TestResultGatherer) getManyPostSubmitResults(ctx context.Context, testNames chan pipelinetwo.OutResult,
-	orgLogin string, repoName string) (*store.PostSubtmitAllResult, error) {
+	orgLogin string, repoName string,
+) (*store.PostSubtmitAllResult, error) {
 	allTestResult := &store.PostSubtmitAllResult{}
 	var allTestRuns []*store.PostSubmitTestResult
 	var allSuiteOutcome []*store.SuiteOutcome
@@ -457,7 +459,8 @@ func (trg *TestResultGatherer) GetTestResult(ctx context.Context, testName strin
 }
 
 func (trg *TestResultGatherer) AddChildSuiteOutcome(testResult *store.PostSubmitTestResult,
-	suiteOutcome *store.SuiteOutcome) *store.SuiteOutcome {
+	suiteOutcome *store.SuiteOutcome,
+) *store.SuiteOutcome {
 	suiteOutcome.OrgLogin = testResult.OrgLogin
 	suiteOutcome.RepoName = testResult.RepoName
 	suiteOutcome.RunNumber = testResult.RunNumber
@@ -468,7 +471,8 @@ func (trg *TestResultGatherer) AddChildSuiteOutcome(testResult *store.PostSubmit
 }
 
 func (trg *TestResultGatherer) AddChildTestOutcome(suiteOutcome *store.SuiteOutcome,
-	testOutcome *store.TestOutcome) *store.TestOutcome {
+	testOutcome *store.TestOutcome,
+) *store.TestOutcome {
 	testOutcome.OrgLogin = suiteOutcome.OrgLogin
 	testOutcome.RepoName = suiteOutcome.RepoName
 	testOutcome.RunNumber = suiteOutcome.RunNumber
@@ -480,7 +484,8 @@ func (trg *TestResultGatherer) AddChildTestOutcome(suiteOutcome *store.SuiteOutc
 }
 
 func (trg *TestResultGatherer) AddChildFeatureLabel(testOutcome *store.TestOutcome,
-	featureLabel *store.FeatureLabel) *store.FeatureLabel {
+	featureLabel *store.FeatureLabel,
+) *store.FeatureLabel {
 	featureLabel.OrgLogin = testOutcome.OrgLogin
 	featureLabel.RepoName = testOutcome.RepoName
 	featureLabel.RunNumber = testOutcome.RunNumber
@@ -493,7 +498,8 @@ func (trg *TestResultGatherer) AddChildFeatureLabel(testOutcome *store.TestOutco
 }
 
 func (trg *TestResultGatherer) GetPostSubmitTestResult(ctx context.Context, testName string,
-	testRun string, orgLogin string, repoName string) (allTestResult *store.PostSubtmitAllResult, err error) {
+	testRun string, orgLogin string, repoName string,
+) (allTestResult *store.PostSubtmitAllResult, err error) {
 	allTestResult = &store.PostSubtmitAllResult{}
 	var testResultList []*store.PostSubmitTestResult
 	var suiteOutcomeList []*store.SuiteOutcome
