@@ -20,7 +20,7 @@ interface ILiteEvent<T> {
 }
 
 class LiteEvent<T> implements ILiteEvent<T> {
-    private handlers: Array<HandlerFn<T>> = new Array<HandlerFn<T>>();
+    private handlers: HandlerFn<T>[] = [];
 
     public on(handler: HandlerFn<T>): void {
         this.handlers.push(handler);
