@@ -26,7 +26,7 @@ const recordType = "nag"
 // The model is for a given PR:
 //
 //	if (PR title matches any of NatchTitle) || (PR body matches any of MatchBody) {
-// 		if (PR files match any of MatchFiles) {
+//		if (PR files match any of MatchFiles) {
 //			if (PR does not match any of AbsentFiles) {
 //				produce a nag message in the PR
 //			}
