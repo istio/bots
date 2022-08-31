@@ -24,7 +24,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"regexp"
 	"strconv"
 	"strings"
@@ -151,7 +150,7 @@ func (trg *TestResultGatherer) getInformationFromFinishedFile(ctx context.Contex
 	}
 
 	defer nrdr.Close()
-	finishFile, err := ioutil.ReadAll(nrdr)
+	finishFile, err := io.ReadAll(nrdr)
 	if err != nil {
 		return nil, fmt.Errorf("error reading finished.json from %s: %v", pref, err)
 	}
@@ -170,7 +169,7 @@ func (trg *TestResultGatherer) getInformationFromStartedFile(ctx context.Context
 	}
 
 	defer nrdr.Close()
-	startFile, nerr := ioutil.ReadAll(nrdr)
+	startFile, nerr := io.ReadAll(nrdr)
 	if nerr != nil {
 		return nil, fmt.Errorf("error reading started.json from %s: %v", pref, nerr)
 	}
@@ -191,7 +190,7 @@ func (trg *TestResultGatherer) getInformationFromProwFile(ctx context.Context, p
 	}
 
 	defer rdr.Close()
-	prowFile, err := ioutil.ReadAll(rdr)
+	prowFile, err := io.ReadAll(rdr)
 	if err != nil {
 		return nil, fmt.Errorf("error reading prowjob.json from %s: %v", pref, err)
 	}
@@ -213,7 +212,7 @@ func (trg *TestResultGatherer) getInformationFromCloneFile(ctx context.Context, 
 	}
 
 	defer rdr.Close()
-	cloneFile, err := ioutil.ReadAll(rdr)
+	cloneFile, err := io.ReadAll(rdr)
 	if err != nil {
 		return nil, fmt.Errorf("error reading clone-records.json from %s: %v", pref, err)
 	}
@@ -235,7 +234,7 @@ func (trg *TestResultGatherer) getInformationFromYamlFile(ctx context.Context, p
 	}
 
 	defer rdr.Close()
-	yamlFile, err := ioutil.ReadAll(rdr)
+	yamlFile, err := io.ReadAll(rdr)
 	if err != nil {
 		return nil, fmt.Errorf("error reading yaml from %s: %v", pref, err)
 	}

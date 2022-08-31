@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -121,7 +120,7 @@ func (c *Client) CheckCoverage(ctx context.Context, pr *github.PullRequest, sha 
 	// have to download to temp files to process them with Go's coverage
 	// package.
 	b := c.BlobClient.Bucket(c.Bucket)
-	tmpDir, err := ioutil.TempDir("", "coverage")
+	tmpDir, err := os.MkdirTemp("", "coverage")
 	if err != nil {
 		c.SetCoverageStatus(ctx, sha, Error, "Could not create temp directory for coverage files.")
 		return fmt.Errorf("coverage: error creating temp dir for coverage files")
@@ -165,7 +164,7 @@ func (c *Client) getProfilesForTestResult(
 	merged := make(profiles)
 	for _, artifact := range r.Artifacts {
 		if isCoverageArtifact(artifact) {
-			f, err := ioutil.TempFile(tmpDir, "coverage-*.cov")
+			f, err := os.CreateTemp(tmpDir, "coverage-*.cov")
 			if err != nil {
 				return nil, fmt.Errorf("coverage: error creating coverage temp file: %v", err)
 			}

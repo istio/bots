@@ -19,7 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -1449,7 +1449,7 @@ func (ss *syncState) handleOWNERS(repo gh.RepoDesc, maintainers map[string]*stor
 				return fmt.Errorf("unable to get %s: %v", url, err)
 			}
 
-			body, err := ioutil.ReadAll(resp.Body)
+			body, err := io.ReadAll(resp.Body)
 			_ = resp.Body.Close()
 
 			if err != nil {
