@@ -18,7 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -102,7 +102,7 @@ func LoadRegistryFromRepo(gc *gh.ThrottledClient, repo gh.RepoDesc, path string)
 			}
 
 			var b []byte
-			if b, err = ioutil.ReadAll(r.Body); err != nil {
+			if b, err = io.ReadAll(r.Body); err != nil {
 				_ = r.Body.Close()
 				return nil, fmt.Errorf("unable to read configuration file from %s: %v", url, err)
 			}
@@ -139,7 +139,7 @@ func LoadRegistryFromDirectory(path string) (*Registry, error) {
 			return nil
 		}
 
-		b, err := ioutil.ReadFile(path)
+		b, err := os.ReadFile(path)
 		if err != nil {
 			return fmt.Errorf("unable to read configuration file %s: %v", path, err)
 		}

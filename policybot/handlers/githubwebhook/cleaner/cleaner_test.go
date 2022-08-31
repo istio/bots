@@ -15,7 +15,6 @@
 package cleaner
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -28,7 +27,7 @@ import (
 
 func TestBoilerplates(t *testing.T) {
 	configPath := "../../../config/boilerplates"
-	configDir, err := ioutil.ReadDir(configPath)
+	configDir, err := os.ReadDir(configPath)
 	if err != nil {
 		t.Fatal(err)
 	}
