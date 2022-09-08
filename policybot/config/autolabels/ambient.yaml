@@ -1,0 +1,8 @@
+name: Ambient
+type: autolabel
+matchbody:
+  - "\\[ ?x ?\\] ?Ambient"
+absentlabels:
+  - "area/.?"
+labelstoapply:
+  - area/ambient

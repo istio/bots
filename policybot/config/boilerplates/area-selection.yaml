@@ -4,6 +4,7 @@ regex: |
   ^
   ### Affected product area
 
+  - \[[ \w]\] +Ambient
   - \[[ \w]\] +Docs
   - \[[ \w]\] +Installation
   - \[[ \w]\] +Networking
