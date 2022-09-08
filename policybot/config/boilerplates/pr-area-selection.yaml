@@ -3,6 +3,7 @@ type: boilerplate
 regex: |
   ^\*\*To help us figure out who should review this PR, please put an X in all the areas that this PR affects\.\*\*
 
+  - \[[ \w]\] +Ambient
   - \[[ \w]\] +Configuration Infrastructure
   - \[[ \w]\] +Docs
   - \[[ \w]\] +Installation
