@@ -21,6 +21,7 @@ No thanks
 
 ### Affected product area
 
+- [ ] Ambient
 - [ ] Docs
 - [ ] Installation
 - [ ] Networking
