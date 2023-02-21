@@ -18,6 +18,8 @@ repos:
   - istio/bots
   - istio/common-files
   - istio/bottestrepo
+  - istio/ztunnel
+  - istio/enhancements
 
 robots:
   - google-admin

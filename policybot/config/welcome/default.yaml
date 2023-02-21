@@ -18,6 +18,8 @@ repos:
   - istio/release-builder
   - istio/test-infra
   - istio/tools
+  - istio/ztunnel
+  - istio/enhancements
 
 resenddays: 90
 message: |
