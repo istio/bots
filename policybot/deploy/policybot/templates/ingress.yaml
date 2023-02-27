@@ -12,5 +12,7 @@ metadata:
     ingress.kubernetes.io/force-ssl-redirect: "true"
 spec:
   defaultBackend:
-    service.name: policybot-server
-    service.port.name: 8080
+    service:
+      name: policybot-server
+      port:
+        number: 8080
