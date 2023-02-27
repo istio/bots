@@ -11,6 +11,6 @@ metadata:
     networking.gke.io/managed-certificates: eng-istio-io
     ingress.kubernetes.io/force-ssl-redirect: "true"
 spec:
-  backend:
-    serviceName: policybot-server
-    servicePort: 8080
+  defaultBackend:
+    service.name: policybot-server
+    service.port.name: 8080
