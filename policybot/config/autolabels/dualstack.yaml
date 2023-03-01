@@ -1,0 +1,9 @@
+name: Dual-stack
+type: autolabel
+matchbody:
+  - "\\[ ?x ?\\] ?Dual Stack"
+absentlabels:
+  - "area/.?"
+labelstoapply:
+  - area/networking
+  - area/dual-stack

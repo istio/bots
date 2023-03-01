@@ -6,6 +6,7 @@ regex: |
 
   - \[[ \w]\] +Ambient
   - \[[ \w]\] +Docs
+  - \[[ \w]\] +Dual Stack
   - \[[ \w]\] +Installation
   - \[[ \w]\] +Networking
   - \[[ \w]\] +Performance and Scalability
