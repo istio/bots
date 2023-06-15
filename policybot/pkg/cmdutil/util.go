@@ -34,7 +34,6 @@ const (
 	githubWebhookSecret     = "Secret for the GitHub webhook"
 	githubToken             = "Token to access the GitHub API"
 	gcpCreds                = "Base64-encoded credentials to access GCP"
-	sendgridAPIKey          = "API Key for sendgrid.com"
 	githubOAuthClientSecret = "Client secret for GitHub OAuth2 flow"
 	githubOAuthClientID     = "Client ID for GitHub OAuth2 flow"
 )
@@ -47,7 +46,6 @@ const (
 	GitHubWebhookSecret                 = 1 << 2
 	GitHubToken                         = 1 << 3
 	GCPCreds                            = 1 << 4
-	SendgridAPIKey                      = 1 << 5
 	GithubOAuthClientSecret             = 1 << 7
 	GithubOAuthClientID                 = 1 << 8
 	ControlZ                            = 1 << 9
@@ -85,12 +83,6 @@ func Run(name string, desc string, numArgs int, flags CommonFlags, cb func(reg *
 		secrets.GCPCredentials = env.RegisterStringVar("GCP_CREDS", secrets.GCPCredentials, gcpCreds).Get()
 		cmd.PersistentFlags().StringVarP(&secrets.GCPCredentials,
 			"gcp_creds", "", secrets.GCPCredentials, gcpCreds)
-	}
-
-	if flags&SendgridAPIKey != 0 {
-		secrets.SendGridAPIKey = env.RegisterStringVar("SENDGRID_APIKEY", secrets.SendGridAPIKey, sendgridAPIKey).Get()
-		cmd.PersistentFlags().StringVarP(&secrets.SendGridAPIKey,
-			"sendgrid_apikey", "", secrets.SendGridAPIKey, sendgridAPIKey)
 	}
 
 	if flags&GithubOAuthClientSecret != 0 {

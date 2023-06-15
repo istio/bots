@@ -27,8 +27,6 @@ At runtime, the bot has the following external dependencies:
 - GitHub. The bot acts as a GitHub webhook to receive notifications of GitHub activity. It
 also calls the GitHub API.
 
-- SendGrid. The bot sends email using SendGrid.
-
 ## Managers, Handlers, Filters, and Topics
 
 The bot's functionality is broken down into a few categories, which are reflected in the source code layout:
@@ -63,9 +61,6 @@ as obtained in the GitHub admin UI for the target organization.
 
 - GCP_CREDS / --gcp_creds. Base64-encoded JSON credentials for GCP, enabling the bot to invoke
 Google Cloud Spanner.
-
-- SENDGRID_APIKEY / --sendgrid_apikey. An API Key for the SendGrid service, enabling the bot to
-send emails.
 
 ### Keeping secrets
 

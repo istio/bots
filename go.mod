@@ -16,7 +16,6 @@ require (
 	github.com/gorilla/websocket v1.4.1
 	github.com/hashicorp/go-multierror v1.0.0
 	github.com/robfig/cron/v3 v3.0.1
-	github.com/sendgrid/sendgrid-go v3.4.1+incompatible
 	github.com/spf13/cobra v0.0.4
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	golang.org/x/tools v0.1.12
@@ -57,7 +56,6 @@ require (
 	github.com/prometheus/common v0.26.0 // indirect
 	github.com/prometheus/procfs v0.6.0 // indirect
 	github.com/prometheus/prom2json v1.1.0 // indirect
-	github.com/sendgrid/rest v2.4.1+incompatible // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	go.opencensus.io v0.22.4 // indirect
 	go.uber.org/atomic v1.4.0 // indirect
