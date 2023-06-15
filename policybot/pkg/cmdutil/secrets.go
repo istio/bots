@@ -19,7 +19,6 @@ type Secrets struct {
 	GitHubWebhookSecret     string
 	GitHubToken             string
 	GCPCredentials          string
-	SendGridAPIKey          string
 	GitHubOAuthClientSecret string
 	GitHubOAuthClientID     string
 }

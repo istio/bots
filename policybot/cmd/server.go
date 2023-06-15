@@ -41,7 +41,6 @@ import (
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage/cache"
 	"istio.io/bots/policybot/pkg/storage/spanner"
-	"istio.io/bots/policybot/pkg/util"
 	"istio.io/pkg/log"
 )
 
@@ -54,7 +53,6 @@ func serverCmd() *cobra.Command {
 
 	serverCmd, _ := cmdutil.Run("server", "Starts the policybot server", 0,
 		cmdutil.GithubOAuthClientID|
-			cmdutil.SendgridAPIKey|
 			cmdutil.GithubOAuthClientSecret|
 			cmdutil.GitHubWebhookSecret|
 			cmdutil.ConfigPath|
@@ -137,7 +135,6 @@ func runWithConfig(reg *config.Registry, secrets *cmdutil.Secrets, httpsOnly boo
 
 	c := cache.New(store, time.Duration(core.CacheTTL))
 	gc := gh.NewThrottledClient(context.Background(), secrets.GitHubToken)
-	_ = util.NewMailer(secrets.SendGridAPIKey, core.EmailFrom, core.EmailOriginAddress)
 	lf := lifecyclemgr.New(gc, store, c, reg)
 
 	nag, err := nagger.NewNagger(gc, c, reg)
