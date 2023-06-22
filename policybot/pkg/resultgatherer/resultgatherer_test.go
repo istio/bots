@@ -58,7 +58,7 @@ func TestTestResultGatherer(t *testing.T) {
 
 	prNum := "110"
 
-	client, err := gcs.NewStore(context, nil)
+	client, err := gcs.NewStore(context)
 	if err != nil {
 		t.Fatalf("unable to create GCS client: %v", err)
 	}
@@ -112,7 +112,7 @@ func TestPostSubmitTestResultGatherer(t *testing.T) {
 	assert.NilError(t, err)
 	correctInfo.Sha = shaBytes
 
-	client, err := gcs.NewStore(context, nil)
+	client, err := gcs.NewStore(context)
 	if err != nil {
 		t.Fatalf("unable to create GCS client: %v", err)
 	}

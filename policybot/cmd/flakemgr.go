@@ -16,7 +16,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"time"
 
@@ -32,21 +31,16 @@ import (
 
 func flakeMgrCmd() *cobra.Command {
 	cmd, _ := cmdutil.Run("flakemgr", "Run the test flake manager", 0,
-		cmdutil.ConfigPath|cmdutil.ConfigRepo|cmdutil.GitHubToken|cmdutil.GCPCreds, runFlakeMgr)
+		cmdutil.ConfigPath|cmdutil.ConfigRepo|cmdutil.GitHubToken, runFlakeMgr)
 
 	return cmd
 }
 
 // Runs the flake manager.
 func runFlakeMgr(reg *config.Registry, secrets *cmdutil.Secrets) error {
-	creds, err := base64.StdEncoding.DecodeString(secrets.GCPCredentials)
-	if err != nil {
-		return fmt.Errorf("unable to decode GCP credentials: %v", err)
-	}
-
 	core := reg.Core()
 
-	store, err := spanner.NewStore(context.Background(), core.SpannerDatabase, creds)
+	store, err := spanner.NewStore(context.Background(), core.SpannerDatabase)
 	if err != nil {
 		return fmt.Errorf("unable to create storage layer: %v", err)
 	}

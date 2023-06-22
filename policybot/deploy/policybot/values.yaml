@@ -1,3 +1,4 @@
 image: gcr.io/istio-testing/policybot:20190617055749
 imagePullPolicy: Always
 istio: false
+serviceAccount: istio-policy-bot@istio-testing.iam.gserviceaccount.com

@@ -18,7 +18,6 @@ package cmdutil
 type Secrets struct {
 	GitHubWebhookSecret     string
 	GitHubToken             string
-	GCPCredentials          string
 	GitHubOAuthClientSecret string
 	GitHubOAuthClientID     string
 }
