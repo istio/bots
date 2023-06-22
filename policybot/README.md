@@ -59,9 +59,6 @@ as obtained in the GitHub admin UI for the target organization.
 - GITHUB_OAUTH_CLIENT_ID / --github_oauth_client_id. The client ID to use in the GitHub OAuth flow,
 as obtained in the GitHub admin UI for the target organization.
 
-- GCP_CREDS / --gcp_creds. Base64-encoded JSON credentials for GCP, enabling the bot to invoke
-Google Cloud Spanner.
-
 ### Keeping secrets
 
 The bot needs a bunch of credentials to operate. As explained above, these credentials are supplied

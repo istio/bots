@@ -16,6 +16,7 @@ spec:
       annotations:
         sidecar.istio.io/inject: "false"
     spec:
+      serviceAccountName: policybot
       containers:
         - name: policybot
           image: "{{ .Values.image }}"

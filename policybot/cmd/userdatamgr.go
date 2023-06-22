@@ -16,7 +16,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -29,20 +28,15 @@ import (
 
 func userdataMgrCmd() *cobra.Command {
 	cmd, _ := cmdutil.Run("userdatamgr", "Runs the user data manager, which loads user data into the bot's store", 0,
-		cmdutil.ConfigPath|cmdutil.ConfigRepo|cmdutil.GCPCreds, runUserdataMgr)
+		cmdutil.ConfigPath|cmdutil.ConfigRepo, runUserdataMgr)
 
 	return cmd
 }
 
 func runUserdataMgr(reg *config.Registry, secrets *cmdutil.Secrets) error {
-	creds, err := base64.StdEncoding.DecodeString(secrets.GCPCredentials)
-	if err != nil {
-		return fmt.Errorf("unable to decode GCP credentials: %v", err)
-	}
-
 	core := reg.Core()
 
-	store, err := spanner.NewStore(context.Background(), core.SpannerDatabase, creds)
+	store, err := spanner.NewStore(context.Background(), core.SpannerDatabase)
 	if err != nil {
 		return fmt.Errorf("unable to create storage layer: %v", err)
 	}

@@ -16,12 +16,10 @@ package cmd
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 
 	"cloud.google.com/go/bigquery"
 	"github.com/spf13/cobra"
-	"google.golang.org/api/option"
 
 	"istio.io/bots/policybot/mgrs/syncmgr"
 	"istio.io/bots/policybot/pkg/blobstorage/gcs"
@@ -35,7 +33,7 @@ func syncMgrCmd() *cobra.Command {
 	syncFilter := ""
 
 	cmd, _ := cmdutil.Run("syncmgr", "Run the GitHub state syncer", 0,
-		cmdutil.ConfigPath|cmdutil.ConfigRepo|cmdutil.GitHubToken|cmdutil.GCPCreds, func(reg *config.Registry, secrets *cmdutil.Secrets) error {
+		cmdutil.ConfigPath|cmdutil.ConfigRepo|cmdutil.GitHubToken, func(reg *config.Registry, secrets *cmdutil.Secrets) error {
 			return runSyncMgr(reg, secrets, syncFilter)
 		})
 
@@ -53,26 +51,21 @@ func runSyncMgr(reg *config.Registry, secrets *cmdutil.Secrets, syncFilter strin
 		return err
 	}
 
-	creds, err := base64.StdEncoding.DecodeString(secrets.GCPCredentials)
-	if err != nil {
-		return fmt.Errorf("unable to decode GCP credentials: %v", err)
-	}
-
 	core := reg.Core()
 
-	store, err := spanner.NewStore(context.Background(), core.SpannerDatabase, creds)
+	store, err := spanner.NewStore(context.Background(), core.SpannerDatabase)
 	if err != nil {
 		return fmt.Errorf("unable to create storage layer: %v", err)
 	}
 	defer store.Close()
 
-	bq, err := bigquery.NewClient(context.Background(), core.GCPProject, option.WithCredentialsJSON(creds))
+	bq, err := bigquery.NewClient(context.Background(), core.GCPProject)
 	if err != nil {
 		return fmt.Errorf("unable to create BigQuery client: %v", err)
 	}
 	defer bq.Close()
 
-	bs, err := gcs.NewStore(context.Background(), creds)
+	bs, err := gcs.NewStore(context.Background())
 	if err != nil {
 		return fmt.Errorf("unable to create gcs client: %v", err)
 	}

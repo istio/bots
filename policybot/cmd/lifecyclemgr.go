@@ -16,7 +16,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"time"
 
@@ -32,20 +31,15 @@ import (
 
 func lifecycleMgrCmd() *cobra.Command {
 	cmd, _ := cmdutil.Run("lifecyclemgr", "Runs the issue and pull request lifecycle manager", 0,
-		cmdutil.ConfigPath|cmdutil.ConfigRepo|cmdutil.GitHubToken|cmdutil.GCPCreds, runLifecycleMgr)
+		cmdutil.ConfigPath|cmdutil.ConfigRepo|cmdutil.GitHubToken, runLifecycleMgr)
 
 	return cmd
 }
 
 func runLifecycleMgr(reg *config.Registry, secrets *cmdutil.Secrets) error {
-	creds, err := base64.StdEncoding.DecodeString(secrets.GCPCredentials)
-	if err != nil {
-		return fmt.Errorf("unable to decode GCP credentials: %v", err)
-	}
-
 	core := reg.Core()
 
-	store, err := spanner.NewStore(context.Background(), core.SpannerDatabase, creds)
+	store, err := spanner.NewStore(context.Background(), core.SpannerDatabase)
 	if err != nil {
 		return fmt.Errorf("unable to create storage layer: %v", err)
 	}

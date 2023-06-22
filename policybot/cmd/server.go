@@ -16,7 +16,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"net"
 	"net/http"
@@ -58,7 +57,6 @@ func serverCmd() *cobra.Command {
 			cmdutil.ConfigPath|
 			cmdutil.ConfigRepo|
 			cmdutil.GitHubToken|
-			cmdutil.GCPCreds|
 			cmdutil.ControlZ, func(reg *config.Registry, secrets *cmdutil.Secrets) error {
 			return runServer(reg, secrets, httpsOnlyVar)
 		})
@@ -114,20 +112,15 @@ func runServer(reg *config.Registry, secrets *cmdutil.Secrets, httpsOnly bool) e
 func runWithConfig(reg *config.Registry, secrets *cmdutil.Secrets, httpsOnly bool) error {
 	log.Debugf("Starting up")
 
-	creds, err := base64.StdEncoding.DecodeString(secrets.GCPCredentials)
-	if err != nil {
-		return fmt.Errorf("unable to decode GCP credentials: %v", err)
-	}
-
 	core := reg.Core()
 
-	store, err := spanner.NewStore(context.Background(), core.SpannerDatabase, creds)
+	store, err := spanner.NewStore(context.Background(), core.SpannerDatabase)
 	if err != nil {
 		return fmt.Errorf("unable to create storage layer: %v", err)
 	}
 	defer store.Close()
 
-	bs, err := gcs.NewStore(context.Background(), creds)
+	bs, err := gcs.NewStore(context.Background())
 	if err != nil {
 		return fmt.Errorf("unable to create blob storage layer: %v", err)
 	}

@@ -45,7 +45,6 @@ const (
 	ConfigPath                          = 1 << 1
 	GitHubWebhookSecret                 = 1 << 2
 	GitHubToken                         = 1 << 3
-	GCPCreds                            = 1 << 4
 	GithubOAuthClientSecret             = 1 << 7
 	GithubOAuthClientID                 = 1 << 8
 	ControlZ                            = 1 << 9
@@ -77,12 +76,6 @@ func Run(name string, desc string, numArgs int, flags CommonFlags, cb func(reg *
 		secrets.GitHubToken = env.RegisterStringVar("GITHUB_TOKEN", secrets.GitHubToken, githubToken).Get()
 		cmd.PersistentFlags().StringVarP(&secrets.GitHubToken,
 			"github_token", "", secrets.GitHubToken, githubToken)
-	}
-
-	if flags&GCPCreds != 0 {
-		secrets.GCPCredentials = env.RegisterStringVar("GCP_CREDS", secrets.GCPCredentials, gcpCreds).Get()
-		cmd.PersistentFlags().StringVarP(&secrets.GCPCredentials,
-			"gcp_creds", "", secrets.GCPCredentials, gcpCreds)
 	}
 
 	if flags&GithubOAuthClientSecret != 0 {
