@@ -524,7 +524,9 @@ func (trg *TestResultGatherer) GetPostSubmitTestResult(ctx context.Context, test
 	}
 	if pj.Status.State == AbortedState {
 		testResult.StartTime = pj.Status.StartTime.Time
-		testResult.FinishTime = pj.Status.CompletionTime.Time
+		if pj.Status.CompletionTime != nil { // Aborted jobs may not have been completed
+			testResult.FinishTime = pj.Status.CompletionTime.Time
+		}
 		testResult.Result = "ABORTED"
 	}
 	if pj.Status.State == SuccessState || pj.Status.State == FailureState {
