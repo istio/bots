@@ -1,4 +1,4 @@
-name: do-not-merge
+name: do-not-merge/hold
 type: label
 color: bfdadc
 description: Block automatic merging of a PR.
