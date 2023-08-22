@@ -1,4 +1,4 @@
-name: Dual-stack
+name: Dual Stack
 type: autolabel
 matchbody:
   - "\\[ ?x ?\\] ?Dual Stack"
