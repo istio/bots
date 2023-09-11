@@ -1,4 +1,4 @@
 name: "1.16"
 type: "milestone"
 due_date: 2022-11-15T00:00:00Z
-closed: false
+closed: true
