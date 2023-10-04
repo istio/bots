@@ -13,3 +13,8 @@
 
 # Contains built artifacts
 out/
+
+# Intellij
+*.iml
+.idea/
+.run/
