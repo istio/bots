@@ -21,7 +21,7 @@ import (
 
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/storage"
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
 // UserdataMgr populates Spanner with the set of known affiliated users
@@ -30,7 +30,7 @@ type UserdataMgr struct {
 	reg   *config.Registry
 }
 
-var scope = log.RegisterScope("userdatamgr", "Populates the bot's store with the set of known affiliated users", 0)
+var scope = log.RegisterScope("userdatamgr", "Populates the bot's store with the set of known affiliated users")
 
 func New(store storage.Store, reg *config.Registry) *UserdataMgr {
 	return &UserdataMgr{

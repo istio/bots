@@ -25,7 +25,7 @@ import (
 
 	"github.com/google/go-github/v26/github"
 
-	"istio.io/pkg/cache"
+	"istio.io/istio/pkg/cache"
 )
 
 var shaToPRCache = cache.NewTTL(time.Hour, time.Minute)

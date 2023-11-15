@@ -25,7 +25,7 @@ import (
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
 type Lifecycler struct {
@@ -35,7 +35,7 @@ type Lifecycler struct {
 	reg        *config.Registry
 }
 
-var scope = log.RegisterScope("lifecycler", "Handles lifecycle events for PRs or issues", 0)
+var scope = log.RegisterScope("lifecycler", "Handles lifecycle events for PRs or issues")
 
 func New(gc *gh.ThrottledClient, reg *config.Registry, lifecycler *lifecyclemgr.LifecycleMgr, cache *cache.Cache) githubwebhook.Filter {
 	u := &Lifecycler{

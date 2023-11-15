@@ -26,7 +26,7 @@ import (
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
 // Attaches labels to issues and PRs based on regex matches on the title, body, etc.
@@ -38,7 +38,7 @@ type Labeler struct {
 	reg               *config.Registry
 }
 
-var scope = log.RegisterScope("labeler", "Issue and PR auto-labeler", 0)
+var scope = log.RegisterScope("labeler", "Issue and PR auto-labeler")
 
 func NewLabeler(gc *gh.ThrottledClient, cache *cache.Cache, reg *config.Registry) (githubwebhook.Filter, error) {
 	l := &Labeler{

@@ -28,7 +28,7 @@ import (
 	"istio.io/bots/policybot/pkg/gh"
 	store "istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
 // FlakyResult struct include the test name, whether or not the test seems to be flaky
@@ -53,7 +53,7 @@ type FlakeTester struct {
 	store store.Store
 }
 
-var scope = log.RegisterScope("FlakeTester", "Check if tests are flaky", 0)
+var scope = log.RegisterScope("FlakeTester", "Check if tests are flaky")
 
 func NewFlakeTester(ctx context.Context, cache *cache.Cache, store store.Store, ght *gh.ThrottledClient, table string) (*FlakeTester, error) {
 	f := &FlakeTester{

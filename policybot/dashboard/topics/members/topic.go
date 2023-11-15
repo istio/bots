@@ -33,8 +33,8 @@ import (
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
 	"istio.io/bots/policybot/pkg/util"
-	rawcache "istio.io/pkg/cache"
-	"istio.io/pkg/log"
+	rawcache "istio.io/istio/pkg/cache"
+	"istio.io/istio/pkg/log"
 )
 
 // Members lets users view information about organization members.

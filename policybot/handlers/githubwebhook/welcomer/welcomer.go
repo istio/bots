@@ -25,7 +25,7 @@ import (
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
 // Inserts comments into PRs for new or infrequently seen contributors.
@@ -38,7 +38,7 @@ type Welcomer struct {
 
 const welcomeSignature = "\n\n_Courtesy of your friendly welcome wagon_."
 
-var scope = log.RegisterScope("welcomer", "The Istio welcome wagon", 0)
+var scope = log.RegisterScope("welcomer", "The Istio welcome wagon")
 
 func NewWelcomer(gc *gh.ThrottledClient, store storage.Store, cache *cache.Cache, reg *config.Registry) githubwebhook.Filter {
 	return &Welcomer{

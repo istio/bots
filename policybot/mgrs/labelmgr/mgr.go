@@ -22,7 +22,7 @@ import (
 
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
 // LabelMgr creates labels in GitHub repos
@@ -31,7 +31,7 @@ type LabelMgr struct {
 	reg *config.Registry
 }
 
-var scope = log.RegisterScope("labelmgr", "The GitHub label manager", 0)
+var scope = log.RegisterScope("labelmgr", "The GitHub label manager")
 
 func New(gc *gh.ThrottledClient, reg *config.Registry) *LabelMgr {
 	return &LabelMgr{

@@ -26,7 +26,7 @@ import (
 	"istio.io/bots/policybot/dashboard/types"
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
 // ReleaseQualification shows status of release qualification tests.

@@ -22,7 +22,7 @@ import (
 
 	"istio.io/bots/policybot/handlers/githubwebhook"
 	"istio.io/bots/policybot/pkg/gh"
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
 // RepoWatcher waits for changes to files in GitHub.
@@ -32,7 +32,7 @@ type RepoWatcher struct {
 	notify func()
 }
 
-var scope = log.RegisterScope("watcher", "Listens for changes in GitHub files", 0)
+var scope = log.RegisterScope("watcher", "Listens for changes in GitHub files")
 
 func NewRepoWatcher(repo gh.RepoDesc, path string, notify func()) githubwebhook.Filter {
 	return &RepoWatcher{

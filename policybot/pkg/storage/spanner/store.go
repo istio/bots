@@ -21,14 +21,14 @@ import (
 	"cloud.google.com/go/spanner"
 
 	"istio.io/bots/policybot/pkg/storage"
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
 type store struct {
 	client *spanner.Client
 }
 
-var scope = log.RegisterScope("spanner", "Spanner abstraction layer", 0)
+var scope = log.RegisterScope("spanner", "Spanner abstraction layer")
 
 func NewStore(context context.Context, database string) (storage.Store, error) {
 	client, err := spanner.NewClient(context, database)

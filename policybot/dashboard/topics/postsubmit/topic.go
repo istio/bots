@@ -29,7 +29,7 @@ import (
 	"istio.io/bots/policybot/dashboard/types"
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
 // PostSubmit lets users visualize critical information about which features have been covered and which not after Github PR merged.
