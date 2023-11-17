@@ -46,7 +46,7 @@ import (
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
 	"istio.io/bots/policybot/pkg/util"
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
 // Dashboard captures all the user-interface state necessary to expose the full UI to clients.
@@ -70,7 +70,7 @@ type templateInfo struct {
 	SelectedEntry *sidebarEntry
 }
 
-var scope = log.RegisterScope("dashboard", "The UI layer", 0)
+var scope = log.RegisterScope("dashboard", "The UI layer")
 
 func New(router *mux.Router, store storage.Store, cache *cache.Cache, reg *config.Registry, secrets *cmdutil.Secrets) *Dashboard {
 	d := &Dashboard{

@@ -23,7 +23,7 @@ import (
 
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
 // MilestoneMgr creates milestones in GitHub repos
@@ -32,7 +32,7 @@ type MilestoneMgr struct {
 	reg *config.Registry
 }
 
-var scope = log.RegisterScope("milestonemgr", "The GitHub milestone manager", 0)
+var scope = log.RegisterScope("milestonemgr", "The GitHub milestone manager")
 
 func New(gc *gh.ThrottledClient, reg *config.Registry) *MilestoneMgr {
 	return &MilestoneMgr{

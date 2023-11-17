@@ -21,10 +21,10 @@ import (
 	"github.com/google/go-github/v26/github"
 
 	"istio.io/bots/policybot/pkg/util"
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
-var scope = log.RegisterScope("githubwebhook", "GitHub webhook handler", 0)
+var scope = log.RegisterScope("githubwebhook", "GitHub webhook handler")
 
 // Decodes and dispatches GitHub webhook calls
 type handler struct {

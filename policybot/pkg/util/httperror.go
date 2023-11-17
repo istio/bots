@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
 // Holds a Go error with an HTTP status code.

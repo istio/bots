@@ -23,9 +23,9 @@ import (
 
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
-	"istio.io/pkg/ctrlz"
-	"istio.io/pkg/env"
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/ctrlz"
+	"istio.io/istio/pkg/env"
+	"istio.io/istio/pkg/log"
 )
 
 const (

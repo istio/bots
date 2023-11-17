@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"istio.io/bots/policybot/pkg/storage"
-	"istio.io/pkg/cache"
+	"istio.io/istio/pkg/cache"
 )
 
 // Cached access over our database.

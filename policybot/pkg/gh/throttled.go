@@ -21,7 +21,7 @@ import (
 	"github.com/google/go-github/v26/github"
 	"golang.org/x/oauth2"
 
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
 // ThrottledClient is used to throttle our use of the GitHub API in order to

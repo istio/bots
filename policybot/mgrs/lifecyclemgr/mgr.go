@@ -25,7 +25,7 @@ import (
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
 // LifecycleMgr is responsible for managing the lifecycle of issues and pull requests.
@@ -43,7 +43,7 @@ type stats struct {
 	markedNeedsEscalation int
 }
 
-var scope = log.RegisterScope("lifecyclemgr", "The issue and pull request lifecycle manager", 0)
+var scope = log.RegisterScope("lifecyclemgr", "The issue and pull request lifecycle manager")
 
 const botSignature = "\n\n_Created by the issue and PR lifecycle manager_."
 

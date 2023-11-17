@@ -27,7 +27,7 @@ import (
 	gatherer "istio.io/bots/policybot/pkg/resultgatherer"
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
 // Updates the DB based on incoming GitHub webhook events.
@@ -39,7 +39,7 @@ type Refresher struct {
 	reg   *config.Registry
 }
 
-var scope = log.RegisterScope("refresher", "Dynamic database refresher", 0)
+var scope = log.RegisterScope("refresher", "Dynamic database refresher")
 
 func NewRefresher(cache *cache.Cache, store storage.Store, bs blobstorage.Store, gc *gh.ThrottledClient, reg *config.Registry) githubwebhook.Filter {
 	return &Refresher{

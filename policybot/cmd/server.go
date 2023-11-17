@@ -40,7 +40,7 @@ import (
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage/cache"
 	"istio.io/bots/policybot/pkg/storage/spanner"
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
 const (

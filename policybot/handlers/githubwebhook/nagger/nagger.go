@@ -26,7 +26,7 @@ import (
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
 // Generates nagging messages in PRs based on regex matches on the title, body, and affected files
@@ -40,7 +40,7 @@ type Nagger struct {
 
 const nagSignature = "\n\n_Courtesy of your friendly test nag_."
 
-var scope = log.RegisterScope("nagger", "The GitHub test nagger", 0)
+var scope = log.RegisterScope("nagger", "The GitHub test nagger")
 
 func NewNagger(gc *gh.ThrottledClient, cache *cache.Cache, reg *config.Registry) (githubwebhook.Filter, error) {
 	n := &Nagger{

@@ -39,8 +39,8 @@ import (
 	"istio.io/bots/policybot/pkg/pipeline"
 	"istio.io/bots/policybot/pkg/resultgatherer"
 	"istio.io/bots/policybot/pkg/storage"
-	"istio.io/pkg/env"
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/env"
+	"istio.io/istio/pkg/log"
 )
 
 // SyncMgr is responsible for synchronizing state from GitHub into our local store
@@ -78,7 +78,7 @@ type syncState struct {
 	dryRun bool
 }
 
-var scope = log.RegisterScope("syncmgr", "The GitHub data syncer", 0)
+var scope = log.RegisterScope("syncmgr", "The GitHub data syncer")
 
 func New(gc *gh.ThrottledClient, store storage.Store, bq *bigquery.Client, bs blobstorage.Store,
 	reg *config.Registry, robots []string,

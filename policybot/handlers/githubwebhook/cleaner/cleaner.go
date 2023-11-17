@@ -26,7 +26,7 @@ import (
 	"istio.io/bots/policybot/pkg/config"
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage"
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
 // Removes redundant boilerplate content from PRs and issues
@@ -36,7 +36,7 @@ type Cleaner struct {
 	reg              *config.Registry
 }
 
-var scope = log.RegisterScope("cleaner", "Issue and PR boilerplate cleaner", 0)
+var scope = log.RegisterScope("cleaner", "Issue and PR boilerplate cleaner")
 
 func New(gc *gh.ThrottledClient, reg *config.Registry) (githubwebhook.Filter, error) {
 	l := &Cleaner{

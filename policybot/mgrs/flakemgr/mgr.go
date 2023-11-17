@@ -22,10 +22,10 @@ import (
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage"
 	"istio.io/bots/policybot/pkg/storage/cache"
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
-var scope = log.RegisterScope("flakemgr", "The GitHub flaky test chaser.", 0)
+var scope = log.RegisterScope("flakemgr", "The GitHub flaky test chaser.")
 
 // FlakeManager scans the test flakiness issues and neg issuer assignee when no updates occur for a while.
 type FlakeManager struct {

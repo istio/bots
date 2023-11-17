@@ -32,10 +32,10 @@ import (
 	"istio.io/bots/policybot/pkg/blobstorage"
 	"istio.io/bots/policybot/pkg/gh"
 	"istio.io/bots/policybot/pkg/storage"
-	"istio.io/pkg/log"
+	"istio.io/istio/pkg/log"
 )
 
-var scope = log.RegisterScope("coverage", "Coverage client", 0)
+var scope = log.RegisterScope("coverage", "Coverage client")
 
 var (
 	Pending    = "pending"

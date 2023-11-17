@@ -24,7 +24,7 @@ import (
 
 	"sigs.k8s.io/yaml"
 
-	"istio.io/pkg/cache"
+	"istio.io/istio/pkg/cache"
 )
 
 type Config map[string]*Feature
