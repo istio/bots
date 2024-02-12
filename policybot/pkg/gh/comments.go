@@ -77,7 +77,6 @@ func (tc *ThrottledClient) AddOrReplaceBotComment(context context.Context, orgLo
 	_, _, err = tc.ThrottledCall(func(client *github.Client) (interface{}, *github.Response, error) {
 		return client.Issues.CreateComment(context, orgLogin, repoName, number, pc)
 	})
-
 	if err != nil {
 		return fmt.Errorf("unable to attach bot comment to issue/PR %d from repo %s/%s: %v", number, orgLogin, repoName, err)
 	}
