@@ -671,7 +671,6 @@ func (s *store) getIssueActivity(context context.Context, orgLogin string, repoN
 
 		return nil
 	})
-
 	if err != nil {
 		return err
 	}
@@ -797,7 +796,6 @@ func (s *store) getPRActivity(context context.Context, orgLogin string, repoName
 
 		return nil
 	})
-
 	if err != nil {
 		return err
 	}
