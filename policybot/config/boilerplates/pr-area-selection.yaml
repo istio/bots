@@ -10,7 +10,7 @@ regex: |
   - \[[ \w]\] +Installation
   - \[[ \w]\] +Networking
   - \[[ \w]\] +Performance and Scalability
-  - \[[ \w]\] +Policies and Telemetry
+  - \[[ \w]\] +Extensions and Telemetry
   - \[[ \w]\] +Security
   - \[[ \w]\] +Test and Release
   - \[[ \w]\] +User Experience

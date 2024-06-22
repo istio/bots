@@ -1,4 +1,4 @@
-name: Policies and Telemetry
+name: Extensions and Telemetry
 type: autolabel
 matchbody:
   - "\\[ ?x ?\\] ?Extensions"

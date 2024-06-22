@@ -11,7 +11,7 @@ Something about my PR...
 - [ ] Installation
 - [x] Networking
 - [ ] Performance and Scalability
-- [ ] Policies and Telemetry
+- [ ] Extensions and Telemetry
 - [ ] Security
 - [X] Test and Release
 - [ ] User Experience
