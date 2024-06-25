@@ -15,3 +15,7 @@ regex: |
   - \[[ \w]\] +Test and Release
   - \[[ \w]\] +User Experience
   - \[[ \w]\] +Developer Infrastructure
+  - \[[ \w]\] +Upgrade
+  - \[[ \w]\] +Multi Cluster
+  - \[[ \w]\] +Virtual Machine
+  - \[[ \w]\] +Control Plane Revisions
