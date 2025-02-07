@@ -1,4 +1,0 @@
-name: cherrypick/release-1.21
-type: label
-color: ff0000
-description: Set this label on a PR to auto-merge it to the release-1.21 branch
