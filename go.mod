@@ -1,6 +1,6 @@
 module istio.io/bots
 
-go 1.21
+go 1.23.0
 
 // Old version had no license
 replace github.com/chzyer/logex => github.com/chzyer/logex v1.1.11-0.20170329064859-445be9e134b2
@@ -17,7 +17,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/spf13/cobra v1.8.0
-	golang.org/x/oauth2 v0.14.0
+	golang.org/x/oauth2 v0.27.0
 	golang.org/x/tools v0.15.0
 	google.golang.org/api v0.150.0
 	google.golang.org/grpc v1.59.0
@@ -30,8 +30,7 @@ require (
 
 require (
 	cloud.google.com/go v0.110.8 // indirect
-	cloud.google.com/go/compute v1.23.1 // indirect
-	cloud.google.com/go/compute/metadata v0.2.3 // indirect
+	cloud.google.com/go/compute/metadata v0.3.0 // indirect
 	cloud.google.com/go/iam v1.1.3 // indirect
 	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/apache/arrow/go/v12 v12.0.0 // indirect
@@ -96,7 +95,6 @@ require (
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
-	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/genproto v0.0.0-20231016165738-49dd2c1f3d0b // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20231016165738-49dd2c1f3d0b // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20231030173426-d783a09b4405 // indirect
