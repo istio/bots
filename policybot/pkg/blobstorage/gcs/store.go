@@ -85,7 +85,7 @@ func (b *bucket) ListPrefixesProducer(ctx context.Context, prefix string) pipeli
 					res = attrs.Prefix
 				}
 			}
-			return
+			return res, err
 		},
 	}
 	return pipeline.FromIter(lp)
@@ -109,7 +109,7 @@ func (b *bucket) ListPrefixesProducers(ctx context.Context, prefix string) (resu
 					res = attrs.Prefix
 				}
 			}
-			return
+			return res, err
 		},
 	}
 	return lp.Start(ctx, 1)
@@ -144,7 +144,7 @@ func (b *bucket) ListItemsProducer(ctx context.Context, prefix string) chan pipe
 					res = attrs.Name
 				}
 			}
-			return
+			return res, err
 		},
 	}
 	return lp.Start(ctx, 1)

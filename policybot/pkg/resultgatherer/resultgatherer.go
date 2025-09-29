@@ -281,7 +281,7 @@ func (trg *TestResultGatherer) getEnvironmentalSignatures(ctx context.Context, t
 		foo := getSignature(r, signatures)
 		result = append(result, names[foo])
 	}
-	return
+	return result
 }
 
 func (trg *TestResultGatherer) getTestRunArtifacts(ctx context.Context, testRun string) ([]string, error) {
@@ -430,7 +430,7 @@ func (trg *TestResultGatherer) GetTestResult(ctx context.Context, testName strin
 
 	runNo, err := strconv.ParseInt(prefSplit[len(prefSplit)-2], 10, 64)
 	if err != nil {
-		return
+		return testResult, err
 	}
 	testResult.RunNumber = runNo
 	prNo, newError := strconv.ParseInt(prefSplit[len(prefSplit)-4], 10, 64)
@@ -441,7 +441,7 @@ func (trg *TestResultGatherer) GetTestResult(ctx context.Context, testName strin
 
 	artifacts, err := trg.getTestRunArtifacts(ctx, testRun)
 	if err != nil {
-		return
+		return testResult, err
 	}
 	testResult.HasArtifacts = len(artifacts) != 0
 	testResult.Artifacts = artifacts
@@ -454,7 +454,7 @@ func (trg *TestResultGatherer) GetTestResult(ctx context.Context, testName strin
 		// this is almost certainly an environmental failure, check for known sigs
 		testResult.Signatures = trg.getEnvironmentalSignatures(ctx, testRun)
 	}
-	return
+	return testResult, err
 }
 
 func (trg *TestResultGatherer) AddChildSuiteOutcome(testResult *store.PostSubmitTestResult,
@@ -576,12 +576,12 @@ func (trg *TestResultGatherer) GetPostSubmitTestResult(ctx context.Context, test
 
 	runNo, err := strconv.ParseInt(prefSplit[len(prefSplit)-2], 10, 64)
 	if err != nil {
-		return
+		return allTestResult, err
 	}
 	testResult.RunNumber = runNo
 	artifacts, err := trg.getTestRunArtifacts(ctx, testRun)
 	if err != nil {
-		return
+		return allTestResult, err
 	}
 	testResult.HasArtifacts = len(artifacts) != 0
 	testResult.Artifacts = artifacts
@@ -629,7 +629,7 @@ func (trg *TestResultGatherer) GetPostSubmitTestResult(ctx context.Context, test
 	allTestResult.SuiteOutcome = suiteOutcomeList
 	allTestResult.TestOutcome = testOutcomeList
 	allTestResult.FeatureLabel = featureList
-	return
+	return allTestResult, err
 }
 
 // Read in gcs the folder of the given pr number and write the result of each test runs into a slice of TestFlake struct.
