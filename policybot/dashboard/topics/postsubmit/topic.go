@@ -266,5 +266,5 @@ func (ps *PostSubmit) convertMapToSummary(input map[string]map[string]int, nextL
 		labelEnvList = append(labelEnvList, labelEnv)
 	}
 	summary.LabelEnv = labelEnvList
-	return
+	return summary
 }

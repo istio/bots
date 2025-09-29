@@ -914,7 +914,7 @@ func (s store) QueryAllBaseSha(context context.Context) (baseShas []string, err 
 		baseShas = append(baseShas, baseSha.BaseSha)
 		return nil
 	})
-	return
+	return baseShas, err
 }
 
 func (s store) QueryPostSubmitTestEnvLabel(context context.Context, baseSha string, cb func(*storage.PostSubmitTestEnvLabel) error) error {
@@ -958,7 +958,7 @@ func (s store) QueryTestNameByEnvLabel(context context.Context, baseSha string, 
 		testNameByEnvLabels = append(testNameByEnvLabels, testNameByEnvLabel)
 		return nil
 	})
-	return
+	return testNameByEnvLabels, err
 }
 
 func (s store) QueryNewFlakes(ctx context.Context) pipeline.Pipeline {
@@ -992,7 +992,7 @@ func (s store) QueryNewFlakes(ctx context.Context) pipeline.Pipeline {
 				res = &storage.ConfirmedFlake{}
 				err = rowToStruct(row, res)
 			}
-			return
+			return res, err
 		},
 	}
 	return pipeline.FromIter(lp)

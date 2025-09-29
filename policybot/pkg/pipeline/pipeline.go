@@ -212,7 +212,7 @@ func (sp *Impl) Batch(size int) Pipeline {
 				out <- batchOut
 			}
 		}()
-		return
+		return out
 	}
 	return &next
 }

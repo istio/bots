@@ -34,23 +34,23 @@ func (s store) UpdateFlakeCache(ctx context.Context) (sum int, multierr error) {
 		for x, i := range islice {
 			singleResult := i.(*storage.ConfirmedFlake)
 			if mutations[x], err = insertOrUpdateStruct(confirmedFlakesTable, singleResult); err != nil {
-				return
+				return err
 			}
 		}
 
 		if _, err = s.client.Apply(ctx, mutations); err == nil {
 			sum += len(mutations)
 		}
-		return
+		return err
 	}).Go()
 	var result *multierror.Error
 	for err := range errchan {
 		result = multierror.Append(result, err.Err())
 	}
 	if result != nil {
-		return
+		return sum, multierr
 	}
-	return
+	return sum, multierr
 }
 
 func (s store) UpdateBotActivity(ctx1 context.Context, orgLogin string, repoName string, cb func(*storage.BotActivity) error) error {
