@@ -68,17 +68,17 @@ func TestTransform(t *testing.T) {
 		prParts := strings.Split(prPath.(string), "/")
 		if len(prParts) < 2 {
 			err = errors.New("too few segments in pr path")
-			return
+			return prNum, err
 		}
 		prNumInt, err := strconv.Atoi(prParts[len(prParts)-2])
 		if err != nil {
-			return
+			return prNum, err
 		} else if prNumInt <= high && prNumInt >= low {
 			prNum = prParts[len(prParts)-2]
-			return
+			return prNum, err
 		}
 		err = ErrSkip
-		return
+		return prNum, err
 	})
 	for element := range resultChan {
 		// no errors occur

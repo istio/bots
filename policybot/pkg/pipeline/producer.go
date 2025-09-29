@@ -114,7 +114,7 @@ func (sp *IterProducer) Start(ctx context.Context, bufferSize int) (resultChan c
 			}
 		}
 	}()
-	return
+	return resultChan
 }
 
 func BuildSlice(resultChan chan OutResult) ([]interface{}, error) {

@@ -1045,7 +1045,7 @@ func (ss *syncState) handleTestResults() (result error) {
 			prParts := strings.Split(prPath, "/")
 			if len(prParts) < 2 {
 				err = errors.New("too few segments in pr path")
-				return
+				return prNum, err
 			}
 			prNum = prParts[len(prParts)-2]
 			if prInt, ierr := strconv.Atoi(prParts[len(prParts)-2]); ierr == nil {
@@ -1054,7 +1054,7 @@ func (ss *syncState) handleTestResults() (result error) {
 					err = pipeline.ErrSkip
 				}
 			}
-			return
+			return prNum, err
 		}).WithContext(ss.ctx).OnError(func(e error) {
 			// TODO: this should probably be reported out or something...
 			scope.Warnf("error processing test: %s", e)
@@ -1076,7 +1076,7 @@ func (ss *syncState) handleTestResults() (result error) {
 				}
 			}
 			testRunPaths = result
-			return
+			return testRunPaths, err
 		}).Expand().Transform(func(testRunPathi interface{}) (i interface{}, err error) {
 			inputArray := testRunPathi.([]string)
 			testRunPath := inputArray[1]
@@ -1112,7 +1112,7 @@ func (ss *syncState) handleTestResults() (result error) {
 		log.Infof("detected %d new flakes", rowCount)
 	}
 
-	return
+	return result
 }
 
 func (ss *syncState) handlePostSubmitTestResults() error {
@@ -1175,7 +1175,7 @@ func (ss *syncState) handlePostSubmitTestResults() error {
 				}
 			}
 			testRunPaths = result
-			return
+			return testRunPaths, err
 		}).Expand().Transform(func(testRunPathi interface{}) (i interface{}, err error) {
 			inputArray := testRunPathi.([]string)
 			testRunPath := inputArray[1]
