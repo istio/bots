@@ -1,0 +1,6 @@
+name: Dependabot-ok-to-test
+type: autolabel
+matchauthor:
+  - "^dependabot\\[bot\\]$"
+labelstoapply:
+  - ok-to-test
