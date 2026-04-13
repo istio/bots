@@ -4,3 +4,4 @@ matchauthor:
   - "^dependabot\\[bot\\]$"
 labelstoapply:
   - ok-to-test
+  - release-notes-none
