@@ -23,6 +23,9 @@ const recordType = "autolabel"
 type autoLabelRecord struct {
 	config.RecordBase
 
+	// MatchAuthor represents content that must be in the PR or issue author login
+	MatchAuthor []string // regexes
+
 	// MatchTitle represents content that must be in the PR or issue's title
 	MatchTitle []string // regexes
 

@@ -61,6 +61,14 @@ func NewLabeler(gc *gh.ThrottledClient, cache *cache.Cache, reg *config.Registry
 
 // Precompile all the regexes
 func (l *Labeler) processAutoLabelRegexes(al *autoLabelRecord) error {
+	for _, expr := range al.MatchAuthor {
+		r, err := regexp.Compile("(?i)" + expr)
+		if err != nil {
+			return fmt.Errorf("invalid regular expression %s: %v", expr, err)
+		}
+		l.singleLineRegexes[expr] = r
+	}
+
 	for _, expr := range al.MatchTitle {
 		r, err := regexp.Compile("(?i)" + expr)
 		if err != nil {
@@ -177,7 +185,7 @@ func (l *Labeler) processIssue(context context.Context, issue *storage.Issue, al
 	for _, r := range als {
 		al := r.(*autoLabelRecord)
 
-		if l.matchAutoLabel(al, issue.Title, issue.Body, labels) {
+		if l.matchAutoLabel(al, issue.Author, issue.Title, issue.Body, labels) {
 			toApply = append(toApply, al.LabelsToApply...)
 			toRemove = append(toRemove, al.LabelsToRemove...)
 		}
@@ -226,7 +234,7 @@ func (l *Labeler) processPullRequest(context context.Context, pr *storage.PullRe
 	for _, r := range als {
 		al := r.(*autoLabelRecord)
 
-		if l.matchAutoLabel(al, pr.Title, pr.Body, labels) {
+		if l.matchAutoLabel(al, pr.Author, pr.Title, pr.Body, labels) {
 			toApply = append(toApply, al.LabelsToApply...)
 		}
 	}
@@ -243,9 +251,9 @@ func (l *Labeler) processPullRequest(context context.Context, pr *storage.PullRe
 	scope.Infof("Applied %d label(s) to PR %d from repo %s/%s", len(toApply), pr.PullRequestNumber, pr.OrgLogin, pr.RepoName)
 }
 
-func (l *Labeler) matchAutoLabel(al *autoLabelRecord, title string, body string, labels []*storage.Label) bool {
-	// if both the title and body don't match, we're done
-	if !l.titleMatch(al, title) && !l.bodyMatch(al, body) {
+func (l *Labeler) matchAutoLabel(al *autoLabelRecord, author string, title string, body string, labels []*storage.Label) bool {
+	// if the author, title, and body don't match, we're done
+	if !l.authorMatch(al, author) && !l.titleMatch(al, title) && !l.bodyMatch(al, body) {
 		return false
 	}
 
@@ -277,6 +285,17 @@ func (l *Labeler) matchAutoLabel(al *autoLabelRecord, title string, body string,
 
 	// we found a suitable candidate
 	return true
+}
+
+func (l *Labeler) authorMatch(al *autoLabelRecord, author string) bool {
+	for _, expr := range al.MatchAuthor {
+		r := l.singleLineRegexes[expr]
+		if r.MatchString(author) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (l *Labeler) titleMatch(al *autoLabelRecord, title string) bool {
