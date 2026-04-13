@@ -1,7 +1,7 @@
 name: Dependabot-ok-to-test
 type: autolabel
 matchauthor:
-  - "^dependabot\\[bot\\]$"
+  - "^(dependabot\\[bot\\]|apps?/dependabot)$"
 labelstoapply:
   - ok-to-test
   - release-notes-none
