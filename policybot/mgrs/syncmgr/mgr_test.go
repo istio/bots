@@ -15,7 +15,10 @@
 package syncmgr
 
 import (
+	"strings"
 	"testing"
+
+	"istio.io/bots/policybot/pkg/storage"
 )
 
 func TestConvFilterFlags(t *testing.T) {
@@ -71,5 +74,68 @@ func TestConvFilterFlags(t *testing.T) {
 			t.Errorf("%s: converting to filter expected %d but returned %d",
 				test.flag, test.expected, actual)
 		}
+	}
+}
+
+func TestReadEmeritusMaintainers(t *testing.T) {
+	emeritus, err := readEmeritusMaintainers(strings.NewReader(`
+emeritus:
+- alice
+- Bob
+release-managers:
+  Release Managers - 1.0:
+    members:
+    - carol
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got, want := strings.Join(emeritus, ","), "alice,Bob"; got != want {
+		t.Fatalf("unexpected emeritus maintainers: got %q want %q", got, want)
+	}
+}
+
+func TestMarkEmeritusMaintainerPreservesActiveMaintainerPaths(t *testing.T) {
+	maintainers := map[string]*storage.Maintainer{
+		"ALICE": {
+			OrgLogin:  "istio",
+			UserLogin: "alice",
+			Paths:     []string{"istio/pilot/"},
+		},
+	}
+
+	maintainer := markEmeritusMaintainer("istio", maintainers, "Alice")
+
+	if !maintainer.Emeritus {
+		t.Fatal("maintainer was not marked emeritus")
+	}
+	if got, want := maintainer.UserLogin, "alice"; got != want {
+		t.Fatalf("unexpected maintainer login: got %q want %q", got, want)
+	}
+	if got, want := strings.Join(maintainer.Paths, ","), "istio/pilot/"; got != want {
+		t.Fatalf("unexpected maintainer paths: got %q want %q", got, want)
+	}
+	if len(maintainers) != 1 {
+		t.Fatalf("expected existing maintainer entry to be reused, got %d entries", len(maintainers))
+	}
+}
+
+func TestMarkEmeritusMaintainerAddsNewMaintainer(t *testing.T) {
+	maintainers := map[string]*storage.Maintainer{}
+
+	maintainer := markEmeritusMaintainer("istio", maintainers, "alice")
+
+	if !maintainer.Emeritus {
+		t.Fatal("maintainer was not marked emeritus")
+	}
+	if got, want := maintainer.OrgLogin, "istio"; got != want {
+		t.Fatalf("unexpected org login: got %q want %q", got, want)
+	}
+	if got, want := maintainer.UserLogin, "alice"; got != want {
+		t.Fatalf("unexpected user login: got %q want %q", got, want)
+	}
+	if _, ok := maintainers["ALICE"]; !ok {
+		t.Fatal("maintainer was not keyed case-insensitively")
 	}
 }
