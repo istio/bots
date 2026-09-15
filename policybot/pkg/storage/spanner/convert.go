@@ -54,7 +54,7 @@ func setValue(f reflect.Value, valid bool, val interface{}) {
 // in Spanner and not in the struct.
 func rowToStruct(row *spanner.Row, s interface{}) error {
 	ptrType := reflect.TypeOf(s)
-	if ptrType.Kind() != reflect.Ptr || ptrType.Elem().Kind() != reflect.Struct {
+	if ptrType.Kind() != reflect.Pointer || ptrType.Elem().Kind() != reflect.Struct {
 		return fmt.Errorf("rowToStruct: type %v must be a pointer to a struct", ptrType)
 	}
 	structType := ptrType.Elem()
@@ -133,7 +133,7 @@ func insertOrUpdateStruct(table string, s interface{}) (*spanner.Mutation, error
 func exportStruct(s interface{}) ([]string, []interface{}, error) {
 	structType := reflect.TypeOf(s)
 	structVal := reflect.ValueOf(s)
-	if structType.Kind() == reflect.Ptr {
+	if structType.Kind() == reflect.Pointer {
 		structType = structType.Elem()
 		structVal = structVal.Elem()
 	}
