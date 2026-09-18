@@ -80,6 +80,8 @@ type syncState struct {
 
 var scope = log.RegisterScope("syncmgr", "The GitHub data syncer")
 
+const emeritusMaintainersURL = "https://raw.githubusercontent.com/istio/community/master/org/emeritus.yaml"
+
 func New(gc *gh.ThrottledClient, store storage.Store, bq *bigquery.Client, bs blobstorage.Store,
 	reg *config.Registry, robots []string,
 ) *SyncMgr {
@@ -1278,6 +1280,10 @@ func (ss *syncState) handleMaintainers() error {
 		}
 	}
 
+	if err := ss.handleEmeritusMaintainers(maintainers); err != nil {
+		return err
+	}
+
 	// get the correct case for the maintainer login names, since they are case insensitive in the CODEOWNERS/OWNERS files
 	storageMaintainers := make([]*storage.Maintainer, 0, len(maintainers))
 	for _, maintainer := range maintainers {
@@ -1323,6 +1329,60 @@ func (ss *syncState) handleMaintainers() error {
 	}
 
 	return ss.mgr.store.WriteAllMaintainers(ss.ctx, storageMaintainers)
+}
+
+type emeritusConfig struct {
+	Emeritus []string `json:"emeritus"`
+}
+
+func readEmeritusMaintainers(r io.Reader) ([]string, error) {
+	body, err := io.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+
+	cfg := emeritusConfig{}
+	if err := yaml.Unmarshal(body, &cfg); err != nil {
+		return nil, err
+	}
+
+	return cfg.Emeritus, nil
+}
+
+func markEmeritusMaintainer(orgLogin string, maintainers map[string]*storage.Maintainer, user string) *storage.Maintainer {
+	key := strings.ToUpper(user)
+	maintainer, ok := maintainers[key]
+	if !ok {
+		maintainer = &storage.Maintainer{
+			OrgLogin:  orgLogin,
+			UserLogin: user,
+		}
+		maintainers[key] = maintainer
+	}
+	maintainer.Emeritus = true
+	return maintainer
+}
+
+func (ss *syncState) handleEmeritusMaintainers(maintainers map[string]*storage.Maintainer) error {
+	resp, err := http.Get(emeritusMaintainersURL)
+	if err != nil {
+		return fmt.Errorf("unable to get emeritus maintainers: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unable to get emeritus maintainers: %s", resp.Status)
+	}
+
+	emeritus, err := readEmeritusMaintainers(resp.Body)
+	if err != nil {
+		return fmt.Errorf("unable to parse emeritus maintainers: %v", err)
+	}
+
+	for _, user := range emeritus {
+		ss.addUsers(user)
+		markEmeritusMaintainer("istio", maintainers, user)
+	}
+	return nil
 }
 
 func (ss *syncState) handleCODEOWNERS(repo gh.RepoDesc, maintainers map[string]*storage.Maintainer, fc *github.RepositoryContent) error {
